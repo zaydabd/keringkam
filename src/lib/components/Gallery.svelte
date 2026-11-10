@@ -59,6 +59,7 @@
     <a class="mark" href="#/">Keringkam</a>
     <nav>
       <button type="button" onclick={() => (indexOpen = true)}>Index</button>
+      <a href="#/veranda">Veranda</a>
       <a href="#/studies">Studies</a>
     </nav>
   </header>

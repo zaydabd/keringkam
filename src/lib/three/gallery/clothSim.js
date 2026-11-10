@@ -33,6 +33,7 @@ export class ClothSim {
     this.zMax = new Float32Array(n).fill(Infinity);
     // Bars the cloth rests on: cylinders along x, { y, z, r, x0, x1 }.
     this.cylinders = [];
+    this.floorY = -Infinity; // the cloth rests on a floor at this height
     this.contact = new Uint8Array(n);
 
     // Rest shape: hanging flat, top edge at y = 0.
@@ -105,6 +106,7 @@ export class ClothSim {
       const lo = Math.max(zMin[i], wallZ);
       if (pos[x + 2] < lo) pos[x + 2] = lo;
       if (pos[x + 2] > zMax[i]) pos[x + 2] = zMax[i];
+      if (pos[x + 1] < this.floorY) pos[x + 1] = this.floorY;
       for (const c of this.cylinders) {
         if (pos[x] < c.x0 || pos[x] > c.x1) continue;
         const dy = pos[x + 1] - c.y;
