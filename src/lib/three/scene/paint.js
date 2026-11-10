@@ -53,10 +53,11 @@ function blot(g, W, x, y, rx, ry, rgb, a) {
 
 /**
  * Wood planks. One tile is 2 m along the grain (canvas x) by 0.5 m across (canvas y), so with
- * UVs in metres the texture repeat is (0.5, 2). `weathered` adds the silver-grey streaks and
+ * UVs in metres the texture repeat is (0.5, 2). `brushy` (walls, after R2): long soft brush
+ * streaks and only a few faint grain lines, no knots. `weathered` adds the silver-grey streaks and
  * checks of sun-bleached timber, as on the rails and benches in H1/H4.
  */
-export function paintPlanks(seed = 1, { weathered = false } = {}) {
+export function paintPlanks(seed = 1, { weathered = false, brushy = false } = {}) {
   const r = rng(seed);
   const W = 1024;
   const H = 256;
@@ -71,10 +72,10 @@ export function paintPlanks(seed = 1, { weathered = false } = {}) {
   }
 
   // Broad soft streaks of lighter and darker wood.
-  for (let i = 0; i < 70; i++) {
+  for (let i = 0; i < (brushy ? 110 : 70); i++) {
     const y0 = r() * H;
     const h = 3 + r() * 16;
-    const a = 0.03 + r() * 0.06;
+    const a = brushy ? 0.05 + r() * 0.09 : 0.03 + r() * 0.06;
     const k = 1 + Math.floor(r() * 3);
     const ph = r() * Math.PI * 2;
     const amp = 2 + r() * 6;
@@ -88,8 +89,8 @@ export function paintPlanks(seed = 1, { weathered = false } = {}) {
   // Grain strokes, as if drawn with a fine brush; some sweep around a knot.
   g.lineCap = 'round';
   const knots = [];
-  for (let i = 0; i < 3; i++) knots.push([r() * W, 30 + r() * (H - 60), 8 + r() * 10]);
-  for (let i = 0; i < 26; i++) {
+  for (let i = 0; i < (brushy ? 0 : 3); i++) knots.push([r() * W, 30 + r() * (H - 60), 8 + r() * 10]);
+  for (let i = 0; i < (brushy ? 9 : 26); i++) {
     const y0 = r() * H;
     const amp = 1 + r() * 4;
     const k = 1 + Math.floor(r() * 3);

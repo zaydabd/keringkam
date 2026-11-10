@@ -64,6 +64,7 @@ The skill pack has no watercolour/NPR skill. The look follows `threejs-procedura
 - Pigment field: domain-warped fbm in screen pixels (~180 px blotches, ~45 px mottle). It drives the wash, granulation, wet-edge darkening and bleed, so they agree.
 - Grade: lifted warm blacks (`#2e2420`), cream paper whites (`#fbf3e4`), saturation 0.82, contrast 0.9.
 - Materials: a soft 5-band ramp (linear-filtered) with a lavender-grey shade band; lighter hemisphere light; exposure 1.3; browner walls, warmer floor; brown ink at strength 0.65.
+- Walls (R2): mid brown `#9a7456` instead of dark red-brown; a `brushy` plank texture (long soft streaks, few grain lines, no knots); more value difference between boards (tint 0.3); darker low down and lighter up top (in the wall material's shader, since the ink pass tells parts apart by vertex colour); plank seams drawn darker (`seams` uniform in `toon.js`, multiplicative so they show on dark wood).
 - Debug: `?debug=paint-off`, `paint-pigment`, `paint-edge`, `paint-bleed`.
 - Camera near plane 0.05 → 0.2: at 0.05 the 400 m ground plane drew over the near floor on tall screens.
 

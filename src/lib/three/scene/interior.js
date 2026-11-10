@@ -26,7 +26,7 @@ import { PIGMENT_SHADER, GRADE_SHADER } from './watercolour.js';
 
 // Colours picked from R1, then lifted a little for the painted look.
 export const PALETTE = {
-  wall: '#56382a', // red-brown boards (browner, as in R2)
+  wall: '#9a7456', // mid brown boards, as in R2
   frame: '#6a3a24', // window frames, dado rail
   floor: '#8a6c54', // brown floor boards, a little grey
   wood: '#d0904a', // golden furniture
@@ -204,6 +204,23 @@ function boardWall(b, from, to, top, openings, at) {
   }
 }
 
+const WALL_TINT = 0.3; // R2: neighbouring boards differ clearly in value
+
+/**
+ * R2's walls are darker low down and lighter up near the ceiling. Done in the material, not in the
+ * vertex colours: the ink pass tells parts apart by their vertex colour.
+ */
+function shadeWalls(material, top) {
+  material.onBeforeCompile = (shader) => {
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying float vWallY;')
+      .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvWallY = (modelMatrix * vec4(transformed, 1.0)).y;');
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\nvarying float vWallY;')
+      .replace('#include <color_fragment>', `#include <color_fragment>\ndiffuseColor.rgb *= mix(0.72, 1.12, smoothstep(0.0, ${top.toFixed(2)}, vWallY));`);
+  };
+}
+
 function buildRoom(b) {
   const { x0, x1, z0, z1, top } = PLAN.room;
   const W = PLAN.window;
@@ -218,13 +235,13 @@ function buildRoom(b) {
   }
   // Back wall (the window wall), boards outside the room line so the inner face is at z0.
   const back = PLAN.backWindows.map((w) => [w.x0, w.x1, 0, W.y1]);
-  boardWall(b, x0, x1, top, back, (a, y, w, h) => b.box('wall', w, h, 0.025, a, y, z0 - 0.0125));
+  boardWall(b, x0, x1, top, back, (a, y, w, h) => b.box('wall', w, h, 0.025, a, y, z0 - 0.0125, 0, 0, 0, WALL_TINT));
   // Right wall, with the window near the camera.
   const s = PLAN.sideWindow;
-  boardWall(b, z0, z1, top, [[s.z0, s.z1, s.y0, W.y1]], (a, y, w, h) => b.box('wall', 0.025, h, w, x1 + 0.0125, y, a));
+  boardWall(b, z0, z1, top, [[s.z0, s.z1, s.y0, W.y1]], (a, y, w, h) => b.box('wall', 0.025, h, w, x1 + 0.0125, y, a, 0, 0, 0, WALL_TINT));
   // Left and front walls (out of shot: they close the room and cast shadows). Ceiling boards.
-  boardWall(b, z0, z1, top, [], (a, y, w, h) => b.box('wall', 0.025, h, w, x0 - 0.0125, y, a));
-  boardWall(b, x0, x1, top, [], (a, y, w, h) => b.box('wall', w, h, 0.025, a, y, z1 + 0.0125));
+  boardWall(b, z0, z1, top, [], (a, y, w, h) => b.box('wall', 0.025, h, w, x0 - 0.0125, y, a, 0, 0, 0, WALL_TINT));
+  boardWall(b, x0, x1, top, [], (a, y, w, h) => b.box('wall', w, h, 0.025, a, y, z1 + 0.0125, 0, 0, 0, WALL_TINT));
   for (const [a0, a1] of boardRuns(z0, z1, [])) b.box('ceiling', x1 - x0, 0.02, a1 - a0 - 0.004, (x0 + x1) / 2, top + 0.01, (a0 + a1) / 2);
   for (let x = x0 + 0.6; x < x1; x += 1.2) b.box('ceiling', 0.1, 0.14, z1 - z0, x, top - 0.07, (z0 + z1) / 2);
 
@@ -566,6 +583,7 @@ export function createInterior(canvas, { onReady } = {}) {
   const textures = {
     planks: paintPlanks(),
     floor: paintPlanks(9, { weathered: true }),
+    wall: paintPlanks(5, { brushy: true }),
     lattice: paintLattice(),
     carve: paintLattice(17),
     valance: paintCurtain(12, 'valance'),
@@ -582,7 +600,7 @@ export function createInterior(canvas, { onReady } = {}) {
   const materials = {};
   for (const [key, color, map, extra] of [
     ['floor', PALETTE.floor, textures.floor],
-    ['wall', PALETTE.wall, textures.planks],
+    ['wall', PALETTE.wall, textures.wall],
     ['ceiling', '#3a2116', textures.planks],
     ['frame', PALETTE.frame, textures.planks],
     ['wood', PALETTE.wood, textures.planks],
@@ -606,6 +624,7 @@ export function createInterior(canvas, { onReady } = {}) {
     }
   }
 
+  shadeWalls(materials.wall, PLAN.room.top);
   const b = new Builder();
   buildRoom(b);
   buildLattice(b);
@@ -644,6 +663,7 @@ export function createInterior(canvas, { onReady } = {}) {
   const outline = createOutline(renderer, scene, camera, { ink: PALETTE.ink });
   outline.material.uniforms.split.value = 0.18; // keep the dark wood warm
   outline.material.uniforms.strength.value = 0.65; // thinner, lighter lines, as in R2
+  outline.material.uniforms.seams.value = 0.75; // but R2 draws every plank seam clearly
   const composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
   composer.addPass(new ShaderPass(outline.material));

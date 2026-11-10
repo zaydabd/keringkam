@@ -57,6 +57,7 @@ const OUTLINE_SHADER = {
     ink: { value: new THREE.Color('#3a2418') },
     strength: { value: 0.9 },
     split: { value: 0.7 }, // how far dark tones lean blue (0 = not at all)
+    seams: { value: 0.5 }, // ink between touching parts (planks), relative to silhouettes
     thickness: { value: 1 },
     fade: { value: new THREE.Vector2(7, 26) },
   },
@@ -68,7 +69,7 @@ const OUTLINE_SHADER = {
     #include <packing>
     uniform sampler2D tDiffuse, tEdge, tDepth;
     uniform vec2 resolution, fade;
-    uniform float cameraNear, cameraFar, strength, thickness, split;
+    uniform float cameraNear, cameraFar, strength, thickness, split, seams;
     uniform vec3 ink;
     varying vec2 vUv;
 
@@ -111,11 +112,13 @@ const OUTLINE_SHADER = {
         idEdge += step(0.002, abs(e.a - ec.a));
       }
       float edge = max(smoothstep(0.06, 0.16, depthEdge), smoothstep(0.35, 0.7, normalEdge));
-      edge = max(edge, min(idEdge, 1.0) * 0.5); // seams between parts: lighter than silhouettes and creases
+      float seam = min(idEdge, 1.0) * seams; // seams between parts (planks): lighter than silhouettes and creases
+      edge = max(edge, seam * 0.5);
       // Thinner and fainter with distance; nothing on the sky.
       edge *= 1.0 - smoothstep(fade.x, fade.y, min(dc, depthAt(uv + vec2(px.x * t, 0.0))));
       edge *= 0.8 + 0.2 * noise(q * 3.1);
       vec3 col = mix(base.rgb, ink, edge * strength);
+      col *= 1.0 - seam * 0.55 * (1.0 - smoothstep(fade.x, fade.y, dc)); // seams darken whatever they cross, so they show on dark wood too
       // Paper grain: fine tooth plus a faint larger mottling, like watercolour paper.
       vec2 fc = gl_FragCoord.xy;
       float tooth = noise(fc * 0.85) * 0.6 + noise(fc * 0.21 + 3.0) * 0.4;
