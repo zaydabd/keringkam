@@ -1,6 +1,7 @@
-// The main gallery: one keringkam at a time, simulated as soft cloth hanging from a thin brass
-// rod in front of a warm wall. A light breeze moves it, the pointer stirs it, and it can be
-// grabbed and pulled. Changing piece slides the rod away and the next one swings in and settles.
+// The main gallery: one keringkam at a time, simulated as soft cloth folded over a brass rail
+// in front of a warm wall: part of it falls behind the rail, the rest hangs in front. A light
+// breeze moves it, the pointer stirs it, and it can be grabbed and pulled. Changing piece slides
+// the rail away and the next one swings in and settles.
 
 import * as THREE from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
@@ -10,11 +11,13 @@ import { fabrics, wrap, loopDistance, createTextureStore } from '../common.js';
 const easeInOutSine = (p) => -(Math.cos(Math.PI * Math.min(1, Math.max(0, p))) - 1) / 2;
 
 const WALL_COLOUR = '#ece5da';
-const ROD_COLOUR = '#b08a52';
-const ROD_Y = 0.5; // the cloth hangs down from here
+const ROD_COLOUR = '#c9a874'; // soft brushed brass
+const ROD_Y = 0.5; // height of the rail's centre
+const ROD_R = 0.011; // rail radius
+const WRAP_R = ROD_R + 0.004; // the cloth rests just outside the rail
+const BACK = 0.38; // share of the cloth's length that falls behind the rail
 const WALL_Z = -0.42;
 const PARTICLES = 46; // along the longer side of each cloth
-const GATHER = 0.9; // the top edge is pinned slightly narrower than the cloth, so it falls in soft folds
 const SLIDE_S = 2.1;
 const SLIDE_DISTANCE = 1.5;
 const STEP = 1 / 60;
@@ -88,20 +91,50 @@ export function createGallery(canvas, { onChange, onReady } = {}) {
   wall.receiveShadow = true;
   scene.add(wall);
 
-  const rodGeometry = new THREE.CylinderGeometry(0.006, 0.006, 1, 20).rotateZ(Math.PI / 2);
-  const capGeometry = new THREE.SphereGeometry(0.013, 20, 12);
+  const rodGeometry = new THREE.CylinderGeometry(ROD_R, ROD_R, 1, 32).rotateZ(Math.PI / 2);
+  const capGeometry = new THREE.SphereGeometry(ROD_R * 1.3, 24, 16);
+  // Brackets from the rail back to the wall, and the round plates they are fixed to.
+  const armGeometry = new THREE.CylinderGeometry(0.0035, 0.0035, -WALL_Z, 12).rotateX(Math.PI / 2);
+  const plateGeometry = new THREE.CylinderGeometry(0.016, 0.016, 0.005, 24).rotateX(Math.PI / 2);
 
   const store = createTextureStore(renderer);
 
-  // ---- a hanging piece ----
+  // ---- a piece folded over the rail ----
   function makePiece(i) {
     const { w, h } = clothSize(i);
     const cols = w >= h ? PARTICLES : Math.max(10, Math.round((PARTICLES * w) / h));
     const rows = w >= h ? Math.max(10, Math.round((PARTICLES * h) / w)) : PARTICLES;
-    const sim = new ClothSim(w, h, cols, rows);
-    sim.translate(0, ROD_Y, 0);
-    // A whisper of depth so the folds have a direction to fall.
-    for (let k = 0; k < sim.count; k++) sim.pos[k * 3 + 2] = sim.prev[k * 3 + 2] = Math.sin(k * 12.9898) * 0.002;
+    const sim = new ClothSim(w, h, cols, rows); // rest lengths come from the flat cloth
+
+    // Lay it over the rail: the top of the picture falls behind, then the cloth wraps over the
+    // rail at the fold row and hangs down in front, so the front reads the right way up.
+    const foldRow = Math.round(BACK * (rows - 1));
+    const spacing = h / (rows - 1);
+    const arc = (Math.PI * WRAP_R) / 2;
+    for (let r = 0; r < rows; r++) {
+      const u = (r - foldRow) * spacing; // distance along the cloth from the fold
+      let y;
+      let z;
+      if (u > arc) {
+        y = ROD_Y - (u - arc);
+        z = WRAP_R;
+      } else if (u < -arc) {
+        y = ROD_Y - (-u - arc);
+        z = -WRAP_R;
+      } else {
+        y = ROD_Y + WRAP_R * Math.cos(u / WRAP_R);
+        z = WRAP_R * Math.sin(u / WRAP_R);
+      }
+      for (let c = 0; c < cols; c++) {
+        const k = r * cols + c;
+        sim.pos[k * 3 + 1] = sim.prev[k * 3 + 1] = y;
+        sim.pos[k * 3 + 2] = sim.prev[k * 3 + 2] = z + Math.sin(k * 12.9898) * 0.001;
+        // The two layers may not pass through each other: front stays in front of the rail's
+        // centre line, back stays behind it.
+        if (r > foldRow + 1) sim.zMin[k] = 0.004;
+        if (r < foldRow - 1) sim.zMax[k] = -0.004;
+      }
+    }
 
     const geometry = new THREE.BufferGeometry();
     geometry.setAttribute('position', new THREE.BufferAttribute(sim.pos, 3).setUsage(THREE.DynamicDrawUsage));
@@ -140,26 +173,34 @@ export function createGallery(canvas, { onChange, onReady } = {}) {
     mesh.frustumCulled = false;
     mesh.visible = false;
 
-    const rodMaterial = new THREE.MeshStandardMaterial({ color: ROD_COLOUR, metalness: 1, roughness: 0.32, transparent: true, opacity: 0 });
+    const rodMaterial = new THREE.MeshStandardMaterial({ color: ROD_COLOUR, metalness: 0.85, roughness: 0.42, transparent: true, opacity: 0 });
     const rod = new THREE.Group();
+    const length = w + 0.16;
     const bar = new THREE.Mesh(rodGeometry, rodMaterial);
-    bar.scale.x = w * GATHER + 0.1;
-    const capL = new THREE.Mesh(capGeometry, rodMaterial);
-    const capR = new THREE.Mesh(capGeometry, rodMaterial);
-    capL.position.x = -(w * GATHER + 0.1) / 2;
-    capR.position.x = (w * GATHER + 0.1) / 2;
-    rod.add(bar, capL, capR);
-    rod.position.y = ROD_Y + 0.004;
+    bar.scale.x = length;
+    rod.add(bar);
+    for (const side of [-1, 1]) {
+      const cap = new THREE.Mesh(capGeometry, rodMaterial);
+      cap.position.x = (side * length) / 2;
+      const arm = new THREE.Mesh(armGeometry, rodMaterial);
+      arm.position.set(side * (length / 2 - 0.035), 0, WALL_Z / 2);
+      const plate = new THREE.Mesh(plateGeometry, rodMaterial);
+      plate.position.set(side * (length / 2 - 0.035), 0, WALL_Z);
+      rod.add(cap, arm, plate);
+    }
+    rod.position.y = ROD_Y;
     rod.visible = false;
     scene.add(mesh, rod);
 
-    // Pin every second particle of the top edge (and the corners) to the rod.
-    const pins = [];
-    for (let c = 0; c < cols; c += 2) pins.push(c);
-    if (pins[pins.length - 1] !== cols - 1) pins.push(cols - 1);
+    // The fold row is held along the top of the rail (the rest rests on it by collision and
+    // friction); tethers to it keep the cloth from stretching.
+    const pins = Array.from({ length: cols }, (_, c) => foldRow * cols + c);
     sim.setTethers(pins);
+    const rail = { y: ROD_Y, z: 0, r: WRAP_R, x0: 0, x1: 0 };
+    sim.cylinders.push(rail);
 
-    return { i, w, h, sim, mesh, rod, material, rodMaterial, pins, x: 0, opacity: 0, wind: Math.random() * 100 };
+    const drop = h - foldRow * spacing; // how far the front layer hangs below the top of the rail
+    return { i, w, h, drop, sim, mesh, rod, rail, length, material, rodMaterial, pins, x: 0, opacity: 0, wind: Math.random() * 100 };
   }
 
   /** Loads the piece's texture (preview, then full size); onFirst runs once it is visible. */
@@ -178,16 +219,18 @@ export function createGallery(canvas, { onChange, onReady } = {}) {
   }
 
   function pinToRod(p) {
-    for (const c of p.pins) {
-      const restX = (c / (p.sim.cols - 1) - 0.5) * p.w;
-      p.sim.pin(c, p.x + restX * GATHER, ROD_Y, 0);
+    for (const k of p.pins) {
+      const restX = ((k % p.sim.cols) / (p.sim.cols - 1) - 0.5) * p.w;
+      p.sim.pin(k, p.x + restX, ROD_Y + WRAP_R, 0);
     }
+    p.rail.x0 = p.x - p.length / 2;
+    p.rail.x1 = p.x + p.length / 2;
     p.rod.position.x = p.x;
     p.material.opacity = p.opacity;
     p.rodMaterial.opacity = p.opacity;
     // Shadows ignore opacity, so only cast one once the piece is mostly visible.
     p.mesh.castShadow = p.opacity > 0.4;
-    p.rod.children.forEach((m) => (m.castShadow = p.opacity > 0.4));
+    p.rod.children.forEach((m) => (m.castShadow = p.opacity > 0.4 && m.geometry !== plateGeometry));
   }
 
   function disposePiece(p) {
@@ -248,9 +291,10 @@ export function createGallery(canvas, { onChange, onReady } = {}) {
     const fillH = portrait ? 0.56 : 0.7;
     const fillW = portrait ? 0.8 : 0.62;
     const centre = portrait ? 0.41 : 0.46;
-    const dist = Math.max(p.h / fillH / (2 * tan), p.w / fillW / (2 * tan * camera.aspect));
+    const height = p.drop + 0.05; // the front layer, plus the rail above it
+    const dist = Math.max(height / fillH / (2 * tan), (p.length + 0.05) / fillW / (2 * tan * camera.aspect));
     const visibleH = 2 * dist * tan;
-    const clothCentre = ROD_Y - p.h / 2;
+    const clothCentre = ROD_Y + WRAP_R + 0.02 - height / 2;
     const y = clothCentre - (0.5 - centre) * visibleH;
     lookTarget.set(0, y, 0);
     cameraGoal.set(0, y + 0.03, dist);
@@ -498,6 +542,8 @@ export function createGallery(canvas, { onChange, onReady } = {}) {
       for (const p of [current, ...leaving]) if (p) disposePiece(p);
       rodGeometry.dispose();
       capGeometry.dispose();
+      armGeometry.dispose();
+      plateGeometry.dispose();
       wall.geometry.dispose();
       wall.material.dispose();
       environment.dispose();

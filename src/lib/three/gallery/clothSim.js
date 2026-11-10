@@ -5,6 +5,7 @@
 //   bend        – every second particle: weak, so the fabric folds softly
 //   tethers     – each particle may be no farther from its nearest anchor than it was at rest,
 //                 which stops the cloth stretching like rubber without extra iterations
+// It also collides with a wall and with bars (cylinders), with friction on the bars.
 // References: Thomas Jakobsen, "Advanced Character Physics" (GDC 2001);
 // Kim, Chentanez & Müller, "Long Range Attachments" (SCA 2012).
 
@@ -27,6 +28,12 @@ export class ClothSim {
     this.force = new Float32Array(n * 3);
     this.pinned = new Uint8Array(n);
     this.pinTarget = new Float32Array(n * 3);
+    // Per-particle depth limits, e.g. to keep two layers of a folded cloth apart.
+    this.zMin = new Float32Array(n).fill(-Infinity);
+    this.zMax = new Float32Array(n).fill(Infinity);
+    // Bars the cloth rests on: cylinders along x, { y, z, r, x0, x1 }.
+    this.cylinders = [];
+    this.contact = new Uint8Array(n);
 
     // Rest shape: hanging flat, top edge at y = 0.
     for (let r = 0; r < rows; r++) {
@@ -88,6 +95,30 @@ export class ClothSim {
     }
   }
 
+  /** Wall, layer limits and bars. Records which particles touch a bar. */
+  collide(wallZ) {
+    const { pos, pinned, zMin, zMax, contact } = this;
+    contact.fill(0);
+    for (let i = 0; i < this.count; i++) {
+      if (pinned[i]) continue;
+      const x = i * 3;
+      const lo = Math.max(zMin[i], wallZ);
+      if (pos[x + 2] < lo) pos[x + 2] = lo;
+      if (pos[x + 2] > zMax[i]) pos[x + 2] = zMax[i];
+      for (const c of this.cylinders) {
+        if (pos[x] < c.x0 || pos[x] > c.x1) continue;
+        const dy = pos[x + 1] - c.y;
+        const dz = pos[x + 2] - c.z;
+        const d2 = dy * dy + dz * dz;
+        if (d2 >= c.r * c.r) continue;
+        const d = Math.sqrt(d2) || 1e-6;
+        pos[x + 1] = c.y + (dy / d) * c.r;
+        pos[x + 2] = c.z + (dz / d) * c.r;
+        contact[i] = 1;
+      }
+    }
+  }
+
   distance(a, b) {
     const p = this.pos;
     return Math.hypot(p[b * 3] - p[a * 3], p[b * 3 + 1] - p[a * 3 + 1], p[b * 3 + 2] - p[a * 3 + 2]);
@@ -120,7 +151,7 @@ export class ClothSim {
    * Advances the simulation by dt seconds.
    * Add per-particle accelerations to this.force before calling; they are cleared after.
    */
-  step(dt, { gravity = -9.8, damping = 0.985, iterations = 14, wallZ = -Infinity } = {}) {
+  step(dt, { gravity = -9.8, damping = 0.985, iterations = 14, wallZ = -Infinity, friction = 0.7 } = {}) {
     const { pos, prev, force, pinned, pinTarget } = this;
     const dt2 = dt * dt;
     for (let i = 0; i < this.count; i++) {
@@ -167,8 +198,14 @@ export class ClothSim {
         pos[bx + 1] -= dy * c * wb;
         pos[bx + 2] -= dz * c * wb;
       }
-      // Keep the cloth in front of the wall behind it.
-      for (let i = 0; i < this.count; i++) if (pos[i * 3 + 2] < wallZ) pos[i * 3 + 2] = wallZ;
+      this.collide(wallZ);
+    }
+
+    // Friction where the cloth touches a bar: most of its sliding motion is lost.
+    for (let i = 0; i < this.count; i++) {
+      if (!this.contact[i] || pinned[i]) continue;
+      const x = i * 3;
+      for (let a = 0; a < 3; a++) prev[x + a] = pos[x + a] - (pos[x + a] - prev[x + a]) * (1 - friction);
     }
 
     if (this.tetherTo) {
