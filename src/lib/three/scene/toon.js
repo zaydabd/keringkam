@@ -113,7 +113,13 @@ const OUTLINE_SHADER = {
       // Thinner and fainter with distance; nothing on the sky.
       edge *= 1.0 - smoothstep(fade.x, fade.y, min(dc, depthAt(uv + vec2(px.x * t, 0.0))));
       edge *= 0.8 + 0.2 * noise(q * 3.1);
-      gl_FragColor = vec4(mix(base.rgb, ink, edge * strength), base.a);
+      vec3 col = mix(base.rgb, ink, edge * strength);
+      // Paper grain: fine tooth plus a faint larger mottling, like watercolour paper.
+      vec2 fc = gl_FragCoord.xy;
+      float tooth = noise(fc * 0.85) * 0.6 + noise(fc * 0.21 + 3.0) * 0.4;
+      float mottle = noise(fc * 0.012 + 11.0);
+      col *= 0.955 + 0.07 * tooth + 0.04 * (mottle - 0.5);
+      gl_FragColor = vec4(col, base.a);
     }
   `,
 };

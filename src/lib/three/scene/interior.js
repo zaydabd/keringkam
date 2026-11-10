@@ -94,7 +94,7 @@ class Builder {
   /** A round pole of radius r from a to b; UVs in metres, along the pole (grain) and around it. */
   pole(key, a, b, r, tint, segs = 7) {
     const len = a.distanceTo(b);
-    const g = new THREE.CylinderGeometry(r, r, len, segs, 1, true);
+    const g = new THREE.CylinderGeometry(r, r, len, segs, 1, false); // capped: no hollow log ends
     const pos = g.attributes.position;
     const uv = g.attributes.uv;
     for (let i = 0; i < uv.count; i++) uv.setXY(i, pos.getY(i), uv.getX(i) * Math.PI * 2 * r);
@@ -400,20 +400,20 @@ export function createInterior(canvas, { onReady } = {}) {
   scene.add(sun, hemi);
 
   const gradientMap = toonGradient();
-  const textures = { planks: paintPlanks(), thatch: paintThatch(), mat: paintMat(), post: paintPost() };
+  const textures = { planks: paintPlanks(), weathered: paintPlanks(9, { weathered: true }), thatch: paintThatch(), mat: paintMat(), post: paintPost() };
   const aniso = Math.min(4, renderer.capabilities.getMaxAnisotropy());
   for (const t of Object.values(textures)) t.anisotropy = aniso;
   const materials = {};
   for (const [key, color, map] of [
     ['floor', '#c2a47e', textures.planks],
     ['bamboo', '#d9bd84', textures.mat],
-    ['timber', '#9a7650', textures.planks],
+    ['timber', '#a6845e', textures.planks],
     ['rafter', '#cfae7c', textures.planks],
     ['lath', '#d2b07a', textures.planks],
-    ['rail', '#ab9a82', textures.planks],
-    ['bench', '#ad9070', textures.planks],
+    ['rail', '#b0a089', textures.weathered],
+    ['bench', '#b39878', textures.weathered],
     ['post', '#ffffff', textures.post],
-    ['thatch', '#b08a58', textures.thatch],
+    ['thatch', '#c29a66', textures.thatch],
     ['wall', PALETTE.wall, textures.planks],
   ]) {
     materials[key] = new THREE.MeshToonMaterial({ color, map, vertexColors: true, gradientMap });
@@ -429,7 +429,7 @@ export function createInterior(canvas, { onReady } = {}) {
   const landscape = createLandscape({ gradientMap, rand, groundY: -1.85 });
   scene.add(landscape.group);
   camera.layers.enable(1);
-  scene.fog = new THREE.Fog('#c9d8c0', 28, 130); // aerial perspective on the far jungle
+  scene.fog = new THREE.Fog('#d3dec6', 16, 90); // aerial perspective on the far jungle
 
   const outline = createOutline(renderer, scene, camera, { ink: PALETTE.ink });
   const composer = new EffectComposer(renderer);

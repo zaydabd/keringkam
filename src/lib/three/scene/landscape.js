@@ -4,7 +4,8 @@
 
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { paintSky, paintFrond, paintBananaLeaf } from './paint.js';
+import { paintSky, paintFrond, paintBananaLeaf, paintLeafClump } from './paint.js';
+import { toonGradient } from './toon.js';
 
 /**
  * A leaf as a strip along a curve: out along `dir` for `len`, rising then drooping, folded
@@ -65,6 +66,9 @@ function skyLit(g, c) {
 export function createLandscape({ gradientMap, rand, groundY }) {
   const group = new THREE.Group();
   const disposables = [];
+  // Foliage gets a softer ramp: in soft afternoon light the shaded side of a tree stays green.
+  const leafRamp = toonGradient([[0.6, 0.68, 0.8], [0.86, 0.86, 0.86], [1.0, 0.98, 0.92]]);
+  disposables.push(leafRamp);
   const toon = (opts) => {
     const m = new THREE.MeshToonMaterial({ gradientMap, ...opts });
     disposables.push(m);
@@ -87,44 +91,98 @@ export function createLandscape({ gradientMap, rand, groundY }) {
   ground.receiveShadow = true;
   group.add(ground);
 
-  // Jungle canopy: each tree is a trunk and a cluster of blobs; all merged into two meshes.
+  // Jungle canopy. Each tree is a trunk and a cluster of blobs. Each blob is a dark core plus
+  // painted leaf-clump cards scattered over its surface; the cards take the blob's sphere normal,
+  // so the light falls on the clump as one soft mass while the edge breaks up into leaves.
   const blobs = [];
   const trunks = [];
   const blob = new THREE.IcosahedronGeometry(1, 2);
-  const away = (minR, maxR) => {
-    // anywhere around the house except behind the right-hand wall
-    const a = Math.PI * (0.35 + rand() * 1.4);
-    const rad = minR + rand() * (maxR - minR);
-    return [Math.cos(a) * rad, Math.sin(a) * rad];
+  const cardPos = [];
+  const cardNor = [];
+  const cardCol = [];
+  const cardUv = [];
+  const cardIdx = [];
+  const d = new THREE.Vector3();
+  const t1 = new THREE.Vector3();
+  const t2 = new THREE.Vector3();
+  const p = new THREE.Vector3();
+  const plane = new THREE.Vector3();
+  const addCards = (centre, radius, squash, color, count) => {
+    for (let k = 0; k < count; k++) {
+      // a random direction, biased upward and towards the outside of the tree
+      d.set(rand() * 2 - 1, rand() * 2 - 0.7, rand() * 2 - 1).normalize();
+      p.set(d.x * radius, d.y * radius * squash, d.z * radius).multiplyScalar(0.82 + rand() * 0.2).add(centre);
+      plane.set(d.x + (rand() - 0.5) * 0.7, d.y + (rand() - 0.5) * 0.7, d.z + (rand() - 0.5) * 0.7).normalize();
+      t1.set(rand() - 0.5, rand() - 0.5, rand() - 0.5).cross(plane).normalize();
+      t2.crossVectors(plane, t1);
+      const s = radius * (0.32 + rand() * 0.16) + 0.18;
+      const light = 0.78 + 0.5 * Math.max(0, d.y) + 0.12 * d.x + (rand() - 0.5) * 0.12;
+      const n0 = cardPos.length / 3;
+      for (const [a, b, u, v] of [[-1, -1, 0, 0], [1, -1, 1, 0], [1, 1, 1, 1], [-1, 1, 0, 1]]) {
+        cardPos.push(p.x + (t1.x * a + t2.x * b) * s, p.y + (t1.y * a + t2.y * b) * s, p.z + (t1.z * a + t2.z * b) * s);
+        cardNor.push(d.x, d.y, d.z);
+        cardCol.push(color.r * light, color.g * light * 1.02, color.b * light * 1.08);
+        cardUv.push(u, v);
+      }
+      cardIdx.push(n0, n0 + 1, n0 + 2, n0, n0 + 2, n0 + 3);
+    }
   };
-  for (let i = 0; i < 170; i++) {
-    const [x, z] = away(10, 50);
-    const h = 1.5 + rand() * 7;
-    const crown = 1.5 + rand() * 1.9;
-    const tr = new THREE.CylinderGeometry(0.18, 0.3, h, 6);
-    tr.translate(x, groundY + h / 2, z);
-    trunks.push(tint(tr, 1, 1, 1));
-    const hue = rand();
-    const base = new THREE.Color().setHSL(0.25 + hue * 0.09, 0.3 + rand() * 0.18, 0.24 + rand() * 0.12);
-    const n = 6 + Math.floor(rand() * 5);
+  const away = (minR, maxR, margin = 2.5) => {
+    // anywhere around the house except behind the right-hand wall, and never inside the house
+    // footprint (x -5..5, z -4..4, eaves 1.3 m) plus a margin for the crown
+    for (;;) {
+      const a = Math.PI * (0.35 + rand() * 1.4);
+      const rad = minR + rand() * (maxR - minR);
+      const x = Math.cos(a) * rad;
+      const z = Math.sin(a) * rad;
+      if (Math.abs(x) > 6.3 + margin || Math.abs(z) > 5.3 + margin) return [x, z, rad];
+    }
+  };
+  const centre = new THREE.Vector3();
+  // trees, then undergrowth bushes close to the house (h = 0: the crown sits on the ground)
+  const plants = [];
+  for (let i = 0; i < 210; i++) plants.push({ r: away(12, 50, 3.5), h: 0.5 + rand() * 6, crown: 1.9 + rand() * 1.6 });
+  for (let i = 0; i < 70; i++) plants.push({ r: away(6.5, 22, 1.6), h: -1.3, crown: 1.1 + rand() * 1.1, bush: true });
+  for (const { r: [x, z, dist], h, crown, bush } of plants) {
+    if (!bush) {
+      const tr = new THREE.CylinderGeometry(0.16, 0.3, h + crown * 0.6, 6);
+      tr.translate(x, groundY + (h + crown * 0.6) / 2, z);
+      trunks.push(tint(tr, 1, 1, 1));
+    }
+    const base = new THREE.Color().setHSL(0.24 + rand() * 0.1, 0.32 + rand() * 0.2, (bush ? 0.27 : 0.24) + rand() * 0.12);
+    const n = bush ? 3 + Math.floor(rand() * 3) : 5 + Math.floor(rand() * 4);
     for (let k = 0; k < n; k++) {
-      const g = blob.clone();
       const s = crown * (0.55 + rand() * 0.45);
-      g.scale(s, s * (0.75 + rand() * 0.2), s);
-      g.translate(x + (rand() - 0.5) * crown * 1.3, groundY + h + (rand() - 0.2) * crown * 0.9, z + (rand() - 0.5) * crown * 1.3);
+      const squash = 0.75 + rand() * 0.2;
+      centre.set(x + (rand() - 0.5) * crown * 1.4, groundY + h + crown * 0.5 + (rand() - 0.2) * crown * 0.9, z + (rand() - 0.5) * crown * 1.4);
       const c = base.clone().offsetHSL((rand() - 0.5) * 0.03, 0, (rand() - 0.3) * 0.08);
-      blobs.push(skyLit(g, c));
+      const g = blob.clone();
+      g.scale(s * 0.8, s * squash * 0.8, s * 0.8);
+      g.translate(centre.x, centre.y, centre.z);
+      blobs.push(skyLit(g, c.clone().offsetHSL(0.03, -0.05, -0.08).multiplyScalar(0.62))); // dark interior
+      // fewer cards on the far trees: they are small on screen
+      addCards(centre, s, squash, c, Math.round((dist < 34 ? 14 : 10) + s * 4));
     }
   }
   blob.dispose();
-  const canopy = new THREE.Mesh(mergeGeometries(blobs), toon({ color: '#ffffff', vertexColors: true }));
+  const canopy = new THREE.Mesh(mergeGeometries(blobs), toon({ color: '#ffffff', vertexColors: true, gradientMap: leafRamp }));
   const trunkMesh = new THREE.Mesh(mergeGeometries(trunks), toon({ color: '#6b5a48', vertexColors: true }));
   for (const g of [...blobs, ...trunks]) g.dispose();
-  group.add(canopy, trunkMesh);
+  const cards = new THREE.BufferGeometry();
+  cards.setAttribute('position', new THREE.Float32BufferAttribute(cardPos, 3));
+  cards.setAttribute('normal', new THREE.Float32BufferAttribute(cardNor, 3));
+  cards.setAttribute('color', new THREE.Float32BufferAttribute(cardCol, 3));
+  cards.setAttribute('uv', new THREE.Float32BufferAttribute(cardUv, 2));
+  cards.setIndex(cardIdx);
+  const clumpTex = paintLeafClump();
+  disposables.push(clumpTex);
+  // Front side only: a double-sided card would flip its normal and shade backwards.
+  const foliage = new THREE.Mesh(cards, toon({ color: '#ffffff', map: clumpTex, vertexColors: true, alphaTest: 0.5, gradientMap: leafRamp }));
+  group.add(canopy, trunkMesh, foliage);
 
   // Coconut palms (H1).
   const frondTex = paintFrond();
-  const leafMat = (map) => toon({ map, alphaTest: 0.5, side: THREE.DoubleSide });
+  const leafMat = (map, color = '#ffffff') => toon({ map, color, alphaTest: 0.5, side: THREE.DoubleSide });
   disposables.push(frondTex);
   const fronds = [];
   const palmTrunks = [];
@@ -144,9 +202,9 @@ export function createLandscape({ gradientMap, rand, groundY }) {
       fronds.push(leafStrip(top, dir, len, 1.5, 0.35 + rand() * 0.25, 0.9 + rand() * 0.5, 0.35, (rand() - 0.5) * 0.6));
     }
   };
-  for (let i = 0; i < 16; i++) {
-    const [x, z] = away(9, 30);
-    palm(x, z, 7 + rand() * 6, new THREE.Vector2(rand() - 0.5, rand() - 0.5));
+  for (let i = 0; i < 24; i++) {
+    const [x, z] = away(8, 28, 4.5);
+    palm(x, z, 5 + rand() * 4.5, new THREE.Vector2(rand() - 0.5, rand() - 0.5));
   }
   const palmMesh = new THREE.Mesh(mergeGeometries(fronds), leafMat(frondTex));
   const palmTrunkMesh = new THREE.Mesh(mergeGeometries(palmTrunks), toon({ color: '#8a7a64' }));
@@ -173,7 +231,7 @@ export function createLandscape({ gradientMap, rand, groundY }) {
     [-7.0, -2.4], [-7.4, 1.2], [-8.4, -6.2], [5.4, -7.6],
   ];
   for (const [x, z] of bananaSpots) banana(x + (rand() - 0.5) * 0.6, z + (rand() - 0.5) * 0.6, 2.2 + rand() * 0.6);
-  const bananaMesh = new THREE.Mesh(mergeGeometries(leaves), leafMat(bananaTex));
+  const bananaMesh = new THREE.Mesh(mergeGeometries(leaves), leafMat(bananaTex, '#c4cdb4'));
   const stemMesh = new THREE.Mesh(mergeGeometries(stems), toon({ color: '#7d9a4c' }));
   for (const g of [...leaves, ...stems]) g.dispose();
   group.add(bananaMesh, stemMesh);
