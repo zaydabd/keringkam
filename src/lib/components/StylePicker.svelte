@@ -1,65 +1,119 @@
 <script>
   import { styles } from '../three/styles/index.js';
+
+  const studies = styles.filter((s) => s.group === 'studies');
+  const earlier = styles.filter((s) => s.group === 'earlier');
 </script>
 
 <main>
-  <h1>Keringkam</h1>
-  <ul>
-    {#each styles as style (style.id)}
+  <header>
+    <p class="kk-mono">Keringkam — {studies.length} studies</p>
+    <h1 class="kk-wide">Keringkam</h1>
+  </header>
+
+  <ol>
+    {#each studies as style, k (style.id)}
       <li>
         <a href={`#/${style.id}`}>
-          <span class="name">{style.name}</span>
+          <span class="num kk-mono">{String(k + 1).padStart(2, '0')}</span>
+          <span class="name kk-wide">{style.name}</span>
           <span class="description">{style.description}</span>
+          <span class="after kk-mono">After: {style.after}</span>
         </a>
       </li>
     {/each}
-  </ul>
+  </ol>
+
+  <section>
+    <h2 class="kk-mono">Earlier experiments</h2>
+    <p class="earlier">
+      {#each earlier as style, k (style.id)}
+        <a href={`#/${style.id}`}>{style.name}</a>{k < earlier.length - 1 ? ' · ' : ''}
+      {/each}
+    </p>
+  </section>
 </main>
 
 <style>
   main {
     box-sizing: border-box;
     min-height: 100vh;
-    max-width: 640px;
+    max-width: 920px;
     margin: 0 auto;
-    padding: 64px 16px;
-    color: #eee;
-    font-family: Georgia, 'Times New Roman', serif;
+    padding: 56px 16px 80px;
+    color: #eeeae4;
+    font-family: var(--serif);
+  }
+  header p {
+    color: var(--accent);
+    margin: 0 0 12px;
   }
   h1 {
-    font-weight: normal;
-    font-size: 40px;
-    letter-spacing: 0.04em;
-    margin: 0 0 40px;
+    font-size: clamp(40px, 10vw, 112px);
+    margin: 0 0 48px;
   }
-  ul {
+  ol {
     list-style: none;
     margin: 0;
     padding: 0;
+    border-top: 1px solid #2c2a28;
   }
-  li + li {
-    border-top: 1px solid #2a2a2a;
+  li {
+    border-bottom: 1px solid #2c2a28;
   }
   a {
-    display: block;
-    padding: 20px 0;
     color: inherit;
     text-decoration: none;
   }
+  li a {
+    display: grid;
+    grid-template-columns: 48px 1fr;
+    gap: 6px 16px;
+    padding: 22px 0;
+  }
+  .num {
+    grid-row: span 3;
+    color: #8a857e;
+    padding-top: 8px;
+  }
   .name {
-    display: block;
-    font-size: 22px;
+    font-size: clamp(28px, 4.4vw, 48px);
+    transition: color 200ms;
   }
   .description {
-    display: block;
-    margin-top: 6px;
-    color: #999;
-    font-family: system-ui, sans-serif;
-    font-size: 15px;
-    line-height: 1.4;
+    font-size: 19px;
+    line-height: 1.35;
+    color: #c9c4bc;
+    max-width: 62ch;
   }
-  a:hover .name,
-  a:focus-visible .name {
-    color: #d9b46a;
+  .after {
+    color: #8a857e;
+  }
+  li a:hover .name,
+  li a:focus-visible .name {
+    color: var(--accent);
+  }
+  li a:focus-visible {
+    outline: 1px solid var(--accent);
+    outline-offset: 4px;
+  }
+  section {
+    margin-top: 48px;
+  }
+  h2 {
+    color: #8a857e;
+    font-weight: 400;
+    margin: 0 0 10px;
+  }
+  .earlier {
+    font-size: 19px;
+    margin: 0;
+  }
+  .earlier a {
+    border-bottom: 1px solid #4a4642;
+  }
+  .earlier a:hover {
+    color: var(--accent);
+    border-color: var(--accent);
   }
 </style>

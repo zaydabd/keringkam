@@ -78,7 +78,7 @@ async function main() {
       const name = file.replace(/\.png$/, '');
       const outBase = path.join(OUT_DIR, group, name);
       const { width, height } = await sharp(src).metadata();
-      manifest.push({ group, name, width, height });
+      manifest.push({ group, name, width, height, details: await findDetails(sharp, src) });
 
       const srcTime = fs.statSync(src).mtimeMs;
       const upToDate = SIZES.every(({ suffix }) => {
@@ -89,7 +89,7 @@ async function main() {
     }
   }
 
-  fs.writeFileSync(path.join(OUT_DIR, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
+  fs.writeFileSync(path.join(OUT_DIR, 'manifest.json'), JSON.stringify(manifest) + '\n');
   console.log(`${manifest.length} images, ${jobs.length} to encode`);
   if (!jobs.length) return;
 
@@ -113,4 +113,61 @@ async function main() {
       next();
     })),
   );
+}
+
+/**
+ * Finds the most detailed square areas of an image (highest average edge strength, e.g.
+ * dense embroidery), ignoring transparent parts. Returns up to `count` non-overlapping
+ * areas as { u, v, size }: centre in texture coordinates (v = 0 at the bottom, as in
+ * three.js) and side length as a fraction of the image's shorter side.
+ */
+async function findDetails(sharp, src, count = 5) {
+  const { data, info } = await sharp(src)
+    .resize(256, 256, { fit: 'inside' })
+    .ensureAlpha()
+    .raw()
+    .toBuffer({ resolveWithObject: true });
+  const { width: w, height: h } = info;
+  const lum = new Float32Array(w * h);
+  const alpha = new Float32Array(w * h);
+  for (let i = 0; i < w * h; i++) {
+    lum[i] = (0.299 * data[i * 4] + 0.587 * data[i * 4 + 1] + 0.114 * data[i * 4 + 2]) / 255;
+    alpha[i] = data[i * 4 + 3] / 255;
+  }
+  // Sobel edge strength.
+  const edge = new Float32Array(w * h);
+  for (let y = 1; y < h - 1; y++) {
+    for (let x = 1; x < w - 1; x++) {
+      const at = (dx, dy) => lum[(y + dy) * w + x + dx];
+      const gx = at(1, -1) + 2 * at(1, 0) + at(1, 1) - at(-1, -1) - 2 * at(-1, 0) - at(-1, 1);
+      const gy = at(-1, 1) + 2 * at(0, 1) + at(1, 1) - at(-1, -1) - 2 * at(0, -1) - at(1, -1);
+      edge[y * w + x] = Math.hypot(gx, gy);
+    }
+  }
+  const size = 0.2; // window side, as a fraction of the shorter side
+  const win = Math.max(8, Math.round(size * Math.min(w, h)));
+  const step = Math.max(2, Math.round(win / 4));
+  const windows = [];
+  for (let y = 0; y + win <= h; y += step) {
+    for (let x = 0; x + win <= w; x += step) {
+      let sum = 0;
+      let opaque = 0;
+      for (let yy = y; yy < y + win; yy++) {
+        for (let xx = x; xx < x + win; xx++) {
+          sum += edge[yy * w + xx];
+          opaque += alpha[yy * w + xx];
+        }
+      }
+      if (opaque / (win * win) < 0.97) continue; // skip windows that touch the cut-out edge
+      windows.push({ x: x + win / 2, y: y + win / 2, score: sum / (win * win) });
+    }
+  }
+  windows.sort((a, b) => b.score - a.score);
+  const picked = [];
+  for (const c of windows) {
+    if (picked.every((p) => Math.hypot(p.x - c.x, p.y - c.y) > win * 1.1)) picked.push(c);
+    if (picked.length === count) break;
+  }
+  const round = (n) => Math.round(n * 1000) / 1000;
+  return picked.map((p) => ({ u: round(p.x / w), v: round(1 - p.y / h), size }));
 }

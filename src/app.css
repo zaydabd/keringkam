@@ -1,0 +1,97 @@
+/* Shared look for all showcase styles.
+   Fonts: Archivo (expanded, for big type), Instrument Serif, IBM Plex Mono.
+   Flat colours only: no gradient backgrounds. */
+
+:root {
+  --wide: 'Archivo', 'Arial Narrow', sans-serif;
+  --serif: 'Instrument Serif', Georgia, serif;
+  --mono: 'IBM Plex Mono', ui-monospace, monospace;
+  --accent: #c8102e;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: #111;
+}
+
+/* Layers that styles draw into, on top of / behind the canvas. They are absolutely
+   positioned without z-index (no stacking context of their own), so text in them can use
+   mix-blend-mode against the canvas. */
+.kk-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.kk-layer > * {
+  pointer-events: none;
+}
+.kk-layer .kk-interactive {
+  pointer-events: auto;
+}
+
+.kk-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  fill: none;
+  stroke-width: 1;
+}
+
+.kk-mono {
+  font-family: var(--mono);
+  font-size: 10px;
+  line-height: 1.5;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.kk-wide {
+  font-family: var(--wide);
+  font-stretch: 125%;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 0.9;
+  text-transform: uppercase;
+}
+.kk-serif {
+  font-family: var(--serif);
+  font-weight: 400;
+}
+.kk-tag {
+  display: inline-block;
+  padding: 3px 8px;
+  background: var(--accent);
+  color: #fff;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+}
+
+/* Letters that rise into place one by one. */
+.kk-rise {
+  display: inline-block;
+  animation: kk-rise 700ms cubic-bezier(0.2, 0.9, 0.2, 1.15) both;
+}
+@keyframes kk-rise {
+  from {
+    transform: translateY(0.6em);
+    opacity: 0;
+  }
+}
+.kk-fade {
+  transition: opacity 300ms ease, transform 300ms ease;
+}
+.kk-out {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kk-rise {
+    animation: none;
+  }
+}

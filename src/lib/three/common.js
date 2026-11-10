@@ -29,12 +29,12 @@ export const easeOutCubic = (p) => 1 - (1 - Math.min(1, Math.max(0, p))) ** 3;
  * Renderer, scene and perspective camera bound to a canvas that is sized with CSS.
  * Call start(tick) to run tick(seconds) every frame before rendering.
  */
-export function createStage(canvas, { fov = 45, background = 0x111111, onResize } = {}) {
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+export function createStage(canvas, { fov = 45, background = 0x111111, transparent = false, onResize } = {}) {
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: transparent });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color(background);
+  if (!transparent) scene.background = new THREE.Color(background);
   const camera = new THREE.PerspectiveCamera(fov, 1, 0.05, 100);
 
   const stage = {
@@ -164,4 +164,80 @@ export function setMap(material, texture) {
   material.map = texture;
   material.color?.set(0xffffff);
   material.needsUpdate = true;
+}
+
+export const easeOutBack = (p) => {
+  const c = 1.70158;
+  const x = Math.min(1, Math.max(0, p)) - 1;
+  return 1 + (c + 1) * x ** 3 + c * x ** 2;
+};
+export const easeInOutCubic = (p) => {
+  const x = Math.min(1, Math.max(0, p));
+  return x < 0.5 ? 4 * x ** 3 : 1 - (-2 * x + 2) ** 3 / 2;
+};
+
+/**
+ * Real facts about a piece, taken only from the file names and image files:
+ * collection title, plate number, position in the set, source size and detected detail areas.
+ */
+export function pieceInfo(i) {
+  const f = fabrics[i];
+  const words = f.group.split('-');
+  const title = words.join(' ').replace(/^./, (c) => c.toUpperCase());
+  const number = f.name.split('-').pop();
+  return {
+    title,
+    number,
+    plate: `SPECIMEN_${number}`,
+    index: String(i + 1).padStart(2, '0'),
+    total: String(fabrics.length).padStart(2, '0'),
+    width: f.width,
+    height: f.height,
+    size: `${f.width} × ${f.height} px`,
+    details: f.details,
+  };
+}
+
+/** Plain-language position of a texture coordinate, e.g. "Upper left". */
+export function positionName(u, v) {
+  const row = v > 0.66 ? 'Upper' : v < 0.33 ? 'Lower' : 'Middle';
+  const col = u < 0.33 ? 'left' : u > 0.66 ? 'right' : 'centre';
+  return row === 'Middle' && col === 'centre' ? 'Centre' : `${row} ${col}`;
+}
+
+/** Screen position (CSS pixels) of a world-space point. */
+export function toScreen(stage, point) {
+  const p = point.clone().project(stage.camera);
+  return { x: (p.x + 1) / 2 * stage.width, y: (1 - p.y) / 2 * stage.height };
+}
+
+/** Width and height of the visible area at distance d from a perspective camera. */
+export function viewSize(camera, d) {
+  const h = 2 * d * Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+  return { w: h * camera.aspect, h };
+}
+
+/** Tiny tween runner: add({ duration, delay, ease, update(p), done }) and call tick(now) each frame. */
+export function createTweens() {
+  let list = [];
+  return {
+    add({ duration = 500, delay = 0, ease = (p) => p, update, done }) {
+      const t = { start: performance.now() + delay, duration, ease, update, done };
+      list.push(t);
+      return t;
+    },
+    clear() {
+      list = [];
+    },
+    tick(now = performance.now()) {
+      list = list.filter((t) => {
+        if (now < t.start) return true;
+        const p = Math.min(1, (now - t.start) / t.duration);
+        t.update?.(t.ease(p));
+        if (p < 1) return true;
+        t.done?.();
+        return false;
+      });
+    },
+  };
 }

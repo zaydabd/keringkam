@@ -2,17 +2,22 @@
   import { onMount } from 'svelte';
 
   let { style } = $props();
+  let root;
+  let back;
   let canvas;
+  let front;
   let showcase = null;
 
   onMount(() => {
     let cancelled = false;
     style.load().then((module) => {
-      if (!cancelled) showcase = module.create(canvas);
+      if (!cancelled) showcase = module.create(canvas, { root, back, front });
     });
     return () => {
       cancelled = true;
       showcase?.destroy();
+      back.replaceChildren();
+      front.replaceChildren();
     };
   });
 
@@ -25,38 +30,52 @@
 
 <svelte:window {onkeydown} />
 
-<canvas bind:this={canvas}></canvas>
-<a class="back" href="#/" aria-label="All styles">←</a>
-<button class="prev" aria-label="Previous" onclick={() => showcase?.prev()}>‹</button>
-<button class="next" aria-label="Next" onclick={() => showcase?.next()}>›</button>
+<!-- Styles can set --ui on the root to recolour the controls for light backgrounds. -->
+<div class="showcase" bind:this={root}>
+  <div class="kk-layer back" bind:this={back}></div>
+  <canvas bind:this={canvas}></canvas>
+  <div class="kk-layer front" bind:this={front}></div>
+  <a class="back-link" href="#/" aria-label="All styles">←</a>
+  <button class="prev" aria-label="Previous" onclick={() => showcase?.prev()}>‹</button>
+  <button class="next" aria-label="Next" onclick={() => showcase?.next()}>›</button>
+</div>
 
 <style>
+  .showcase {
+    --ui: #fff;
+    position: fixed;
+    inset: 0;
+  }
+  /* Painted in DOM order: back layer, canvas, front layer. */
   canvas {
+    position: absolute;
+    inset: 0;
     display: block;
-    width: 100vw;
-    height: 100vh;
+    width: 100%;
+    height: 100%;
     touch-action: none;
   }
-  .back,
+  .back-link,
   button {
     position: fixed;
+    z-index: 3;
     border: 0;
     background: none;
-    color: #fff;
-    opacity: 0.45;
+    color: var(--ui);
+    opacity: 0.5;
     cursor: pointer;
     text-decoration: none;
     line-height: 1;
     -webkit-tap-highlight-color: transparent;
   }
-  .back:hover,
-  .back:focus-visible,
+  .back-link:hover,
+  .back-link:focus-visible,
   button:hover,
   button:focus-visible {
-    opacity: 0.9;
+    opacity: 1;
     outline: none;
   }
-  .back {
+  .back-link {
     top: 12px;
     left: 16px;
     font-size: 24px;
