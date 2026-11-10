@@ -21,7 +21,7 @@ Each point links to the official docs it comes from.
 The **official** parts below are documented rules. The folder layout is **our team's convention**, not an official standard.
 
 **Official:**
-- `index.html` is the entry point, and the app is built into `dist/`. ([Svelte docs](https://svelte.dev/docs/svelte/getting-started))
+- `index.html` is the entry point ([Vite docs](https://vite.dev/guide/)), and `npm run build` outputs to `dist/` ([Svelte docs](https://svelte.dev/docs/svelte/getting-started)).
 - Put a file in `public/` only if it must keep its exact name or is never imported (e.g. `robots.txt`). Reference it as `/file.png`. Import everything else from `src/` so the build adds a content hash to its file name for caching. ([Vite docs](https://vite.dev/guide/assets))
 - Put reusable reactive logic that uses runes in `.svelte.js` / `.svelte.ts` files. ([docs](https://svelte.dev/docs/svelte/svelte-js-files))
 - Import three.js addons from `three/addons/...`, e.g. `import { OrbitControls } from 'three/addons/controls/OrbitControls.js';` ([manual](https://threejs.org/manual/#en/installation))
