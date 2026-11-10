@@ -63,3 +63,25 @@ Scanned slide from 2001 | Bernard DUPONT | CC BY-SA 2.0 |
 | K13 | [Mukah 10-04-2023 18.jpg](https://commons.wikimedia.org/wiki/File:Mukah_10-04-2023_18.jpg) | Mukah on 10 April 2023 | Pangalau | CC BY-SA 4.0 |
 | K14 | [Mukah 10-04-2023 31.jpg](https://commons.wikimedia.org/wiki/File:Mukah_10-04-2023_31.jpg) | Mukah on 10 April 2023 | Pangalau | CC BY-SA 4.0 |
 | K15 | [Sarawak; a Malay fishing village at the mouth of the Tr](https://commons.wikimedia.org/wiki/File:Sarawak;_a_Malay_fishing_village_at_the_mouth_of_the_Trusan_Wellcome_V0037450.jpg) | Sarawak: a Malay fishing village at the mouth of the Trusan River | Wellcome Collection | CC BY 4.0 |
+
+# Inside kampung houses, looking out
+
+Contact sheet: `kampung-house-inside.jpg` (H1–H15). All from Wikimedia Commons. No Brunei photos.
+
+| # | File | Place | Author | Licence |
+|---|---|---|---|---|
+| H1 | [Kuching Cultural Village (3679464024).jpg](https://commons.wikimedia.org/wiki/File:Kuching_Cultural_Village_(3679464024).jpg) | Sarawak Cultural Village, Kuching | Peter Gronemann from Switzerland | CC BY 2.0 |
+| H2 | [Kuching Cultural Village (3679464826).jpg](https://commons.wikimedia.org/wiki/File:Kuching_Cultural_Village_(3679464826).jpg) | Sarawak Cultural Village, Kuching | Peter Gronemann from Switzerland | CC BY 2.0 |
+| H3 | [Basket lamps (29944083615).jpg](https://commons.wikimedia.org/wiki/File:Basket_lamps_(29944083615).jpg) | Sarawak Cultural Village, Kuching | Thomas Quine | CC BY 2.0 |
+| H4 | [Bamboo deck (29000497133).jpg](https://commons.wikimedia.org/wiki/File:Bamboo_deck_(29000497133).jpg) | Sarawak Cultural Village, Kuching | Thomas Quine | CC BY 2.0 |
+| H5 | [Borneo aboriginal village (29549921771).jpg](https://commons.wikimedia.org/wiki/File:Borneo_aboriginal_village_(29549921771).jpg) | Sarawak Cultural Village, Kuching | Thomas Quine | CC BY 2.0 |
+| H6 | [Kuching Cultural Village (3678655263).jpg](https://commons.wikimedia.org/wiki/File:Kuching_Cultural_Village_(3678655263).jpg) | Sarawak Cultural Village, Kuching | Peter Gronemann from Switzerland | CC BY 2.0 |
+| H7 | [P. Ramlee's House in Penang (36).jpg](https://commons.wikimedia.org/wiki/File:P._Ramlee%27s_House_in_Penang_(36).jpg) | P. Ramlee House, Penang | BujangLapok05 | Public domain |
+| H8 | [P. Ramlee's House in Penang (37).jpg](https://commons.wikimedia.org/wiki/File:P._Ramlee%27s_House_in_Penang_(37).jpg) | P. Ramlee House, Penang | BujangLapok05 | Public domain |
+| H9 | [P. Ramlee's House in Penang (35).jpg](https://commons.wikimedia.org/wiki/File:P._Ramlee%27s_House_in_Penang_(35).jpg) | P. Ramlee House, Penang | BujangLapok05 | Public domain |
+| H10 | [P. Ramlee's House in Penang (32).jpg](https://commons.wikimedia.org/wiki/File:P._Ramlee%27s_House_in_Penang_(32).jpg) | P. Ramlee House, Penang | BujangLapok05 | Public domain |
+| H11 | [P. Ramlee's House in Penang (34).jpg](https://commons.wikimedia.org/wiki/File:P._Ramlee%27s_House_in_Penang_(34).jpg) | P. Ramlee House, Penang | BujangLapok05 | Public domain |
+| H12 | [P. Ramlee's House in Penang (38).jpg](https://commons.wikimedia.org/wiki/File:P._Ramlee%27s_House_in_Penang_(38).jpg) | P. Ramlee House, Penang | BujangLapok05 | Public domain |
+| H13 | [P. Ramlee's House in Penang (39).jpg](https://commons.wikimedia.org/wiki/File:P._Ramlee%27s_House_in_Penang_(39).jpg) | P. Ramlee House, Penang | BujangLapok05 | Public domain |
+| H14 | [National Museum KL 2008 Istana interior pano.jpg](https://commons.wikimedia.org/wiki/File:National_Museum_KL_2008_Istana_interior_pano.jpg) | Istana Satu, at the National Museum, Kuala Lumpur | Gryffindor | Public domain |
+| H15 | [Demang Abdul Ghani Gallery - Interior.JPG](https://commons.wikimedia.org/wiki/File:Demang_Abdul_Ghani_Gallery_-_Interior.JPG) | Demang Abdul Ghani Gallery, Merlimau, Melaka | Chongkian | CC BY-SA 4.0 |
