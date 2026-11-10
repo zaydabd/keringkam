@@ -34,7 +34,9 @@ export const PALETTE = {
 const ROOM = { x0: -5, x1: 5, z0: -4, z1: 4, plate: 2.75 };
 const PITCH = 0.5625; // roof rise per metre
 const EAVE = 1.3; // eave overhang
-const SUNK = { x0: -0.6, x1: 3.6, z0: ROOM.z0, z1: -1.2, y: -0.22 }; // the lowered bamboo section
+// The lowered mat section: a pit inside the room, in front of the viewer, as in H1 (the step edge
+// runs diagonally across the view). Boards all round it.
+const SUNK = { x0: -1.75, x1: 2.6, z0: -2.9, z1: 0.8, y: -0.22 };
 
 const rand = mulberry32(7);
 function mulberry32(a) {
@@ -141,20 +143,24 @@ function boxWithGrainUVs(w, h, d) {
 function buildRoom(b) {
   const { x0, x1, z0, z1, plate } = ROOM;
 
-  // Floor: boards running out towards the view; the front-right part is a lower bamboo section (H1, H4).
+  // Floor: wide boards running out towards the view, cut around the lowered mat section (H1).
   const BOARD = 0.3;
   for (let x = x0 + BOARD / 2; x < x1; x += BOARD) {
     const inSunk = x > SUNK.x0 && x < SUNK.x1;
-    const za = inSunk ? SUNK.z1 : z0 - 0.12;
-    const zb = z1;
-    b.box('floor', BOARD - 0.014, 0.05, zb - za, x, -0.025, (za + zb) / 2, 0, 0, 0, 0.14);
+    const runs = inSunk ? [[z0 - 0.12, SUNK.z0], [SUNK.z1, z1]] : [[z0 - 0.12, z1]];
+    for (const [za, zb] of runs) b.box('floor', BOARD - 0.012, 0.05, zb - za, x, -0.025, (za + zb) / 2, 0, 0, 0, 0.1);
   }
-  // The lowered section: a woven bamboo mat over a plank base (H1, H4).
-  b.box('bamboo', SUNK.x1 - SUNK.x0, 0.03, SUNK.z1 - SUNK.z0 + 0.1, (SUNK.x0 + SUNK.x1) / 2, SUNK.y - 0.015, (SUNK.z0 + SUNK.z1) / 2 - 0.05, 0, 0, 0, 0.04);
-  // Step faces around the lowered section.
-  b.box('timber', SUNK.x1 - SUNK.x0, -SUNK.y, 0.06, (SUNK.x0 + SUNK.x1) / 2, SUNK.y / 2, SUNK.z1 - 0.03);
-  b.box('timber', 0.06, -SUNK.y, SUNK.z1 - SUNK.z0, SUNK.x0 + 0.03, SUNK.y / 2, (SUNK.z0 + SUNK.z1) / 2);
-  b.box('timber', 0.06, -SUNK.y, SUNK.z1 - SUNK.z0, SUNK.x1 - 0.03, SUNK.y / 2, (SUNK.z0 + SUNK.z1) / 2);
+  // The lowered section: a woven bamboo mat (H1, H4).
+  b.box('bamboo', SUNK.x1 - SUNK.x0, 0.03, SUNK.z1 - SUNK.z0, (SUNK.x0 + SUNK.x1) / 2, SUNK.y - 0.015, (SUNK.z0 + SUNK.z1) / 2, 0, 0, 0, 0.03);
+  // Step faces on all four sides, and a darker nosing board along the top edge (H1).
+  const sx = SUNK.x1 - SUNK.x0;
+  const sz = SUNK.z1 - SUNK.z0;
+  const cx = (SUNK.x0 + SUNK.x1) / 2;
+  const cz = (SUNK.z0 + SUNK.z1) / 2;
+  for (const z of [SUNK.z0 + 0.03, SUNK.z1 - 0.03]) b.box('timber', sx, -SUNK.y, 0.06, cx, SUNK.y / 2, z);
+  for (const x of [SUNK.x0 + 0.03, SUNK.x1 - 0.03]) b.box('timber', 0.06, -SUNK.y, sz, x, SUNK.y / 2, cz);
+  for (const z of [SUNK.z0 - 0.06, SUNK.z1 + 0.06]) b.box('timber', sx + 0.24, 0.035, 0.12, cx, 0.012, z, 0, 0, 0, 0.04);
+  for (const x of [SUNK.x0 - 0.06, SUNK.x1 + 0.06]) b.box('timber', 0.12, 0.035, sz, x, 0.012, cz, 0, 0, 0, 0.04);
   // Edge beams under the floor, and the stilts below.
   b.box('timber', x1 - x0 + 0.3, 0.24, 0.16, 0, -0.17, z0 - 0.08);
   b.box('timber', 0.16, 0.24, z1 - z0 + 0.3, x0 - 0.08, -0.17, 0);
@@ -212,13 +218,14 @@ function buildRoom(b) {
     }
   };
   const v = (x, z) => new THREE.Vector3(x, 0, z);
-  railRun(v(x0, z0), v(SUNK.x0, z0), 0);
-  railRun(v(SUNK.x0, z0), v(SUNK.x1, z0), SUNK.y);
-  railRun(v(SUNK.x1, z0), v(x1, z0), 0);
+  railRun(v(x0, z0), v(x1, z0), 0);
   railRun(v(x0, z1), v(x0, z0), 0);
-  bench(v(x0 + 0.2, z0), v(SUNK.x0 - 0.1, z0), 0);
-  bench(v(SUNK.x0 + 0.1, z0), v(SUNK.x1 - 0.1, z0), SUNK.y);
-  bench(v(x0, z1 - 0.4), v(x0, z0 + 0.45), 0);
+  // Benches along the rails, broken at the posts (H1).
+  bench(v(x0 + 0.3, z0), v(-1.8, z0), 0);
+  bench(v(-1.2, z0), v(1.7, z0), 0);
+  bench(v(2.3, z0), v(4.6, z0), 0);
+  bench(v(x0, z1 - 0.4), v(x0, -0.8), 0);
+  bench(v(x0, -0.2), v(x0, z0 + 0.45), 0);
 
   buildRoof(b);
   buildWall(b);
@@ -405,7 +412,7 @@ export function createInterior(canvas, { onReady } = {}) {
   for (const t of Object.values(textures)) t.anisotropy = aniso;
   const materials = {};
   for (const [key, color, map] of [
-    ['floor', '#c2a47e', textures.planks],
+    ['floor', '#bba98d', textures.planks],
     ['bamboo', '#d9bd84', textures.mat],
     ['timber', '#a6845e', textures.planks],
     ['rafter', '#cfae7c', textures.planks],
@@ -426,7 +433,7 @@ export function createInterior(canvas, { onReady } = {}) {
   scene.add(room);
 
   // Outside: painted sky, jungle, palms and banana plants (layer 1: no outlines).
-  const landscape = createLandscape({ gradientMap, rand, groundY: -1.85 });
+  const landscape = createLandscape({ gradientMap, rand: mulberry32(21), groundY: -1.85 });
   scene.add(landscape.group);
   camera.layers.enable(1);
   scene.fog = new THREE.Fog('#d3dec6', 16, 90); // aerial perspective on the far jungle

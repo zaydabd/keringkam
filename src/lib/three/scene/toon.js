@@ -109,7 +109,7 @@ const OUTLINE_SHADER = {
         idEdge += step(0.002, abs(e.a - ec.a));
       }
       float edge = max(smoothstep(0.06, 0.16, depthEdge), smoothstep(0.35, 0.7, normalEdge));
-      edge = max(edge, min(idEdge, 1.0) * 0.85);
+      edge = max(edge, min(idEdge, 1.0) * 0.5); // seams between parts: lighter than silhouettes and creases
       // Thinner and fainter with distance; nothing on the sky.
       edge *= 1.0 - smoothstep(fade.x, fade.y, min(dc, depthAt(uv + vec2(px.x * t, 0.0))));
       edge *= 0.8 + 0.2 * noise(q * 3.1);
