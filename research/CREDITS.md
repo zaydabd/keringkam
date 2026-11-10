@@ -85,3 +85,19 @@ Contact sheet: `kampung-house-inside.jpg` (H1–H15). All from Wikimedia Commons
 | H13 | [P. Ramlee's House in Penang (39).jpg](https://commons.wikimedia.org/wiki/File:P._Ramlee%27s_House_in_Penang_(39).jpg) | P. Ramlee House, Penang | BujangLapok05 | Public domain |
 | H14 | [National Museum KL 2008 Istana interior pano.jpg](https://commons.wikimedia.org/wiki/File:National_Museum_KL_2008_Istana_interior_pano.jpg) | Istana Satu, at the National Museum, Kuala Lumpur | Gryffindor | Public domain |
 | H15 | [Demang Abdul Ghani Gallery - Interior.JPG](https://commons.wikimedia.org/wiki/File:Demang_Abdul_Ghani_Gallery_-_Interior.JPG) | Demang Abdul Ghani Gallery, Merlimau, Melaka | Chongkian | CC BY-SA 4.0 |
+
+# Scene prototypes (2D composites)
+
+`scenes-prototype.jpg` and `scenes/`: rough mockups made by keying the openings of an interior photo and
+placing a Sarawak photo behind them. Each combines the photos credited above:
+
+| Scene | Inside (credit above) | Outside (credit above) | Extra |
+|---|---|---|---|
+| S1 | H1 Sarawak Cultural Village veranda | #13 Sarawak River sunset | |
+| S2 | H1 | K1 Kampung Bako | |
+| S3 | H1 | #3 Astana across the river | |
+| S4 | H1 | K7 Kampung Medong at dusk | keringkam: maroon-gold-songket-12 |
+| S5 | H7 P. Ramlee House doorway (Penang) | #1 Masjid Bandaraya | |
+| S6 | H3 Sarawak Cultural Village basket-lamp veranda | #15 Mount Santubong | |
+
+Composites of CC BY-SA photos must themselves be shared under CC BY-SA with credit to every source.
