@@ -40,3 +40,26 @@ Reuse requires the credit and licence shown. Not yet used on the website.
 | 26 | [Kubah National Park, Kuching 5.jpg](https://commons.wikimedia.org/wiki/File:Kubah_National_Park,_Kuching_5.jpg) | Angeline Ting | CC BY-SA 4.0 |
 
 Note: #2 is titled "Masjid India" on Commons, but the photo shows a mosque by the water; which mosque it is has not been confirmed.
+
+# Intimate kampung scenes
+
+Contact sheet: `sarawak-kampung.jpg` (K1–K15). All from Wikimedia Commons.
+
+| # | File | Place (from the file description) | Author | Licence |
+|---|---|---|---|---|
+| K1 | [Bako village - Sarawak - Borneo - Malaysia - panoramio.](https://commons.wikimedia.org/wiki/File:Bako_village_-_Sarawak_-_Borneo_-_Malaysia_-_panoramio.jpg) | Bako village - Sarawak - Borneo - Malaysia | diego_cue | CC BY-SA 3.0 |
+| K2 | [View from the Jetty.jpg](https://commons.wikimedia.org/wiki/File:View_from_the_Jetty.jpg) | Kampung Bako, Sarawak, MALAYSIA | Bernard DUPONT | CC BY-SA 2.0 |
+| K3 | [Kampung Bako.jpg](https://commons.wikimedia.org/wiki/File:Kampung_Bako.jpg) | Sarawak, MALAYSIA
+Scanned slide from 2001 | Bernard DUPONT | CC BY-SA 2.0 |
+| K4 | [My Boat returns to Kampung Bako (15112798544).jpg](https://commons.wikimedia.org/wiki/File:My_Boat_returns_to_Kampung_Bako_(15112798544).jpg) | Bako NP, Sarawak, MALAYSIA | Bernard DUPONT from FRANCE | CC BY-SA 2.0 |
+| K5 | [Borneo fishing village (27035595522).jpg](https://commons.wikimedia.org/wiki/File:Borneo_fishing_village_(27035595522).jpg) | Bako National Park, Sarawak, Borneo | Thomas Quine | CC BY 2.0 |
+| K6 | [IkanKering.jpg](https://commons.wikimedia.org/wiki/File:IkanKering.jpg) | DryFIsh | Kampung Buntal | CC BY-SA 4.0 |
+| K7 | [Kampung Medong at dusk.jpg](https://commons.wikimedia.org/wiki/File:Kampung_Medong_at_dusk.jpg) | Kampung Medong at dusk | Benjy8769 | CC0 |
+| K8 | [Kgbrunei.jpg](https://commons.wikimedia.org/wiki/File:Kgbrunei.jpg) | Kg | Benjy8769 | CC BY-SA 3.0 |
+| K9 | [KPG Tian banjir.jpg](https://commons.wikimedia.org/wiki/File:KPG_Tian_banjir.jpg) | Seasonal flood at Kampung Tian, Matu, Sarawak, Malaysia | Ab Rahman | CC BY-SA 3.0 |
+| K10 | [Mukah 10-04-2023 03.jpg](https://commons.wikimedia.org/wiki/File:Mukah_10-04-2023_03.jpg) | Mukah on 10 April 2023 | Pangalau | CC BY-SA 4.0 |
+| K11 | [Mukah 10-04-2023 04.jpg](https://commons.wikimedia.org/wiki/File:Mukah_10-04-2023_04.jpg) | Mukah on 10 April 2023 | Pangalau | CC BY-SA 4.0 |
+| K12 | [Mukah 10-04-2023 42.jpg](https://commons.wikimedia.org/wiki/File:Mukah_10-04-2023_42.jpg) | Mukah on 10 April 2023 | Pangalau | CC BY-SA 4.0 |
+| K13 | [Mukah 10-04-2023 18.jpg](https://commons.wikimedia.org/wiki/File:Mukah_10-04-2023_18.jpg) | Mukah on 10 April 2023 | Pangalau | CC BY-SA 4.0 |
+| K14 | [Mukah 10-04-2023 31.jpg](https://commons.wikimedia.org/wiki/File:Mukah_10-04-2023_31.jpg) | Mukah on 10 April 2023 | Pangalau | CC BY-SA 4.0 |
+| K15 | [Sarawak; a Malay fishing village at the mouth of the Tr](https://commons.wikimedia.org/wiki/File:Sarawak;_a_Malay_fishing_village_at_the_mouth_of_the_Trusan_Wellcome_V0037450.jpg) | Sarawak: a Malay fishing village at the mouth of the Trusan River | Wellcome Collection | CC BY 4.0 |
