@@ -72,7 +72,7 @@ function resize() {
 /** Moves the camera back until the whole wall fits on screen. */
 function fitCamera() {
   const tan = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
-  const distance = 1.1 * Math.max(wallSize.height / 2 / tan, wallSize.width / 2 / (tan * camera.aspect));
+  const distance = 1.3 * Math.max(wallSize.height / 2 / tan, wallSize.width / 2 / (tan * camera.aspect));
   camera.position.set(0, 0, distance);
   controls.target.set(0, 0, 0);
   controls.update();

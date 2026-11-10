@@ -36,8 +36,14 @@ if (process.argv[2] === '--worker') {
 
   process.on('message', async ({ src, outBase }) => {
     for (const { suffix, maxSize } of SIZES) {
+      // GPUs reject compressed textures whose base size is not a multiple of 4,
+      // so round both sides to one. The stretch is under 1% and the plane in the
+      // scene uses the original aspect ratio, which cancels it out.
+      const { width, height } = await sharp(src).metadata();
+      const scale = Math.min(1, maxSize / Math.max(width, height));
+      const toFour = (n) => Math.max(4, Math.round((n * scale) / 4) * 4);
       const png = await sharp(src)
-        .resize(maxSize, maxSize, { fit: 'inside', withoutEnlargement: true })
+        .resize(toFour(width), toFour(height), { fit: 'fill' })
         .png()
         .toBuffer();
       const ktx2 = await encodeToKTX2(new Uint8Array(png), {
