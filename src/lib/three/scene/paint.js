@@ -488,8 +488,9 @@ export function paintCurtain(seed = 12, kind = 'valance') {
   const r = rng(seed);
   const S = 256;
   const [c, g] = canvas(S, S);
+  if (kind === 'batik') return paintBatik(r, S);
   const valance = kind === 'valance';
-  g.fillStyle = valance ? '#e8582c' : '#f7e2d0';
+  g.fillStyle = valance ? '#d8683a' : '#f7e2d0';
   g.fillRect(0, 0, S, S);
   for (let i = 0; i < 18; i++) blot(g, S, r() * S, r() * S, 20 + r() * 40, 20 + r() * 40, valance ? '200,40,30' : '240,170,140', 0.12 + r() * 0.12);
   const sprig = (x, y, s, petal, leaf) => {
@@ -531,6 +532,50 @@ export function paintCurtain(seed = 12, kind = 'valance') {
   return t;
 }
 
+/**
+ * Curtain cloth in a muted batik-like print (R2): grey-blue ground, rows of red-brown flowers in
+ * pale rings, small leaf sprigs between. Our own pattern, not a copy of a specific batik design.
+ */
+function paintBatik(r, S) {
+  const [c, g] = canvas(S, S);
+  g.fillStyle = '#b9b2a6';
+  g.fillRect(0, 0, S, S);
+  for (let i = 0; i < 16; i++) blot(g, S, r() * S, r() * S, 30 + r() * 40, 30 + r() * 40, r() < 0.5 ? '120,130,150' : '210,190,170', 0.15 + r() * 0.1);
+  const flower = (x, y, s) =>
+    wrapX(S, (dx) => {
+      g.save();
+      g.translate(x + dx, y);
+      g.fillStyle = '#e9dcc6';
+      g.beginPath();
+      g.arc(0, 0, s * 1.35, 0, Math.PI * 2);
+      g.fill();
+      g.fillStyle = '#9a3a2a';
+      for (let k = 0; k < 6; k++) {
+        const a = (k / 6) * Math.PI * 2;
+        g.beginPath();
+        g.ellipse(Math.cos(a) * s * 0.6, Math.sin(a) * s * 0.6, s * 0.5, s * 0.28, a, 0, Math.PI * 2);
+        g.fill();
+      }
+      g.fillStyle = '#4a5a78';
+      g.beginPath();
+      g.arc(0, 0, s * 0.3, 0, Math.PI * 2);
+      g.fill();
+      g.restore();
+    });
+  for (let row = 0; row < 4; row++) for (let col = 0; col < 4; col++) flower(col * 64 + (row % 2) * 32 + 32, row * 64 + 32, 12 + r() * 3);
+  g.strokeStyle = '#5c6a54';
+  g.lineWidth = 3;
+  for (let i = 0; i < 16; i++) {
+    const x = r() * S;
+    const y = r() * S;
+    g.beginPath();
+    g.moveTo(x, y);
+    g.quadraticCurveTo(x + 8, y - 10, x + 16, y - 4);
+    g.stroke();
+  }
+  return texture(c, [2, 2]);
+}
+
 /** The red cloth on the embroidery frame: fine weave, a little uneven dye, a row of tacking stitches. */
 export function paintCloth(seed = 13) {
   const r = rng(seed);
@@ -548,6 +593,12 @@ export function paintCloth(seed = 13) {
     g.fillStyle = `rgba(255,170,170,${0.02 + r() * 0.04})`;
     g.fillRect(x, 0, 1, H);
   }
+  // a thin gold border line inset from the edges (R2)
+  g.strokeStyle = 'rgba(232,184,80,0.9)';
+  g.lineWidth = 3;
+  g.strokeRect(18, 14, W - 36, H - 28);
+  g.lineWidth = 1.5;
+  g.strokeRect(26, 21, W - 52, H - 42);
   // tacking stitches near one end, as in the reference (work not started yet)
   g.fillStyle = 'rgba(255,246,236,0.9)';
   for (let y = 24; y < H - 24; y += 9) g.fillRect(W - 46 + (r() - 0.5) * 2, y, 2, 5);

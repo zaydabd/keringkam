@@ -23,10 +23,10 @@ import { createLandscape } from './landscape.js';
 
 // Colours picked from R1, then lifted a little for the painted look.
 export const PALETTE = {
-  wall: '#47231a', // dark red-brown boards
+  wall: '#5a3022', // dark red-brown boards
   frame: '#6a3a24', // window frames, dado rail
-  floor: '#6c5446', // brown floor boards, a little grey
-  wood: '#d0904a', // golden furniture
+  floor: '#8c7c72', // brown floor boards, a little grey
+  wood: '#b8844e', // honey-brown furniture
   top: '#3c2418', // dark table tops
   lattice: '#4a2a18',
   cloth: '#d8283a', // red cloth on the frame
@@ -37,6 +37,8 @@ export const PALETTE = {
 // Everything in metres. The camera stands at the origin and looks along -z at the window wall.
 export const PLAN = {
   camera: { eye: [0, 0.9, 0], pitch: -6.7, fov: 46.8, aspect: 1.387 }, // from R1's horizon and vanishing point
+  // Portrait screens follow R2 (the painted version): level view, 52° wide, so the ceiling shows.
+  portrait: { pitch: 0, hfov: 52, aspect: 0.462 },
   room: { x0: -4.2, x1: 1.34, z0: -5.5, z1: 1.2, top: 2.7 },
   backWindows: [
     { x0: -3.02, x1: -1.92 },
@@ -46,7 +48,10 @@ export const PLAN = {
   window: { y1: 2.25, lattice: 1.1, valance: [2.1, 2.45], tie: 1.2 },
   sideWindow: { z0: -2.45, z1: -1.45, y0: 0.3 }, // on the right wall, near the camera
   dado: 0.85,
-  hangings: { z: -3.2, y: 1.52, size: 0.27 },
+  hangings: { z: -3.45, y: 1.72, size: 0.29 },
+  carvedPanels: { z0: -5.35, z1: -4.4, rows: [[0.12, 1.1], [1.2, 2.5]] }, // right wall, by the corner (R2)
+  beams: { alongZ: [-2.5, -1.25, 0], alongX: [-1.8, -2.75, -4.4], w: 0.14, h: 0.2 }, // ceiling (R2)
+  plant: { x: -2.6, z: -4.95 }, // potted palm in front of the left window (R2)
   plate: { x: 0.38, y: 1.78, r: 0.15 },
   settee: { x: -0.8, z: -5.08, ry: 0, w: 1.45, d: 0.55, back: 1.0 },
   chairs: [
@@ -57,7 +62,7 @@ export const PLAN = {
     { x0: -1.68, x1: -0.36, z0: -4.5, z1: -4.1, h: 0.46 },
     { x0: -1.9, x1: -0.45, z0: -3.8, z1: -3.0, h: 0.45, stretcher: true },
   ],
-  frame: { x: 0.5, z: -1.78, ry: -0.42, w: 0.62, d: 0.52, front: 0.36, back: 0.5 }, // embroidery frame
+  frame: { x: 0.45, z: -1.85, ry: -0.36, w: 0.66, d: 0.5, front: 0.4, back: 0.52 }, // embroidery frame
 };
 
 const V = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -223,7 +228,15 @@ function buildRoom(b) {
   boardWall(b, z0, z1, top, [], (a, y, w, h) => b.box('wall', 0.025, h, w, x0 - 0.0125, y, a));
   boardWall(b, x0, x1, top, [], (a, y, w, h) => b.box('wall', w, h, 0.025, a, y, z1 + 0.0125));
   for (const [a0, a1] of boardRuns(z0, z1, [])) b.box('ceiling', x1 - x0, 0.02, a1 - a0 - 0.004, (x0 + x1) / 2, top + 0.01, (a0 + a1) / 2);
-  for (let x = x0 + 0.6; x < x1; x += 1.2) b.box('ceiling', 0.1, 0.14, z1 - z0, x, top - 0.07, (z0 + z1) / 2);
+  const B = PLAN.beams;
+  for (const x of B.alongZ) b.box('beam', B.w, B.h, z1 - z0, x, top - B.h / 2, (z0 + z1) / 2);
+  for (const z of B.alongX) b.box('beam', x1 - x0, B.h * 0.8, B.w, (x0 + x1) / 2, top - B.h * 0.4, z);
+  // Wall plates where the walls meet the ceiling.
+  b.box('beam', 0.16, 0.2, z1 - z0, x1 - 0.08, top - 0.1, (z0 + z1) / 2);
+  b.box('beam', 0.16, 0.2, z1 - z0, x0 + 0.08, top - 0.1, (z0 + z1) / 2);
+  b.box('beam', x1 - x0, 0.2, 0.16, (x0 + x1) / 2, top - 0.1, z0 + 0.08);
+  // Subfloor: hides the ground through the gaps between boards.
+  b.box('ceiling', x1 - x0, 0.02, z1 - z0, (x0 + x1) / 2, -0.04, (z0 + z1) / 2);
 
   // Window frames on the back wall: jambs, head, threshold, and the lattice rail.
   for (const w of PLAN.backWindows) {
@@ -505,8 +518,45 @@ function buildVines(b) {
   vine(x1, PLAN.sideWindow.z0 - 0.2, 2.35, 1.0, false);
 }
 
+/** Tall carved panels on the right wall by the corner: fretwork over the dark boards, in a frame. */
+function buildCarvedPanels(b) {
+  const { x1 } = PLAN.room;
+  const { z0, z1, rows } = PLAN.carvedPanels;
+  const w = z1 - z0;
+  for (const [y0, y1] of rows) {
+    const g = new THREE.PlaneGeometry(w - 0.1, y1 - y0 - 0.1);
+    const uv = g.attributes.uv;
+    for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * (w - 0.1), uv.getY(i) * (y1 - y0 - 0.1));
+    b.place('carve', g, M(x1 - 0.03, (y0 + y1) / 2, (z0 + z1) / 2, 0, -Math.PI / 2, 0), 0.04, false);
+    for (const z of [z0 + 0.03, z1 - 0.03]) b.box('frame', 0.05, y1 - y0, 0.06, x1 - 0.025, (y0 + y1) / 2, z);
+    for (const y of [y0 + 0.03, y1 - 0.03]) b.box('frame', 0.05, 0.06, w, x1 - 0.025, y, (z0 + z1) / 2);
+  }
+}
+
+/** A potted palm by the left window (R2): clay pot and arching fronds of narrow leaf strips. */
+function buildPlant(b) {
+  const { x, z } = PLAN.plant;
+  b.place('pot', new THREE.CylinderGeometry(0.17, 0.12, 0.3, 14), M(x, 0.15, z), 0.06, false);
+  b.place('pot', new THREE.TorusGeometry(0.17, 0.02, 6, 16).rotateX(Math.PI / 2), M(x, 0.3, z), 0.04, false);
+  for (let k = 0; k < 13; k++) {
+    const a = (k / 13) * Math.PI * 2 + rand() * 0.4;
+    const len = 0.6 + rand() * 0.35;
+    const g = new THREE.PlaneGeometry(0.16, len, 1, 8);
+    const pos = g.attributes.position;
+    for (let i = 0; i < pos.count; i++) {
+      const t = pos.getY(i) / len + 0.5; // 0 at the base, 1 at the tip
+      const half = 0.5 - Math.abs(t - 0.45) * 0.9;
+      pos.setX(i, pos.getX(i) * Math.max(0.08, half * 1.6));
+      pos.setY(i, Math.sin(t * 1.9) * len * 0.75);
+      pos.setZ(i, (1 - Math.cos(t * 1.9)) * len * 0.55);
+    }
+    g.computeVertexNormals();
+    b.place('leaf', g, M(x, 0.32, z, 0, a, 0), 0.3, false);
+  }
+}
+
 /** Soft sheen on the floor in front of each window: additive glow quads, bright at the window. */
-function buildGlows(texture) {
+function buildGlows(texture, roundTexture) {
   const group = new THREE.Group();
   const { z0 } = PLAN.room;
   const mat = new THREE.MeshBasicMaterial({ map: texture, color: '#ffd9a8', transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false, fog: false });
@@ -519,7 +569,14 @@ function buildGlows(texture) {
     mesh.layers.set(1);
     group.add(mesh);
   }
-  return { group, mat };
+  // The red cloth's colour reflected in the polished floor under the frame (R2).
+  const F = PLAN.frame;
+  const redMat = new THREE.MeshBasicMaterial({ map: roundTexture, color: '#c4241e', transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false, fog: false });
+  const red = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.9).rotateX(-Math.PI / 2), redMat);
+  red.position.set(F.x - 0.1, 0.003, F.z + 0.25);
+  red.layers.set(1);
+  group.add(red);
+  return { group, mats: [mat, redMat] };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -532,39 +589,42 @@ export function createInterior(canvas, { onReady } = {}) {
   renderer.shadowMap.autoUpdate = false; // the sun and the room don't move: draw the shadows once
   renderer.shadowMap.needsUpdate = true;
   renderer.toneMapping = THREE.NeutralToneMapping;
+  renderer.toneMappingExposure = 1.15; // R2 is a light, airy painting
 
   const scene = new THREE.Scene();
-  const BRIGHT = '#f8f2e2'; // the blown-out daylight in the windows, as in R1
+  const BRIGHT = '#eef0d6'; // bright daylight in the windows, a little green from the garden (R2)
   scene.background = new THREE.Color(BRIGHT);
-  scene.fog = new THREE.Fog(BRIGHT, 1, 16); // only the landscape takes fog: the room's materials have fog off
+  scene.fog = new THREE.Fog(BRIGHT, 2, 28); // only the landscape takes fog: the room's materials have fog off
   const C = PLAN.camera;
-  const camera = new THREE.PerspectiveCamera(C.fov, C.aspect, 0.05, 400);
+  const camera = new THREE.PerspectiveCamera(C.fov, C.aspect, 0.2, 400); // near 0.2: at 0.05 the 400 m ground plane drew over the near floor
 
   // Light: sun behind the window wall, high enough that the patches fall just inside the windows.
-  const sun = new THREE.DirectionalLight('#ffe6c4', 3.2);
+  const sun = new THREE.DirectionalLight('#fff0dc', 3.2);
+  // Lower, from the back right, so long patches of sun reach across the floor towards the viewer (R2).
   sun.target.position.set(-1, 0, -4);
-  sun.position.set(-4, 11, -14);
+  sun.position.set(2.2, 7, -14);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
   Object.assign(sun.shadow.camera, { left: -7, right: 7, top: 7, bottom: -7, near: 1, far: 40 });
   sun.shadow.bias = -0.0005;
   sun.shadow.normalBias = 0.02;
-  const hemi = new THREE.HemisphereLight('#ffeedd', '#5a4034', 1.0); // warm bounce off the floor and walls
-  const fill = new THREE.DirectionalLight('#ffd6ac', 0.55); // soft light from the room behind the camera
+  const hemi = new THREE.HemisphereLight('#fff4e6', '#8a6a52', 2.3); // warm bounce off the floor and walls
+  const fill = new THREE.DirectionalLight('#f4e8dc', 0.9); // soft light from the room behind the camera
   fill.position.set(1.5, 2.5, 4);
   scene.add(sun, sun.target, hemi, fill);
 
-  const gradientMap = toonGradient([[0.36, 0.31, 0.3], [0.78, 0.73, 0.69], [1.0, 0.97, 0.9]]);
+  const gradientMap = toonGradient([[0.46, 0.42, 0.42], [0.78, 0.73, 0.69], [1.0, 0.97, 0.9]]);
   const textures = {
     planks: paintPlanks(),
     floor: paintPlanks(9, { weathered: true }),
     lattice: paintLattice(),
     carve: paintLattice(17),
     valance: paintCurtain(12, 'valance'),
-    sheer: paintCurtain(16, 'sheer'),
+    sheer: paintCurtain(16, 'batik'),
     cloth: paintCloth(),
     decor: paintDecor(),
     sheen: paintGlow('sheen'),
+    round: paintGlow('round'),
   };
   textures.lattice.repeat.set(1.6, 1.6);
   textures.carve.repeat.set(3.4, 3.4); // finer: chair-back carving
@@ -575,19 +635,21 @@ export function createInterior(canvas, { onReady } = {}) {
   for (const [key, color, map, extra] of [
     ['floor', PALETTE.floor, textures.floor],
     ['wall', PALETTE.wall, textures.planks],
-    ['ceiling', '#3a2116', textures.planks],
+    ['ceiling', '#5a4234', textures.planks],
     ['frame', PALETTE.frame, textures.planks],
     ['wood', PALETTE.wood, textures.planks],
     ['top', PALETTE.top, textures.planks],
     ['lattice', PALETTE.lattice, textures.lattice, { side: D, alphaTest: 0.5 }],
     ['carve', PALETTE.wood, textures.carve, { side: D, alphaTest: 0.5 }],
-    ['valance', '#ffffff', textures.valance, { side: D, emissive: '#7a2410', emissiveIntensity: 0.6 }],
-    ['sheer', '#ffffff', textures.sheer, { side: D, emissive: '#c98a70', emissiveIntensity: 0.5 }],
+    ['valance', '#ffffff', textures.valance, { side: D, emissive: '#ffffff', emissiveMap: textures.valance, emissiveIntensity: 0.35 }],
+    ['sheer', '#ffffff', textures.sheer, { side: D, emissive: '#ffffff', emissiveMap: textures.sheer, emissiveIntensity: 0.35 }],
     ['white', '#fffaf2', null, { side: D, emissive: '#fff4e4', emissiveIntensity: 0.4 }],
     ['cloth', '#ffffff', textures.cloth, { side: D, emissive: '#ffffff', emissiveMap: textures.cloth, emissiveIntensity: 0.3 }],
     ['decor', '#ffffff', textures.decor, { side: D }],
     ['plate', '#e6dcc0', null],
     ['leaf', PALETTE.leaf, null, { side: D }],
+    ['beam', '#4e3022', textures.planks],
+    ['pot', '#a0603c', null],
     ['tape', '#2f5f6a', null],
     ['bag', '#2c2420', null],
   ]) {
@@ -608,6 +670,8 @@ export function createInterior(canvas, { onReady } = {}) {
   buildEmbroideryFrame(b);
   buildHangings(b);
   buildVines(b);
+  buildCarvedPanels(b);
+  buildPlant(b);
   const room = new THREE.Group();
   room.add(...b.build(materials));
   // The lattice is cut out by its texture: give its shadow the same holes, and keep it out of the
@@ -622,7 +686,7 @@ export function createInterior(canvas, { onReady } = {}) {
     if (['leaf', 'cloth', 'decor'].includes(mesh.name)) mesh.castShadow = mesh.name === 'leaf';
   }
   scene.add(room);
-  const glows = buildGlows(textures.sheen);
+  const glows = buildGlows(textures.sheen, textures.round);
   scene.add(glows.group);
 
   // Outside: the jungle from the old scene, washed out by the fog; no painted sky (R1's windows are white).
@@ -634,7 +698,10 @@ export function createInterior(canvas, { onReady } = {}) {
   camera.layers.enable(1);
 
   const outline = createOutline(renderer, scene, camera, { ink: PALETTE.ink });
-  outline.material.uniforms.split.value = 0.18; // keep the dark wood warm
+  const u = outline.material.uniforms;
+  u.split.value = 0.18; // keep the dark wood warm
+  u.strength.value = 0.6; // finer, lighter lines than the old veranda: closer to R2's watercolour
+  u.wash.value = 1; // watercolour wash: slow blotches of lighter and darker pigment
   const composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
   composer.addPass(new ShaderPass(outline.material));
@@ -642,6 +709,7 @@ export function createInterior(canvas, { onReady } = {}) {
 
   let width = 0;
   let height = 0;
+  let pitch0 = THREE.MathUtils.degToRad(C.pitch);
   function resize() {
     const w = canvas.clientWidth;
     const h = canvas.clientHeight;
@@ -653,8 +721,14 @@ export function createInterior(canvas, { onReady } = {}) {
     outline.setSize(w, h, renderer.getPixelRatio());
     camera.aspect = w / h;
     // Keep R1's vertical view on wide screens; on narrow ones keep its horizontal view instead.
-    const hTan = Math.tan(THREE.MathUtils.degToRad(C.fov / 2)) * C.aspect;
-    camera.fov = camera.aspect >= C.aspect ? C.fov : Math.min(80, THREE.MathUtils.radToDeg(2 * Math.atan(hTan / camera.aspect)));
+    // Wide screens keep R1's vertical view. Narrower screens blend towards R2's portrait framing:
+    // a fixed horizontal view (62° → 52°) and a level camera, so the ceiling comes into view.
+    const P = PLAN.portrait;
+    const t = THREE.MathUtils.clamp((camera.aspect - P.aspect) / (C.aspect - P.aspect), 0, 1);
+    const deg = THREE.MathUtils.radToDeg;
+    const hfov = THREE.MathUtils.lerp(P.hfov, deg(2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(C.fov / 2)) * C.aspect)), t);
+    camera.fov = t >= 1 ? C.fov : Math.min(100, deg(2 * Math.atan(Math.tan(THREE.MathUtils.degToRad(hfov / 2)) / camera.aspect)));
+    pitch0 = THREE.MathUtils.degToRad(THREE.MathUtils.lerp(P.pitch, C.pitch, t));
     camera.updateProjectionMatrix();
   }
   const resizeObserver = new ResizeObserver(resize);
@@ -679,7 +753,7 @@ export function createInterior(canvas, { onReady } = {}) {
     const dt = Math.min(timer.getDelta(), 0.1);
     look.lerp(pointer, 1 - Math.exp(-dt * 2));
     const yaw = -look.x * 0.06;
-    const pitch = THREE.MathUtils.degToRad(C.pitch) - look.y * 0.03;
+    const pitch = pitch0 - look.y * 0.03;
     camera.position.copy(eye);
     target.set(eye.x + Math.sin(yaw) * Math.cos(pitch), eye.y + Math.sin(pitch), eye.z - Math.cos(yaw) * Math.cos(pitch));
     camera.lookAt(target);
@@ -691,6 +765,7 @@ export function createInterior(canvas, { onReady } = {}) {
     if (!readyCalled) {
       readyCalled = true;
       if (debug) console.info('triangles', renderer.info.render.triangles, 'calls', renderer.info.render.calls);
+      if (debug) window.__interior = { scene, camera, THREE };
       onReady?.();
     }
   }
@@ -708,7 +783,7 @@ export function createInterior(canvas, { onReady } = {}) {
       for (const t of Object.values(textures)) t.dispose();
       latticeDepth.dispose();
       carveDepth.dispose();
-      glows.mat.dispose();
+      for (const m of glows.mats) m.dispose();
       landscape.dispose();
       gradientMap.dispose();
       outline.dispose();
