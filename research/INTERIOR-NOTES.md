@@ -7,7 +7,6 @@ Notes for `src/lib/three/scene/interior.js` (+ `toon.js`, `paint.js`, `landscape
 - **R1**: the sitting room of a Sarawak Malay house. The user supplied the photo. It is **not in the repo**, because its licence is unknown.
 - It probably shows the Malay house at the Sarawak Cultural Village. This is **unconfirmed**. Compare [williamnyk's exterior photo](https://www.flickr.com/photos/92481623@N00/3430062533) (CC BY 2.0).
 - Rule from the user: **Sarawak Malay houses only.** H1–H6 (Orang Ulu/Bidayuh, [scv.com.my](https://scv.com.my/about-us/)) and the peninsula houses (H7–H15) are no longer used.
-- **R2**: a watercolour-style painting of the same room in portrait, supplied by the user. Source and licence unknown, so it is **not in the repo**. Portrait screens follow R2; wide screens follow R1.
 - Background reading on the house type: [UNIMAS, Analysis of Design Character and Typology of Sarawak Traditional Malay House](https://ir.unimas.my/id/eprint/33200/).
 
 ## Visual contract (read from R1)
@@ -56,21 +55,12 @@ Comparison screenshots are 1240×894 (R1's aspect), next to R1.
 | m3 | Too bright and too orange. The cloth was too dark. The white curtain looked flat | Darker walls, a less red toon ramp, a lower hemisphere light, a cloth glow, less emissive on the white sheer, longer floor sheen |
 | m4 | Chair backs were plain slats | Carved panels (alpha lattice) in the armchair backs, a carved band on the settee |
 
-## Pass log (R2, portrait 437×946)
-
-| Pass | What was off vs R2 | What changed |
-|---|---|---|
-| r1 | No ceiling in view; no beams | Portrait framing (level camera, 52° horizontal). Ceiling beams, sun patches, batik curtains, carved right-wall panels, potted plant, gold border on the cloth, watercolour `wash` in `toon.js` |
-| r2 | The user asked for no hanging lamps ("without the lights on top") | Lanterns removed |
-| r3 | A flat green band at the bottom of the view | Camera near plane 0.05 → 0.2. At 0.05 the 400 m ground plane (y −1.85) drew over the near floor in SwiftShader. The closest floor in view is about 0.75 m away |
-| r4 | Too dark and too orange | Brighter hemisphere light, exposure 1.15, lighter toon shadow band, greyer floor and ceiling, browner wood, a frame a little nearer and more central |
-
 ## Open issues
 
 - [ ] The floor sheen is still weaker than in R1, where the reflections dominate the left half of the floor.
 - [ ] The wall hangings are a neat diamond grid. In R1 they are a looser cluster, with greenery tucked in.
 - [ ] R1's left armchair has a solid curved back. Ours are the same as the right chair.
-- [ ] Portrait: R2's palm by the left window is out of view; R2's ceiling is lighter and greyer.
+- [ ] No tested phone view yet. The resize logic keeps the horizontal FOV on narrow screens.
 - [ ] Source and licence of R1, for credit.
 - [ ] No keringkam on the cloth yet (on purpose).
 

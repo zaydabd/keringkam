@@ -56,7 +56,6 @@ const OUTLINE_SHADER = {
     ink: { value: new THREE.Color('#3a2418') },
     strength: { value: 0.9 },
     split: { value: 0.7 }, // how far dark tones lean blue (0 = not at all)
-    wash: { value: 0 }, // watercolour wash: slow blotches of lighter and darker pigment (0 = off)
     thickness: { value: 1 },
     fade: { value: new THREE.Vector2(7, 26) },
   },
@@ -68,7 +67,7 @@ const OUTLINE_SHADER = {
     #include <packing>
     uniform sampler2D tDiffuse, tEdge, tDepth;
     uniform vec2 resolution, fade;
-    uniform float cameraNear, cameraFar, strength, thickness, split, wash;
+    uniform float cameraNear, cameraFar, strength, thickness, split;
     uniform vec3 ink;
     varying vec2 vUv;
 
@@ -121,12 +120,6 @@ const OUTLINE_SHADER = {
       float tooth = noise(fc * 0.85) * 0.6 + noise(fc * 0.21 + 3.0) * 0.4;
       float mottle = noise(fc * 0.012 + 11.0);
       col *= 0.955 + 0.07 * tooth + 0.04 * (mottle - 0.5);
-      // Watercolour wash: large soft blotches and a medium mottle, stronger in the mid tones,
-      // and a little pigment pooling (darker) along the ink lines.
-      float lumc = dot(col, vec3(0.299, 0.587, 0.114));
-      float blot = (noise(fc / 170.0 + 2.3) - 0.5) * 0.22 + (noise(fc / 48.0 + 8.1) - 0.5) * 0.1;
-      col *= 1.0 + wash * blot * (0.4 + 0.6 * smoothstep(0.02, 0.3, lumc));
-      col *= 1.0 - wash * edge * 0.08;
       gl_FragColor = vec4(col, base.a);
     }
   `,
