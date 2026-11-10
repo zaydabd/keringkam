@@ -18,7 +18,7 @@ export const fabrics = manifest.map((item) => ({
   fullUrl: urlFor(item.group, item.name, ''),
 }));
 
-/** Creates a KTX2 loader. The Basis transcoder is copied to /basis/ by scripts/copy-basis.mjs. */
+/** Creates a KTX2 loader. The Basis transcoder is copied to <base>/basis/ by scripts/copy-basis.mjs. */
 export function createKTX2Loader(renderer) {
-  return new KTX2Loader().setTranscoderPath('/basis/').detectSupport(renderer);
+  return new KTX2Loader().setTranscoderPath(`${import.meta.env.BASE_URL}basis/`).detectSupport(renderer);
 }
