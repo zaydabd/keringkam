@@ -672,7 +672,7 @@ export function createInterior(canvas, { onReady } = {}) {
   for (const [key, color, map, extra] of [
     ['floor', PALETTE.floor, textures.floor],
     ['wall', PALETTE.wall, textures.wall],
-    ['ceiling', '#6e5646', textures.wall] // grey-brown boards, as R2's ceiling (seen on tall screens),
+    ['ceiling', '#6e5646', textures.wall], // grey-brown boards, as R2's ceiling (seen on tall screens)
     ['frame', PALETTE.frame, textures.planks],
     ['wood', PALETTE.wood, textures.planks],
     ['top', PALETTE.top, textures.planks],
