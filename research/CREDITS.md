@@ -68,6 +68,14 @@ Scanned slide from 2001 | Bernard DUPONT | CC BY-SA 2.0 |
 
 Contact sheet: `kampung-house-inside.jpg` (H1–H15). All from Wikimedia Commons. No Brunei photos.
 
+**Note (2026-11-10):** H1–H6 show the Orang Ulu and Bidayuh houses at the Sarawak Cultural Village. They are not Malay houses
+([scv.com.my](https://scv.com.my/about-us/), [malaysia.travel](https://malaysia.travel/explore/sarawak-cultural-village)).
+They are no longer used as references for the interior. The interior now follows R1 only (below).
+
+| ID | Photo | Place | Author | Licence |
+|---|---|---|---|---|
+| R1 | Sitting room of a Sarawak Malay house (photo supplied by the user; not in the repo) | Probably the Malay house at the Sarawak Cultural Village (unconfirmed) | Unknown | Unknown: not committed |
+
 | # | File | Place | Author | Licence |
 |---|---|---|---|---|
 | H1 | [Kuching Cultural Village (3679464024).jpg](https://commons.wikimedia.org/wiki/File:Kuching_Cultural_Village_(3679464024).jpg) | Sarawak Cultural Village, Kuching | Peter Gronemann from Switzerland | CC BY 2.0 |

@@ -4,6 +4,13 @@ How to get a three.js render that looks like a reference photo. Every rule here 
 scene (`#/interior`), which we built from photo H1 in 7 passes. The pass log is in `INTERIOR-NOTES.md`.
 These are lessons from one scene, not measured results from many.
 
+## Check what the photo shows before you build
+
+H1–H6 turned out to be Orang Ulu and Bidayuh houses, not Malay houses, so the first scene was built from the wrong
+house type. Confirm the culture and place of each reference first (museum or university sources), then build. The
+current scene uses R1 (a Sarawak Malay house) and the method below. Its m1 blockout matched the layout on the first
+try, because the camera was measured from the photo (horizon, vanishing point, FOV) before any code was written.
+
 ## Why pass 1 and pass 7 look so different
 
 Pass 1 was a blockout: plain boxes in the right places, with no shading, lines, textures or landscape.
