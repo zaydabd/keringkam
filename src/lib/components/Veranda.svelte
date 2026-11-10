@@ -2,13 +2,13 @@
   import { onMount } from 'svelte';
   import { blur, fade } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
-  import { createVeranda, VIEWS } from '../three/scene/veranda.js';
+  import { createVeranda, MOODS } from '../three/scene/veranda.js';
   import { fabrics, pieceInfo } from '../three/common.js';
 
   let canvas;
   let scene = null;
   let index = $state(0);
-  let view = $state(0);
+  let mood = $state(0);
   let ready = $state(false);
   const info = $derived(pieceInfo(index));
 
@@ -17,9 +17,9 @@
     return () => scene.destroy();
   });
 
-  function pickView(k) {
-    view = k;
-    scene?.setView(k);
+  function pickMood(k) {
+    mood = k;
+    scene?.setMood(k);
   }
 
   function onkeydown(event) {
@@ -47,9 +47,9 @@
     {/key}
   </div>
 
-  <div class="views" role="group" aria-label="View outside">
-    {#each VIEWS as v, k (v.name)}
-      <button type="button" aria-pressed={k === view} onclick={() => pickView(k)}>{v.name}</button>
+  <div class="views" role="group" aria-label="Time of day">
+    {#each MOODS as m, k (m.name)}
+      <button type="button" aria-pressed={k === mood} onclick={() => pickMood(k)}>{m.name}</button>
     {/each}
   </div>
 
@@ -62,9 +62,7 @@
     </button>
   </div>
 
-  <p class="credit">
-    View: <a href={VIEWS[view].credit.page} target="_blank" rel="noopener">photo by {VIEWS[view].credit.author}</a>, {VIEWS[view].credit.license}, Wikimedia Commons
-  </p>
+  <p class="credit">A 3D rendition of a kampung veranda over the Sarawak River. Not to scale.</p>
 
   {#if !ready}
     <div class="veil" out:fade={{ duration: 1400 }}><span>Keringkam</span></div>
@@ -217,9 +215,6 @@
     margin: 0;
     font-size: 11px;
     opacity: 0.7;
-  }
-  .credit a {
-    border-bottom: 1px solid currentColor;
   }
   .veil {
     position: absolute;
