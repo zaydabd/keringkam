@@ -16,6 +16,8 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { toonGradient, createOutline } from './toon.js';
+import { paintPlanks, paintThatch, paintMat, paintPost } from './paint.js';
+import { createLandscape } from './landscape.js';
 
 // Palette: sampled from H1, H7 and H14, then lifted into late-afternoon light.
 export const PALETTE = {
@@ -53,8 +55,15 @@ class Builder {
   constructor() {
     this.parts = new Map();
   }
-  add(key, geometry, tint = 0.08) {
+  add(key, geometry, tint = 0.08, jitterUV = true) {
     const n = geometry.attributes.position.count;
+    // Shift each part's UVs, so no two planks show the same stretch of painted grain.
+    const uv = geometry.attributes.uv;
+    if (uv && jitterUV) {
+      const du = rand() * 20;
+      const dv = rand() * 2;
+      for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) + du, uv.getY(i) + dv);
+    }
     const colors = new Float32Array(n * 3);
     const shade = 1 - tint / 2 + rand() * tint;
     const warm = (rand() - 0.5) * tint * 0.5;
@@ -77,6 +86,19 @@ class Builder {
   beam(key, a, b, w, h, tint) {
     const len = a.distanceTo(b);
     const g = boxWithGrainUVs(w, h, len);
+    const m = new THREE.Matrix4().lookAt(a, b, Math.abs(b.y - a.y) > len * 0.99 ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 1, 0));
+    m.setPosition(a.clone().add(b).multiplyScalar(0.5));
+    g.applyMatrix4(m);
+    this.add(key, g, tint);
+  }
+  /** A round pole of radius r from a to b; UVs in metres, along the pole (grain) and around it. */
+  pole(key, a, b, r, tint, segs = 7) {
+    const len = a.distanceTo(b);
+    const g = new THREE.CylinderGeometry(r, r, len, segs, 1, true);
+    const pos = g.attributes.position;
+    const uv = g.attributes.uv;
+    for (let i = 0; i < uv.count; i++) uv.setXY(i, pos.getY(i), uv.getX(i) * Math.PI * 2 * r);
+    g.rotateX(Math.PI / 2); // axis along +z, ready for lookAt
     const m = new THREE.Matrix4().lookAt(a, b, Math.abs(b.y - a.y) > len * 0.99 ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 1, 0));
     m.setPosition(a.clone().add(b).multiplyScalar(0.5));
     g.applyMatrix4(m);
@@ -120,16 +142,15 @@ function buildRoom(b) {
   const { x0, x1, z0, z1, plate } = ROOM;
 
   // Floor: boards running out towards the view; the front-right part is a lower bamboo section (H1, H4).
-  const BOARD = 0.22;
+  const BOARD = 0.3;
   for (let x = x0 + BOARD / 2; x < x1; x += BOARD) {
     const inSunk = x > SUNK.x0 && x < SUNK.x1;
     const za = inSunk ? SUNK.z1 : z0 - 0.12;
     const zb = z1;
     b.box('floor', BOARD - 0.014, 0.05, zb - za, x, -0.025, (za + zb) / 2, 0, 0, 0, 0.14);
   }
-  for (let x = SUNK.x0 + 0.04; x < SUNK.x1; x += 0.075) {
-    b.box('bamboo', 0.065, 0.035, SUNK.z1 - SUNK.z0 + 0.1, x, SUNK.y - 0.018, (SUNK.z0 + SUNK.z1) / 2 - 0.05, 0, 0, 0, 0.18);
-  }
+  // The lowered section: a woven bamboo mat over a plank base (H1, H4).
+  b.box('bamboo', SUNK.x1 - SUNK.x0, 0.03, SUNK.z1 - SUNK.z0 + 0.1, (SUNK.x0 + SUNK.x1) / 2, SUNK.y - 0.015, (SUNK.z0 + SUNK.z1) / 2 - 0.05, 0, 0, 0, 0.04);
   // Step faces around the lowered section.
   b.box('timber', SUNK.x1 - SUNK.x0, -SUNK.y, 0.06, (SUNK.x0 + SUNK.x1) / 2, SUNK.y / 2, SUNK.z1 - 0.03);
   b.box('timber', 0.06, -SUNK.y, SUNK.z1 - SUNK.z0, SUNK.x0 + 0.03, SUNK.y / 2, (SUNK.z0 + SUNK.z1) / 2);
@@ -142,9 +163,10 @@ function buildRoom(b) {
   // Carved posts (H1, H6).
   const posts = [[x0, z0], [x0, -0.5], [x0, 3], [-1.5, z0], [2, z0], [x1, z0]];
   for (const [x, z] of posts) {
-    const g = new THREE.CylinderGeometry(0.17, 0.18, plate + 0.05, 20, 1);
+    const g = new THREE.CylinderGeometry(0.23, 0.25, plate + 0.05, 24, 1);
+    g.rotateY(rand() * Math.PI * 2); // each post shows a different side of the painted scrolls
     g.translate(x, plate / 2, z);
-    b.add('post', g, 0.04);
+    b.add('post', g, 0.03, false);
   }
 
   // Wall plates.
@@ -161,9 +183,13 @@ function buildRoom(b) {
     const ry = Math.atan2(dir.x, dir.z) - Math.PI / 2;
     const out = new THREE.Vector3(dir.z, 0, -dir.x); // outward normal for front/left runs
     const h = 1.0 - floorY;
-    for (let s = 0.12; s < len - 0.05; s += 0.21) {
-      const p = from.clone().addScaledVector(dir, s).addScaledVector(out, 0.03);
-      b.box('rail', 0.13, h, 0.028, p.x, floorY + h / 2, p.z, 0, ry, 0, 0.2);
+    // Wide planks with uneven gaps and heights, a little out of true (H1).
+    for (let s = 0.1; s < len - 0.08; ) {
+      const w = 0.11 + rand() * 0.06;
+      const hh = h + (rand() - 0.5) * 0.07;
+      const p = from.clone().addScaledVector(dir, s + w / 2).addScaledVector(out, 0.03);
+      b.box('rail', w, hh, 0.03, p.x, floorY + hh / 2, p.z, 0, ry, (rand() - 0.5) * 0.035, 0.24);
+      s += w + 0.06 + rand() * 0.05;
     }
     const mid = from.clone().add(to).multiplyScalar(0.5);
     const top = mid.clone().addScaledVector(out, 0.02);
@@ -213,8 +239,8 @@ function buildRoof(b) {
   const rx = ex1 - half; // ridge runs from -rx to rx
   const V = (x, y, z) => new THREE.Vector3(x, y, z);
 
-  // Thatch underside: four faces, 12 cm above the rafters.
-  const lift = 0.12;
+  // Thatch underside: four faces, just above the laths.
+  const lift = 0.03;
   const eY = roofY(0) + lift;
   const rY = ridgeY + lift;
   const quads = [
@@ -225,45 +251,62 @@ function buildRoof(b) {
   ];
   const positions = [];
   const uvs = [];
+  const slope = Math.sqrt(1 + PITCH * PITCH);
   for (const [a, c, d, e] of quads) {
     for (const p of [a, c, d, a, d, e]) {
       positions.push(p.x, p.y, p.z);
-      // UVs in metres along the slope, so the batten pattern lines up on every face
+      // UVs in metres: across the face, and up the slope from the eave (rows of shingles)
       const across = Math.abs(a.x - c.x) > 0.1 ? p.x : p.z;
-      const up = Math.hypot(Math.min(Math.abs(p.x - ex0), Math.abs(p.x - ex1), Math.abs(p.z - ez0), Math.abs(p.z - ez1)), 0);
-      uvs.push(across, up);
+      const run = Math.abs(a.x - c.x) > 0.1 ? half - Math.abs(p.z) : ex1 - Math.abs(p.x);
+      uvs.push(across, run * slope);
     }
   }
   const thatch = new THREE.BufferGeometry();
   thatch.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
   thatch.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
   thatch.computeVertexNormals();
-  b.add('thatch', thatch, 0);
+  b.add('thatch', thatch, 0, false);
 
-  // Ridge and hips.
-  b.beam('timber', V(-rx, ridgeY, 0), V(rx, ridgeY, 0), 0.16, 0.2, 0.05);
-  for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.beam('timber', V(sx * ex1, roofY(0), sz * ez1), V(sx * rx, ridgeY, 0), 0.14, 0.18, 0.05);
-
-  // Common and jack rafters on the long faces, running straight up the slope to the ridge or a hip.
-  for (let x = ex0 + 0.55; x < ex1 - 0.3; x += 0.62) {
-    const run = Math.abs(x) <= rx ? half : half - (Math.abs(x) - rx);
-    for (const sz of [-1, 1]) b.beam('rafter', V(x, roofY(0), sz * half), V(x, roofY(run), sz * (half - run)), 0.08, 0.1, 0.12);
-  }
-  // Jack rafters on the hip ends.
-  for (let z = ez0 + 0.55; z < ez1 - 0.3; z += 0.62) {
-    const run = half - Math.abs(z);
-    for (const sx of [-1, 1]) b.beam('rafter', V(sx * ex1, roofY(0), z), V(sx * (ex1 - run), roofY(run), z), 0.08, 0.1, 0.12);
-  }
-  // Purlins along the long faces.
-  for (const d of [1.0, 2.3, 3.6]) {
+  // Ridge, hips and purlins: round logs (H1).
+  b.pole('timber', V(-rx - 0.3, ridgeY - 0.1, 0), V(rx + 0.3, ridgeY - 0.1, 0), 0.1, 0.05, 9);
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.pole('timber', V(sx * ex1, roofY(0) - 0.08, sz * ez1), V(sx * rx, ridgeY - 0.08, 0), 0.085, 0.05, 8);
+  for (const d of [0.9, 2.2, 3.5]) {
     for (const sz of [-1, 1]) {
       const z = sz * (half - d);
       const xr = ex1 - d;
-      b.beam('timber', V(-xr, roofY(d) - 0.08, z), V(xr, roofY(d) - 0.08, z), 0.1, 0.1, 0.08);
+      b.pole('timber', V(-xr, roofY(d) - 0.13, z), V(xr, roofY(d) - 0.13, z), 0.075, 0.08, 8);
+    }
+    for (const sx of [-1, 1]) {
+      const x = sx * (ex1 - d);
+      const zr = half - d;
+      b.pole('timber', V(x, roofY(d) - 0.13, -zr), V(x, roofY(d) - 0.13, zr), 0.075, 0.08, 8);
     }
   }
+
+  // Rafters: thin round poles, close together, straight up the slope to the ridge or a hip (H1).
+  const STEP = 0.36;
+  for (let x = ex0 + 0.2; x < ex1 - 0.15; x += STEP) {
+    const run = Math.abs(x) <= rx ? half : half - (Math.abs(x) - rx);
+    for (const sz of [-1, 1]) b.pole('rafter', V(x, roofY(0) - 0.05, sz * half), V(x, roofY(run) - 0.05, sz * (half - run)), 0.04, 0.2, 6);
+  }
+  for (let z = ez0 + 0.2; z < ez1 - 0.15; z += STEP) {
+    const run = half - Math.abs(z);
+    for (const sx of [-1, 1]) b.pole('rafter', V(sx * ex1, roofY(0) - 0.05, z), V(sx * (ex1 - run), roofY(run) - 0.05, z), 0.04, 0.2, 6);
+  }
+
+  // Laths: thin split-bamboo strips across the rafters, every 15 cm up the slope; the thatch is tied to these.
+  const tilt = Math.atan(PITCH);
+  for (let sl = 0.08; sl < half * slope - 0.05; sl += 0.15) {
+    const d = sl / slope;
+    const y = roofY(d) + 0.0;
+    const xr = ex1 - d;
+    const zr = half - d;
+    for (const sz of [-1, 1]) b.box('lath', xr * 2, 0.012, 0.035, 0, y, sz * zr, sz * tilt, 0, 0, 0.22);
+    for (const sx of [-1, 1]) b.box('lath', 0.035, 0.012, zr * 2, sx * xr, y, 0, 0, 0, -sx * tilt, 0.22);
+  }
+
   // A tie beam across the room, as in H1.
-  b.beam('timber', V(ROOM.x0, ROOM.plate + 0.05, -1.2), V(ROOM.x1, ROOM.plate + 0.05, -1.2), 0.16, 0.2, 0.05);
+  b.pole('timber', V(ROOM.x0 - 0.2, ROOM.plate + 0.08, -1.2), V(ROOM.x1 + 0.2, ROOM.plate + 0.08, -1.2), 0.11, 0.05, 9);
 }
 
 // The house wall on the right (H7–H12, H14): vertical boards with openings for a window and a door.
@@ -353,23 +396,27 @@ export function createInterior(canvas, { onReady } = {}) {
   Object.assign(sun.shadow.camera, { left: -9, right: 9, top: 9, bottom: -9, near: 1, far: 50 });
   sun.shadow.bias = -0.0004;
   sun.shadow.normalBias = 0.02;
-  const hemi = new THREE.HemisphereLight('#d4d6e6', '#a08670', 1.8); // cool sky fill: shadows go blue, not grey
+  const hemi = new THREE.HemisphereLight('#d4d6e6', '#a08670', 2.4); // cool sky fill: shadows go blue, not grey
   scene.add(sun, hemi);
 
   const gradientMap = toonGradient();
+  const textures = { planks: paintPlanks(), thatch: paintThatch(), mat: paintMat(), post: paintPost() };
+  const aniso = Math.min(4, renderer.capabilities.getMaxAnisotropy());
+  for (const t of Object.values(textures)) t.anisotropy = aniso;
   const materials = {};
-  for (const [key, color] of Object.entries({
-    floor: PALETTE.timber,
-    bamboo: '#c9a86a',
-    timber: '#8a6240',
-    rafter: '#9a7448',
-    rail: '#8c7656',
-    bench: '#9c7a52',
-    post: PALETTE.post,
-    thatch: PALETTE.thatch,
-    wall: PALETTE.wall,
-  })) {
-    materials[key] = new THREE.MeshToonMaterial({ color, vertexColors: true, gradientMap });
+  for (const [key, color, map] of [
+    ['floor', '#c2a47e', textures.planks],
+    ['bamboo', '#d9bd84', textures.mat],
+    ['timber', '#9a7650', textures.planks],
+    ['rafter', '#cfae7c', textures.planks],
+    ['lath', '#d2b07a', textures.planks],
+    ['rail', '#ab9a82', textures.planks],
+    ['bench', '#ad9070', textures.planks],
+    ['post', '#ffffff', textures.post],
+    ['thatch', '#b08a58', textures.thatch],
+    ['wall', PALETTE.wall, textures.planks],
+  ]) {
+    materials[key] = new THREE.MeshToonMaterial({ color, map, vertexColors: true, gradientMap });
   }
 
   const b = new Builder();
@@ -378,27 +425,11 @@ export function createInterior(canvas, { onReady } = {}) {
   room.add(...b.build(materials));
   scene.add(room);
 
-  // Outside, for now: ground and blob trees.
-  const outside = new THREE.Group();
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), new THREE.MeshLambertMaterial({ color: '#7fa064' }));
-  ground.rotation.x = -Math.PI / 2;
-  ground.position.y = -1.85;
-  ground.receiveShadow = true;
-  outside.add(ground);
-  const treeMat = new THREE.MeshLambertMaterial({ color: PALETTE.leaf });
-  const treeGeo = new THREE.IcosahedronGeometry(1, 2);
-  for (let i = 0; i < 40; i++) {
-    const a = -Math.PI * 0.05 - rand() * Math.PI * 0.75;
-    const r = 9 + rand() * 25;
-    const t = new THREE.Mesh(treeGeo, treeMat);
-    const s = 1.5 + rand() * 3;
-    t.scale.set(s, s * (0.8 + rand() * 0.5), s);
-    t.position.set(Math.cos(a) * r - 2, -1.8 + s * 0.8 + rand() * 2, Math.sin(a) * r - 3);
-    outside.add(t);
-  }
-  outside.traverse((o) => o.layers.set(1)); // painted landscape: no outlines
-  scene.add(outside);
+  // Outside: painted sky, jungle, palms and banana plants (layer 1: no outlines).
+  const landscape = createLandscape({ gradientMap, rand, groundY: -1.85 });
+  scene.add(landscape.group);
   camera.layers.enable(1);
+  scene.fog = new THREE.Fog('#c9d8c0', 28, 130); // aerial perspective on the far jungle
 
   const outline = createOutline(renderer, scene, camera, { ink: PALETTE.ink });
   const composer = new EffectComposer(renderer);
@@ -460,10 +491,10 @@ export function createInterior(canvas, { onReady } = {}) {
         if (o.geometry) o.geometry.dispose();
       });
       for (const m of Object.values(materials)) m.dispose();
-      treeMat.dispose();
+      for (const t of Object.values(textures)) t.dispose();
+      landscape.dispose();
       gradientMap.dispose();
       outline.dispose();
-      ground.material.dispose();
       composer.dispose();
       renderer.dispose();
     },
