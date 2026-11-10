@@ -21,8 +21,8 @@
   </header>
 
   <p class="credit">
-    A hand-drawn style rendition of a kampung house, after photos of the Sarawak Cultural Village, P. Ramlee House
-    (Penang) and Istana Satu (KL). Not to scale.
+    A hand-drawn style rendition of a sitting room in a Sarawak Malay house, after a reference photo. Sizes are
+    estimated.
   </p>
 
   {#if !ready}

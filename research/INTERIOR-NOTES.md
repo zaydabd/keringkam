@@ -1,5 +1,74 @@
 # Interior scene notes (`#/interior`)
 
+Notes for `src/lib/three/scene/interior.js` (+ `toon.js`, `paint.js`, `landscape.js`).
+
+## Reference
+
+- **R1**: the sitting room of a Sarawak Malay house. The user supplied the photo. It is **not in the repo**, because its licence is unknown.
+- It probably shows the Malay house at the Sarawak Cultural Village. This is **unconfirmed**. Compare [williamnyk's exterior photo](https://www.flickr.com/photos/92481623@N00/3430062533) (CC BY 2.0).
+- Rule from the user: **Sarawak Malay houses only.** H1–H6 (Orang Ulu/Bidayuh, [scv.com.my](https://scv.com.my/about-us/)) and the peninsula houses (H7–H15) are no longer used.
+- Background reading on the house type: [UNIMAS, Analysis of Design Character and Typology of Sarawak Traditional Malay House](https://ir.unimas.my/id/eprint/33200/).
+
+## Visual contract (read from R1)
+
+These are estimates from one photo, not survey data.
+
+- **Camera.** Eye 0.9 m (seated), looking straight at the window wall, 6.7° down.
+  - Vertical FOV 46.8°, horizontal 62°, aspect 1.387.
+  - Horizon at about 38% from the top.
+  - Wider screens keep the vertical view. Narrower screens keep the horizontal view (capped at 80°).
+- **Room.**
+  - Window wall 5.5 m away. Right wall 1.34 m to the right.
+  - Walls are dark red-brown vertical boards.
+- **Windows.**
+  - Three full-height windows (0–2.25 m) in the back wall.
+    - Lattice panel 0–1.1 m.
+    - Red-orange floral pleated valance 2.1–2.45 m.
+    - Sheer pink curtains tied back at about 1.2 m.
+  - One more window in the right wall, near the camera, with a white sheer.
+- **Furniture.** Golden wood: a settee with a carved back, two armchairs and two tables with dark tops.
+- **Foreground.** A red cloth on an embroidery frame (pemidang). It is plain, with no keringkam motif yet.
+- **Light.** Backlit. The windows are blown out to white, the room is dark, and the floor reflects the windows.
+- All sizes are in `PLAN` at the top of `interior.js`.
+
+## Structure
+
+The structure follows `.claude/skills/threejs-procedural-architecture`, `threejs-camera-direction` and `threejs-visual-validation`.
+
+- `PLAN` (data) → `build*` functions (parts) → `Builder` (one merged mesh per material).
+- Debug views:
+  - `/?debug=nopost#/interior`: no ink pass.
+  - `/?debug=flat#/interior`: no textures.
+  - Both log the triangle and draw-call counts to the console.
+- The lattice and the carved chair backs are alpha-cut planes. A `customDepthMaterial` gives their shadows the same holes. They sit on layer 1, so they get no ink outline.
+- The room materials have fog off. Only the landscape outside is fogged (1–16 m, cream), which blows the windows out.
+- `toon.js` has a new `split` uniform. The interior uses 0.18, so dark wood is not tinted blue.
+
+## Pass log (R1)
+
+Comparison screenshots are 1240×894 (R1's aspect), next to R1.
+
+| Pass | What was off vs R1 | What changed |
+|---|---|---|
+| m1 blockout + toon | Camera and layout matched already. The windows showed green jungle. The frame was too big and too close. The floor was too orange | First full build |
+| m2 | Windows | Room materials have fog off. The fog is cream at 1–16 m, so the outside goes white. The frame is smaller, further away, and turned more (−0.42 rad). The floor is greyer |
+| m3 | Too bright and too orange. The cloth was too dark. The white curtain looked flat | Darker walls, a less red toon ramp, a lower hemisphere light, a cloth glow, less emissive on the white sheer, longer floor sheen |
+| m4 | Chair backs were plain slats | Carved panels (alpha lattice) in the armchair backs, a carved band on the settee |
+
+## Open issues
+
+- [ ] The floor sheen is still weaker than in R1, where the reflections dominate the left half of the floor.
+- [ ] The wall hangings are a neat diamond grid. In R1 they are a looser cluster, with greenery tucked in.
+- [ ] R1's left armchair has a solid curved back. Ours are the same as the right chair.
+- [ ] No tested phone view yet. The resize logic keeps the horizontal FOV on narrow screens.
+- [ ] Source and licence of R1, for credit.
+- [ ] No keringkam on the cloth yet (on purpose).
+
+
+# Archive: the longhouse veranda (replaced 2026-11-10)
+
+The old scene was built from H1–H6. Those photos show Orang Ulu and Bidayuh houses, not Malay houses, so the scene was replaced. The notes below are kept for the method only.
+
 Running notes for `src/lib/three/scene/interior.js` (+ `toon.js`, `paint.js`, `landscape.js`).
 Reference photos H1–H15 are listed with credits in `CREDITS.md` (contact sheet `kampung-house-inside.jpg`).
 The style is our own hand-drawn look, inspired by Ghibli backgrounds. No Ghibli assets or images are copied.

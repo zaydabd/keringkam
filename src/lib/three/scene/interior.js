@@ -1,13 +1,15 @@
-// The kampung house interior (#/interior): a hand-drawn, anime-style rendition of an open veranda
-// room, built from our reference photos (research/kampung-house-inside.jpg):
-//   H1/H2  layout: open sides, hip roof with exposed rafters, carved posts, slatted rail, benches,
-//          a sunken floor section, greenery outside            (Sarawak Cultural Village)
-//   H3     basket lamps hanging from the rafters                 (Sarawak Cultural Village)
-//   H4     split-bamboo floor                                    (Sarawak Cultural Village)
-//   H7–H12 dark red-brown timber wall, panel door, lattice, sheer curtain   (P. Ramlee House, Penang)
-//   H9     shelf props: terendak, kettle, clay pots, enamel plate          (P. Ramlee House, Penang)
-//   H14/15 carved vent panel over the window, gold curtain accent          (Istana Satu, KL / Merlimau)
-// It is a rendition, not a copy, and not to scale.
+// The Sarawak Malay house interior (#/interior): a hand-drawn rendition of one room, built from a
+// reference photo the user supplied (R1, research/INTERIOR-NOTES.md): the sitting room of a
+// Sarawak Malay house, looking at the window wall. Dark red-brown board walls, full-height windows
+// with lattice panels at the bottom, pleated floral valances and tied-back sheer curtains, golden
+// wood settee, armchairs and tables, woven hangings on the side wall, and a red cloth stretched on
+// an embroidery frame in the foreground (plain cloth: no keringkam motif yet).
+// It is a rendition, not a copy. Sizes are estimated from the photo (see PLAN).
+//
+// Structure (after .claude/skills/threejs-procedural-architecture): PLAN holds every size in
+// metres and can be serialised; the build* functions turn it into parts; the Builder merges the
+// parts into one mesh per material. Debug views: ?debug=nopost (no ink pass) or ?debug=flat
+// (no textures), e.g. /?debug=flat#/interior. Both log the triangle count.
 
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -16,27 +18,52 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { toonGradient, createOutline } from './toon.js';
-import { paintPlanks, paintThatch, paintMat, paintPost } from './paint.js';
+import { paintPlanks, paintLattice, paintCurtain, paintCloth, paintDecor, paintGlow } from './paint.js';
 import { createLandscape } from './landscape.js';
 
-// Palette: sampled from H1, H7 and H14, then lifted into late-afternoon light.
+// Colours picked from R1, then lifted a little for the painted look.
 export const PALETTE = {
-  thatch: '#8a6a3c', // H1 roof underside (#483413), warmed
-  timber: '#b08a5f', // H1 floor boards (#6c6e6b), warmed
-  wall: '#7a3f34', // H7 red-brown wall (#724649)
-  post: '#e6d3ad', // H1 carved post ground
-  motif: '#8c4a35', // H1 post carving
-  leaf: '#6f9a5c', // H1 greenery (#618466)
-  gold: '#d9a632', // H14 gold curtain (#866b04), lifted
-  ink: '#3a2418', // H14 dark timber (#181714), warmed: the outline colour
+  wall: '#47231a', // dark red-brown boards
+  frame: '#6a3a24', // window frames, dado rail
+  floor: '#6c5446', // brown floor boards, a little grey
+  wood: '#d0904a', // golden furniture
+  top: '#3c2418', // dark table tops
+  lattice: '#4a2a18',
+  cloth: '#d8283a', // red cloth on the frame
+  leaf: '#4f7a3a',
+  ink: '#2e1a10',
 };
 
-const ROOM = { x0: -5, x1: 5, z0: -4, z1: 4, plate: 2.75 };
-const PITCH = 0.5625; // roof rise per metre
-const EAVE = 1.3; // eave overhang
-// The lowered mat section: a pit inside the room, in front of the viewer, as in H1 (the step edge
-// runs diagonally across the view). Boards all round it.
-const SUNK = { x0: -1.75, x1: 2.6, z0: -2.9, z1: 0.8, y: -0.22 };
+// Everything in metres. The camera stands at the origin and looks along -z at the window wall.
+export const PLAN = {
+  camera: { eye: [0, 0.9, 0], pitch: -6.7, fov: 46.8, aspect: 1.387 }, // from R1's horizon and vanishing point
+  room: { x0: -4.2, x1: 1.34, z0: -5.5, z1: 1.2, top: 2.7 },
+  backWindows: [
+    { x0: -3.02, x1: -1.92 },
+    { x0: -1.0, x1: 0.05 },
+    { x0: 0.72, x1: 1.2 },
+  ],
+  window: { y1: 2.25, lattice: 1.1, valance: [2.1, 2.45], tie: 1.2 },
+  sideWindow: { z0: -2.45, z1: -1.45, y0: 0.3 }, // on the right wall, near the camera
+  dado: 0.85,
+  hangings: { z: -3.2, y: 1.52, size: 0.27 },
+  plate: { x: 0.38, y: 1.78, r: 0.15 },
+  settee: { x: -0.8, z: -5.08, ry: 0, w: 1.45, d: 0.55, back: 1.0 },
+  chairs: [
+    { x: -1.85, z: -4.0, ry: Math.PI / 2, w: 0.6, d: 0.55, back: 0.98 },
+    { x: 0.15, z: -4.0, ry: -Math.PI / 2, w: 0.6, d: 0.55, back: 0.98 },
+  ],
+  tables: [
+    { x0: -1.68, x1: -0.36, z0: -4.5, z1: -4.1, h: 0.46 },
+    { x0: -1.9, x1: -0.45, z0: -3.8, z1: -3.0, h: 0.45, stretcher: true },
+  ],
+  frame: { x: 0.5, z: -1.78, ry: -0.42, w: 0.62, d: 0.52, front: 0.36, back: 0.5 }, // embroidery frame
+};
+
+const V = (x, y, z) => new THREE.Vector3(x, y, z);
+const Q = (rx = 0, ry = 0, rz = 0) => new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, ry, rz));
+const ONE = V(1, 1, 1);
+const M = (x, y, z, rx, ry, rz) => new THREE.Matrix4().compose(V(x, y, z), Q(rx, ry, rz), ONE);
 
 const rand = mulberry32(7);
 function mulberry32(a) {
@@ -49,7 +76,6 @@ function mulberry32(a) {
   };
 }
 
-// ---------------------------------------------------------------------------------------------
 // Geometry: boxes are collected per material, given a slightly different tint each (so every
 // plank is its own colour, like painted wood), then merged into one mesh per material.
 
@@ -77,6 +103,11 @@ class Builder {
     geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
     if (!this.parts.has(key)) this.parts.set(key, []);
     this.parts.get(key).push(geometry);
+  }
+  /** Adds a geometry after moving it by the matrix m (for parts built in a local frame). */
+  place(key, geometry, m, tint, jitterUV) {
+    geometry.applyMatrix4(m);
+    this.add(key, geometry, tint, jitterUV);
   }
   /** A box of size (w, h, d) centred at (x, y, z), turned by the Euler angles (rx, ry, rz). */
   box(key, w, h, d, x, y, z, rx = 0, ry = 0, rz = 0, tint) {
@@ -137,308 +168,473 @@ function boxWithGrainUVs(w, h, d) {
   return g;
 }
 
+
 // ---------------------------------------------------------------------------------------------
-// The room
+// Parts
+
+/** Splits [from, to] into boards of uneven width (0.15–0.22 m), with joints at every `edges` value. */
+function boardRuns(from, to, edges) {
+  const cuts = [from, ...edges.filter((e) => e > from && e < to), to].sort((a, b) => a - b);
+  const boards = [];
+  for (let i = 0; i < cuts.length - 1; i++) {
+    let a = cuts[i];
+    while (a < cuts[i + 1] - 0.01) {
+      const bEnd = Math.min(cuts[i + 1], a + 0.15 + rand() * 0.07);
+      boards.push([a, cuts[i + 1] - bEnd < 0.06 ? cuts[i + 1] : bEnd]);
+      a = boards[boards.length - 1][1];
+    }
+  }
+  return boards;
+}
+
+/**
+ * A wall of vertical boards along one axis. `openings` are [a0, a1, y0, y1] along that axis; boards
+ * stop at their edges. `at(a, y, w, h)` returns the box centre and size for a board piece.
+ */
+function boardWall(b, from, to, top, openings, at) {
+  const edges = openings.flatMap((o) => [o[0], o[1]]);
+  for (const [a0, a1] of boardRuns(from, to, edges)) {
+    const mid = (a0 + a1) / 2;
+    const o = openings.find((o) => mid > o[0] && mid < o[1]);
+    const spans = o ? [[0, o[2]], [o[3], top]] : [[0, top]];
+    for (const [y0, y1] of spans) if (y1 - y0 > 0.02) at(mid, (y0 + y1) / 2, a1 - a0 - 0.004, y1 - y0);
+  }
+}
 
 function buildRoom(b) {
-  const { x0, x1, z0, z1, plate } = ROOM;
-
-  // Floor: wide boards running out towards the view, cut around the lowered mat section (H1).
-  const BOARD = 0.3;
-  for (let x = x0 + BOARD / 2; x < x1; x += BOARD) {
-    const inSunk = x > SUNK.x0 && x < SUNK.x1;
-    const runs = inSunk ? [[z0 - 0.12, SUNK.z0], [SUNK.z1, z1]] : [[z0 - 0.12, z1]];
-    for (const [za, zb] of runs) b.box('floor', BOARD - 0.012, 0.05, zb - za, x, -0.025, (za + zb) / 2, 0, 0, 0, 0.1);
-  }
-  // The lowered section: a woven bamboo mat (H1, H4).
-  b.box('bamboo', SUNK.x1 - SUNK.x0, 0.03, SUNK.z1 - SUNK.z0, (SUNK.x0 + SUNK.x1) / 2, SUNK.y - 0.015, (SUNK.z0 + SUNK.z1) / 2, 0, 0, 0, 0.03);
-  // Step faces on all four sides, and a darker nosing board along the top edge (H1).
-  const sx = SUNK.x1 - SUNK.x0;
-  const sz = SUNK.z1 - SUNK.z0;
-  const cx = (SUNK.x0 + SUNK.x1) / 2;
-  const cz = (SUNK.z0 + SUNK.z1) / 2;
-  for (const z of [SUNK.z0 + 0.03, SUNK.z1 - 0.03]) b.box('timber', sx, -SUNK.y, 0.06, cx, SUNK.y / 2, z);
-  for (const x of [SUNK.x0 + 0.03, SUNK.x1 - 0.03]) b.box('timber', 0.06, -SUNK.y, sz, x, SUNK.y / 2, cz);
-  for (const z of [SUNK.z0 - 0.06, SUNK.z1 + 0.06]) b.box('timber', sx + 0.24, 0.035, 0.12, cx, 0.012, z, 0, 0, 0, 0.04);
-  for (const x of [SUNK.x0 - 0.06, SUNK.x1 + 0.06]) b.box('timber', 0.12, 0.035, sz, x, 0.012, cz, 0, 0, 0, 0.04);
-  // Edge beams under the floor, and the stilts below.
-  b.box('timber', x1 - x0 + 0.3, 0.24, 0.16, 0, -0.17, z0 - 0.08);
-  b.box('timber', 0.16, 0.24, z1 - z0 + 0.3, x0 - 0.08, -0.17, 0);
-  for (const [x, z] of [[x0, z0], [x0, -0.5], [x0, z1 - 1], [-1.5, z0], [2, z0]]) b.box('timber', 0.16, 1.6, 0.16, x, -1.05, z);
-
-  // Carved posts (H1, H6).
-  const posts = [[x0, z0], [x0, -0.5], [x0, 3], [-1.5, z0], [2, z0], [x1, z0]];
-  for (const [x, z] of posts) {
-    const g = new THREE.CylinderGeometry(0.23, 0.25, plate + 0.05, 24, 1);
-    g.rotateY(rand() * Math.PI * 2); // each post shows a different side of the painted scrolls
-    g.translate(x, plate / 2, z);
-    b.add('post', g, 0.03, false);
-  }
-
-  // Wall plates.
-  b.box('timber', x1 - x0 + 0.4, 0.22, 0.2, 0, plate, z0, 0, 0, 0, 0.06);
-  b.box('timber', 0.2, 0.22, z1 - z0 + 0.4, x0, plate, 0, 0, 0, 0, 0.06);
-  b.box('timber', 0.2, 0.22, z1 - z0 + 0.4, x1, plate, 0, 0, 0, 0, 0.06);
-  b.box('timber', x1 - x0 + 0.4, 0.22, 0.2, 0, plate, z1, 0, 0, 0, 0.06);
-
-  // Rail along the open sides: slats, a top rail and a low bench inside (H1).
-  const railRun = (from, to, floorY) => {
-    const dir = to.clone().sub(from);
-    const len = dir.length();
-    dir.normalize();
-    const ry = Math.atan2(dir.x, dir.z) - Math.PI / 2;
-    const out = new THREE.Vector3(dir.z, 0, -dir.x); // outward normal for front/left runs
-    const h = 1.0 - floorY;
-    // Wide planks with uneven gaps and heights, a little out of true (H1).
-    for (let s = 0.1; s < len - 0.08; ) {
-      const w = 0.11 + rand() * 0.06;
-      const hh = h + (rand() - 0.5) * 0.07;
-      const p = from.clone().addScaledVector(dir, s + w / 2).addScaledVector(out, 0.03);
-      b.box('rail', w, hh, 0.03, p.x, floorY + hh / 2, p.z, 0, ry, (rand() - 0.5) * 0.035, 0.24);
-      s += w + 0.06 + rand() * 0.05;
+  const { x0, x1, z0, z1, top } = PLAN.room;
+  const W = PLAN.window;
+  // Floor: wide boards running towards the window wall, in staggered lengths.
+  for (const [a0, a1] of boardRuns(x0, x1, [])) {
+    let z = z0;
+    while (z < z1) {
+      const len = Math.min(z1 - z, 1.6 + rand() * 2.4);
+      b.box('floor', a1 - a0 - 0.006, 0.03, len - 0.004, (a0 + a1) / 2, -0.015, z + len / 2);
+      z += len;
     }
-    const mid = from.clone().add(to).multiplyScalar(0.5);
-    const top = mid.clone().addScaledVector(out, 0.02);
-    b.box('timber', len, 0.06, 0.13, top.x, 1.02, top.z, 0, ry, 0, 0.05);
-    const low = mid.clone().addScaledVector(out, 0.07);
-    b.box('timber', len, 0.08, 0.05, low.x, floorY + 0.42, low.z, 0, ry, 0, 0.05);
-  };
-  const bench = (from, to, floorY) => {
-    const dir = to.clone().sub(from);
-    const len = dir.length();
-    dir.normalize();
-    const ry = Math.atan2(dir.x, dir.z) - Math.PI / 2;
-    const inward = new THREE.Vector3(-dir.z, 0, dir.x);
-    const seatY = floorY + 0.4;
-    const c = from.clone().add(to).multiplyScalar(0.5).addScaledVector(inward, 0.24);
-    b.box('bench', len, 0.05, 0.36, c.x, seatY, c.z, 0, ry, 0, 0.1);
-    for (let s = 0.3; s < len; s += 1.6) {
-      const p = from.clone().addScaledVector(dir, s).addScaledVector(inward, 0.24);
-      b.box('bench', 0.14, seatY - floorY - 0.025, 0.3, p.x, floorY + (seatY - floorY) / 2 - 0.012, p.z, 0, ry, 0, 0.1);
-    }
-  };
-  const v = (x, z) => new THREE.Vector3(x, 0, z);
-  railRun(v(x0, z0), v(x1, z0), 0);
-  railRun(v(x0, z1), v(x0, z0), 0);
-  // Benches along the rails, broken at the posts (H1).
-  bench(v(x0 + 0.3, z0), v(-1.8, z0), 0);
-  bench(v(-1.2, z0), v(1.7, z0), 0);
-  bench(v(2.3, z0), v(4.6, z0), 0);
-  bench(v(x0, z1 - 0.4), v(x0, -0.8), 0);
-  bench(v(x0, -0.2), v(x0, z0 + 0.45), 0);
+  }
+  // Back wall (the window wall), boards outside the room line so the inner face is at z0.
+  const back = PLAN.backWindows.map((w) => [w.x0, w.x1, 0, W.y1]);
+  boardWall(b, x0, x1, top, back, (a, y, w, h) => b.box('wall', w, h, 0.025, a, y, z0 - 0.0125));
+  // Right wall, with the window near the camera.
+  const s = PLAN.sideWindow;
+  boardWall(b, z0, z1, top, [[s.z0, s.z1, s.y0, W.y1]], (a, y, w, h) => b.box('wall', 0.025, h, w, x1 + 0.0125, y, a));
+  // Left and front walls (out of shot: they close the room and cast shadows). Ceiling boards.
+  boardWall(b, z0, z1, top, [], (a, y, w, h) => b.box('wall', 0.025, h, w, x0 - 0.0125, y, a));
+  boardWall(b, x0, x1, top, [], (a, y, w, h) => b.box('wall', w, h, 0.025, a, y, z1 + 0.0125));
+  for (const [a0, a1] of boardRuns(z0, z1, [])) b.box('ceiling', x1 - x0, 0.02, a1 - a0 - 0.004, (x0 + x1) / 2, top + 0.01, (a0 + a1) / 2);
+  for (let x = x0 + 0.6; x < x1; x += 1.2) b.box('ceiling', 0.1, 0.14, z1 - z0, x, top - 0.07, (z0 + z1) / 2);
 
-  buildRoof(b);
-  buildWall(b);
+  // Window frames on the back wall: jambs, head, threshold, and the lattice rail.
+  for (const w of PLAN.backWindows) {
+    const cx = (w.x0 + w.x1) / 2;
+    const ww = w.x1 - w.x0;
+    for (const x of [w.x0 - 0.035, w.x1 + 0.035]) b.box('frame', 0.07, W.y1 + 0.1, 0.09, x, (W.y1 + 0.1) / 2, z0 - 0.01);
+    b.box('frame', ww + 0.22, 0.1, 0.1, cx, W.y1 + 0.05, z0 - 0.005);
+    b.box('frame', ww + 0.14, 0.03, 0.12, cx, 0.015, z0 - 0.01);
+    b.box('frame', ww, 0.06, 0.07, cx, W.lattice + 0.03, z0 - 0.02);
+    b.box('frame', ww, 0.05, 0.06, cx, 0.06, z0 - 0.02);
+  }
+  // Side window frame and the dado rail on the right wall.
+  for (const z of [s.z0 - 0.035, s.z1 + 0.035]) b.box('frame', 0.09, W.y1 + 0.1, 0.07, x1 - 0.01, (W.y1 + 0.1) / 2, z);
+  b.box('frame', 0.1, 0.1, s.z1 - s.z0 + 0.22, x1 - 0.005, W.y1 + 0.05, (s.z0 + s.z1) / 2);
+  b.box('frame', 0.12, 0.04, s.z1 - s.z0 + 0.14, x1 - 0.02, s.y0, (s.z0 + s.z1) / 2);
+  for (const [a, c] of [[z0, s.z0 - 0.07], [s.z1 + 0.07, z1]]) b.box('frame', 0.03, 0.06, c - a, x1 - 0.015, PLAN.dado, (a + c) / 2);
+  b.box('frame', 0.03, 0.05, x1 - x0, (x0 + x1) / 2, top - 0.025, z0 + 0.015, 0, Math.PI / 2);
 }
 
-function roofY(dist) {
-  // height of the roof surface at a horizontal distance `dist` inside the eave line
-  return ROOM.plate - EAVE * PITCH + dist * PITCH;
+/** Lattice panels in the lower part of each window: alpha-cut planes (own mesh, see createInterior). */
+function buildLattice(b) {
+  const { z0 } = PLAN.room;
+  const h = PLAN.window.lattice;
+  for (const w of PLAN.backWindows) {
+    const g = new THREE.PlaneGeometry(w.x1 - w.x0, h - 0.09);
+    const uv = g.attributes.uv;
+    for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * (w.x1 - w.x0) + w.x0, uv.getY(i) * (h - 0.09));
+    b.place('lattice', g, M((w.x0 + w.x1) / 2, 0.09 + (h - 0.09) / 2, z0 - 0.02), 0.04, false);
+  }
 }
 
-function buildRoof(b) {
-  const ex0 = ROOM.x0 - EAVE;
-  const ex1 = ROOM.x1 + EAVE;
-  const ez0 = ROOM.z0 - EAVE;
-  const ez1 = ROOM.z1 + EAVE;
-  const half = (ez1 - ez0) / 2; // run from eave to ridge
-  const ridgeY = roofY(half);
-  const rx = ex1 - half; // ridge runs from -rx to rx
-  const V = (x, y, z) => new THREE.Vector3(x, y, z);
+/** A pleated valance: a strip folded in a sine along its width, scalloped a little at the hem. */
+function valance(width, height, pleat = 0.085, depth = 0.028) {
+  const g = new THREE.PlaneGeometry(width, height, Math.ceil(width / 0.012), 3);
+  const pos = g.attributes.position;
+  const uv = g.attributes.uv;
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i);
+    const y = pos.getY(i);
+    const s = Math.sin((x / pleat) * Math.PI * 2);
+    pos.setZ(i, depth * (0.5 + 0.5 * s) * (1.1 - (y / height + 0.5) * 0.3));
+    if (y < -height / 2 + 0.01) pos.setY(i, y - 0.025 * Math.abs(Math.sin((x / pleat) * Math.PI)));
+    uv.setXY(i, x + width / 2, y);
+  }
+  g.computeVertexNormals();
+  return g;
+}
 
-  // Thatch underside: four faces, just above the laths.
-  const lift = 0.03;
-  const eY = roofY(0) + lift;
-  const rY = ridgeY + lift;
-  const quads = [
-    [V(ex0, eY, ez0), V(ex1, eY, ez0), V(rx, rY, 0), V(-rx, rY, 0)],
-    [V(ex1, eY, ez1), V(ex0, eY, ez1), V(-rx, rY, 0), V(rx, rY, 0)],
-    [V(ex0, eY, ez1), V(ex0, eY, ez0), V(-rx, rY, 0), V(-rx, rY, 0)],
-    [V(ex1, eY, ez0), V(ex1, eY, ez1), V(rx, rY, 0), V(rx, rY, 0)],
-  ];
+/**
+ * A sheer panel hanging from `top` to `bottom`, gathered to a narrow waist at `tie` (or loose when
+ * tie is null). Local frame: the panel hangs from x = 0 towards +x, facing +z.
+ */
+function curtain({ width, top, bottom, tie, folds = 5, depth = 0.035 }) {
+  const nu = 14;
+  const nv = 30;
   const positions = [];
   const uvs = [];
-  const slope = Math.sqrt(1 + PITCH * PITCH);
-  for (const [a, c, d, e] of quads) {
-    for (const p of [a, c, d, a, d, e]) {
-      positions.push(p.x, p.y, p.z);
-      // UVs in metres: across the face, and up the slope from the eave (rows of shingles)
-      const across = Math.abs(a.x - c.x) > 0.1 ? p.x : p.z;
-      const run = Math.abs(a.x - c.x) > 0.1 ? half - Math.abs(p.z) : ex1 - Math.abs(p.x);
-      uvs.push(across, run * slope);
+  const index = [];
+  for (let j = 0; j <= nv; j++) {
+    const y = top - ((top - bottom) * j) / nv;
+    let w = width;
+    let pull = 0;
+    if (tie != null) {
+      w = y > tie ? 0.07 + (width - 0.07) * Math.pow((y - tie) / (top - tie), 0.75) : 0.07 + 0.11 * Math.pow((tie - y) / (tie - bottom), 0.6);
+      pull = 0.07 * Math.exp(-(((y - tie) / 0.35) ** 2));
+    }
+    for (let i = 0; i <= nu; i++) {
+      const u = i / nu;
+      const z = depth * (width / Math.max(w, 0.07)) ** 0.3 * Math.sin(u * folds * Math.PI) ** 2 + pull * u;
+      positions.push(u * w, y, z);
+      uvs.push(u * width, y);
+      if (i < nu && j < nv) {
+        const a = j * (nu + 1) + i;
+        index.push(a, a + nu + 1, a + 1, a + 1, a + nu + 1, a + nu + 2);
+      }
     }
   }
-  const thatch = new THREE.BufferGeometry();
-  thatch.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
-  thatch.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
-  thatch.computeVertexNormals();
-  b.add('thatch', thatch, 0, false);
-
-  // Ridge, hips and purlins: round logs (H1).
-  b.pole('timber', V(-rx - 0.3, ridgeY - 0.1, 0), V(rx + 0.3, ridgeY - 0.1, 0), 0.1, 0.05, 9);
-  for (const sx of [-1, 1]) for (const sz of [-1, 1]) b.pole('timber', V(sx * ex1, roofY(0) - 0.08, sz * ez1), V(sx * rx, ridgeY - 0.08, 0), 0.085, 0.05, 8);
-  for (const d of [0.9, 2.2, 3.5]) {
-    for (const sz of [-1, 1]) {
-      const z = sz * (half - d);
-      const xr = ex1 - d;
-      b.pole('timber', V(-xr, roofY(d) - 0.13, z), V(xr, roofY(d) - 0.13, z), 0.075, 0.08, 8);
-    }
-    for (const sx of [-1, 1]) {
-      const x = sx * (ex1 - d);
-      const zr = half - d;
-      b.pole('timber', V(x, roofY(d) - 0.13, -zr), V(x, roofY(d) - 0.13, zr), 0.075, 0.08, 8);
-    }
-  }
-
-  // Rafters: thin round poles, close together, straight up the slope to the ridge or a hip (H1).
-  const STEP = 0.36;
-  for (let x = ex0 + 0.2; x < ex1 - 0.15; x += STEP) {
-    const run = Math.abs(x) <= rx ? half : half - (Math.abs(x) - rx);
-    for (const sz of [-1, 1]) b.pole('rafter', V(x, roofY(0) - 0.05, sz * half), V(x, roofY(run) - 0.05, sz * (half - run)), 0.04, 0.2, 6);
-  }
-  for (let z = ez0 + 0.2; z < ez1 - 0.15; z += STEP) {
-    const run = half - Math.abs(z);
-    for (const sx of [-1, 1]) b.pole('rafter', V(sx * ex1, roofY(0) - 0.05, z), V(sx * (ex1 - run), roofY(run) - 0.05, z), 0.04, 0.2, 6);
-  }
-
-  // Laths: thin split-bamboo strips across the rafters, every 15 cm up the slope; the thatch is tied to these.
-  const tilt = Math.atan(PITCH);
-  for (let sl = 0.08; sl < half * slope - 0.05; sl += 0.15) {
-    const d = sl / slope;
-    const y = roofY(d) + 0.0;
-    const xr = ex1 - d;
-    const zr = half - d;
-    for (const sz of [-1, 1]) b.box('lath', xr * 2, 0.012, 0.035, 0, y, sz * zr, sz * tilt, 0, 0, 0.22);
-    for (const sx of [-1, 1]) b.box('lath', 0.035, 0.012, zr * 2, sx * xr, y, 0, 0, 0, -sx * tilt, 0.22);
-  }
-
-  // A tie beam across the room, as in H1.
-  b.pole('timber', V(ROOM.x0 - 0.2, ROOM.plate + 0.08, -1.2), V(ROOM.x1 + 0.2, ROOM.plate + 0.08, -1.2), 0.11, 0.05, 9);
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  g.setIndex(index);
+  g.computeVertexNormals();
+  return g;
 }
 
-// The house wall on the right (H7–H12, H14): vertical boards with openings for a window and a door.
-export const WINDOW = { z0: -2.3, z1: -0.9, y0: 0.15, y1: 2.05 };
-export const DOOR = { z0: 1.6, z1: 2.5, y0: 0, y1: 2.05 };
+function buildCurtains(b) {
+  const { z0, x1 } = PLAN.room;
+  const W = PLAN.window;
+  for (const w of PLAN.backWindows) {
+    const ww = w.x1 - w.x0;
+    const [v0, v1] = W.valance;
+    b.place('valance', valance(ww + 0.22, v1 - v0), M((w.x0 + w.x1) / 2, (v0 + v1) / 2, z0 + 0.06), 0.04, false);
+    const panel = Math.min(0.36, ww * 0.34);
+    const opts = { width: panel, top: v0 + 0.02, bottom: 0.05, tie: W.tie };
+    // Left panel hangs from the left jamb towards +x; the right one is mirrored.
+    b.place('sheer', curtain(opts), M(w.x0 + 0.01, 0, z0 + 0.1), 0.05, false);
+    b.place('sheer', curtain(opts), new THREE.Matrix4().makeScale(-1, 1, 1).premultiply(M(w.x1 - 0.01, 0, z0 + 0.1)), 0.05, false);
+  }
+  // Right-wall window: a long white sheer, drawn across.
+  const s = PLAN.sideWindow;
+  const g = curtain({ width: s.z1 - s.z0 + 0.1, top: W.y1 + 0.05, bottom: s.y0 + 0.02, tie: null, folds: 7, depth: 0.05 });
+  b.place('white', g, M(x1 - 0.08, 0, s.z0 - 0.05, 0, -Math.PI / 2, 0), 0.03, false);
+}
 
-function buildWall(b) {
-  const x = ROOM.x1;
-  const W = 0.2;
-  for (let z = ROOM.z0 + W / 2; z < ROOM.z1; z += W) {
-    const spans = [[0, ROOM.plate]];
-    for (const o of [WINDOW, DOOR]) {
-      if (z > o.z0 && z < o.z1) {
-        const [s] = spans.splice(0, 1);
-        if (o.y0 > s[0]) spans.push([s[0], o.y0]);
-        spans.push([o.y1, s[1]]);
-      }
+/** A turned leg, as a lathe: radius r, height h, standing on y = 0. UVs in metres. */
+function turnedLeg(r, h) {
+  const profile = [[0, 0], [0.55, 0], [0.8, 0.03], [0.55, 0.08], [0.55, 0.36], [1, 0.44], [0.62, 0.52], [0.5, 0.62], [0.5, 0.8], [0.8, 0.86], [0.8, 1], [0, 1]];
+  const g = new THREE.LatheGeometry(profile.map(([a, k]) => new THREE.Vector2(a * r, k * h)), 8);
+  const pos = g.attributes.position;
+  const uv = g.attributes.uv;
+  for (let i = 0; i < uv.count; i++) uv.setXY(i, pos.getY(i), uv.getX(i) * Math.PI * 2 * r);
+  return g;
+}
+
+/**
+ * An armchair or settee in the local frame (front towards +z), placed at (x, z) turned by ry:
+ * turned legs, seat, aprons, arms on turned posts, and a back of slats between two rails.
+ */
+function buildSeat(b, { x, z, ry, w, d, back }) {
+  const F = new THREE.Matrix4().compose(V(x, 0, z), Q(0, ry, 0), ONE);
+  const box = (w2, h, d2, lx, ly, lz, rx = 0, rz = 0) => b.place('wood', boxWithGrainUVs(w2, h, d2), M(lx, ly, lz, rx, 0, rz).premultiply(F));
+  const leg = (lx, lz, h, r = 0.025) => b.place('wood', turnedLeg(r, h), M(lx, 0, lz).premultiply(F));
+  const seat = 0.44;
+  const arm = 0.66;
+  const hx = w / 2 - 0.03;
+  const hz = d / 2 - 0.03;
+  leg(-hx, hz, arm);
+  leg(hx, hz, arm);
+  box(0.045, back, 0.045, -hx, back / 2, -hz, 0.08);
+  box(0.045, back, 0.045, hx, back / 2, -hz, 0.08);
+  box(w, 0.035, d, 0, seat, 0);
+  box(w - 0.06, 0.07, 0.025, 0, seat - 0.05, hz);
+  for (const s of [-1, 1]) {
+    box(0.025, 0.07, d - 0.06, s * hx, seat - 0.05, 0);
+    box(0.07, 0.03, d + 0.06, s * (hx + 0.005), arm, 0.02); // arm
+    box(0.02, 0.022, d - 0.08, s * hx, 0.13, 0); // side stretcher
+    for (let k = 0; k < 3; k++) box(0.018, arm - seat - 0.03, 0.018, s * hx, (seat + arm) / 2, -hz + 0.12 + k * 0.13); // arm spindles
+  }
+  box(w - 0.06, 0.02, 0.022, 0, 0.13, hz);
+  // Back: top rail, lower rail, and a carved panel (armchair) or slats and a carved band (settee).
+  const lean = 0.08;
+  const yz = (y) => -hz - Math.sin(lean) * (y - seat) * 0.5;
+  box(w + 0.04, 0.085, 0.03, 0, back - 0.05, yz(back - 0.05), lean);
+  box(w - 0.06, 0.05, 0.025, 0, seat + 0.1, yz(seat + 0.1), lean);
+  const yA = seat + 0.125;
+  const yB = back - 0.09;
+  const carve = (y0, y1) => {
+    const pw = w - 0.1;
+    const g = new THREE.PlaneGeometry(pw, y1 - y0);
+    const uv = g.attributes.uv;
+    for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * pw, uv.getY(i) * (y1 - y0));
+    b.place('carve', g, M(0, (y0 + y1) / 2, yz((y0 + y1) / 2), lean).premultiply(F), 0.04, false);
+  };
+  if (w > 1) {
+    // Settee: slats below, a carved band under the top rail, split by two posts.
+    const yC = back - 0.3;
+    const n = Math.round(w / 0.09);
+    for (let k = 1; k < n; k++) box(0.035, yC - yA, 0.016, -hx + ((2 * hx) / n) * k, (yA + yC) / 2, yz((yA + yC) / 2), lean);
+    box(w - 0.06, 0.04, 0.025, 0, yC + 0.02, yz(yC), lean);
+    carve(yC + 0.04, yB - 0.02);
+    for (const px of [-w / 6, w / 6]) box(0.05, yB - yC, 0.026, px, (yB + yC) / 2, yz((yB + yC) / 2), lean);
+  } else {
+    // Armchair: one carved panel framed by two stiles.
+    carve(yA, yB);
+    for (const px of [-w / 2 + 0.12, w / 2 - 0.12]) box(0.04, yB - yA, 0.024, px, (yA + yB) / 2, yz((yA + yB) / 2), lean);
+  }
+}
+
+function buildTable(b, { x0, x1, z0, z1, h, stretcher }) {
+  const cx = (x0 + x1) / 2;
+  const cz = (z0 + z1) / 2;
+  const w = x1 - x0;
+  const d = z1 - z0;
+  b.box('top', w, 0.035, d, cx, h - 0.0175, cz);
+  b.box('wood', w - 0.08, 0.07, 0.025, cx, h - 0.07, z1 - 0.05);
+  b.box('wood', w - 0.08, 0.07, 0.025, cx, h - 0.07, z0 + 0.05);
+  b.box('wood', 0.025, 0.07, d - 0.1, x0 + 0.05, h - 0.07, cz);
+  b.box('wood', 0.025, 0.07, d - 0.1, x1 - 0.05, h - 0.07, cz);
+  for (const x of [x0 + 0.05, x1 - 0.05]) for (const z of [z0 + 0.05, z1 - 0.05]) b.place('wood', turnedLeg(0.028, h - 0.035), M(x, 0, z));
+  if (stretcher) {
+    for (const x of [x0 + 0.05, x1 - 0.05]) b.box('wood', 0.03, 0.03, d - 0.1, x, 0.1, cz);
+    b.box('wood', w - 0.1, 0.03, 0.03, cx, 0.1, cz);
+  }
+}
+
+/**
+ * The embroidery frame (pemidang): red cloth stretched between two rollers, held by side bars on
+ * short legs, tilted towards the sitter. Plain cloth: the work has not started.
+ */
+function buildEmbroideryFrame(b) {
+  const { x, z, ry, w, d, front, back } = PLAN.frame;
+  const F = new THREE.Matrix4().compose(V(x, 0, z), Q(0, ry, 0), ONE);
+  const tilt = Math.atan2(back - front, d);
+  const midY = (front + back) / 2;
+  const cloth = new THREE.PlaneGeometry(w, d).rotateX(-Math.PI / 2).rotateX(tilt);
+  b.place('cloth', cloth, M(0, midY + 0.012, 0).premultiply(F), 0.02, false);
+  const pole = (a, c, r) => {
+    const len = a.distanceTo(c);
+    const g = new THREE.CylinderGeometry(r, r, len, 8).rotateZ(Math.PI / 2);
+    const pos = g.attributes.position;
+    const uv = g.attributes.uv;
+    for (let i = 0; i < uv.count; i++) uv.setXY(i, pos.getX(i), uv.getY(i) * 0.2);
+    b.place('wood', g, M((a.x + c.x) / 2, (a.y + c.y) / 2, (a.z + c.z) / 2).premultiply(F));
+  };
+  const box = (w2, h, d2, lx, ly, lz, rx = 0) => b.place('wood', boxWithGrainUVs(w2, h, d2), M(lx, ly, lz, rx).premultiply(F));
+  const half = w / 2 + 0.16;
+  pole(V(-half, front, d / 2 + 0.03), V(half, front, d / 2 + 0.03), 0.026);
+  pole(V(-half, back, -d / 2 - 0.03), V(half, back, -d / 2 - 0.03), 0.026);
+  const len = d + 0.5;
+  for (const s of [-1, 1]) {
+    const sx = s * (w / 2 + 0.07);
+    box(0.045, 0.035, len, sx, midY, 0, tilt); // side bar
+    box(0.04, front, 0.04, sx, front / 2, d / 2 + 0.12); // front leg
+    box(0.04, back, 0.04, sx, back / 2, -d / 2 - 0.12); // back leg
+    box(0.05, 0.04, len + 0.1, sx, 0.02, 0); // floor runner
+    // lacing: tapes from the cloth edge round the side bar
+    for (let k = 0; k < 6; k++) {
+      const lz = -d / 2 + 0.06 + ((d - 0.12) * k) / 5;
+      b.place('tape', boxWithGrainUVs(0.08, 0.006, 0.012), M(s * (w / 2 + 0.03), midY + 0.02 - Math.sin(tilt) * lz, lz, tilt).premultiply(F), 0.1);
     }
-    for (const [a, c] of spans) b.box('wall', 0.05, c - a, W - 0.01, x + 0.03, (a + c) / 2, z, 0, 0, 0, 0.1);
   }
-  // Battens, sill and frames.
-  for (const y of [0.1, 1.0, ROOM.plate - 0.1]) b.box('timber', 0.05, 0.08, ROOM.z1 - ROOM.z0, x - 0.02, y, 0, 0, 0, 0, 0.04);
-  for (const o of [WINDOW, DOOR]) {
-    b.box('timber', 0.12, 0.09, o.z1 - o.z0 + 0.18, x - 0.02, o.y1 + 0.045, (o.z0 + o.z1) / 2);
-    for (const z of [o.z0 - 0.045, o.z1 + 0.045]) b.box('timber', 0.12, o.y1 - o.y0 + 0.09, 0.09, x - 0.02, (o.y0 + o.y1) / 2, z);
-  }
-  b.box('timber', 0.16, 0.06, WINDOW.z1 - WINDOW.z0 + 0.2, x - 0.04, 0.78, (WINDOW.z0 + WINDOW.z1) / 2);
+  box(w + 0.18, 0.035, 0.035, 0, 0.12, d / 2 + 0.12);
+  box(w + 0.18, 0.035, 0.035, 0, 0.12, -d / 2 - 0.12);
+  // A cloth bag on the floor by the frame.
+  const bag = new THREE.SphereGeometry(1, 10, 8).scale(0.16, 0.2, 0.13);
+  b.place('bag', bag, M(w / 2 + 0.3, 0.17, 0.25, 0, 0.4, 0.1).premultiply(F), 0.1);
+}
 
-  // Louvred shutters, opened inward against the wall, and the door ajar (H7, H10).
-  const leaf = (hingeZ, dir, angle, len, y0, y1, louvred) => {
-    // dir: +1 if the closed leaf runs towards +z from its hinge
-    const d = new THREE.Vector3(-Math.sin(angle), 0, dir * Math.cos(angle));
-    const ry = Math.atan2(d.x, d.z);
-    const c = new THREE.Vector3(x - 0.04, 0, hingeZ).addScaledVector(d, len / 2);
-    const h = y1 - y0;
-    if (louvred) {
-      for (const s of [-1, 1]) {
-        const e = c.clone().addScaledVector(d, s * (len / 2 - 0.03));
-        b.box('timber', 0.04, h, 0.06, e.x, y0 + h / 2, e.z, 0, ry, 0, 0.04);
-      }
-      for (const y of [y0 + 0.03, y1 - 0.03]) b.box('timber', 0.04, 0.06, len, c.x, y, c.z, 0, ry, 0, 0.04);
-      for (let y = y0 + 0.1; y < y1 - 0.06; y += 0.075) b.box('timber', 0.018, 0.05, len - 0.1, c.x, y, c.z, 0, ry, 0, 0.06);
-    } else {
-      b.box('wall', 0.05, h, len, c.x, y0 + h / 2, c.z, 0, ry, 0, 0.04);
-      const n = new THREE.Vector3(d.z, 0, -d.x);
-      for (const s of [-1, 1]) {
-        for (const y of [0.5, 1.4]) {
-          const pc = c.clone().addScaledVector(n, s * 0.03);
-          b.box('timber', 0.02, 0.66, len - 0.22, pc.x, y, pc.z, 0, ry, 0, 0.04);
-        }
-      }
+/** Woven mats and framed pictures hung as diamonds on the right wall; a plate on the back wall. */
+function buildHangings(b) {
+  const { x1, z0 } = PLAN.room;
+  const { z, y, size } = PLAN.hangings;
+  const step = size * Math.SQRT1_2 * 1.06;
+  const cells = [[0, 0], [1, 0], [-1, 0], [0, 1], [1, 1], [-1, 1], [0, -1], [1, -1], [0, 2], [-1, -1]];
+  cells.forEach(([i, j], k) => {
+    const cz = z + (i + j) * step;
+    const cy = y + (i - j) * step + (rand() - 0.5) * 0.02;
+    const s = size * (0.88 + rand() * 0.18);
+    const g = new THREE.PlaneGeometry(s, s);
+    const uv = g.attributes.uv;
+    const tx = k % 4;
+    const ty = Math.floor(k / 4) % 2;
+    for (let n = 0; n < uv.count; n++) uv.setXY(n, (tx + uv.getX(n)) / 4, (1 - ty + uv.getY(n)) / 2);
+    const tilt = Math.PI / 4 + (rand() - 0.5) * 0.08;
+    b.place('decor', g, M(x1 - 0.022, cy, cz, 0, -Math.PI / 2, tilt), 0.06, false);
+    b.place('frame', boxWithGrainUVs(0.014, s + 0.02, s + 0.02), M(x1 - 0.008, cy, cz, tilt, 0, 0), 0.1);
+  });
+  const p = PLAN.plate;
+  b.place('plate', new THREE.CylinderGeometry(p.r, p.r * 0.8, 0.02, 20).rotateX(Math.PI / 2), M(p.x, p.y, z0 + 0.012), 0.04, false);
+  b.place('frame', new THREE.TorusGeometry(p.r * 0.72, 0.008, 4, 20), M(p.x, p.y, z0 + 0.024), 0.04, false);
+  // A small framed print between the first two windows.
+  b.box('frame', 0.24, 0.3, 0.02, -1.45, 1.62, z0 + 0.012);
+  const g = new THREE.PlaneGeometry(0.18, 0.24);
+  const uv = g.attributes.uv;
+  for (let n = 0; n < uv.count; n++) uv.setXY(n, (2 + uv.getX(n)) / 4, (1 + uv.getY(n)) / 2);
+  b.place('decor', g, M(-1.45, 1.62, z0 + 0.023), 0.04, false);
+}
+
+/** Trailing vines beside the windows: small leaf cards along a gently swinging line. */
+function buildVines(b) {
+  const { z0, x1 } = PLAN.room;
+  const vine = (x, z, yTop, yBottom, alongX) => {
+    let k = 0;
+    for (let y = yTop; y > yBottom; y -= 0.035) {
+      const sway = Math.sin(y * 5 + x) * 0.04;
+      const leaf = new THREE.PlaneGeometry(0.075, 0.045);
+      const a = rand() * Math.PI * 2;
+      const px = alongX ? x + sway + Math.cos(a) * 0.035 : x - 0.04 - rand() * 0.02;
+      const pz = alongX ? z + 0.05 + rand() * 0.03 : z + sway + Math.cos(a) * 0.035;
+      b.place('leaf', leaf, M(px, y + Math.sin(a) * 0.02, pz, (rand() - 0.5) * 0.8, alongX ? (rand() - 0.5) * 1.2 : -Math.PI / 2 + (rand() - 0.5) * 1.2, a), 0.25, false);
+      k++;
     }
   };
-  const sw = (WINDOW.z1 - WINDOW.z0) / 2;
-  leaf(WINDOW.z0, 1, 2.0, sw, 0.8, WINDOW.y1, true);
-  leaf(WINDOW.z1, -1, 1.9, sw, 0.8, WINDOW.y1, true);
-  leaf(DOOR.z1, -1, 1.05, DOOR.z1 - DOOR.z0, 0.01, DOOR.y1 - 0.01, false);
+  const [w1, w2, w3] = PLAN.backWindows;
+  vine(w1.x1 + 0.2, z0, 2.3, 1.45, true);
+  vine(w2.x0 - 0.16, z0, 2.3, 1.7, true);
+  vine(w3.x1 + 0.08, z0, 2.45, 1.25, true);
+  vine(w3.x1 + 0.03, z0 + 0.15, 2.4, 1.6, true);
+  vine(x1, PLAN.sideWindow.z0 - 0.2, 2.35, 1.0, false);
+}
 
-  // Shelf with props (H9) beside the door.
-  b.box('timber', 0.3, 0.04, 1.4, x - 0.17, 1.45, 0.4);
-  for (const z of [-0.2, 1.0]) b.box('timber', 0.26, 0.18, 0.04, x - 0.15, 1.36, z);
-  b.box('timber', 0.3, 0.04, 1.4, x - 0.17, 0.85, 0.4);
+/** Soft sheen on the floor in front of each window: additive glow quads, bright at the window. */
+function buildGlows(texture) {
+  const group = new THREE.Group();
+  const { z0 } = PLAN.room;
+  const mat = new THREE.MeshBasicMaterial({ map: texture, color: '#ffd9a8', transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false, fog: false });
+  for (const w of PLAN.backWindows) {
+    const ww = w.x1 - w.x0;
+    const len = 2.6 + ww * 0.8; // the window's mirror image on the polished boards reaches towards the viewer
+    const g = new THREE.PlaneGeometry(ww * 1.3, len).rotateX(-Math.PI / 2);
+    const mesh = new THREE.Mesh(g, mat);
+    mesh.position.set((w.x0 + w.x1) / 2 + 0.12, 0.002, z0 + len / 2);
+    mesh.layers.set(1);
+    group.add(mesh);
+  }
+  return { group, mat };
 }
 
 // ---------------------------------------------------------------------------------------------
-
 export function createInterior(canvas, { onReady } = {}) {
+  const debug = new URLSearchParams(window.location.search).get('debug'); // 'nopost' | 'flat'
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;
-  renderer.shadowMap.autoUpdate = false; // the sun and the house don't move: draw the shadows once
+  renderer.shadowMap.autoUpdate = false; // the sun and the room don't move: draw the shadows once
   renderer.shadowMap.needsUpdate = true;
   renderer.toneMapping = THREE.NeutralToneMapping;
 
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color('#bcd3df');
-  const camera = new THREE.PerspectiveCamera(55, 1, 0.05, 400);
-  const EYE = new THREE.Vector3(-1.4, 1.5, 1.2); // standing near the left rail, as in H1
-  const LOOK = new THREE.Vector3(-3.0, 1.45, -4.2); // diagonally into the front-left corner
+  const BRIGHT = '#f8f2e2'; // the blown-out daylight in the windows, as in R1
+  scene.background = new THREE.Color(BRIGHT);
+  scene.fog = new THREE.Fog(BRIGHT, 1, 16); // only the landscape takes fog: the room's materials have fog off
+  const C = PLAN.camera;
+  const camera = new THREE.PerspectiveCamera(C.fov, C.aspect, 0.05, 400);
 
-  // Lights: low warm sun from the front-left, cool sky fill.
-  const sun = new THREE.DirectionalLight('#ffe2b8', 3.4);
-  sun.position.set(-14, 9, -12);
+  // Light: sun behind the window wall, high enough that the patches fall just inside the windows.
+  const sun = new THREE.DirectionalLight('#ffe6c4', 3.2);
+  sun.target.position.set(-1, 0, -4);
+  sun.position.set(-4, 11, -14);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
-  Object.assign(sun.shadow.camera, { left: -9, right: 9, top: 9, bottom: -9, near: 1, far: 50 });
-  sun.shadow.bias = -0.0004;
+  Object.assign(sun.shadow.camera, { left: -7, right: 7, top: 7, bottom: -7, near: 1, far: 40 });
+  sun.shadow.bias = -0.0005;
   sun.shadow.normalBias = 0.02;
-  const hemi = new THREE.HemisphereLight('#d4d6e6', '#a08670', 2.4); // cool sky fill: shadows go blue, not grey
-  scene.add(sun, hemi);
+  const hemi = new THREE.HemisphereLight('#ffeedd', '#5a4034', 1.0); // warm bounce off the floor and walls
+  const fill = new THREE.DirectionalLight('#ffd6ac', 0.55); // soft light from the room behind the camera
+  fill.position.set(1.5, 2.5, 4);
+  scene.add(sun, sun.target, hemi, fill);
 
-  const gradientMap = toonGradient();
-  const textures = { planks: paintPlanks(), weathered: paintPlanks(9, { weathered: true }), thatch: paintThatch(), mat: paintMat(), post: paintPost() };
+  const gradientMap = toonGradient([[0.36, 0.31, 0.3], [0.78, 0.73, 0.69], [1.0, 0.97, 0.9]]);
+  const textures = {
+    planks: paintPlanks(),
+    floor: paintPlanks(9, { weathered: true }),
+    lattice: paintLattice(),
+    carve: paintLattice(17),
+    valance: paintCurtain(12, 'valance'),
+    sheer: paintCurtain(16, 'sheer'),
+    cloth: paintCloth(),
+    decor: paintDecor(),
+    sheen: paintGlow('sheen'),
+  };
+  textures.lattice.repeat.set(1.6, 1.6);
+  textures.carve.repeat.set(3.4, 3.4); // finer: chair-back carving
   const aniso = Math.min(4, renderer.capabilities.getMaxAnisotropy());
   for (const t of Object.values(textures)) t.anisotropy = aniso;
+  const D = THREE.DoubleSide;
   const materials = {};
-  for (const [key, color, map] of [
-    ['floor', '#bba98d', textures.planks],
-    ['bamboo', '#d9bd84', textures.mat],
-    ['timber', '#a6845e', textures.planks],
-    ['rafter', '#cfae7c', textures.planks],
-    ['lath', '#d2b07a', textures.planks],
-    ['rail', '#b0a089', textures.weathered],
-    ['bench', '#b39878', textures.weathered],
-    ['post', '#ffffff', textures.post],
-    ['thatch', '#c29a66', textures.thatch],
+  for (const [key, color, map, extra] of [
+    ['floor', PALETTE.floor, textures.floor],
     ['wall', PALETTE.wall, textures.planks],
+    ['ceiling', '#3a2116', textures.planks],
+    ['frame', PALETTE.frame, textures.planks],
+    ['wood', PALETTE.wood, textures.planks],
+    ['top', PALETTE.top, textures.planks],
+    ['lattice', PALETTE.lattice, textures.lattice, { side: D, alphaTest: 0.5 }],
+    ['carve', PALETTE.wood, textures.carve, { side: D, alphaTest: 0.5 }],
+    ['valance', '#ffffff', textures.valance, { side: D, emissive: '#7a2410', emissiveIntensity: 0.6 }],
+    ['sheer', '#ffffff', textures.sheer, { side: D, emissive: '#c98a70', emissiveIntensity: 0.5 }],
+    ['white', '#fffaf2', null, { side: D, emissive: '#fff4e4', emissiveIntensity: 0.4 }],
+    ['cloth', '#ffffff', textures.cloth, { side: D, emissive: '#ffffff', emissiveMap: textures.cloth, emissiveIntensity: 0.3 }],
+    ['decor', '#ffffff', textures.decor, { side: D }],
+    ['plate', '#e6dcc0', null],
+    ['leaf', PALETTE.leaf, null, { side: D }],
+    ['tape', '#2f5f6a', null],
+    ['bag', '#2c2420', null],
   ]) {
-    materials[key] = new THREE.MeshToonMaterial({ color, map, vertexColors: true, gradientMap });
+    materials[key] = new THREE.MeshToonMaterial({ color, map, vertexColors: true, gradientMap, fog: false, ...extra });
+    if (debug === 'flat' && key !== 'lattice' && key !== 'carve') {
+      materials[key].map = null;
+      materials[key].color.set('#bdbdbd');
+    }
   }
 
   const b = new Builder();
   buildRoom(b);
+  buildLattice(b);
+  buildCurtains(b);
+  buildSeat(b, PLAN.settee);
+  for (const c of PLAN.chairs) buildSeat(b, c);
+  for (const t of PLAN.tables) buildTable(b, t);
+  buildEmbroideryFrame(b);
+  buildHangings(b);
+  buildVines(b);
   const room = new THREE.Group();
   room.add(...b.build(materials));
+  // The lattice is cut out by its texture: give its shadow the same holes, and keep it out of the
+  // ink pass (the edge buffer would see a solid panel).
+  const latticeDepth = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: textures.lattice, alphaTest: 0.5 });
+  const carveDepth = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: textures.carve, alphaTest: 0.5 });
+  for (const mesh of room.children) {
+    if (mesh.name === 'lattice' || mesh.name === 'carve') {
+      mesh.customDepthMaterial = mesh.name === 'lattice' ? latticeDepth : carveDepth;
+      mesh.layers.set(1);
+    }
+    if (['leaf', 'cloth', 'decor'].includes(mesh.name)) mesh.castShadow = mesh.name === 'leaf';
+  }
   scene.add(room);
+  const glows = buildGlows(textures.sheen);
+  scene.add(glows.group);
 
-  // Outside: painted sky, jungle, palms and banana plants (layer 1: no outlines).
+  // Outside: the jungle from the old scene, washed out by the fog; no painted sky (R1's windows are white).
   const landscape = createLandscape({ gradientMap, rand: mulberry32(21), groundY: -1.85 });
+  landscape.group.traverse((o) => {
+    if (o.material && o.material.side === THREE.BackSide) o.visible = false;
+  });
   scene.add(landscape.group);
   camera.layers.enable(1);
-  scene.fog = new THREE.Fog('#d3dec6', 24, 125); // aerial perspective on the far jungle
 
   const outline = createOutline(renderer, scene, camera, { ink: PALETTE.ink });
+  outline.material.uniforms.split.value = 0.18; // keep the dark wood warm
   const composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
   composer.addPass(new ShaderPass(outline.material));
@@ -456,7 +652,9 @@ export function createInterior(canvas, { onReady } = {}) {
     composer.setSize(w, h);
     outline.setSize(w, h, renderer.getPixelRatio());
     camera.aspect = w / h;
-    camera.fov = w / h < 1 ? 78 : 60;
+    // Keep R1's vertical view on wide screens; on narrow ones keep its horizontal view instead.
+    const hTan = Math.tan(THREE.MathUtils.degToRad(C.fov / 2)) * C.aspect;
+    camera.fov = camera.aspect >= C.aspect ? C.fov : Math.min(80, THREE.MathUtils.radToDeg(2 * Math.atan(hTan / camera.aspect)));
     camera.updateProjectionMatrix();
   }
   const resizeObserver = new ResizeObserver(resize);
@@ -469,6 +667,8 @@ export function createInterior(canvas, { onReady } = {}) {
   }
   window.addEventListener('pointermove', onPointerMove);
 
+  const eye = V(...C.eye);
+  const target = new THREE.Vector3();
   const timer = new THREE.Timer();
   let frame = 0;
   let readyCalled = false;
@@ -478,12 +678,19 @@ export function createInterior(canvas, { onReady } = {}) {
     timer.update(now);
     const dt = Math.min(timer.getDelta(), 0.1);
     look.lerp(pointer, 1 - Math.exp(-dt * 2));
-    camera.position.set(EYE.x + look.x * 0.12, EYE.y - look.y * 0.05, EYE.z);
-    camera.lookAt(LOOK.x + look.x * 0.5, LOOK.y - look.y * 0.3, LOOK.z);
-    outline.render();
-    composer.render(dt);
+    const yaw = -look.x * 0.06;
+    const pitch = THREE.MathUtils.degToRad(C.pitch) - look.y * 0.03;
+    camera.position.copy(eye);
+    target.set(eye.x + Math.sin(yaw) * Math.cos(pitch), eye.y + Math.sin(pitch), eye.z - Math.cos(yaw) * Math.cos(pitch));
+    camera.lookAt(target);
+    if (debug === 'nopost') renderer.render(scene, camera);
+    else {
+      outline.render();
+      composer.render(dt);
+    }
     if (!readyCalled) {
       readyCalled = true;
+      if (debug) console.info('triangles', renderer.info.render.triangles, 'calls', renderer.info.render.calls);
       onReady?.();
     }
   }
@@ -499,6 +706,9 @@ export function createInterior(canvas, { onReady } = {}) {
       });
       for (const m of Object.values(materials)) m.dispose();
       for (const t of Object.values(textures)) t.dispose();
+      latticeDepth.dispose();
+      carveDepth.dispose();
+      glows.mat.dispose();
       landscape.dispose();
       gradientMap.dispose();
       outline.dispose();
@@ -507,4 +717,3 @@ export function createInterior(canvas, { onReady } = {}) {
     },
   };
 }
-

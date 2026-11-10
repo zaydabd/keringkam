@@ -167,290 +167,6 @@ export function paintPlanks(seed = 1, { weathered = false } = {}) {
   return texture(c, [0.5, 2]);
 }
 
-/**
- * The underside of the thatch (H1): rows of leaf shingles, 1 m by 1 m per tile, rows every
- * 12.5 cm. Each row is split into shingles of different widths and tones, fibrous, with a soft
- * shadow under the overlap and a ragged lit lip.
- */
-export function paintThatch(seed = 2) {
-  const r = rng(seed);
-  const S = 512;
-  const ROW = 64;
-  const [c, g] = canvas(S, S);
-  g.fillStyle = '#e4dccd';
-  g.fillRect(0, 0, S, S);
-  g.lineCap = 'round';
-  for (let y0 = 0; y0 < S; y0 += ROW) {
-    // shingles: segments of the row in slightly different tones
-    for (let x = r() * 40; x < S + 40; ) {
-      const w = 26 + r() * 50;
-      const v = r();
-      g.fillStyle = v < 0.5 ? `rgba(90,60,30,${0.05 + r() * 0.12})` : `rgba(255,240,210,${0.05 + r() * 0.12})`;
-      wrapX(S, (dx) => g.fillRect(x + dx, y0, w, ROW));
-      g.strokeStyle = 'rgba(55,34,18,0.35)';
-      g.lineWidth = 1.2;
-      wrapX(S, (dx) => {
-        g.beginPath();
-        g.moveTo(x + dx, y0 + 4);
-        g.lineTo(x + dx + (r() - 0.5) * 4, y0 + ROW - 4);
-        g.stroke();
-      });
-      x += w;
-    }
-    // fibres: short slanted strokes, light and dark
-    for (let i = 0; i < 300; i++) {
-      const x = r() * S;
-      const y = y0 + r() * ROW;
-      const len = 12 + r() * 34;
-      const tilt = (r() - 0.5) * 6;
-      g.strokeStyle = r() < 0.55 ? `rgba(70,46,24,${0.1 + r() * 0.22})` : `rgba(255,244,220,${0.1 + r() * 0.2})`;
-      g.lineWidth = 1 + r() * 1.6;
-      wrapX(S, (dx) => {
-        g.beginPath();
-        g.moveTo(x + dx, y);
-        g.lineTo(x + dx + tilt, Math.min(y + len, y0 + ROW));
-        g.stroke();
-      });
-    }
-    // the overlap: a soft shadow under the next row, a lit lip above it
-    const sh = g.createLinearGradient(0, y0 + ROW - 20, 0, y0 + ROW);
-    sh.addColorStop(0, 'rgba(50,30,16,0)');
-    sh.addColorStop(1, 'rgba(50,30,16,0.5)');
-    g.fillStyle = sh;
-    g.fillRect(0, y0 + ROW - 20, S, 20);
-    g.fillStyle = 'rgba(255,240,210,0.3)';
-    g.fillRect(0, y0, S, 3);
-    // a ragged edge along the lip: hanging leaf tips
-    g.fillStyle = 'rgba(60,38,20,0.4)';
-    for (let x = 0; x < S; x += 3 + r() * 6) g.fillRect(x, y0 + ROW - 2, 1.5 + r() * 1.5, -(3 + r() * 10));
-  }
-  return texture(c, [1, 1]);
-}
-
-/** A woven split-bamboo mat (H1, H4): a 2-over-2 twill, 0.25 m per tile. */
-export function paintMat(seed = 3) {
-  const r = rng(seed);
-  const S = 256;
-  const N = 16;
-  const cell = S / N;
-  const [c, g] = canvas(S, S);
-  for (let j = 0; j < N; j++) {
-    for (let i = 0; i < N; i++) {
-      const across = (i + j) % 4 < 2;
-      const x = i * cell;
-      const y = j * cell;
-      const v = 222 + Math.floor(r() * 30);
-      const grad = across ? g.createLinearGradient(x, y, x, y + cell) : g.createLinearGradient(x, y, x + cell, y);
-      grad.addColorStop(0, `rgb(${v - 40},${v - 46},${v - 56})`);
-      grad.addColorStop(0.35, `rgb(${v},${v - 6},${v - 18})`);
-      grad.addColorStop(1, `rgb(${v - 30},${v - 36},${v - 46})`);
-      g.fillStyle = grad;
-      g.fillRect(x, y, cell, cell);
-      g.strokeStyle = 'rgba(70,46,24,0.45)';
-      g.lineWidth = 1;
-      g.strokeRect(x + 0.5, y + 0.5, cell - 1, cell - 1);
-      // a fibre line along the strip
-      g.strokeStyle = 'rgba(90,64,36,0.25)';
-      g.beginPath();
-      if (across) {
-        g.moveTo(x, y + cell * (0.3 + r() * 0.4));
-        g.lineTo(x + cell, y + cell * (0.3 + r() * 0.4));
-      } else {
-        g.moveTo(x + cell * (0.3 + r() * 0.4), y);
-        g.lineTo(x + cell * (0.3 + r() * 0.4), y + cell);
-      }
-      g.stroke();
-    }
-  }
-  return texture(c, [4, 4]);
-}
-
-/**
- * Painted post: an aged cream ground with red-brown scrolls and spirals, inked in dark brown,
- * with chipped paint, cracks along the grain and grime at the foot. A generic pattern inspired
- * by the painted posts in H1/H6, not a copy of any particular carving.
- * Canvas x wraps around the post, y runs down from its top (cylinder UVs, 0..1).
- */
-export function paintPost(seed = 4) {
-  const r = rng(seed);
-  const W = 512;
-  const H = 1024;
-  const [c, g] = canvas(W, H);
-  g.fillStyle = '#e4d0a2';
-  g.fillRect(0, 0, W, H);
-  // wood grain under the paint, and weathering streaks
-  for (let i = 0; i < 30; i++) blot(g, W, r() * W, r() * H, 40 + r() * 90, 120 + r() * 220, r() < 0.5 ? '150,120,84' : '255,248,232', 0.08 + r() * 0.08);
-  g.lineCap = 'round';
-  for (let i = 0; i < 40; i++) {
-    const x0 = r() * W;
-    const ph = r() * 6.28;
-    g.strokeStyle = `rgba(110,84,56,${0.06 + r() * 0.1})`;
-    g.lineWidth = 1 + r();
-    wrapX(W, (dx) => {
-      g.beginPath();
-      for (let y = 0; y <= H; y += 16) g.lineTo(x0 + dx + Math.sin(y / 90 + ph) * 3, y);
-      g.stroke();
-    });
-  }
-
-  const RED = '#a8683a'; // terracotta: light enough that the cool shadow tone does not turn it crimson
-  const INK = '#5a3020';
-  const stroke = (path, width) => {
-    wrapX(W, (dx) => {
-      g.save();
-      g.translate(dx, 0);
-      g.lineCap = 'round';
-      g.lineJoin = 'round';
-      g.strokeStyle = INK;
-      g.lineWidth = width + 4;
-      path();
-      g.stroke();
-      g.strokeStyle = RED;
-      g.lineWidth = width;
-      path();
-      g.stroke();
-      g.restore();
-    });
-  };
-  const spiral = (cx, cy, rad, turns, dir, start) => () => {
-    g.beginPath();
-    const steps = 90;
-    for (let i = 0; i <= steps; i++) {
-      const t = i / steps;
-      const a = start + dir * t * turns * Math.PI * 2;
-      const rr = rad * (0.3 + 0.7 * t);
-      g.lineTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr);
-    }
-  };
-  const band = (y, h) => {
-    g.fillStyle = INK;
-    g.fillRect(0, y - 4, W, h + 8);
-    g.fillStyle = RED;
-    g.fillRect(0, y, W, h);
-  };
-  // a row of inked triangles (a generic border, not a specific motif)
-  const teeth = (y, h, down) => {
-    for (let x = 0; x < W; x += 32) {
-      g.beginPath();
-      g.moveTo(x, y);
-      g.lineTo(x + 16, y + (down ? h : -h));
-      g.lineTo(x + 32, y);
-      g.closePath();
-      g.fillStyle = RED;
-      g.fill();
-      g.strokeStyle = INK;
-      g.lineWidth = 3;
-      g.stroke();
-    }
-  };
-
-  // Borders at the top and the foot.
-  band(6, 40);
-  teeth(50, 34, true);
-  band(H - 80, 26);
-  teeth(H - 84, 34, false);
-
-  // Two chains of S-scrolls up the post, half a turn apart, so the pattern covers the post the
-  // way it does in H1: big spirals alternating left and right, joined by tails, with leaf-shaped
-  // fillers in the gaps. (Our own scrollwork, not a copy of a specific motif.)
-  const leaf = (x, y, len, ang) => {
-    wrapX(W, (dx) => {
-      g.save();
-      g.translate(x + dx, y);
-      g.rotate(ang);
-      g.beginPath();
-      g.moveTo(0, 0);
-      g.quadraticCurveTo(len * 0.5, -len * 0.34, len, 0);
-      g.quadraticCurveTo(len * 0.5, len * 0.22, 0, 0);
-      g.fillStyle = RED;
-      g.fill();
-      g.strokeStyle = INK;
-      g.lineWidth = 2.5;
-      g.stroke();
-      g.restore();
-    });
-  };
-  for (const [ox, scale, phase] of [[0, 1, 0], [W * 0.5, 0.86, 79]]) {
-    const centres = [];
-    for (let k = 0; k < 5; k++) centres.push([ox + (k % 2 ? W * 0.14 : W * 0.36), 170 + phase + k * 158]);
-    centres.forEach(([cx, cy], k) => {
-      if (cy > H - 150) return;
-      const dir = k % 2 ? 1 : -1;
-      stroke(spiral(cx, cy, 76 * scale, 1.3, dir, k * 1.3 + phase), 25 * scale);
-      if (k < centres.length - 1 && centres[k + 1][1] < H - 150) {
-        const [nx, ny] = centres[k + 1];
-        stroke(() => {
-          g.beginPath();
-          g.moveTo(cx + dir * 66 * scale, cy + 30);
-          g.bezierCurveTo(cx + dir * 70, cy + 100, nx - dir * 90, ny - 100, nx - dir * 46 * scale, ny - 36);
-        }, 20 * scale);
-      }
-      stroke(spiral(cx - dir * 96, cy + 76, 24, 1.1, dir, 2), 12);
-      leaf(cx - dir * 30, cy + 84, 84, dir > 0 ? 2.6 : 0.5);
-      leaf(cx + dir * 74, cy - 64, 70, dir > 0 ? -0.6 : 3.7);
-    });
-  }
-  // rows of dots along the tails
-  g.fillStyle = INK;
-  for (let i = 0; i < 70; i++) {
-    const x = r() * W;
-    const y = 110 + r() * (H - 240);
-    wrapX(W, (dx) => {
-      g.beginPath();
-      g.arc(x + dx, y, 2.5 + r() * 2.5, 0, Math.PI * 2);
-      g.fill();
-    });
-  }
-
-  // Age: chipped paint (flecks of ground showing through), cracks, grime at the foot.
-  for (let i = 0; i < 220; i++) {
-    const x = r() * W;
-    const y = r() * H;
-    g.fillStyle = `rgba(222,204,170,${0.55 + r() * 0.4})`;
-    g.beginPath();
-    g.ellipse(x, y, 1.5 + r() * 5, 1 + r() * 3, r() * 3, 0, Math.PI * 2);
-    g.fill();
-  }
-  for (let i = 0; i < 8; i++) {
-    const x0 = r() * W;
-    const y0 = r() * H * 0.7;
-    const len = 120 + r() * 380;
-    g.strokeStyle = `rgba(50,32,20,${0.35 + r() * 0.3})`;
-    g.lineWidth = 1 + r() * 1.5;
-    g.beginPath();
-    let x = x0;
-    for (let y = y0; y < y0 + len; y += 10) {
-      x += (r() - 0.5) * 3;
-      g.lineTo(x, y);
-    }
-    g.stroke();
-  }
-  // rain drips down from the roof, and hand-height rubbing
-  for (let i = 0; i < 14; i++) {
-    const x = r() * W;
-    const len = 200 + r() * 600;
-    const w = 6 + r() * 22;
-    const drip = g.createLinearGradient(0, 0, 0, len);
-    drip.addColorStop(0, `rgba(92,70,48,${0.22 + r() * 0.16})`);
-    drip.addColorStop(1, 'rgba(92,70,48,0)');
-    g.fillStyle = drip;
-    wrapX(W, (dx) => g.fillRect(x + dx - w / 2, 0, w, len));
-  }
-  for (let i = 0; i < 10; i++) blot(g, W, r() * W, H * (0.45 + r() * 0.25), 40 + r() * 60, 30 + r() * 50, '120,96,70', 0.1 + r() * 0.08);
-  for (let i = 0; i < 12; i++) blot(g, W, r() * W, H * (0.86 + r() * 0.12), 30 + r() * 50, 20 + r() * 40, '96,112,70', 0.14 + r() * 0.1);
-  const grime = g.createLinearGradient(0, H * 0.78, 0, H);
-  grime.addColorStop(0, 'rgba(84,64,44,0)');
-  grime.addColorStop(1, 'rgba(84,64,44,0.55)');
-  g.fillStyle = grime;
-  g.fillRect(0, H * 0.78, W, H * 0.22);
-  const soot = g.createLinearGradient(0, 0, 0, 90);
-  soot.addColorStop(0, 'rgba(60,44,30,0.4)');
-  soot.addColorStop(1, 'rgba(60,44,30,0)');
-  g.fillStyle = soot;
-  g.fillRect(0, 0, W, 90);
-  return texture(c, [1, 1]);
-}
-
 /** A late-afternoon sky with painted cumulus, for an equirectangular sky dome. */
 export function paintSky(seed = 5) {
   const r = rng(seed);
@@ -698,4 +414,229 @@ export function paintPalmTrunk(seed = 10) {
     g.stroke();
   }
   return texture(c, [7, 1]);
+}
+
+/**
+ * Window lattice (alpha): our own pattern, not a copy of a specific house. Diagonal strips cross in
+ * a diamond grid, with a ring at every other crossing and a small rosette at the rest. One tile is
+ * 0.4 m square, so with UVs in metres the repeat is 2.5. Inked edges, cream face: the material
+ * colour sets the wood tone.
+ */
+export function paintLattice(seed = 11) {
+  const r = rng(seed);
+  const S = 512;
+  const P = 128; // crossing pitch: 10 cm
+  const [c, g] = canvas(S, S);
+  g.lineCap = 'round';
+  const strips = (width, style) => {
+    g.strokeStyle = style;
+    g.lineWidth = width;
+    for (let k = -8; k <= 8; k++) {
+      g.beginPath();
+      g.moveTo(k * P - S, -S);
+      g.lineTo(k * P + S * 2, S * 2);
+      g.moveTo(k * P - S, S * 2);
+      g.lineTo(k * P + S * 2, -S);
+      g.stroke();
+    }
+  };
+  const nodes = (fn) => {
+    for (let i = -1; i <= S / 64 + 1; i++) for (let j = -1; j <= S / 64 + 1; j++) if ((i + j) % 2 === 0) fn(i * 64, j * 64, (i / 2 + j / 2) % 2 === 0);
+  };
+  strips(26, '#3a2418');
+  nodes((x, y, ring) => {
+    g.fillStyle = '#3a2418';
+    g.beginPath();
+    g.arc(x, y, ring ? 34 : 17, 0, Math.PI * 2);
+    g.fill();
+  });
+  strips(17, '#efe2c8');
+  nodes((x, y, ring) => {
+    g.fillStyle = '#efe2c8';
+    g.beginPath();
+    g.arc(x, y, ring ? 29 : 12, 0, Math.PI * 2);
+    g.fill();
+    if (ring) {
+      g.globalCompositeOperation = 'destination-out';
+      g.beginPath();
+      g.arc(x, y, 18, 0, Math.PI * 2);
+      g.fill();
+      g.globalCompositeOperation = 'source-over';
+      g.strokeStyle = '#3a2418';
+      g.lineWidth = 4;
+      g.beginPath();
+      g.arc(x, y, 18, 0, Math.PI * 2);
+      g.stroke();
+    }
+  });
+  // brush tone along the strips
+  for (let i = 0; i < 400; i++) {
+    g.fillStyle = `rgba(${r() < 0.5 ? '120,80,50' : '255,250,240'},${0.06 + r() * 0.08})`;
+    g.globalCompositeOperation = 'source-atop';
+    g.fillRect(r() * S, r() * S, 10 + r() * 30, 2 + r() * 3);
+  }
+  g.globalCompositeOperation = 'source-over';
+  return texture(c, [2.5, 2.5]);
+}
+
+/**
+ * Curtain prints. 'valance': red-orange with yellow and green sprigs, as on the window valances in
+ * the reference. 'sheer': pale peach with sparse orange sprigs, for the tied-back panels. One tile
+ * is 0.5 m square (repeat 2).
+ */
+export function paintCurtain(seed = 12, kind = 'valance') {
+  const r = rng(seed);
+  const S = 256;
+  const [c, g] = canvas(S, S);
+  const valance = kind === 'valance';
+  g.fillStyle = valance ? '#e8582c' : '#f7e2d0';
+  g.fillRect(0, 0, S, S);
+  for (let i = 0; i < 18; i++) blot(g, S, r() * S, r() * S, 20 + r() * 40, 20 + r() * 40, valance ? '200,40,30' : '240,170,140', 0.12 + r() * 0.12);
+  const sprig = (x, y, s, petal, leaf) => {
+    wrapX(S, (dx) => {
+      g.save();
+      g.translate(x + dx, y);
+      g.rotate(r() * Math.PI * 2);
+      g.fillStyle = leaf;
+      for (const a of [0.6, 2.4]) {
+        g.beginPath();
+        g.ellipse(Math.cos(a) * s * 1.3, Math.sin(a) * s * 1.3, s * 1.1, s * 0.45, a, 0, Math.PI * 2);
+        g.fill();
+      }
+      g.fillStyle = petal;
+      for (let k = 0; k < 5; k++) {
+        const a = (k / 5) * Math.PI * 2;
+        g.beginPath();
+        g.arc(Math.cos(a) * s * 0.55, Math.sin(a) * s * 0.55, s * 0.45, 0, Math.PI * 2);
+        g.fill();
+      }
+      g.fillStyle = valance ? '#7a2414' : '#e8582c';
+      g.beginPath();
+      g.arc(0, 0, s * 0.28, 0, Math.PI * 2);
+      g.fill();
+      g.restore();
+    });
+  };
+  const n = valance ? 26 : 9;
+  for (let i = 0; i < n; i++) {
+    const y = r() * S;
+    sprig(r() * S, y, valance ? 7 + r() * 5 : 6 + r() * 4, valance ? (r() < 0.5 ? '#f6d24a' : '#fbe9b0') : '#ef8a52', valance ? '#5f9a3a' : '#9cbf7a');
+  }
+  if (valance) {
+    // a border band along the bottom hem
+    g.fillStyle = 'rgba(120,30,16,0.55)';
+    g.fillRect(0, S - 20, S, 6);
+  }
+  const t = texture(c, [2, 2]);
+  return t;
+}
+
+/** The red cloth on the embroidery frame: fine weave, a little uneven dye, a row of tacking stitches. */
+export function paintCloth(seed = 13) {
+  const r = rng(seed);
+  const W = 512;
+  const H = 256;
+  const [c, g] = canvas(W, H);
+  g.fillStyle = '#d3283a';
+  g.fillRect(0, 0, W, H);
+  for (let i = 0; i < 20; i++) blot(g, W, r() * W, r() * H, 40 + r() * 90, 30 + r() * 60, r() < 0.5 ? '150,10,30' : '240,80,90', 0.08 + r() * 0.1);
+  for (let y = 0; y < H; y += 2) {
+    g.fillStyle = `rgba(90,0,16,${0.04 + r() * 0.05})`;
+    g.fillRect(0, y, W, 1);
+  }
+  for (let x = 0; x < W; x += 2) {
+    g.fillStyle = `rgba(255,170,170,${0.02 + r() * 0.04})`;
+    g.fillRect(x, 0, 1, H);
+  }
+  // tacking stitches near one end, as in the reference (work not started yet)
+  g.fillStyle = 'rgba(255,246,236,0.9)';
+  for (let y = 24; y < H - 24; y += 9) g.fillRect(W - 46 + (r() - 0.5) * 2, y, 2, 5);
+  return texture(c, [1, 1], false);
+}
+
+/**
+ * Wall hangings atlas, 4 x 2 tiles: woven mats in tan, green and violet checks, and framed pictures
+ * with a painted spray of flowers. Each item's face takes one tile by its UVs.
+ */
+export function paintDecor(seed = 14) {
+  const r = rng(seed);
+  const T = 192;
+  const [c, g] = canvas(T * 4, T * 2);
+  const weave = (x0, y0, a, b) => {
+    const n = 12;
+    const s = T / n;
+    for (let i = 0; i < n; i++)
+      for (let j = 0; j < n; j++) {
+        g.fillStyle = (i + j) % 2 ? a : b;
+        g.fillRect(x0 + i * s, y0 + j * s, s, s);
+        g.fillStyle = 'rgba(40,24,12,0.18)';
+        g.fillRect(x0 + i * s, y0 + j * s + ((i + j) % 2 ? 0 : s - 2), s, 2);
+      }
+    g.strokeStyle = '#3a2418';
+    g.lineWidth = 8;
+    g.strokeRect(x0 + 4, y0 + 4, T - 8, T - 8);
+  };
+  const picture = (x0, y0, ground, flower) => {
+    g.fillStyle = '#6b4a2c';
+    g.fillRect(x0, y0, T, T);
+    g.fillStyle = ground;
+    g.fillRect(x0 + 18, y0 + 18, T - 36, T - 36);
+    g.strokeStyle = '#4c7a3a';
+    g.lineWidth = 3;
+    for (let k = 0; k < 5; k++) {
+      g.beginPath();
+      g.moveTo(x0 + T / 2, y0 + T - 30);
+      g.quadraticCurveTo(x0 + T / 2 + (r() - 0.5) * 60, y0 + T / 2, x0 + 40 + r() * (T - 80), y0 + 40 + r() * 50);
+      g.stroke();
+      g.fillStyle = flower;
+      g.beginPath();
+      g.arc(x0 + 40 + r() * (T - 80), y0 + 40 + r() * 60, 7 + r() * 6, 0, Math.PI * 2);
+      g.fill();
+    }
+  };
+  weave(0, 0, '#d8b77a', '#a8804a');
+  weave(T, 0, '#7da35a', '#d9c690');
+  picture(T * 2, 0, '#efe6d0', '#d8473a');
+  weave(T * 3, 0, '#8a5a8a', '#e0c890');
+  picture(0, T, '#d9e4e8', '#3a6aa8');
+  weave(T, T, '#c9a05a', '#5f8a6a');
+  picture(T * 2, T, '#f2ead8', '#e09a2a');
+  weave(T * 3, T, '#b04a3a', '#e8d4a8');
+  return texture(c, [1, 1], false);
+}
+
+/** Soft light (alpha in the red channel is not used: colour and alpha together), for glows and floor sheen. */
+export function paintGlow(kind = 'round') {
+  const S = 128;
+  const [c, g] = canvas(S, S);
+  if (kind === 'round') {
+    const grad = g.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2);
+    grad.addColorStop(0, 'rgba(255,255,255,1)');
+    grad.addColorStop(0.45, 'rgba(255,255,255,0.45)');
+    grad.addColorStop(1, 'rgba(255,255,255,0)');
+    g.fillStyle = grad;
+    g.fillRect(0, 0, S, S);
+  } else {
+    // floor sheen: bright near the window (canvas top), fading into the room, broken into streaks
+    const r = rng(15);
+    for (let x = 0; x < S; x++) {
+      const k = 0.55 + r() * 0.45;
+      const grad = g.createLinearGradient(0, 0, 0, S);
+      grad.addColorStop(0, `rgba(255,255,255,${k})`);
+      grad.addColorStop(0.5, `rgba(255,255,255,${k * 0.35})`);
+      grad.addColorStop(1, 'rgba(255,255,255,0)');
+      g.fillStyle = grad;
+      g.fillRect(x, 0, 1, S);
+    }
+    const edge = g.createLinearGradient(0, 0, S, 0);
+    edge.addColorStop(0, 'rgba(0,0,0,1)');
+    edge.addColorStop(0.2, 'rgba(0,0,0,0)');
+    edge.addColorStop(0.8, 'rgba(0,0,0,0)');
+    edge.addColorStop(1, 'rgba(0,0,0,1)');
+    g.globalCompositeOperation = 'destination-out';
+    g.fillStyle = edge;
+    g.fillRect(0, 0, S, S);
+  }
+  const t = texture(c, [1, 1], false);
+  return t;
 }
