@@ -4,6 +4,7 @@
 // src/assets/textures/fabrics-ktx2/<group>/:
 //   <name>.preview.ktx2  long edge 512px  (loads first, ~tens of KB)
 //   <name>.ktx2          long edge 2048px (full quality, swapped in after)
+//   <name>.thumb.webp    long edge 360px (thumbnail for the index view)
 // plus manifest.json with each image's group and pixel size.
 //
 // Run: npm run textures            (skips outputs newer than their PNG)
@@ -79,6 +80,12 @@ async function main() {
       const outBase = path.join(OUT_DIR, group, name);
       const { width, height } = await sharp(src).metadata();
       manifest.push({ group, name, width, height, details: await findDetails(sharp, src) });
+
+      // A small WebP thumbnail for the index view.
+      const thumb = `${outBase}.thumb.webp`;
+      if (force || !fs.existsSync(thumb) || fs.statSync(thumb).mtimeMs < fs.statSync(src).mtimeMs) {
+        await sharp(src).resize(360, 360, { fit: 'inside' }).webp({ quality: 74, alphaQuality: 80 }).toFile(thumb);
+      }
 
       const srcTime = fs.statSync(src).mtimeMs;
       const upToDate = SIZES.every(({ suffix }) => {

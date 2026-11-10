@@ -7,7 +7,7 @@
 
 <main>
   <header>
-    <p class="kk-mono">Keringkam — {studies.length} studies</p>
+    <p class="kk-mono"><a href="#/">← Gallery</a> · Keringkam — {studies.length} studies</p>
     <h1 class="kk-wide">Keringkam</h1>
   </header>
 

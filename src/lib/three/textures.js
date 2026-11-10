@@ -8,6 +8,12 @@ const urls = import.meta.glob('../../assets/textures/fabrics-ktx2/**/*.ktx2', {
   eager: true,
 });
 
+const thumbs = import.meta.glob('../../assets/textures/fabrics-ktx2/**/*.thumb.webp', {
+  query: '?url',
+  import: 'default',
+  eager: true,
+});
+
 const urlFor = (group, name, suffix) =>
   urls[`../../assets/textures/fabrics-ktx2/${group}/${name}${suffix}.ktx2`];
 
@@ -16,6 +22,7 @@ export const fabrics = manifest.map((item) => ({
   ...item,
   previewUrl: urlFor(item.group, item.name, '.preview'),
   fullUrl: urlFor(item.group, item.name, ''),
+  thumbUrl: thumbs[`../../assets/textures/fabrics-ktx2/${item.group}/${item.name}.thumb.webp`],
 }));
 
 /** Creates a KTX2 loader. The Basis transcoder is copied to <base>/basis/ by scripts/copy-basis.mjs. */

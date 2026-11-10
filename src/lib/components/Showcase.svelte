@@ -24,7 +24,7 @@
   function onkeydown(event) {
     if (event.key === 'ArrowRight') showcase?.next();
     if (event.key === 'ArrowLeft') showcase?.prev();
-    if (event.key === 'Escape') location.hash = '';
+    if (event.key === 'Escape') location.hash = '#/studies';
   }
 </script>
 
@@ -35,7 +35,7 @@
   <div class="kk-layer back" bind:this={back}></div>
   <canvas bind:this={canvas}></canvas>
   <div class="kk-layer front" bind:this={front}></div>
-  <a class="back-link" href="#/" aria-label="All styles">←</a>
+  <a class="back-link" href="#/studies" aria-label="All studies">←</a>
   <button class="prev" aria-label="Previous" onclick={() => showcase?.prev()}>‹</button>
   <button class="next" aria-label="Next" onclick={() => showcase?.next()}>›</button>
 </div>

@@ -1,11 +1,12 @@
-/* Shared look for all showcase styles.
-   Fonts: Archivo (expanded, for big type), Instrument Serif, IBM Plex Mono.
+/* Shared look for the gallery and the studies.
+   Fonts: Instrument Serif and Figtree (gallery); Archivo (expanded) and IBM Plex Mono (studies).
    Flat colours only: no gradient backgrounds. */
 
 :root {
   --wide: 'Archivo', 'Arial Narrow', sans-serif;
   --serif: 'Instrument Serif', Georgia, serif;
   --mono: 'IBM Plex Mono', ui-monospace, monospace;
+  --soft: 'Figtree', 'Gill Sans', sans-serif;
   --accent: #c8102e;
 }
 
