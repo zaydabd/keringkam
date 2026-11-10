@@ -276,7 +276,7 @@ export function paintPost(seed = 4) {
   const W = 512;
   const H = 1024;
   const [c, g] = canvas(W, H);
-  g.fillStyle = '#ebdcbc';
+  g.fillStyle = '#e4d0a2';
   g.fillRect(0, 0, W, H);
   // wood grain under the paint, and weathering streaks
   for (let i = 0; i < 30; i++) blot(g, W, r() * W, r() * H, 40 + r() * 90, 120 + r() * 220, r() < 0.5 ? '150,120,84' : '255,248,232', 0.08 + r() * 0.08);
@@ -293,8 +293,8 @@ export function paintPost(seed = 4) {
     });
   }
 
-  const RED = '#8f3f2a';
-  const INK = '#3a2418';
+  const RED = '#a8683a'; // terracotta: light enough that the cool shadow tone does not turn it crimson
+  const INK = '#5a3020';
   const stroke = (path, width) => {
     wrapX(W, (dx) => {
       g.save();
@@ -302,7 +302,7 @@ export function paintPost(seed = 4) {
       g.lineCap = 'round';
       g.lineJoin = 'round';
       g.strokeStyle = INK;
-      g.lineWidth = width + 6;
+      g.lineWidth = width + 4;
       path();
       g.stroke();
       g.strokeStyle = RED;
@@ -318,7 +318,7 @@ export function paintPost(seed = 4) {
     for (let i = 0; i <= steps; i++) {
       const t = i / steps;
       const a = start + dir * t * turns * Math.PI * 2;
-      const rr = rad * (0.12 + 0.88 * t);
+      const rr = rad * (0.3 + 0.7 * t);
       g.lineTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr);
     }
   };
@@ -350,31 +350,46 @@ export function paintPost(seed = 4) {
   band(H - 80, 26);
   teeth(H - 84, 34, false);
 
-  // A chain of S-scrolls up the post: big spirals alternating left and right, joined by tails.
-  const centres = [];
-  for (let k = 0; k < 5; k++) centres.push([k % 2 ? W * 0.28 : W * 0.72, 175 + k * 158]);
-  centres.forEach(([cx, cy], k) => {
-    const dir = k % 2 ? 1 : -1;
-    stroke(spiral(cx, cy, 62, 1.7, dir, k * 1.3), 15);
-    if (k < centres.length - 1) {
-      const [nx, ny] = centres[k + 1];
-      stroke(() => {
-        g.beginPath();
-        g.moveTo(cx + dir * 56, cy + 28);
-        g.bezierCurveTo(cx + dir * 90, cy + 110, nx - dir * 120, ny - 110, nx - dir * 48, ny - 38);
-      }, 13);
-    }
-    // on the other half of the post: a smaller spiral with a leaf-like hook, and a curl
-    const hx = cx + W * 0.5;
-    stroke(spiral(hx, cy - 34, 30, 1.3, -dir, 0.5), 10);
-    stroke(() => {
+  // Two chains of S-scrolls up the post, half a turn apart, so the pattern covers the post the
+  // way it does in H1: big spirals alternating left and right, joined by tails, with leaf-shaped
+  // fillers in the gaps. (Our own scrollwork, not a copy of a specific motif.)
+  const leaf = (x, y, len, ang) => {
+    wrapX(W, (dx) => {
+      g.save();
+      g.translate(x + dx, y);
+      g.rotate(ang);
       g.beginPath();
-      g.moveTo(hx - 56, cy + 30);
-      g.quadraticCurveTo(hx, cy + 86, hx + 56, cy + 30);
-      g.quadraticCurveTo(hx + 70, cy + 4, hx + 46, cy - 4);
-    }, 9);
-    stroke(spiral(hx + dir * 64, cy + 62, 16, 1.1, dir, 2), 7);
-  });
+      g.moveTo(0, 0);
+      g.quadraticCurveTo(len * 0.5, -len * 0.34, len, 0);
+      g.quadraticCurveTo(len * 0.5, len * 0.22, 0, 0);
+      g.fillStyle = RED;
+      g.fill();
+      g.strokeStyle = INK;
+      g.lineWidth = 2.5;
+      g.stroke();
+      g.restore();
+    });
+  };
+  for (const [ox, scale, phase] of [[0, 1, 0], [W * 0.5, 0.86, 79]]) {
+    const centres = [];
+    for (let k = 0; k < 5; k++) centres.push([ox + (k % 2 ? W * 0.14 : W * 0.36), 170 + phase + k * 158]);
+    centres.forEach(([cx, cy], k) => {
+      if (cy > H - 150) return;
+      const dir = k % 2 ? 1 : -1;
+      stroke(spiral(cx, cy, 76 * scale, 1.3, dir, k * 1.3 + phase), 25 * scale);
+      if (k < centres.length - 1 && centres[k + 1][1] < H - 150) {
+        const [nx, ny] = centres[k + 1];
+        stroke(() => {
+          g.beginPath();
+          g.moveTo(cx + dir * 66 * scale, cy + 30);
+          g.bezierCurveTo(cx + dir * 70, cy + 100, nx - dir * 90, ny - 100, nx - dir * 46 * scale, ny - 36);
+        }, 20 * scale);
+      }
+      stroke(spiral(cx - dir * 96, cy + 76, 24, 1.1, dir, 2), 12);
+      leaf(cx - dir * 30, cy + 84, 84, dir > 0 ? 2.6 : 0.5);
+      leaf(cx + dir * 74, cy - 64, 70, dir > 0 ? -0.6 : 3.7);
+    });
+  }
   // rows of dots along the tails
   g.fillStyle = INK;
   for (let i = 0; i < 70; i++) {
@@ -410,6 +425,19 @@ export function paintPost(seed = 4) {
     }
     g.stroke();
   }
+  // rain drips down from the roof, and hand-height rubbing
+  for (let i = 0; i < 14; i++) {
+    const x = r() * W;
+    const len = 200 + r() * 600;
+    const w = 6 + r() * 22;
+    const drip = g.createLinearGradient(0, 0, 0, len);
+    drip.addColorStop(0, `rgba(92,70,48,${0.22 + r() * 0.16})`);
+    drip.addColorStop(1, 'rgba(92,70,48,0)');
+    g.fillStyle = drip;
+    wrapX(W, (dx) => g.fillRect(x + dx - w / 2, 0, w, len));
+  }
+  for (let i = 0; i < 10; i++) blot(g, W, r() * W, H * (0.45 + r() * 0.25), 40 + r() * 60, 30 + r() * 50, '120,96,70', 0.1 + r() * 0.08);
+  for (let i = 0; i < 12; i++) blot(g, W, r() * W, H * (0.86 + r() * 0.12), 30 + r() * 50, 20 + r() * 40, '96,112,70', 0.14 + r() * 0.1);
   const grime = g.createLinearGradient(0, H * 0.78, 0, H);
   grime.addColorStop(0, 'rgba(84,64,44,0)');
   grime.addColorStop(1, 'rgba(84,64,44,0.55)');

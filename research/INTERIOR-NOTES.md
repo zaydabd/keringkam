@@ -35,7 +35,7 @@ Textures are painted on canvases in code (`paint.js`). No photo textures.
 
 - Thatch `#c29a66`, timber `#a6845e`, rafter `#cfae7c`, lath `#d2b07a`, rail `#b0a089`, bench `#b39878`.
 - Floor `#bba98d`: cooler and greyer than before, to match H1. Bamboo mat `#d9bd84`. Wall `#7a3f34`.
-- Sun `#ffe2b8` at 3.4. Hemi light `#d4d6e6` / `#a08670` at 2.4. Fog `#d3dec6`, 16–90 m.
+- Sun `#ffe2b8` at 3.4. Hemi light `#d4d6e6` / `#a08670` at 2.4. Fog `#d3dec6`, 24–125 m.
 - Shadows are cooled in the post pass (a split-tone to blue-grey of the same value). The post pass then adds paper grain.
 
 ## Pass log
@@ -65,13 +65,35 @@ What changed:
 
 Still different: H1 is overcast, so its floor has no hard sun stripes. Ours has the rail shadows. I kept them on purpose, for the painted look.
 
+### p6: landscape (2026-11-10)
+
+What was off vs H1: no sky, palms hidden, trunks plain grey. The cause was the layout. Trees stood 12 m from the house and reached above the eave line, so they walled off the view. The palm crowns were higher than the eave, so the roof hid them.
+
+What changed (`landscape.js`, `paint.js`):
+- The house now stands on a rise. The ground falls away from 9 m out (0.19 m per metre, 10 m at most).
+- The broadleaf tree line starts 24 m out. Between it and the house is a clearing with grass, palms and bananas, as in H1.
+- Palms are shorter (3.4–5.8 m, taller further down the slope), so the crowns show under the eave. Fronds are narrower and less yellow.
+- Tree trunks taper and lean a little. New painted bark texture (`paintBark`) with moss at the foot. Palm trunks have leaf-scar rings (`paintPalmTrunk`).
+- Fog starts further out (24–125 m), so the far trees keep more colour.
+
+Result: sky shows above the far trees at the left, and palms are the main shapes in the mid-ground.
+
+### p7: posts and header (2026-11-10)
+
+What was off vs H1: the post scrollwork was sparse and thin, and looked crimson (the cool shadow tone shifts dark reds toward blue). The header was unreadable over the roof.
+
+What changed:
+- `paintPost`: two chains of bold S-scrolls, half a turn apart, with leaf-shaped fillers. Fewer turns and thicker strokes, so they read as scrolls and not as roses.
+- The motif colour is terracotta `#a8683a` on warmer cream `#e4d0a2`. Rain drips, rubbing marks and algae at the foot are added.
+- The scrollwork is our own. It is not a copy of a specific Orang Ulu motif. H1's carved face on the left post is left out on purpose.
+- Header and credit text are cream with a soft shadow (`Interior.svelte`).
+
 ## Open issues / to do
 
-- [ ] Sky does not show through the canopy gaps the way it does in H1.
-- [ ] Palms are mostly hidden behind the broadleaf trees.
-- [ ] Tree trunks are plain grey.
-- [ ] Posts are cleaner than in H1 (H1 has a carved face and stains).
-- [ ] The "Keringkam" header is hard to read over the roof.
+- [ ] Sky shows only at the left. H1 also has a sky gap in the centre.
+- [ ] Palm fronds look like fern leaves close up. They need separate leaflets.
+- [ ] Far trees are still hazy compared with H1.
+
 - [ ] The peninsula wall (H7–H15) is out of shot. Add drag-to-look.
 - [ ] Props: basket lamps (H3), H9 items, kekisi lattice and vent panel (H14, H15), gold curtain (H14), a sheer curtain that moves.
 - [ ] Atmosphere: light shafts, dust motes.

@@ -54,6 +54,9 @@
     justify-content: space-between;
     align-items: baseline;
     padding: 24px 32px;
+    /* cream on the dark roof */
+    color: #f6ead2;
+    text-shadow: 0 1px 6px rgba(40, 22, 12, 0.7);
   }
   a {
     color: inherit;
@@ -87,7 +90,9 @@
     bottom: 20px;
     margin: 0;
     font-size: 11px;
-    opacity: 0.75;
+    color: #f6ead2;
+    text-shadow: 0 1px 4px rgba(40, 22, 12, 0.85);
+    opacity: 0.9;
   }
   .veil {
     position: absolute;
