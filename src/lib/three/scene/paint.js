@@ -75,7 +75,7 @@ export function paintPlanks(seed = 1, { weathered = false, brushy = false } = {}
   for (let i = 0; i < (brushy ? 110 : 70); i++) {
     const y0 = r() * H;
     const h = 3 + r() * 16;
-    const a = brushy ? 0.05 + r() * 0.09 : 0.03 + r() * 0.06;
+    const a = brushy ? 0.07 + r() * 0.12 : 0.045 + r() * 0.08;
     const k = 1 + Math.floor(r() * 3);
     const ph = r() * Math.PI * 2;
     const amp = 2 + r() * 6;
@@ -514,33 +514,38 @@ function motif(g, S, x, y, s, r) {
 /**
  * Curtain cloth after R2 (the painting): a hand-painted batik, not a printed floral.
  * 'valance': rust ground with cream and ochre patches and a dark hem band.
- * 'drape': cream-grey ground with rust and slate-blue patches. Both tile; repeat is (2, 2).
+ * 'drape': cream-grey ground with rust and slate-blue patches. 'pale': a sheer, the same pattern
+ * very faint on cream. All tile; repeat is (2, 2).
  */
 export function paintCurtain(seed = 12, kind = 'valance') {
   const r = rng(seed);
   const S = 256;
   const [c, g] = canvas(S, S);
   const valance = kind === 'valance';
-  g.fillStyle = valance ? '#a4603e' : '#a89a8c';
+  const pale = kind === 'pale';
+  g.fillStyle = valance ? '#94412a' : pale ? '#efe6d6' : '#8f8274';
   g.fillRect(0, 0, S, S);
   // uneven dye
-  for (let i = 0; i < 18; i++) blot(g, S, r() * S, r() * S, 20 + r() * 40, 20 + r() * 40, valance ? (r() < 0.5 ? '120,44,24' : '196,110,60') : r() < 0.5 ? '150,150,160' : '232,220,200', 0.12 + r() * 0.14);
-  const inks = valance ? ['#e6cf9e', '#d9ab66', '#ecdcb8', '#7c2f1c', '#c98a4a'] : ['#8e4630', '#66728a', '#9c5638', '#55637c', '#d9cbb4', '#7a4a3a'];
-  const cell = valance ? 44 : 42;
+  for (let i = 0; i < 18; i++) blot(g, S, r() * S, r() * S, 20 + r() * 40, 20 + r() * 40, valance ? (r() < 0.5 ? '110,36,22' : '180,90,50') : r() < 0.5 ? '150,150,160' : '232,220,200', (pale ? 0.04 : 0.12) + r() * (pale ? 0.05 : 0.14));
+  const inks = valance ? ['#ead7aa', '#dcb46e', '#efe0bc', '#e2c48a', '#6e2616'] : ['#8e4630', '#66728a', '#9c5638', '#55637c', '#cdbda4', '#7a4a3a', '#6b7890'];
+  const cell = valance ? 51.2 : 64; // large flowing shapes (R2), four or five across the tile
   for (let y = cell / 2; y < S; y += cell) {
     for (let x = cell / 2; x < S; x += cell) {
       g.fillStyle = inks[Math.floor(r() * inks.length)];
-      g.globalAlpha = 0.78 + r() * 0.2;
-      motif(g, S, x + (r() - 0.5) * cell * 0.5 + ((y / cell) % 2 > 1 ? cell / 2 : 0), y + (r() - 0.5) * cell * 0.4, cell * (0.34 + r() * 0.16), r);
-      // a smaller patch of another colour inside or beside it
+      g.globalAlpha = pale ? 0.08 : 0.78 + r() * 0.2;
+      const row = Math.round(y / cell);
+      motif(g, S, x + (r() - 0.5) * cell * 0.4 + (row % 2 ? cell / 2 : 0), y + (r() - 0.5) * cell * 0.3, cell * (0.44 + r() * 0.14), r);
+      // a smaller patch of another colour inside it, and a third beside it
       g.fillStyle = inks[Math.floor(r() * inks.length)];
-      motif(g, S, x + (r() - 0.5) * cell * 0.7, y + (r() - 0.5) * cell * 0.7, cell * (0.16 + r() * 0.1), r);
+      motif(g, S, x + (r() - 0.5) * cell * 0.3 + (row % 2 ? cell / 2 : 0), y + (r() - 0.5) * cell * 0.3, cell * (0.16 + r() * 0.08), r);
+      g.fillStyle = inks[Math.floor(r() * inks.length)];
+      motif(g, S, x + cell * 0.5 + (r() - 0.5) * cell * 0.3, y + cell * 0.5 + (r() - 0.5) * cell * 0.3, cell * (0.14 + r() * 0.08), r);
     }
   }
   g.globalAlpha = 1;
   // brush streaks down the cloth (folds catch the paint)
   for (let i = 0; i < 22; i++) {
-    g.fillStyle = r() < 0.5 ? `rgba(60,34,26,${0.05 + r() * 0.08})` : `rgba(255,244,226,${0.04 + r() * 0.07})`;
+    g.fillStyle = r() < 0.5 ? `rgba(60,34,26,${(pale ? 0.02 : 0.05) + r() * (pale ? 0.03 : 0.08)})` : `rgba(255,244,226,${0.04 + r() * 0.07})`;
     g.fillRect(r() * S, 0, 2 + r() * 9, S);
   }
   if (valance) {
@@ -559,7 +564,7 @@ export function paintCloth(seed = 13) {
   const W = 512;
   const H = 256;
   const [c, g] = canvas(W, H);
-  g.fillStyle = '#c62a30';
+  g.fillStyle = '#b3242a';
   g.fillRect(0, 0, W, H);
   for (let i = 0; i < 22; i++) blot(g, W, r() * W, r() * H, 40 + r() * 90, 30 + r() * 60, r() < 0.55 ? '130,14,24' : '236,84,74', 0.1 + r() * 0.12);
   // creases: long soft diagonal strokes, dark with a light edge
@@ -582,23 +587,29 @@ export function paintCloth(seed = 13) {
     g.fillStyle = `rgba(90,0,16,${0.03 + r() * 0.04})`;
     g.fillRect(0, y, W, 1);
   }
-  // gold border band: two lines and a row of small diamonds between them
-  const m = 16;
-  g.strokeStyle = '#e2b860';
-  g.lineWidth = 2;
-  g.strokeRect(m, m, W - m * 2, H - m * 2);
-  g.strokeRect(m + 14, m + 14, W - (m + 14) * 2, H - (m + 14) * 2);
-  g.fillStyle = '#edc978';
-  const diamond = (x, y) => {
+  // gold bands across the two ends (R2): ruled lines with a row of diamonds and dots between them
+  const diamond = (x, y, k) => {
     g.beginPath();
-    g.moveTo(x, y - 4);
-    g.lineTo(x + 4, y);
-    g.lineTo(x, y + 4);
-    g.lineTo(x - 4, y);
+    g.moveTo(x, y - k);
+    g.lineTo(x + k, y);
+    g.lineTo(x, y + k);
+    g.lineTo(x - k, y);
     g.fill();
   };
-  for (let x = m + 7; x < W - m; x += 14) for (const y of [m + 7, H - m - 7]) diamond(x, y);
-  for (let y = m + 21; y < H - m - 14; y += 14) for (const x of [m + 7, W - m - 7]) diamond(x, y);
+  for (const x0 of [34, W - 34 - 58]) {
+    g.fillStyle = 'rgba(120,16,20,0.35)'; // the band sits on slightly darker cloth
+    g.fillRect(x0 - 4, 0, 66, H);
+    g.fillStyle = '#e2b860';
+    for (const dx of [0, 5, 53, 58]) g.fillRect(x0 + dx, 10, dx === 0 || dx === 58 ? 2.5 : 1.5, H - 20);
+    g.fillStyle = '#edc978';
+    for (let y = 22; y < H - 14; y += 20) {
+      diamond(x0 + 29, y, 7);
+      g.fillRect(x0 + 14, y + 9, 3, 3);
+      g.fillRect(x0 + 42, y + 9, 3, 3);
+    }
+    g.fillStyle = '#b3242a';
+    for (let y = 22; y < H - 14; y += 20) diamond(x0 + 29, y, 3);
+  }
   return texture(c, [1, 1], false);
 }
 

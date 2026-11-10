@@ -11,31 +11,39 @@
 // parts into one mesh per material. Debug views: ?debug=nopost (no ink pass) or ?debug=flat
 // (no textures), e.g. /?debug=flat#/interior. Both log the triangle count.
 // Look: watercolour, after R2 (a painting of the same room; see watercolour.js). Layout and items
-// stay as in R1. More debug views: ?debug=paint-off | paint-pigment | paint-edge | paint-bleed | gloss
-// (the mirror mask of the polished boards).
+// stay as in R1.
+//
+// Pass graph (each has one owner and a way to switch it off; see research/INTERIOR-NOTES.md):
+//   scene (linear HDR) -> ink (toon.js) -> pigment (watercolour.js) -> finish (exposure from
+//   meter.js, the one tone map, sRGB, grade).
+// Inspection, all as URL parameters before the #:
+//   debug = nopost | flat | paint-pigment | paint-edge | paint-bleed | gloss | meter
+//   off   = ink, pigment, grade (comma-separated: switches those stages off)
+//   cam   = design (default) | near | far      look = x,y (fixes the pointer sway, -1..1)
+//   seed  = n (moves the pigment field and the painted textures)
 
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
-import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { toonGradient, createOutline } from './toon.js';
 import { paintPlanks, paintLattice, paintCurtain, paintCloth, paintDecor, paintGlow } from './paint.js';
 import { createLandscape } from './landscape.js';
-import { PIGMENT_SHADER, GRADE_SHADER } from './watercolour.js';
+import { PIGMENT_SHADER, FINISH_SHADER } from './watercolour.js';
+import { createMeter } from './meter.js';
 
 // Colours picked from R1, then lifted a little for the painted look.
 export const PALETTE = {
-  wall: '#8e6c5a', // mid brown boards, a little grey, as in R2
+  wall: '#977462', // mid brown boards, a little grey, as in R2
   frame: '#6a3a24', // window frames, dado rail
   floor: '#a06e50', // warm brown floor boards (R2)
-  wood: '#b0764a', // honey-brown furniture (R2 is browner than R1's gold)
-  top: '#b8845c', // table tops: brown and polished in R2 (they mirror the windows)
-  lattice: '#977258', // lighter carved panels, as in R2
+  wood: '#9c683e', // honey-brown furniture (R2 is browner than R1's gold)
+  top: '#c08a56', // table tops: brown and polished in R2 (they mirror the windows)
+  lattice: '#d6bb98', // lighter carved panels, as in R2
   cloth: '#d8283a', // red cloth on the frame
-  leaf: '#6a8f46', // lighter, yellower leaves (R2)
-  ink: '#4a2e1e', // brown ink, not black (R2)
+  leaf: '#84a552', // lighter, yellower leaves (R2)
+  ink: '#38200f', // dark brown ink, not black (R2)
 };
 
 // Everything in metres. The camera stands at the origin and looks along -z at the window wall.
@@ -205,7 +213,7 @@ function boardWall(b, from, to, top, openings, at) {
   }
 }
 
-const WALL_TINT = 0.3; // R2: neighbouring boards differ clearly in value
+const WALL_TINT = 0.45; // R2: neighbouring boards differ clearly in value
 
 /**
  * R2's walls are darker low down and lighter up near the ceiling. Done in the material, not in the
@@ -218,7 +226,7 @@ function shadeWalls(material, top) {
       .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvWallY = (modelMatrix * vec4(transformed, 1.0)).y;');
     shader.fragmentShader = shader.fragmentShader
       .replace('#include <common>', '#include <common>\nvarying float vWallY;')
-      .replace('#include <color_fragment>', `#include <color_fragment>\ndiffuseColor.rgb *= mix(0.72, 1.12, smoothstep(0.0, ${top.toFixed(2)}, vWallY));`);
+      .replace('#include <color_fragment>', `#include <color_fragment>\ndiffuseColor.rgb *= mix(0.66, 1.14, smoothstep(0.0, ${top.toFixed(2)}, vWallY));`);
   };
 }
 
@@ -508,9 +516,9 @@ function buildVines(b) {
   const { z0, x1 } = PLAN.room;
   const vine = (x, z, yTop, yBottom, alongX) => {
     let k = 0;
-    for (let y = yTop; y > yBottom; y -= 0.035) {
+    for (let y = yTop; y > yBottom; y -= 0.028) {
       const sway = Math.sin(y * 5 + x) * 0.04;
-      const leaf = new THREE.PlaneGeometry(0.075, 0.045);
+      const leaf = new THREE.CircleGeometry(0.026 + rand() * 0.012, 5).scale(1.35, 0.8, 1); // small pointed-oval leaves
       const a = rand() * Math.PI * 2;
       const px = alongX ? x + sway + Math.cos(a) * 0.035 : x - 0.04 - rand() * 0.02;
       const pz = alongX ? z + 0.05 + rand() * 0.03 : z + sway + Math.cos(a) * 0.035;
@@ -556,8 +564,8 @@ function glossBoards(material, { strength = 0.6, cloth = 0, falloff = 0, view = 
         '#include <opaque_fragment>',
         /* glsl */ `
     {
-      float shade = ${falloff.toFixed(2)} * smoothstep(-3.4, -1.3, vGlossP.z);
-      outgoingLight *= 1.0 - shade;
+      float towards = smoothstep(-2.6, -1.5, vGlossP.z); // 0 by the windows, 1 at the viewer's feet
+      outgoingLight *= 1.0 - ${falloff.toFixed(2)} * towards;
       vec3 Vd = normalize(vGlossP - cameraPosition);
       vec3 Rd = vec3(Vd.x, abs(Vd.y), Vd.z); // mirrored off a level board
       float refl = 0.0;
@@ -570,10 +578,14 @@ function glossBoards(material, { strength = 0.6, cloth = 0, falloff = 0, view = 
         ${wins}
       }
       // boards are not evenly polished: streaks along the grain, and each plank a little different
-      float streak = 0.55 + 0.45 * gNoise(vGlossP.x * 31.0) * (0.7 + 0.6 * gNoise(vGlossP.x * 7.3 + vGlossP.z * 0.9));
+      // The fine streaks fade out once they are smaller than a pixel (no shimmer far away).
+      float fine = mix(gNoise(vGlossP.x * 31.0), 0.5, smoothstep(0.35, 1.2, fwidth(vGlossP.x * 31.0)));
+      float broad = gNoise(vGlossP.x * 6.3 + 2.0);
+      float breaks = smoothstep(0.25, 0.6, gNoise(vGlossP.z * 2.1 + floor(vGlossP.x * 5.5) * 3.7)); // gaps along a board
+      float streak = (0.3 + 0.7 * fine) * (0.45 + 0.75 * broad) * (0.55 + 0.45 * breaks);
       float plank = clamp(0.8 + (vColor.r - 1.0) * 6.0, 0.45, 1.15);
       float fres = 0.3 + 0.7 * pow(1.0 - abs(Vd.y), 2.0); // stronger at a glancing angle
-      float gloss = clamp(refl, 0.0, 1.0) * streak * plank * fres * ${strength.toFixed(2)} * (1.0 - shade);
+      float gloss = min(0.85, clamp(refl, 0.0, 1.0) * streak * plank * fres * ${strength.toFixed(2)} * (1.0 - ${falloff > 0 ? '0.85' : '0.0'} * towards));
       // the red cloth, mirrored in the floor
       float red = 0.0;
       if (${cloth.toFixed(2)} > 0.0) {
@@ -581,9 +593,13 @@ function glossBoards(material, { strength = 0.6, cloth = 0, falloff = 0, view = 
         vec3 Hc = vGlossP + Rd * tc - vec3(${F.x.toFixed(2)}, 0.0, ${F.z.toFixed(2)});
         float cs = ${Math.cos(F.ry).toFixed(4)}, sn = ${Math.sin(F.ry).toFixed(4)};
         vec2 L = vec2(cs * Hc.x - sn * Hc.z, sn * Hc.x + cs * Hc.z); // into the frame's own axes
-        red = box(L.x, ${(-F.w / 2).toFixed(2)}, ${(F.w / 2).toFixed(2)}, 0.5) * box(L.y, ${(-F.d / 2).toFixed(2)}, ${(F.d / 2).toFixed(2)}, 0.5) * streak * ${cloth.toFixed(2)};
+        red = box(L.x, ${(-F.w / 2).toFixed(2)}, ${(F.w / 2).toFixed(2)}, 0.5) * box(L.y, ${(-F.d / 2).toFixed(2)}, ${(F.d / 2).toFixed(2)}, 0.5);
+        // R2 also lets the red spill onto the open floor beside the frame (towards the room)
+        vec2 spill = (vGlossP.xz - vec2(${(F.x - 0.95).toFixed(2)}, ${(F.z + 0.1).toFixed(2)})) / vec2(0.42, 0.3);
+        red = max(red, 0.8 * exp(-dot(spill, spill)));
+        red *= (0.5 + 0.5 * streak) * ${cloth.toFixed(2)};
       }
-      ${view ? 'outgoingLight = vec3(gloss) + vec3(red, 0.0, 0.0);' : 'outgoingLight = mix(outgoingLight, vec3(1.0, 0.77, 0.52), gloss); outgoingLight = mix(outgoingLight, vec3(0.9, 0.3, 0.16), red);'}
+      ${view ? 'outgoingLight = vec3(gloss) + vec3(red, 0.0, 0.0);' : 'outgoingLight = mix(outgoingLight, vec3(1.0, 0.74, 0.46), gloss); outgoingLight = mix(outgoingLight, outgoingLight * vec3(1.7, 0.6, 0.45) + vec3(0.05, 0.0, 0.0), red);'} // a red tint: the boards keep their value
     }
     #include <opaque_fragment>`,
       );
@@ -598,37 +614,54 @@ function glossBoards(material, { strength = 0.6, cloth = 0, falloff = 0, view = 
 function buildContactShadows(texture) {
   const group = new THREE.Group();
   const mat = new THREE.MeshBasicMaterial({ map: texture, color: '#24140e', transparent: true, opacity: 0.9, depthWrite: false, fog: false });
-  const patch = (x, z, w, d, ry = 0) => {
-    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, d).rotateX(-Math.PI / 2), mat);
+  const core = mat.clone(); // a darker, tighter patch right under each piece
+  core.opacity = 0.75;
+  const patch = (x, z, w, d, ry = 0, m = mat) => {
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, d).rotateX(-Math.PI / 2), m);
     mesh.position.set(x, 0.004, z);
     mesh.rotation.y = ry;
     mesh.layers.set(1); // no ink outline
     group.add(mesh);
   };
   const pull = 0.28;
-  for (const sItem of [PLAN.settee, ...PLAN.chairs]) patch(sItem.x, sItem.z + pull, sItem.w * 1.5, sItem.d * 2.1, sItem.ry);
-  for (const t of PLAN.tables) patch((t.x0 + t.x1) / 2, (t.z0 + t.z1) / 2 + pull, (t.x1 - t.x0) * 1.35, (t.z1 - t.z0) * 2.0);
+  for (const sItem of [PLAN.settee, ...PLAN.chairs]) {
+    patch(sItem.x, sItem.z + pull, sItem.w * 1.5, sItem.d * 2.1, sItem.ry);
+    patch(sItem.x, sItem.z + 0.08, sItem.w * 1.15, sItem.d * 1.3, sItem.ry, core);
+  }
+  for (const t of PLAN.tables) {
+    patch((t.x0 + t.x1) / 2, (t.z0 + t.z1) / 2 + pull, (t.x1 - t.x0) * 1.35, (t.z1 - t.z0) * 2.0);
+    patch((t.x0 + t.x1) / 2, (t.z0 + t.z1) / 2 + 0.1, (t.x1 - t.x0) * 1.12, (t.z1 - t.z0) * 1.35, 0, core);
+  }
   const F = PLAN.frame;
   patch(F.x, F.z + pull, F.w * 2.6, F.d * 3.0, F.ry);
-  return { group, mat };
+  patch(F.x, F.z + 0.1, F.w * 1.9, F.d * 1.7, F.ry, core);
+  return { group, mat, core };
 }
 
 // ---------------------------------------------------------------------------------------------
 export function createInterior(canvas, { onReady } = {}) {
-  const debug = new URLSearchParams(window.location.search).get('debug'); // 'nopost' | 'flat'
+  const params = new URLSearchParams(window.location.search);
+  const debug = params.get('debug');
+  const off = new Set((params.get('off') ?? '').split(',').filter(Boolean));
+  const seed = Number(params.get('seed') ?? 0) || 0;
+  const fixedLook = params.get('look')?.split(',').map(Number);
+  // Camera bookmarks for validation: the design view, 1.4 m nearer, and 0.9 m further back.
+  const camOffset = { near: -1.4, far: 0.9 }[params.get('cam')] ?? 0;
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.shadowMap.autoUpdate = false; // the sun and the room don't move: draw the shadows once
   renderer.shadowMap.needsUpdate = true;
-  renderer.toneMapping = THREE.NeutralToneMapping; // the only tone map: OutputPass applies it
-  renderer.toneMappingExposure = 1.3; // R2 is lighter and airier than R1
+  // Tone mapping belongs to the finish pass. The renderer's own setting only matters for
+  // ?debug=nopost (drawn straight to the screen); it gets the same metered exposure.
+  renderer.toneMapping = THREE.NeutralToneMapping;
+  const EXPOSURE_EV = 0; // stops of compensation on top of the metered exposure
 
   const scene = new THREE.Scene();
-  const BRIGHT = '#ecf8dc'; // daylight in the windows: pale, a little green from the garden (R2)
+  const BRIGHT = '#f4faea'; // daylight in the windows: pale, a little green from the garden (R2)
   scene.background = new THREE.Color(BRIGHT);
-  scene.fog = new THREE.Fog(BRIGHT, 2, 24); // only the landscape takes fog: the room's materials have fog off
+  scene.fog = new THREE.Fog(BRIGHT, 3, 38); // only the landscape takes fog: the room's materials have fog off
   const C = PLAN.camera;
   const camera = new THREE.PerspectiveCamera(C.fov, C.aspect, 0.2, 400); // at 0.05 the big ground plane outside drew over the near floor on tall screens
 
@@ -641,7 +674,7 @@ export function createInterior(canvas, { onReady } = {}) {
   Object.assign(sun.shadow.camera, { left: -7, right: 7, top: 7, bottom: -7, near: 1, far: 40 });
   sun.shadow.bias = -0.0005;
   sun.shadow.normalBias = 0.02;
-  const hemi = new THREE.HemisphereLight('#fff2e4', '#7a604e', 2.0); // warm bounce off the floor and walls
+  const hemi = new THREE.HemisphereLight('#fff2e4', '#5a443a', 2.2); // warm bounce off the floor and walls
   const fill = new THREE.DirectionalLight('#ffd6ac', 0.55); // soft light from the room behind the camera
   fill.position.set(1.5, 2.5, 4);
   scene.add(sun, sun.target, hemi, fill);
@@ -652,14 +685,15 @@ export function createInterior(canvas, { onReady } = {}) {
     { smooth: true },
   );
   const textures = {
-    planks: paintPlanks(),
-    floor: paintPlanks(9, { weathered: true }),
-    wall: paintPlanks(5, { brushy: true }),
+    planks: paintPlanks(1 + seed),
+    floor: paintPlanks(9 + seed, { weathered: true }),
+    wall: paintPlanks(5 + seed, { brushy: true }),
     lattice: paintLattice(),
     carve: paintLattice(17),
-    valance: paintCurtain(12, 'valance'),
-    sheer: paintCurtain(16, 'drape'),
-    cloth: paintCloth(),
+    valance: paintCurtain(12 + seed, 'valance'),
+    sheer: paintCurtain(16 + seed, 'drape'),
+    cloth: paintCloth(13 + seed),
+    pale: paintCurtain(31 + seed, 'pale'),
     decor: paintDecor(),
     blob: paintGlow('round'),
   };
@@ -680,7 +714,7 @@ export function createInterior(canvas, { onReady } = {}) {
     ['carve', PALETTE.wood, textures.carve, { side: D, alphaTest: 0.5 }],
     ['valance', '#ffffff', textures.valance, { side: D, emissive: '#ffffff', emissiveMap: textures.valance, emissiveIntensity: 0.25 }], // lit from behind
     ['sheer', '#ffffff', textures.sheer, { side: D, emissive: '#ffffff', emissiveMap: textures.sheer, emissiveIntensity: 0.12 }],
-    ['white', '#fffaf2', null, { side: D, emissive: '#fff4e4', emissiveIntensity: 0.4 }],
+    ['white', '#fffaf2', textures.pale, { side: D, emissive: '#fff4e4', emissiveMap: textures.pale, emissiveIntensity: 0.35 }],
     ['cloth', '#ffffff', textures.cloth, { side: D, emissive: '#ffffff', emissiveMap: textures.cloth, emissiveIntensity: 0.12 }],
     ['decor', '#ffffff', textures.decor, { side: D }],
     ['plate', '#e6dcc0', null],
@@ -696,8 +730,8 @@ export function createInterior(canvas, { onReady } = {}) {
   }
 
   shadeWalls(materials.wall, PLAN.room.top);
-  glossBoards(materials.floor, { strength: 1.15, cloth: 0.7, falloff: 0.5, view: debug === 'gloss' });
-  glossBoards(materials.top, { strength: 1.0, view: debug === 'gloss' });
+  glossBoards(materials.floor, { strength: 1.45, cloth: 0.55, falloff: 0.62, view: debug === 'gloss' });
+  glossBoards(materials.top, { strength: 1.5, view: debug === 'gloss' });
   const b = new Builder();
   buildRoom(b);
   buildLattice(b);
@@ -733,21 +767,27 @@ export function createInterior(canvas, { onReady } = {}) {
   scene.add(landscape.group);
   camera.layers.enable(1);
 
-  const outline = createOutline(renderer, scene, camera, { ink: PALETTE.ink });
+  const outline = createOutline(renderer, scene, camera, { ink: PALETTE.ink, lineWidth: 1 });
   outline.material.uniforms.split.value = 0.18; // keep the dark wood warm
-  outline.material.uniforms.strength.value = 0.65; // thinner, lighter lines, as in R2
+  outline.material.uniforms.strength.value = 0.85; // dark but thin lines, as in R2 (thickness is set in toon.js)
   outline.material.uniforms.seams.value = 0.75; // but R2 draws every plank seam clearly
   const composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
-  composer.addPass(new ShaderPass(outline.material));
-  // Watercolour (watercolour.js): pigment in linear light, then tone map once, then the grade.
+  if (!off.has('ink')) composer.addPass(new ShaderPass(outline.material));
+  // Watercolour (watercolour.js): pigment in linear light, then the finish pass.
   const pigment = new ShaderPass(PIGMENT_SHADER);
-  const grade = new ShaderPass(GRADE_SHADER);
+  const finish = new ShaderPass(FINISH_SHADER);
+  finish.material.toneMapped = false; // the shader tone-maps itself
   const paintView = { 'paint-pigment': 1, 'paint-edge': 2, 'paint-bleed': 3 }[debug] ?? 0;
   pigment.uniforms.view.value = paintView;
-  if (debug !== 'paint-off') composer.addPass(pigment);
-  composer.addPass(new OutputPass());
-  if (debug !== 'paint-off' && !paintView) composer.addPass(grade);
+  pigment.uniforms.seed.value = seed;
+  if (!off.has('pigment')) composer.addPass(pigment);
+  finish.uniforms.view.value = off.has('grade') || paintView ? 1 : 0;
+  composer.addPass(finish);
+  const meter = createMeter(renderer);
+  let metered = false;
+  const metrics = { frames: 0, cpuMs: 0, frameMs: 0 };
+  renderer.info.autoReset = false; // count draw calls over all passes of a frame
 
   let width = 0;
   let height = 0;
@@ -767,6 +807,7 @@ export function createInterior(canvas, { onReady } = {}) {
     const hTan = Math.tan(THREE.MathUtils.degToRad(C.fov / 2)) * C.aspect;
     camera.fov = camera.aspect >= C.aspect ? C.fov : Math.min(80, THREE.MathUtils.radToDeg(2 * Math.atan(hTan / camera.aspect)));
     camera.updateProjectionMatrix();
+    metered = false; // a new framing shows a different share of window and wall
   }
   const resizeObserver = new ResizeObserver(resize);
   resizeObserver.observe(canvas);
@@ -774,11 +815,14 @@ export function createInterior(canvas, { onReady } = {}) {
   const pointer = new THREE.Vector2();
   const look = new THREE.Vector2();
   function onPointerMove(e) {
+    if (fixedLook) return;
     pointer.set((e.clientX / window.innerWidth) * 2 - 1, (e.clientY / window.innerHeight) * 2 - 1);
   }
   window.addEventListener('pointermove', onPointerMove);
 
   const eye = V(...C.eye);
+  eye.z += camOffset;
+  if (fixedLook) pointer.set(fixedLook[0] || 0, fixedLook[1] || 0);
   const target = new THREE.Vector3();
   const timer = new THREE.Timer();
   let frame = 0;
@@ -787,22 +831,55 @@ export function createInterior(canvas, { onReady } = {}) {
     frame = requestAnimationFrame(tick);
     resize();
     timer.update(now);
+    renderer.info.reset();
+    const t0 = performance.now();
     const dt = Math.min(timer.getDelta(), 0.1);
-    look.lerp(pointer, 1 - Math.exp(-dt * 2));
+    if (fixedLook) look.copy(pointer);
+    else look.lerp(pointer, 1 - Math.exp(-dt * 2));
     const yaw = -look.x * 0.06;
     const pitch = THREE.MathUtils.degToRad(C.pitch) - look.y * 0.03;
     camera.position.copy(eye);
     target.set(eye.x + Math.sin(yaw) * Math.cos(pitch), eye.y + Math.sin(pitch), eye.z - Math.cos(yaw) * Math.cos(pitch));
     camera.lookAt(target);
+    if (!metered && width) {
+      metered = true;
+      const average = meter.measure(scene, camera);
+      const exposure = meter.exposureFor(average, EXPOSURE_EV);
+      finish.uniforms.toneMappingExposure.value = exposure;
+      renderer.toneMappingExposure = exposure;
+      metrics.luminance = average;
+      metrics.exposure = exposure;
+      if (debug) console.info('meter: average luminance', average.toFixed(4), 'exposure', exposure.toFixed(3));
+    }
     if (debug === 'nopost') renderer.render(scene, camera);
     else {
-      outline.render();
+      if (!off.has('ink')) outline.render();
       composer.render(dt);
     }
     if (!readyCalled) {
       readyCalled = true;
       if (debug) console.info('triangles', renderer.info.render.triangles, 'calls', renderer.info.render.calls);
       onReady?.();
+    }
+    // Inspection metrics: after 15 warm-up frames, average 30 frames. cpuMs is the time spent in
+    // this function (it does not include the GPU's own work); frameMs is the time between frames.
+    if (debug || params.has('cam') || params.has('off') || params.has('seed')) {
+      metrics.frames++;
+      if (metrics.frames > 15 && metrics.frames <= 45) {
+        metrics.cpuMs += (performance.now() - t0) / 30;
+        metrics.frameMs += (timer.getDelta() * 1000) / 30;
+      }
+      if (metrics.frames === 46) {
+        const px = renderer.getPixelRatio();
+        metrics.triangles = renderer.info.render.triangles;
+        metrics.calls = renderer.info.render.calls;
+        metrics.textures = renderer.info.memory.textures;
+        metrics.geometries = renderer.info.memory.geometries;
+        metrics.targets = `composer 2 x ${Math.round(width * px)}x${Math.round(height * px)} half-float; ink 1 x same + depth; shadow 2048x2048; meter 64x36 half-float + 64x36 bytes`;
+        metrics.done = true;
+        console.info('metrics', JSON.stringify(metrics));
+        window.__interiorMetrics = metrics;
+      }
     }
   }
   frame = requestAnimationFrame(tick);
@@ -820,11 +897,13 @@ export function createInterior(canvas, { onReady } = {}) {
       latticeDepth.dispose();
       carveDepth.dispose();
       contact.mat.dispose();
+      contact.core.dispose();
       landscape.dispose();
       gradientMap.dispose();
       outline.dispose();
       pigment.dispose();
-      grade.dispose();
+      finish.dispose();
+      meter.dispose();
       composer.dispose();
       renderer.dispose();
     },

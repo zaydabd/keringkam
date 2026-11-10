@@ -56,21 +56,78 @@ Comparison screenshots are 1240×894 (R1's aspect), next to R1.
 | m3 | Too bright and too orange. The cloth was too dark. The white curtain looked flat | Darker walls, a less red toon ramp, a lower hemisphere light, a cloth glow, less emissive on the white sheer, longer floor sheen |
 | m4 | Chair backs were plain slats | Carved panels (alpha lattice) in the armchair backs, a carved band on the settee |
 
-## Look (R2, branch `r2-painterly-look`)
+## Look (R2, branches `r2-painterly-look` → `r2-final-tweaks`)
 
-The skill pack has no watercolour/NPR skill. The look follows `threejs-procedural-fields` (one shared field), `threejs-exposure-color-grading` and `threejs-image-pipeline` (tone map once, grade after it) and `threejs-visual-validation` (no-post baseline, field views).
+Only R2's look is copied: shading, colour, texture. Layout, camera and items stay as in R1.
 
-- Pass order: RenderPass → ink (`toon.js`) → pigment (`watercolour.js`, linear) → OutputPass (the only tone map) → grade (`watercolour.js`, display values).
-- Pigment field: domain-warped fbm in screen pixels (~180 px blotches, ~45 px mottle). It drives the wash, granulation, wet-edge darkening and bleed, so they agree.
-- Grade: lifted warm blacks (`#2e2420`), cream paper whites (`#fbf3e4`), saturation 0.82, contrast 0.9.
-- Materials: a soft 5-band ramp (linear-filtered) with a lavender-grey shade band; lighter hemisphere light; exposure 1.3; browner walls, warmer floor; brown ink at strength 0.65.
-- Walls (R2): mid brown `#9a7456` instead of dark red-brown; a `brushy` plank texture (long soft streaks, few grain lines, no knots); more value difference between boards (tint 0.3); darker low down and lighter up top (in the wall material's shader, since the ink pass tells parts apart by vertex colour); plank seams drawn darker (`seams` uniform in `toon.js`, multiplicative so they show on dark wood).
-- Polished boards (`glossBoards`): the floor and table tops mirror the windows, and the floor mirrors the red cloth. Each fragment's view ray is reflected off the board and followed to the window wall; the image blurs with distance and stretches along the boards. The floor is shaded towards the viewer (`falloff`). Debug: `?debug=gloss` shows the mirror mask.
-- Painted contact shadows under each piece of furniture (soft dark patches on layer 1, so no ink).
-- Textures after R2: batik curtains and valances (`paintCurtain`), crimson cloth with creases and a gold border (`paintCloth`), brown polished table tops, lighter lattice, lighter leaves, pale green daylight with the garden showing (fog 2–24 m).
-- Grade retuned by measurement (mean lightness, saturation and hue of ten regions in R2 against the render): saturation 0.62, mid-tone lift 0.86, contrast 1.08. Whole image: R2 L0.38 S0.27 H23, render L0.36 S0.32 H26.
-- Debug: `?debug=paint-off`, `paint-pigment`, `paint-edge`, `paint-bleed`.
-- Camera near plane 0.05 → 0.2: at 0.05 the 400 m ground plane drew over the near floor on tall screens.
+The skill pack has no watercolour/NPR skill. This section follows the ones that apply: `threejs-skill-router` (acceptance gate), `threejs-procedural-fields`, `threejs-exposure-color-grading`, `threejs-image-pipeline`, `threejs-visual-validation`, and `threejs-lighting` (painted contact shadows).
+
+### Visual contract (R2 look)
+
+- **Subject.** The R1 room, drawn as an ink-and-watercolour illustration.
+- **Identity** (the mechanisms that make R2 look like R2):
+  1. Polished boards: the floor and table tops mirror the windows as warm, broken streaks along the boards.
+  2. Warm brown darks, cream lights, low saturation. Nothing is pure black or pure white.
+  3. Thin, dark brown, uneven ink lines. Every plank seam is drawn.
+  4. Washes are uneven: pigment pools at the edges of a wash and grains in the paper.
+  5. Soft painted shadows under every piece of furniture.
+  6. Hand-painted batik cloth; crimson cloth with gold bands across its ends.
+  7. Pale daylight with green foliage in the windows.
+- **Invariants** (each one can be checked in a capture):
+  - The room reads without any post pass (`debug=nopost`): materials, reflections and shadows are in the scene, not in the post.
+  - The mirror streaks sit below the windows and move with the camera (`debug=gloss`, `look=-1,0` against `look=1,0`).
+  - Ink, pigment and grade can each be switched off alone (`off=`).
+  - A different seed changes the washes and cloth patterns, not the room's identity (`seed=1`, `seed=2`).
+  - The same image comes back for the same URL (fixed seeds, fixed camera, `look=` fixes the pointer).
+- **Measured targets.** Mean lightness, saturation and hue (HLS) of ten regions of R2 against the wide capture; see the sign-off below.
+- **Deliberate divergences.** Wide framing (R1) instead of R2's tall one; no ceiling lamps, palm or carved wall panels; the frame, hangings and plate keep their R1 place and shape.
+- **Camera envelope.** `cam=near` (1.4 m forward), design, `cam=far` (0.9 m back); wide 1240×894 and phone 437×946.
+
+### Pass graph
+
+Every signal has one producer; every pass has a way to switch it off.
+
+| Pass | Reads | Writes | Space | Size | Off switch |
+|---|---|---|---|---|---|
+| scene (`RenderPass`) | scene, shadow map 2048² | HDR colour | linear | full, half-float | – |
+| edge buffer (`toon.js`) | scene, layer 0 only | normals + part id, depth | – | full, half-float + depth | `off=ink` |
+| ink (`toon.js`) | HDR colour, edge buffer | HDR colour | linear | full | `off=ink` |
+| pigment (`watercolour.js`) | HDR colour | HDR colour | linear | full | `off=pigment` |
+| meter (`meter.js`) | scene, drawn again at 64×36 | one number: average luminance | linear → encoded bytes | 64×36 | fixed at build: `EXPOSURE_EV` |
+| finish (`watercolour.js`) | HDR colour, exposure | screen | exposure → Neutral tone map → sRGB → grade | full | `off=grade` (grade only) |
+
+- **Exposure has one owner.** The meter takes a weighted log-average of the scene's linear luminance (the skill's formula). Exposure is `0.18 / average × 2^EV`, clamped to 0.45–1.85. `EXPOSURE_EV` is 0. The room never changes, so it is measured once per framing (first frame and after a resize), with no adaptation over time. The renderer's own `toneMappingExposure` is set to the same value and only matters for `debug=nopost`.
+- **Tone mapping happens once,** in the finish pass. The grade works on sRGB-encoded values, after the tone map, inside the same pass.
+- The split-tone and paper grain that `toon.js` already had stay in the ink pass; `off=ink` removes them with the lines.
+
+### Fields
+
+| Field | Coordinates | Why these | Drives | Filter | Debug |
+|---|---|---|---|---|---|
+| pigment density | screen pixels | the paper is the screen | wash, granulation, edge darkening, bleed | none needed (lowest band ~45 px) | `debug=paint-pigment` |
+| wet edge | screen pixels | derived from the image itself | edge darkening | – | `debug=paint-edge` |
+| bleed | screen pixels | derived from pigment | soft edges | – | `debug=paint-bleed` |
+| window mirror | world position + view ray | a reflection belongs to the room | floor and table-top streaks, red tint | fine streaks fade when under a pixel (`fwidth`) | `debug=gloss` |
+| wall height shade | world height | light falls from the high windows | wall value | – | – |
+| brush streaks, blots | texture space of each board | paint sits on the object | colour of boards and cloth | mipmaps | `debug=flat` removes them |
+
+- **Known compromise.** The pigment field is in screen space, so it stays still while the room sways a little with the pointer. The skill prefers coordinates that follow the object. Screen space is right for paper grain; the large washes are mostly carried by the board textures, which do follow the room.
+- Seeds: `seed=n` moves the pigment field and the painted textures. The room's geometry keeps its own fixed seed.
+
+### What was changed for R2 (by group)
+
+- **Floor.** Mirror streaks of the windows (warm, broken along the boards), darker towards the viewer, a red tint beside the frame, contact shadows with a dark core.
+- **Wood and walls.** Mid-brown `brushy` wall boards with strong board-to-board variation, darker low down; browner furniture; tan polished table tops; a lower hemisphere ground colour, so undersides go dark and top edges stay light.
+- **Cloth.** Batik curtains and valances with large shapes; a faint batik sheer on the side window; crimson cloth with creases and gold bands across its ends.
+- **Windows, lattice, vines.** Pale green-white daylight, fog 3–38 m so the foliage shows; cream lattice; small light leaves.
+- **Lines and brushwork.** Dark brown ink at line width 1 (was 1.3), uneven pressure; stronger brush streaks in the board textures.
+- **Camera near plane** 0.05 → 0.2: at 0.05 the 400 m ground plane drew over the near floor on tall screens.
+
+### Validation
+
+`node research/tools/interior-captures.cjs <outdir> [all|quick|name]` takes 16 fixed views (final, no-post, each stage off, each field, near, far, phone, two seeds, look left and right) and prints the meter and metrics for each. It needs Playwright and the dev server.
+
+SIGNOFF
 
 ## Open issues
 - [ ] R2 look: the foreground floor is lighter than R2's (L0.36 vs 0.27) and the mid floor darker (0.39 vs 0.53); wall boards have less value variation than R2 (sd 9 vs 35); the side-window sheer is still a plain cream panel.

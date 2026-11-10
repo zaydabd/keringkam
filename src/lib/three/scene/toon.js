@@ -116,7 +116,7 @@ const OUTLINE_SHADER = {
       edge = max(edge, seam * 0.5);
       // Thinner and fainter with distance; nothing on the sky.
       edge *= 1.0 - smoothstep(fade.x, fade.y, min(dc, depthAt(uv + vec2(px.x * t, 0.0))));
-      edge *= 0.8 + 0.2 * noise(q * 3.1);
+      edge *= 0.5 + 0.5 * noise(q * 2.3); // uneven pressure: the line thins and breaks
       vec3 col = mix(base.rgb, ink, edge * strength);
       col *= 1.0 - seam * 0.55 * (1.0 - smoothstep(fade.x, fade.y, dc)); // seams darken whatever they cross, so they show on dark wood too
       // Paper grain: fine tooth plus a faint larger mottling, like watercolour paper.
@@ -133,7 +133,7 @@ const OUTLINE_SHADER = {
  * Creates the outline pass. Call render() each frame before the composer renders; it draws the
  * edge buffer for objects on `layer` (default 0).
  */
-export function createOutline(renderer, scene, camera, { layer = 0, ink = '#3a2418' } = {}) {
+export function createOutline(renderer, scene, camera, { layer = 0, ink = '#3a2418', lineWidth = 1.3 } = {}) {
   const target = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType });
   target.depthTexture = new THREE.DepthTexture(1, 1);
   target.texture.minFilter = target.texture.magFilter = THREE.NearestFilter;
@@ -147,7 +147,7 @@ export function createOutline(renderer, scene, camera, { layer = 0, ink = '#3a24
     setSize(w, h, pixelRatio) {
       target.setSize(Math.round(w * pixelRatio), Math.round(h * pixelRatio));
       material.uniforms.resolution.value.set(w * pixelRatio, h * pixelRatio);
-      material.uniforms.thickness.value = Math.max(1, pixelRatio * 0.9);
+      material.uniforms.thickness.value = Math.max(0.75, pixelRatio * 0.7) * lineWidth;
     },
     render() {
       const background = scene.background;
