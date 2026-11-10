@@ -55,6 +55,7 @@ const OUTLINE_SHADER = {
     cameraFar: { value: 400 },
     ink: { value: new THREE.Color('#3a2418') },
     strength: { value: 0.9 },
+    split: { value: 0.7 }, // how far dark tones lean blue (0 = not at all)
     thickness: { value: 1 },
     fade: { value: new THREE.Vector2(7, 26) },
   },
@@ -66,7 +67,7 @@ const OUTLINE_SHADER = {
     #include <packing>
     uniform sampler2D tDiffuse, tEdge, tDepth;
     uniform vec2 resolution, fade;
-    uniform float cameraNear, cameraFar, strength, thickness;
+    uniform float cameraNear, cameraFar, strength, thickness, split;
     uniform vec3 ink;
     varying vec2 vUv;
 
@@ -88,7 +89,7 @@ const OUTLINE_SHADER = {
       float lum = dot(base.rgb, vec3(0.299, 0.587, 0.114));
       float sh = 1.0 - smoothstep(0.03, 0.22, lum); // linear values: this is before the output pass
       vec3 cool = mix(base.rgb, vec3(lum) * vec3(0.7, 0.86, 1.5), 0.45); // half-way to a blue-grey of the same value
-      base.rgb = mix(base.rgb, cool, sh * 0.7);
+      base.rgb = mix(base.rgb, cool, sh * split);
       // Hand wobble: nudge where we look for edges by a slow noise, so lines waver like ink.
       vec2 px = 1.0 / resolution;
       vec2 q = vUv * resolution / 9.0;
