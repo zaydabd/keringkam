@@ -81,6 +81,7 @@ The skill pack has no watercolour/NPR skill. This section follows the ones that 
   - The same image comes back for the same URL (fixed seeds, fixed camera, `look=` fixes the pointer).
 - **Measured targets.** Mean lightness, saturation and hue (HLS) of ten regions of R2 against the wide capture; see the sign-off below.
 - **Deliberate divergences.** Wide framing (R1) instead of R2's tall one; no ceiling lamps, palm or carved wall panels; the frame, hangings and plate keep their R1 place and shape.
+- **Free camera for close-ups.** `eye=x,y,z`, `yaw=deg` (positive turns right), `pitch=deg`, `fov=deg`, added to the design view.
 - **Camera envelope.** `cam=near` (1.4 m forward), design, `cam=far` (0.9 m back); wide 1240×894 and phone 437×946.
 
 ### Pass graph

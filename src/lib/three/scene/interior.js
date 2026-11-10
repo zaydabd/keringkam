@@ -21,6 +21,7 @@
 //   off   = ink, pigment, grade (comma-separated: switches those stages off)
 //   cam   = design (default) | near | far      look = x,y (fixes the pointer sway, -1..1)
 //   seed  = n (moves the pigment field and the painted textures)
+//   eye = x,y,z   yaw = deg   pitch = deg   fov = deg   (a free camera, for close-ups)
 
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -649,6 +650,13 @@ export function createInterior(canvas, { onReady } = {}) {
   const fixedLook = params.get('look')?.split(',').map(Number);
   // Camera bookmarks for validation: the design view, 1.4 m nearer, and 0.9 m further back.
   const camOffset = { near: -1.4, far: 0.9 }[params.get('cam')] ?? 0;
+  // Free inspection camera: eye=x,y,z (metres), yaw and pitch (degrees, added to the design view;
+  // positive yaw turns right, positive pitch looks up), fov (vertical degrees, e.g. 20 for a close-up).
+  const num = (k) => (params.has(k) ? Number(params.get(k)) || 0 : null);
+  const eyeParam = params.get('eye')?.split(',').map(Number);
+  const yawParam = THREE.MathUtils.degToRad(num('yaw') ?? 0);
+  const pitchParam = THREE.MathUtils.degToRad(num('pitch') ?? 0);
+  const fovParam = num('fov');
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
   renderer.shadowMap.enabled = true;
@@ -813,7 +821,7 @@ export function createInterior(canvas, { onReady } = {}) {
     camera.aspect = w / h;
     // Keep R1's vertical view on wide screens; on narrow ones keep its horizontal view instead.
     const hTan = Math.tan(THREE.MathUtils.degToRad(C.fov / 2)) * C.aspect;
-    camera.fov = camera.aspect >= C.aspect ? C.fov : Math.min(80, THREE.MathUtils.radToDeg(2 * Math.atan(hTan / camera.aspect)));
+    camera.fov = fovParam || (camera.aspect >= C.aspect ? C.fov : Math.min(80, THREE.MathUtils.radToDeg(2 * Math.atan(hTan / camera.aspect))));
     camera.updateProjectionMatrix();
     metered = false; // a new framing shows a different share of window and wall
   }
@@ -830,6 +838,7 @@ export function createInterior(canvas, { onReady } = {}) {
 
   const eye = V(...C.eye);
   eye.z += camOffset;
+  if (eyeParam?.length === 3 && eyeParam.every(Number.isFinite)) eye.set(...eyeParam);
   if (fixedLook) pointer.set(fixedLook[0] || 0, fixedLook[1] || 0);
   const target = new THREE.Vector3();
   const timer = new THREE.Timer();
@@ -844,8 +853,8 @@ export function createInterior(canvas, { onReady } = {}) {
     const dt = Math.min(timer.getDelta(), 0.1);
     if (fixedLook) look.copy(pointer);
     else look.lerp(pointer, 1 - Math.exp(-dt * 2));
-    const yaw = -look.x * 0.06;
-    const pitch = THREE.MathUtils.degToRad(C.pitch) - look.y * 0.03;
+    const yaw = yawParam - look.x * 0.06;
+    const pitch = THREE.MathUtils.degToRad(C.pitch) + pitchParam - look.y * 0.03;
     camera.position.copy(eye);
     target.set(eye.x + Math.sin(yaw) * Math.cos(pitch), eye.y + Math.sin(pitch), eye.z - Math.cos(yaw) * Math.cos(pitch));
     camera.lookAt(target);
@@ -875,7 +884,8 @@ export function createInterior(canvas, { onReady } = {}) {
     }
     // Inspection metrics: after 15 warm-up frames, average 30 frames. cpuMs is the time spent in
     // this function (it does not include the GPU's own work); frameMs is the time between frames.
-    if (debug || params.has('cam') || params.has('off') || params.has('seed') || fixedLook) {
+    if (debug || params.has('cam') || params.has('off') || params.has('seed') || fixedLook || params.has('shot')) {
+      window.__interiorMetrics = metrics; // inspection scripts wait on .frames and .done
       metrics.frames++;
       if (metrics.frames > 15 && metrics.frames <= 45) {
         metrics.cpuMs += (performance.now() - t0) / 30;
@@ -890,7 +900,6 @@ export function createInterior(canvas, { onReady } = {}) {
         metrics.targets = `composer 2 x ${Math.round(width * px)}x${Math.round(height * px)} half-float; ink 1 x same + depth; shadow 2048x2048; meter 64x36 half-float + 64x36 bytes`;
         metrics.done = true;
         console.info('metrics', JSON.stringify(metrics));
-        window.__interiorMetrics = metrics;
       }
     }
   }
