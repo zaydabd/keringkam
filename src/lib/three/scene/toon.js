@@ -57,6 +57,7 @@ const OUTLINE_SHADER = {
     ink: { value: new THREE.Color('#3a2418') },
     strength: { value: 0.9 },
     split: { value: 0.7 }, // how far dark tones lean blue (0 = not at all)
+    exposure: { value: 1 }, // the scene's exposure, if it is not 1: the tone thresholds below are in exposed values
     seams: { value: 0.5 }, // ink between touching parts (planks), relative to silhouettes
     thickness: { value: 1 },
     fade: { value: new THREE.Vector2(7, 26) },
@@ -69,7 +70,7 @@ const OUTLINE_SHADER = {
     #include <packing>
     uniform sampler2D tDiffuse, tEdge, tDepth;
     uniform vec2 resolution, fade;
-    uniform float cameraNear, cameraFar, strength, thickness, split, seams;
+    uniform float cameraNear, cameraFar, strength, thickness, split, seams, exposure;
     uniform vec3 ink;
     varying vec2 vUv;
 
@@ -89,7 +90,7 @@ const OUTLINE_SHADER = {
       vec4 base = texture2D(tDiffuse, vUv);
       // Painted shadows: darker tones lean blue-violet (split toning) instead of going grey-brown.
       float lum = dot(base.rgb, vec3(0.299, 0.587, 0.114));
-      float sh = 1.0 - smoothstep(0.03, 0.22, lum); // linear values: this is before the output pass
+      float sh = 1.0 - smoothstep(0.03, 0.22, lum * exposure); // linear values: this is before the output pass
       vec3 cool = mix(base.rgb, vec3(lum) * vec3(0.7, 0.86, 1.5), 0.45); // half-way to a blue-grey of the same value
       base.rgb = mix(base.rgb, cool, sh * split);
       // Hand wobble: nudge where we look for edges by a slow noise, so lines waver like ink.

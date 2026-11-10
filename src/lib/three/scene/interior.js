@@ -242,6 +242,8 @@ function buildRoom(b) {
       z += len;
     }
   }
+  // A dark sub-floor under the boards, so the gaps between them never show the daylight below.
+  b.box('frame', x1 - x0, 0.02, z1 - z0, (x0 + x1) / 2, -0.045, (z0 + z1) / 2, 0, 0, 0, 0);
   // Back wall (the window wall), boards outside the room line so the inner face is at z0.
   const back = PLAN.backWindows.map((w) => [w.x0, w.x1, 0, W.y1]);
   boardWall(b, x0, x1, top, back, (a, y, w, h) => b.box('wall', w, h, 0.025, a, y, z0 - 0.0125, 0, 0, 0, WALL_TINT));
@@ -542,7 +544,7 @@ function buildVines(b) {
  * stretched along the boards, as a real polished floor does. `falloff` darkens the boards away
  * from the windows (R2's foreground floor is in shade). `view` shows the mask alone.
  */
-function glossBoards(material, { strength = 0.6, cloth = 0, falloff = 0, view = false } = {}) {
+function glossBoards(material, { strength = 0.6, cloth = 0, falloff = 0, light = 1, view = false } = {}) {
   const { z0 } = PLAN.room;
   const W = PLAN.window;
   const F = PLAN.frame;
@@ -599,7 +601,7 @@ function glossBoards(material, { strength = 0.6, cloth = 0, falloff = 0, view = 
         red = max(red, 0.8 * exp(-dot(spill, spill)));
         red *= (0.5 + 0.5 * streak) * ${cloth.toFixed(2)};
       }
-      ${view ? 'outgoingLight = vec3(gloss) + vec3(red, 0.0, 0.0);' : 'outgoingLight = mix(outgoingLight, vec3(1.0, 0.74, 0.46), gloss); outgoingLight = mix(outgoingLight, outgoingLight * vec3(1.7, 0.6, 0.45) + vec3(0.05, 0.0, 0.0), red);'} // a red tint: the boards keep their value
+      ${view ? 'outgoingLight = vec3(gloss) + vec3(red, 0.0, 0.0);' : `outgoingLight = mix(outgoingLight, vec3(1.0, 0.74, 0.46) * ${light.toFixed(2)}, gloss); outgoingLight = mix(outgoingLight, outgoingLight * vec3(1.7, 0.6, 0.45) + vec3(0.05, 0.0, 0.0) * ${light.toFixed(2)}, red);`} // the red is a tint: the boards keep their value
     }
     #include <opaque_fragment>`,
       );
@@ -660,13 +662,18 @@ export function createInterior(canvas, { onReady } = {}) {
 
   const scene = new THREE.Scene();
   const BRIGHT = '#f4faea'; // daylight in the windows: pale, a little green from the garden (R2)
-  scene.background = new THREE.Color(BRIGHT);
+  // One light level for everything that gives off light (lamps, daylight colour, glowing cloth,
+  // painted reflections). It is set so the metered exposure comes out near 1 in the design view;
+  // at 1 the meter sat on its upper limit (1.85) in every view.
+  const LIGHT = 1.75;
+  scene.background = new THREE.Color(BRIGHT).multiplyScalar(LIGHT);
   scene.fog = new THREE.Fog(BRIGHT, 3, 38); // only the landscape takes fog: the room's materials have fog off
+  scene.fog.color.multiplyScalar(LIGHT);
   const C = PLAN.camera;
   const camera = new THREE.PerspectiveCamera(C.fov, C.aspect, 0.2, 400); // at 0.05 the big ground plane outside drew over the near floor on tall screens
 
   // Light: sun behind the window wall, high enough that the patches fall just inside the windows.
-  const sun = new THREE.DirectionalLight('#ffe6c4', 3.2);
+  const sun = new THREE.DirectionalLight('#ffe6c4', 3.2 * LIGHT);
   sun.target.position.set(-1, 0, -4);
   sun.position.set(-4, 11, -14);
   sun.castShadow = true;
@@ -674,8 +681,8 @@ export function createInterior(canvas, { onReady } = {}) {
   Object.assign(sun.shadow.camera, { left: -7, right: 7, top: 7, bottom: -7, near: 1, far: 40 });
   sun.shadow.bias = -0.0005;
   sun.shadow.normalBias = 0.02;
-  const hemi = new THREE.HemisphereLight('#fff2e4', '#5a443a', 2.2); // warm bounce off the floor and walls
-  const fill = new THREE.DirectionalLight('#ffd6ac', 0.55); // soft light from the room behind the camera
+  const hemi = new THREE.HemisphereLight('#fff2e4', '#5a443a', 2.2 * LIGHT); // warm bounce off the floor and walls
+  const fill = new THREE.DirectionalLight('#ffd6ac', 0.55 * LIGHT); // soft light from the room behind the camera
   fill.position.set(1.5, 2.5, 4);
   scene.add(sun, sun.target, hemi, fill);
 
@@ -723,6 +730,7 @@ export function createInterior(canvas, { onReady } = {}) {
     ['bag', '#2c2420', null],
   ]) {
     materials[key] = new THREE.MeshToonMaterial({ color, map, vertexColors: true, gradientMap, fog: false, ...extra });
+    materials[key].emissiveIntensity *= LIGHT;
     if (debug === 'flat' && key !== 'lattice' && key !== 'carve') {
       materials[key].map = null;
       materials[key].color.set('#bdbdbd');
@@ -730,8 +738,8 @@ export function createInterior(canvas, { onReady } = {}) {
   }
 
   shadeWalls(materials.wall, PLAN.room.top);
-  glossBoards(materials.floor, { strength: 1.45, cloth: 0.55, falloff: 0.62, view: debug === 'gloss' });
-  glossBoards(materials.top, { strength: 1.5, view: debug === 'gloss' });
+  glossBoards(materials.floor, { strength: 1.45, cloth: 0.55, falloff: 0.62, light: LIGHT, view: debug === 'gloss' });
+  glossBoards(materials.top, { strength: 1.5, light: LIGHT, view: debug === 'gloss' });
   const b = new Builder();
   buildRoom(b);
   buildLattice(b);
@@ -846,6 +854,10 @@ export function createInterior(canvas, { onReady } = {}) {
       const average = meter.measure(scene, camera);
       const exposure = meter.exposureFor(average, EXPOSURE_EV);
       finish.uniforms.toneMappingExposure.value = exposure;
+      // the ink and pigment passes work before the tone map: they need the exposure to judge
+      // what counts as a dark or a mid tone
+      outline.material.uniforms.exposure.value = exposure / 1.85; // 1.85: the exposure its thresholds were tuned at
+      pigment.uniforms.exposure.value = exposure;
       renderer.toneMappingExposure = exposure;
       metrics.luminance = average;
       metrics.exposure = exposure;
@@ -863,7 +875,7 @@ export function createInterior(canvas, { onReady } = {}) {
     }
     // Inspection metrics: after 15 warm-up frames, average 30 frames. cpuMs is the time spent in
     // this function (it does not include the GPU's own work); frameMs is the time between frames.
-    if (debug || params.has('cam') || params.has('off') || params.has('seed')) {
+    if (debug || params.has('cam') || params.has('off') || params.has('seed') || fixedLook) {
       metrics.frames++;
       if (metrics.frames > 15 && metrics.frames <= 45) {
         metrics.cpuMs += (performance.now() - t0) / 30;

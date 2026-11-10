@@ -36,6 +36,7 @@ export const PIGMENT_SHADER = {
     bleed: { value: 0.45 }, // wet-in-wet: edges softened where the pigment is wet
     shadowTint: { value: new THREE.Color('#8c88a4') }, // R2's shadows lean lavender-grey
     shadowTintAmount: { value: 0.1 },
+    exposure: { value: 1.85 }, // set from the meter: tone thresholds are judged on exposed values
     seed: { value: 0 }, // moves the pigment field (?seed=n), for seed sweeps
     view: { value: 0 }, // 0 final, 1 pigment field, 2 edge field, 3 bleed field
   },
@@ -43,11 +44,12 @@ export const PIGMENT_SHADER = {
   fragmentShader: /* glsl */ `
     uniform sampler2D tDiffuse;
     uniform vec2 resolution;
-    uniform float scale, washVariation, granulation, edgeDarkening, bleed, shadowTintAmount, view, seed;
+    uniform float scale, washVariation, granulation, edgeDarkening, bleed, shadowTintAmount, view, seed, exposure;
     uniform vec3 shadowTint;
     varying vec2 vUv;
     ${NOISE}
-    float luma(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }
+    // Luminance as it will be shown, relative to the exposure the thresholds were tuned at (1.85).
+    float luma(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)) * exposure / 1.85; }
 
     void main() {
       vec2 fc = gl_FragCoord.xy / scale + seed * vec2(613.0, 271.0);

@@ -127,10 +127,46 @@ Every signal has one producer; every pass has a way to switch it off.
 
 `node research/tools/interior-captures.cjs <outdir> [all|quick|name]` takes 16 fixed views (final, no-post, each stage off, each field, near, far, phone, two seeds, look left and right) and prints the meter and metrics for each. It needs Playwright and the dev server.
 
-SIGNOFF
+### Sign-off record (2026-11-10)
+
+- **Backend.** three 0.187, WebGL2 under SwiftShader (software) in headless Chromium. **No real GPU was available**: frame times below are not device numbers.
+- **Views.** 1240×894 and 437×946 at DPR 1; cameras design, near, far; seeds 0, 1, 2; pointer fixed at centre, left and right.
+- **Captures inspected.** All 16 once. Then three fixes went in (light level, sub-floor, metrics for the `look` views) and only `final`, `far` and `phone` were captured again.
+- **What the captures showed.**
+  - No-post reads: boards, reflections, cloth and shadows are all there without ink, pigment or grade.
+  - Each of `off=ink`, `off=pigment`, `off=grade` removes only its own stage.
+  - Seeds 1 and 2 change the washes and cloth patterns; the room is the same.
+  - Look left against look right: the mirror streaks move across the floor with the camera, as a reflection should.
+  - Found and fixed: the meter was pinned at its 1.85 limit in every view (lights raised by 1.75, so the design view now meters 1.09); a bright line through a floor-board gap in the far view (dark sub-floor added).
+- **Exposure, metered.** Design 1.09 (average luminance 0.165), far 1.37, phone 1.85 (at the limit: the phone view is mostly dark ceiling).
+- **Colour against R2** (mean of each region, HLS; R2 → render):
+
+  | Region | Lightness | Saturation | Hue |
+  |---|---|---|---|
+  | whole image | 0.38 → 0.39 | 0.27 → 0.31 | 23 → 26 |
+  | back wall | 0.27 → 0.30 | 0.27 → 0.35 | 20 → 23 |
+  | floor, middle | 0.53 → 0.45 | 0.27 → 0.29 | 30 → 27 |
+  | floor, foreground | 0.27 → 0.34 | 0.25 → 0.37 | 17 → 21 |
+  | furniture wood | 0.33 → 0.36 | 0.39 → 0.37 | 25 → 25 |
+  | table top | 0.59 → 0.54 | 0.40 → 0.36 | 29 → 30 |
+  | red cloth | 0.46 → 0.47 | 0.60 → 0.48 | 0 → 2 |
+  | window | 0.88 → 0.85 | 0.45 → 0.61 | 64 → 48 |
+  | valance | 0.47 → 0.49 | 0.31 → 0.33 | 25 → 24 |
+  | curtain | 0.45 → 0.50 | 0.23 → 0.17 | 28 → 31 |
+  | lattice | 0.45 → 0.38 | 0.25 → 0.33 | 29 → 32 |
+
+  The regions are hand-picked boxes in two different framings, so treat differences under about 0.05 as noise.
+- **Budget.** 440,551 triangles and 55 draw calls per frame over all passes (37 calls without post); 26 textures. Render targets: two full-size half-float composer buffers, one full-size half-float edge buffer with depth, a 2048² shadow map, and the meter's 64×36 pair. Script time per frame 1–3 ms. GPU time: **not measured**.
+- **Not checked.** Motion (only still frames were compared); a real GPU or a phone; other three.js versions.
+- **Known defects.**
+  - The pigment field is fixed to the screen (see Fields).
+  - Foreground floor lighter and middle floor darker than R2.
+  - Wall boards vary less than R2's.
+  - The bag on the frame is a plain dark ball (seen in `cam=far`). It is an R1 item with no counterpart in R2.
+  - On phones the exposure sits at its limit.
 
 ## Open issues
-- [ ] R2 look: the foreground floor is lighter than R2's (L0.36 vs 0.27) and the mid floor darker (0.39 vs 0.53); wall boards have less value variation than R2 (sd 9 vs 35); the side-window sheer is still a plain cream panel.
+- [ ] R2 look: see "Known defects" in the sign-off record above.
 
 - [ ] The floor sheen is still weaker than in R1, where the reflections dominate the left half of the floor.
 - [ ] The wall hangings are a neat diamond grid. In R1 they are a looser cluster, with greenery tucked in.
