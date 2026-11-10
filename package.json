@@ -1,0 +1,25 @@
+{
+  "name": "keringkam",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "npm run copy:basis && vite",
+    "build": "npm run copy:basis && vite build",
+    "preview": "vite preview",
+    "copy:basis": "node scripts/copy-basis.mjs",
+    "textures": "node scripts/build-textures.mjs",
+    "check": "svelte-check"
+  },
+  "dependencies": {
+    "svelte": "^5.57.3",
+    "three": "^0.187.0"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^7.3.1",
+    "ktx2-encoder": "^0.6.0",
+    "sharp": "^0.35.5",
+    "svelte-check": "^4.7.8",
+    "vite": "^8.3.7"
+  }
+}
