@@ -11,7 +11,8 @@
 // parts into one mesh per material. Debug views: ?debug=nopost (no ink pass) or ?debug=flat
 // (no textures), e.g. /?debug=flat#/interior. Both log the triangle count.
 // Look: watercolour, after R2 (a painting of the same room; see watercolour.js). Layout and items
-// stay as in R1. More debug views: ?debug=paint-off | paint-pigment | paint-edge | paint-bleed.
+// stay as in R1. More debug views: ?debug=paint-off | paint-pigment | paint-edge | paint-bleed | gloss
+// (the mirror mask of the polished boards).
 
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -26,14 +27,14 @@ import { PIGMENT_SHADER, GRADE_SHADER } from './watercolour.js';
 
 // Colours picked from R1, then lifted a little for the painted look.
 export const PALETTE = {
-  wall: '#9a7456', // mid brown boards, as in R2
+  wall: '#8e6c5a', // mid brown boards, a little grey, as in R2
   frame: '#6a3a24', // window frames, dado rail
-  floor: '#8a6c54', // brown floor boards, a little grey
-  wood: '#d0904a', // golden furniture
-  top: '#3c2418', // dark table tops
-  lattice: '#4a2a18',
+  floor: '#a06e50', // warm brown floor boards (R2)
+  wood: '#b0764a', // honey-brown furniture (R2 is browner than R1's gold)
+  top: '#b8845c', // table tops: brown and polished in R2 (they mirror the windows)
+  lattice: '#977258', // lighter carved panels, as in R2
   cloth: '#d8283a', // red cloth on the frame
-  leaf: '#4f7a3a',
+  leaf: '#6a8f46', // lighter, yellower leaves (R2)
   ink: '#4a2e1e', // brown ink, not black (R2)
 };
 
@@ -525,20 +526,90 @@ function buildVines(b) {
   vine(x1, PLAN.sideWindow.z0 - 0.2, 2.35, 1.0, false);
 }
 
-/** Soft sheen on the floor in front of each window: additive glow quads, bright at the window. */
-function buildGlows(texture) {
-  const group = new THREE.Group();
+/**
+ * Polished boards (R2): the floor and the table tops mirror the bright windows, and the floor
+ * mirrors the red cloth. Done in the material: each fragment's view ray is reflected off the
+ * (level) surface and followed to the window wall or to the cloth; where it lands in an opening
+ * the board is painted lighter. The mirror image is blurred more the further the ray travels, and
+ * stretched along the boards, as a real polished floor does. `falloff` darkens the boards away
+ * from the windows (R2's foreground floor is in shade). `view` shows the mask alone.
+ */
+function glossBoards(material, { strength = 0.6, cloth = 0, falloff = 0, view = false } = {}) {
   const { z0 } = PLAN.room;
-  const mat = new THREE.MeshBasicMaterial({ map: texture, color: '#ffd9a8', transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false, fog: false });
-  for (const w of PLAN.backWindows) {
-    const ww = w.x1 - w.x0;
-    const len = 2.6 + ww * 0.8; // the window's mirror image on the polished boards reaches towards the viewer
-    const g = new THREE.PlaneGeometry(ww * 1.3, len).rotateX(-Math.PI / 2);
-    const mesh = new THREE.Mesh(g, mat);
-    mesh.position.set((w.x0 + w.x1) / 2 + 0.12, 0.002, z0 + len / 2);
-    mesh.layers.set(1);
+  const W = PLAN.window;
+  const F = PLAN.frame;
+  const wins = PLAN.backWindows.map((w) => `refl += box(H.x, ${w.x0.toFixed(2)}, ${w.x1.toFixed(2)}, wx) * open;`).join('\n      ');
+  material.onBeforeCompile = (shader) => {
+    shader.vertexShader = shader.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vGlossP;')
+      .replace('#include <worldpos_vertex>', '#include <worldpos_vertex>\nvGlossP = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+    shader.fragmentShader = shader.fragmentShader
+      .replace(
+        '#include <common>',
+        /* glsl */ `#include <common>
+    varying vec3 vGlossP;
+    float box(float v, float a, float b, float w) { return smoothstep(a - w, a + w, v) * (1.0 - smoothstep(b - w, b + w, v)); }
+    float gHash(float n) { return fract(sin(n * 127.1) * 43758.5453); }
+    float gNoise(float x) { float i = floor(x); float f = fract(x); f = f * f * (3.0 - 2.0 * f); return mix(gHash(i), gHash(i + 1.0), f); }`,
+      )
+      .replace(
+        '#include <opaque_fragment>',
+        /* glsl */ `
+    {
+      float shade = ${falloff.toFixed(2)} * smoothstep(-3.4, -1.3, vGlossP.z);
+      outgoingLight *= 1.0 - shade;
+      vec3 Vd = normalize(vGlossP - cameraPosition);
+      vec3 Rd = vec3(Vd.x, abs(Vd.y), Vd.z); // mirrored off a level board
+      float refl = 0.0;
+      if (Rd.z < -0.001) {
+        float t = (${z0.toFixed(2)} - vGlossP.z) / Rd.z;
+        vec3 H = vGlossP + Rd * t;
+        float wx = 0.05 + 0.03 * t; // blur grows with distance
+        float wy = 0.18 + 0.14 * t; // and the image is stretched along the boards
+        float open = box(H.y, ${W.lattice.toFixed(2)}, ${W.y1.toFixed(2)}, wy) + 0.35 * box(H.y, 0.0, ${W.lattice.toFixed(2)}, wy);
+        ${wins}
+      }
+      // boards are not evenly polished: streaks along the grain, and each plank a little different
+      float streak = 0.55 + 0.45 * gNoise(vGlossP.x * 31.0) * (0.7 + 0.6 * gNoise(vGlossP.x * 7.3 + vGlossP.z * 0.9));
+      float plank = clamp(0.8 + (vColor.r - 1.0) * 6.0, 0.45, 1.15);
+      float fres = 0.3 + 0.7 * pow(1.0 - abs(Vd.y), 2.0); // stronger at a glancing angle
+      float gloss = clamp(refl, 0.0, 1.0) * streak * plank * fres * ${strength.toFixed(2)} * (1.0 - shade);
+      // the red cloth, mirrored in the floor
+      float red = 0.0;
+      if (${cloth.toFixed(2)} > 0.0) {
+        float tc = (${((F.front + F.back) / 2).toFixed(2)} - vGlossP.y) / Rd.y;
+        vec3 Hc = vGlossP + Rd * tc - vec3(${F.x.toFixed(2)}, 0.0, ${F.z.toFixed(2)});
+        float cs = ${Math.cos(F.ry).toFixed(4)}, sn = ${Math.sin(F.ry).toFixed(4)};
+        vec2 L = vec2(cs * Hc.x - sn * Hc.z, sn * Hc.x + cs * Hc.z); // into the frame's own axes
+        red = box(L.x, ${(-F.w / 2).toFixed(2)}, ${(F.w / 2).toFixed(2)}, 0.5) * box(L.y, ${(-F.d / 2).toFixed(2)}, ${(F.d / 2).toFixed(2)}, 0.5) * streak * ${cloth.toFixed(2)};
+      }
+      ${view ? 'outgoingLight = vec3(gloss) + vec3(red, 0.0, 0.0);' : 'outgoingLight = mix(outgoingLight, vec3(1.0, 0.77, 0.52), gloss); outgoingLight = mix(outgoingLight, vec3(0.9, 0.3, 0.16), red);'}
+    }
+    #include <opaque_fragment>`,
+      );
+  };
+}
+
+/**
+ * Soft shadows under the furniture (R2 paints one under every piece). The sun only reaches the
+ * boards by the windows, so these are painted on: a dark, soft-edged patch on the floor under each
+ * piece, pulled a little towards the viewer (the light comes from the windows behind).
+ */
+function buildContactShadows(texture) {
+  const group = new THREE.Group();
+  const mat = new THREE.MeshBasicMaterial({ map: texture, color: '#24140e', transparent: true, opacity: 0.9, depthWrite: false, fog: false });
+  const patch = (x, z, w, d, ry = 0) => {
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, d).rotateX(-Math.PI / 2), mat);
+    mesh.position.set(x, 0.004, z);
+    mesh.rotation.y = ry;
+    mesh.layers.set(1); // no ink outline
     group.add(mesh);
-  }
+  };
+  const pull = 0.28;
+  for (const sItem of [PLAN.settee, ...PLAN.chairs]) patch(sItem.x, sItem.z + pull, sItem.w * 1.5, sItem.d * 2.1, sItem.ry);
+  for (const t of PLAN.tables) patch((t.x0 + t.x1) / 2, (t.z0 + t.z1) / 2 + pull, (t.x1 - t.x0) * 1.35, (t.z1 - t.z0) * 2.0);
+  const F = PLAN.frame;
+  patch(F.x, F.z + pull, F.w * 2.6, F.d * 3.0, F.ry);
   return { group, mat };
 }
 
@@ -555,9 +626,9 @@ export function createInterior(canvas, { onReady } = {}) {
   renderer.toneMappingExposure = 1.3; // R2 is lighter and airier than R1
 
   const scene = new THREE.Scene();
-  const BRIGHT = '#f8f2e2'; // the blown-out daylight in the windows, as in R1
+  const BRIGHT = '#ecf8dc'; // daylight in the windows: pale, a little green from the garden (R2)
   scene.background = new THREE.Color(BRIGHT);
-  scene.fog = new THREE.Fog(BRIGHT, 1, 16); // only the landscape takes fog: the room's materials have fog off
+  scene.fog = new THREE.Fog(BRIGHT, 2, 24); // only the landscape takes fog: the room's materials have fog off
   const C = PLAN.camera;
   const camera = new THREE.PerspectiveCamera(C.fov, C.aspect, 0.2, 400); // at 0.05 the big ground plane outside drew over the near floor on tall screens
 
@@ -577,7 +648,7 @@ export function createInterior(canvas, { onReady } = {}) {
 
   // Soft painted ramp (R2): lavender-grey shade, warm half-tones, cream light, blended not stepped.
   const gradientMap = toonGradient(
-    [[0.47, 0.45, 0.48], [0.6, 0.56, 0.55], [0.76, 0.71, 0.68], [0.93, 0.88, 0.82], [1.0, 0.97, 0.9]],
+    [[0.44, 0.4, 0.4], [0.6, 0.55, 0.53], [0.76, 0.71, 0.68], [0.93, 0.88, 0.82], [1.0, 0.97, 0.9]],
     { smooth: true },
   );
   const textures = {
@@ -587,10 +658,10 @@ export function createInterior(canvas, { onReady } = {}) {
     lattice: paintLattice(),
     carve: paintLattice(17),
     valance: paintCurtain(12, 'valance'),
-    sheer: paintCurtain(16, 'sheer'),
+    sheer: paintCurtain(16, 'drape'),
     cloth: paintCloth(),
     decor: paintDecor(),
-    sheen: paintGlow('sheen'),
+    blob: paintGlow('round'),
   };
   textures.lattice.repeat.set(1.6, 1.6);
   textures.carve.repeat.set(3.4, 3.4); // finer: chair-back carving
@@ -601,16 +672,16 @@ export function createInterior(canvas, { onReady } = {}) {
   for (const [key, color, map, extra] of [
     ['floor', PALETTE.floor, textures.floor],
     ['wall', PALETTE.wall, textures.wall],
-    ['ceiling', '#3a2116', textures.planks],
+    ['ceiling', '#6e5646', textures.wall] // grey-brown boards, as R2's ceiling (seen on tall screens),
     ['frame', PALETTE.frame, textures.planks],
     ['wood', PALETTE.wood, textures.planks],
     ['top', PALETTE.top, textures.planks],
     ['lattice', PALETTE.lattice, textures.lattice, { side: D, alphaTest: 0.5 }],
     ['carve', PALETTE.wood, textures.carve, { side: D, alphaTest: 0.5 }],
-    ['valance', '#ffffff', textures.valance, { side: D, emissive: '#7a2410', emissiveIntensity: 0.6 }],
-    ['sheer', '#ffffff', textures.sheer, { side: D, emissive: '#c98a70', emissiveIntensity: 0.5 }],
+    ['valance', '#ffffff', textures.valance, { side: D, emissive: '#ffffff', emissiveMap: textures.valance, emissiveIntensity: 0.25 }], // lit from behind
+    ['sheer', '#ffffff', textures.sheer, { side: D, emissive: '#ffffff', emissiveMap: textures.sheer, emissiveIntensity: 0.12 }],
     ['white', '#fffaf2', null, { side: D, emissive: '#fff4e4', emissiveIntensity: 0.4 }],
-    ['cloth', '#ffffff', textures.cloth, { side: D, emissive: '#ffffff', emissiveMap: textures.cloth, emissiveIntensity: 0.3 }],
+    ['cloth', '#ffffff', textures.cloth, { side: D, emissive: '#ffffff', emissiveMap: textures.cloth, emissiveIntensity: 0.12 }],
     ['decor', '#ffffff', textures.decor, { side: D }],
     ['plate', '#e6dcc0', null],
     ['leaf', PALETTE.leaf, null, { side: D }],
@@ -625,6 +696,8 @@ export function createInterior(canvas, { onReady } = {}) {
   }
 
   shadeWalls(materials.wall, PLAN.room.top);
+  glossBoards(materials.floor, { strength: 1.15, cloth: 0.7, falloff: 0.5, view: debug === 'gloss' });
+  glossBoards(materials.top, { strength: 1.0, view: debug === 'gloss' });
   const b = new Builder();
   buildRoom(b);
   buildLattice(b);
@@ -649,8 +722,8 @@ export function createInterior(canvas, { onReady } = {}) {
     if (['leaf', 'cloth', 'decor'].includes(mesh.name)) mesh.castShadow = mesh.name === 'leaf';
   }
   scene.add(room);
-  const glows = buildGlows(textures.sheen);
-  scene.add(glows.group);
+  const contact = buildContactShadows(textures.blob);
+  scene.add(contact.group);
 
   // Outside: the jungle from the old scene, washed out by the fog; no painted sky (R1's windows are white).
   const landscape = createLandscape({ gradientMap, rand: mulberry32(21), groundY: -1.85 });
@@ -746,7 +819,7 @@ export function createInterior(canvas, { onReady } = {}) {
       for (const t of Object.values(textures)) t.dispose();
       latticeDepth.dispose();
       carveDepth.dispose();
-      glows.mat.dispose();
+      contact.mat.dispose();
       landscape.dispose();
       gradientMap.dispose();
       outline.dispose();

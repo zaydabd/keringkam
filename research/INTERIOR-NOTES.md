@@ -65,10 +65,15 @@ The skill pack has no watercolour/NPR skill. The look follows `threejs-procedura
 - Grade: lifted warm blacks (`#2e2420`), cream paper whites (`#fbf3e4`), saturation 0.82, contrast 0.9.
 - Materials: a soft 5-band ramp (linear-filtered) with a lavender-grey shade band; lighter hemisphere light; exposure 1.3; browner walls, warmer floor; brown ink at strength 0.65.
 - Walls (R2): mid brown `#9a7456` instead of dark red-brown; a `brushy` plank texture (long soft streaks, few grain lines, no knots); more value difference between boards (tint 0.3); darker low down and lighter up top (in the wall material's shader, since the ink pass tells parts apart by vertex colour); plank seams drawn darker (`seams` uniform in `toon.js`, multiplicative so they show on dark wood).
+- Polished boards (`glossBoards`): the floor and table tops mirror the windows, and the floor mirrors the red cloth. Each fragment's view ray is reflected off the board and followed to the window wall; the image blurs with distance and stretches along the boards. The floor is shaded towards the viewer (`falloff`). Debug: `?debug=gloss` shows the mirror mask.
+- Painted contact shadows under each piece of furniture (soft dark patches on layer 1, so no ink).
+- Textures after R2: batik curtains and valances (`paintCurtain`), crimson cloth with creases and a gold border (`paintCloth`), brown polished table tops, lighter lattice, lighter leaves, pale green daylight with the garden showing (fog 2–24 m).
+- Grade retuned by measurement (mean lightness, saturation and hue of ten regions in R2 against the render): saturation 0.62, mid-tone lift 0.86, contrast 1.08. Whole image: R2 L0.38 S0.27 H23, render L0.36 S0.32 H26.
 - Debug: `?debug=paint-off`, `paint-pigment`, `paint-edge`, `paint-bleed`.
 - Camera near plane 0.05 → 0.2: at 0.05 the 400 m ground plane drew over the near floor on tall screens.
 
 ## Open issues
+- [ ] R2 look: the foreground floor is lighter than R2's (L0.36 vs 0.27) and the mid floor darker (0.39 vs 0.53); wall boards have less value variation than R2 (sd 9 vs 35); the side-window sheer is still a plain cream panel.
 
 - [ ] The floor sheen is still weaker than in R1, where the reflections dominate the left half of the floor.
 - [ ] The wall hangings are a neat diamond grid. In R1 they are a looser cluster, with greenery tucked in.

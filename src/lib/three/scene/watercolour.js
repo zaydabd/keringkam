@@ -35,7 +35,7 @@ export const PIGMENT_SHADER = {
     edgeDarkening: { value: 0.35 }, // pigment pooling where a wash meets a different value
     bleed: { value: 0.45 }, // wet-in-wet: edges softened where the pigment is wet
     shadowTint: { value: new THREE.Color('#8c88a4') }, // R2's shadows lean lavender-grey
-    shadowTintAmount: { value: 0.2 },
+    shadowTintAmount: { value: 0.1 },
     view: { value: 0 }, // 0 final, 1 pigment field, 2 edge field, 3 bleed field
   },
   vertexShader: VERTEX,
@@ -96,20 +96,22 @@ export const GRADE_SHADER = {
   uniforms: {
     tDiffuse: { value: null },
     blackLift: { value: new THREE.Color('#2e2420') }, // R2's darkest darks are warm brown, not black
-    paper: { value: new THREE.Color('#fbf3e4') }, // and its lights are cream paper
-    saturation: { value: 0.82 },
-    contrast: { value: 0.9 },
+    paper: { value: new THREE.Color('#faf5e6') }, // and its lights are cream paper
+    saturation: { value: 0.62 },
+    contrast: { value: 1.08 },
+    midLift: { value: 0.86 }, // gamma under 1 lifts the mid tones: R2 keeps dark wood readable
   },
   vertexShader: VERTEX,
   fragmentShader: /* glsl */ `
     uniform sampler2D tDiffuse;
     uniform vec3 blackLift, paper;
-    uniform float saturation, contrast;
+    uniform float saturation, contrast, midLift;
     varying vec2 vUv;
     void main() {
       vec3 c = texture2D(tDiffuse, vUv).rgb; // display values (after OutputPass)
       float l = dot(c, vec3(0.299, 0.587, 0.114));
       c = mix(vec3(l), c, saturation);
+      c = pow(max(c, 0.0), vec3(midLift));
       c = (c - 0.5) * contrast + 0.5;
       c = mix(blackLift, paper, clamp(c, 0.0, 1.0)); // maps 0 → warm brown, 1 → cream
       gl_FragColor = vec4(c, 1.0);

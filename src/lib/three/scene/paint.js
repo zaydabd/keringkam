@@ -485,73 +485,120 @@ export function paintLattice(seed = 11) {
  * the reference. 'sheer': pale peach with sparse orange sprigs, for the tied-back panels. One tile
  * is 0.5 m square (repeat 2).
  */
+/** An irregular hand-painted patch (batik / ikat motif): a wobbly closed shape of about radius s. */
+function motif(g, S, x, y, s, r) {
+  const n = 7;
+  const pts = [];
+  const a0 = r() * Math.PI * 2;
+  for (let k = 0; k < n; k++) {
+    const a = a0 + (k / n) * Math.PI * 2;
+    const rad = s * (0.55 + r() * 0.75);
+    pts.push([Math.cos(a) * rad, Math.sin(a) * rad * 1.25]);
+  }
+  for (const dx of [-S, 0, S]) {
+    for (const dy of [-S, 0, S]) {
+      g.beginPath();
+      for (let k = 0; k <= n; k++) {
+        const [x0, y0] = pts[k % n];
+        const [x1, y1] = pts[(k + 1) % n];
+        const mx = (x0 + x1) / 2;
+        const my = (y0 + y1) / 2;
+        if (k === 0) g.moveTo(x + dx + mx, y + dy + my);
+        else g.quadraticCurveTo(x + dx + x0, y + dy + y0, x + dx + mx, y + dy + my);
+      }
+      g.fill();
+    }
+  }
+}
+
+/**
+ * Curtain cloth after R2 (the painting): a hand-painted batik, not a printed floral.
+ * 'valance': rust ground with cream and ochre patches and a dark hem band.
+ * 'drape': cream-grey ground with rust and slate-blue patches. Both tile; repeat is (2, 2).
+ */
 export function paintCurtain(seed = 12, kind = 'valance') {
   const r = rng(seed);
   const S = 256;
   const [c, g] = canvas(S, S);
   const valance = kind === 'valance';
-  g.fillStyle = valance ? '#e8582c' : '#f7e2d0';
+  g.fillStyle = valance ? '#a4603e' : '#a89a8c';
   g.fillRect(0, 0, S, S);
-  for (let i = 0; i < 18; i++) blot(g, S, r() * S, r() * S, 20 + r() * 40, 20 + r() * 40, valance ? '200,40,30' : '240,170,140', 0.12 + r() * 0.12);
-  const sprig = (x, y, s, petal, leaf) => {
-    wrapX(S, (dx) => {
-      g.save();
-      g.translate(x + dx, y);
-      g.rotate(r() * Math.PI * 2);
-      g.fillStyle = leaf;
-      for (const a of [0.6, 2.4]) {
-        g.beginPath();
-        g.ellipse(Math.cos(a) * s * 1.3, Math.sin(a) * s * 1.3, s * 1.1, s * 0.45, a, 0, Math.PI * 2);
-        g.fill();
-      }
-      g.fillStyle = petal;
-      for (let k = 0; k < 5; k++) {
-        const a = (k / 5) * Math.PI * 2;
-        g.beginPath();
-        g.arc(Math.cos(a) * s * 0.55, Math.sin(a) * s * 0.55, s * 0.45, 0, Math.PI * 2);
-        g.fill();
-      }
-      g.fillStyle = valance ? '#7a2414' : '#e8582c';
-      g.beginPath();
-      g.arc(0, 0, s * 0.28, 0, Math.PI * 2);
-      g.fill();
-      g.restore();
-    });
-  };
-  const n = valance ? 26 : 9;
-  for (let i = 0; i < n; i++) {
-    const y = r() * S;
-    sprig(r() * S, y, valance ? 7 + r() * 5 : 6 + r() * 4, valance ? (r() < 0.5 ? '#f6d24a' : '#fbe9b0') : '#ef8a52', valance ? '#5f9a3a' : '#9cbf7a');
+  // uneven dye
+  for (let i = 0; i < 18; i++) blot(g, S, r() * S, r() * S, 20 + r() * 40, 20 + r() * 40, valance ? (r() < 0.5 ? '120,44,24' : '196,110,60') : r() < 0.5 ? '150,150,160' : '232,220,200', 0.12 + r() * 0.14);
+  const inks = valance ? ['#e6cf9e', '#d9ab66', '#ecdcb8', '#7c2f1c', '#c98a4a'] : ['#8e4630', '#66728a', '#9c5638', '#55637c', '#d9cbb4', '#7a4a3a'];
+  const cell = valance ? 44 : 42;
+  for (let y = cell / 2; y < S; y += cell) {
+    for (let x = cell / 2; x < S; x += cell) {
+      g.fillStyle = inks[Math.floor(r() * inks.length)];
+      g.globalAlpha = 0.78 + r() * 0.2;
+      motif(g, S, x + (r() - 0.5) * cell * 0.5 + ((y / cell) % 2 > 1 ? cell / 2 : 0), y + (r() - 0.5) * cell * 0.4, cell * (0.34 + r() * 0.16), r);
+      // a smaller patch of another colour inside or beside it
+      g.fillStyle = inks[Math.floor(r() * inks.length)];
+      motif(g, S, x + (r() - 0.5) * cell * 0.7, y + (r() - 0.5) * cell * 0.7, cell * (0.16 + r() * 0.1), r);
+    }
+  }
+  g.globalAlpha = 1;
+  // brush streaks down the cloth (folds catch the paint)
+  for (let i = 0; i < 22; i++) {
+    g.fillStyle = r() < 0.5 ? `rgba(60,34,26,${0.05 + r() * 0.08})` : `rgba(255,244,226,${0.04 + r() * 0.07})`;
+    g.fillRect(r() * S, 0, 2 + r() * 9, S);
   }
   if (valance) {
-    // a border band along the bottom hem
-    g.fillStyle = 'rgba(120,30,16,0.55)';
-    g.fillRect(0, S - 20, S, 6);
+    g.fillStyle = 'rgba(92,30,18,0.6)';
+    g.fillRect(0, S - 22, S, 7);
   }
-  const t = texture(c, [2, 2]);
-  return t;
+  return texture(c, [2, 2]);
 }
 
-/** The red cloth on the embroidery frame: fine weave, a little uneven dye, a row of tacking stitches. */
+/**
+ * The red cloth on the embroidery frame, after R2: deep crimson with painted creases and a gold
+ * border band. Still plain in the middle (no keringkam motif yet).
+ */
 export function paintCloth(seed = 13) {
   const r = rng(seed);
   const W = 512;
   const H = 256;
   const [c, g] = canvas(W, H);
-  g.fillStyle = '#d3283a';
+  g.fillStyle = '#c62a30';
   g.fillRect(0, 0, W, H);
-  for (let i = 0; i < 20; i++) blot(g, W, r() * W, r() * H, 40 + r() * 90, 30 + r() * 60, r() < 0.5 ? '150,10,30' : '240,80,90', 0.08 + r() * 0.1);
+  for (let i = 0; i < 22; i++) blot(g, W, r() * W, r() * H, 40 + r() * 90, 30 + r() * 60, r() < 0.55 ? '130,14,24' : '236,84,74', 0.1 + r() * 0.12);
+  // creases: long soft diagonal strokes, dark with a light edge
+  for (let i = 0; i < 9; i++) {
+    const x = r() * W;
+    const y = r() * H;
+    const len = 80 + r() * 180;
+    const a = -0.5 + r() * 1.0;
+    for (const [off, col] of [[0, `rgba(110,10,20,${0.16 + r() * 0.12})`], [3, `rgba(255,130,110,${0.1 + r() * 0.1})`]]) {
+      g.strokeStyle = col;
+      g.lineWidth = 2 + r() * 3;
+      g.lineCap = 'round';
+      g.beginPath();
+      g.moveTo(x, y + off);
+      g.quadraticCurveTo(x + (Math.cos(a) * len) / 2, y + off + (Math.sin(a) * len) / 2 + (r() - 0.5) * 24, x + Math.cos(a) * len, y + off + Math.sin(a) * len);
+      g.stroke();
+    }
+  }
   for (let y = 0; y < H; y += 2) {
-    g.fillStyle = `rgba(90,0,16,${0.04 + r() * 0.05})`;
+    g.fillStyle = `rgba(90,0,16,${0.03 + r() * 0.04})`;
     g.fillRect(0, y, W, 1);
   }
-  for (let x = 0; x < W; x += 2) {
-    g.fillStyle = `rgba(255,170,170,${0.02 + r() * 0.04})`;
-    g.fillRect(x, 0, 1, H);
-  }
-  // tacking stitches near one end, as in the reference (work not started yet)
-  g.fillStyle = 'rgba(255,246,236,0.9)';
-  for (let y = 24; y < H - 24; y += 9) g.fillRect(W - 46 + (r() - 0.5) * 2, y, 2, 5);
+  // gold border band: two lines and a row of small diamonds between them
+  const m = 16;
+  g.strokeStyle = '#e2b860';
+  g.lineWidth = 2;
+  g.strokeRect(m, m, W - m * 2, H - m * 2);
+  g.strokeRect(m + 14, m + 14, W - (m + 14) * 2, H - (m + 14) * 2);
+  g.fillStyle = '#edc978';
+  const diamond = (x, y) => {
+    g.beginPath();
+    g.moveTo(x, y - 4);
+    g.lineTo(x + 4, y);
+    g.lineTo(x, y + 4);
+    g.lineTo(x - 4, y);
+    g.fill();
+  };
+  for (let x = m + 7; x < W - m; x += 14) for (const y of [m + 7, H - m - 7]) diamond(x, y);
+  for (let y = m + 21; y < H - m - 14; y += 14) for (const x of [m + 7, W - m - 7]) diamond(x, y);
   return texture(c, [1, 1], false);
 }
 
