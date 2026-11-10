@@ -10,6 +10,8 @@
 // metres and can be serialised; the build* functions turn it into parts; the Builder merges the
 // parts into one mesh per material. Debug views: ?debug=nopost (no ink pass) or ?debug=flat
 // (no textures), e.g. /?debug=flat#/interior. Both log the triangle count.
+// Look: watercolour, after R2 (a painting of the same room; see watercolour.js). Layout and items
+// stay as in R1. More debug views: ?debug=paint-off | paint-pigment | paint-edge | paint-bleed.
 
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -20,18 +22,19 @@ import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 import { toonGradient, createOutline } from './toon.js';
 import { paintPlanks, paintLattice, paintCurtain, paintCloth, paintDecor, paintGlow } from './paint.js';
 import { createLandscape } from './landscape.js';
+import { PIGMENT_SHADER, GRADE_SHADER } from './watercolour.js';
 
 // Colours picked from R1, then lifted a little for the painted look.
 export const PALETTE = {
-  wall: '#47231a', // dark red-brown boards
+  wall: '#56382a', // red-brown boards (browner, as in R2)
   frame: '#6a3a24', // window frames, dado rail
-  floor: '#6c5446', // brown floor boards, a little grey
+  floor: '#8a6c54', // brown floor boards, a little grey
   wood: '#d0904a', // golden furniture
   top: '#3c2418', // dark table tops
   lattice: '#4a2a18',
   cloth: '#d8283a', // red cloth on the frame
   leaf: '#4f7a3a',
-  ink: '#2e1a10',
+  ink: '#4a2e1e', // brown ink, not black (R2)
 };
 
 // Everything in metres. The camera stands at the origin and looks along -z at the window wall.
@@ -531,14 +534,15 @@ export function createInterior(canvas, { onReady } = {}) {
   renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.shadowMap.autoUpdate = false; // the sun and the room don't move: draw the shadows once
   renderer.shadowMap.needsUpdate = true;
-  renderer.toneMapping = THREE.NeutralToneMapping;
+  renderer.toneMapping = THREE.NeutralToneMapping; // the only tone map: OutputPass applies it
+  renderer.toneMappingExposure = 1.3; // R2 is lighter and airier than R1
 
   const scene = new THREE.Scene();
   const BRIGHT = '#f8f2e2'; // the blown-out daylight in the windows, as in R1
   scene.background = new THREE.Color(BRIGHT);
   scene.fog = new THREE.Fog(BRIGHT, 1, 16); // only the landscape takes fog: the room's materials have fog off
   const C = PLAN.camera;
-  const camera = new THREE.PerspectiveCamera(C.fov, C.aspect, 0.05, 400);
+  const camera = new THREE.PerspectiveCamera(C.fov, C.aspect, 0.2, 400); // at 0.05 the big ground plane outside drew over the near floor on tall screens
 
   // Light: sun behind the window wall, high enough that the patches fall just inside the windows.
   const sun = new THREE.DirectionalLight('#ffe6c4', 3.2);
@@ -549,12 +553,16 @@ export function createInterior(canvas, { onReady } = {}) {
   Object.assign(sun.shadow.camera, { left: -7, right: 7, top: 7, bottom: -7, near: 1, far: 40 });
   sun.shadow.bias = -0.0005;
   sun.shadow.normalBias = 0.02;
-  const hemi = new THREE.HemisphereLight('#ffeedd', '#5a4034', 1.0); // warm bounce off the floor and walls
+  const hemi = new THREE.HemisphereLight('#fff2e4', '#7a604e', 2.0); // warm bounce off the floor and walls
   const fill = new THREE.DirectionalLight('#ffd6ac', 0.55); // soft light from the room behind the camera
   fill.position.set(1.5, 2.5, 4);
   scene.add(sun, sun.target, hemi, fill);
 
-  const gradientMap = toonGradient([[0.36, 0.31, 0.3], [0.78, 0.73, 0.69], [1.0, 0.97, 0.9]]);
+  // Soft painted ramp (R2): lavender-grey shade, warm half-tones, cream light, blended not stepped.
+  const gradientMap = toonGradient(
+    [[0.47, 0.45, 0.48], [0.6, 0.56, 0.55], [0.76, 0.71, 0.68], [0.93, 0.88, 0.82], [1.0, 0.97, 0.9]],
+    { smooth: true },
+  );
   const textures = {
     planks: paintPlanks(),
     floor: paintPlanks(9, { weathered: true }),
@@ -635,10 +643,18 @@ export function createInterior(canvas, { onReady } = {}) {
 
   const outline = createOutline(renderer, scene, camera, { ink: PALETTE.ink });
   outline.material.uniforms.split.value = 0.18; // keep the dark wood warm
+  outline.material.uniforms.strength.value = 0.65; // thinner, lighter lines, as in R2
   const composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
   composer.addPass(new ShaderPass(outline.material));
+  // Watercolour (watercolour.js): pigment in linear light, then tone map once, then the grade.
+  const pigment = new ShaderPass(PIGMENT_SHADER);
+  const grade = new ShaderPass(GRADE_SHADER);
+  const paintView = { 'paint-pigment': 1, 'paint-edge': 2, 'paint-bleed': 3 }[debug] ?? 0;
+  pigment.uniforms.view.value = paintView;
+  if (debug !== 'paint-off') composer.addPass(pigment);
   composer.addPass(new OutputPass());
+  if (debug !== 'paint-off' && !paintView) composer.addPass(grade);
 
   let width = 0;
   let height = 0;
@@ -651,6 +667,8 @@ export function createInterior(canvas, { onReady } = {}) {
     renderer.setSize(w, h, false);
     composer.setSize(w, h);
     outline.setSize(w, h, renderer.getPixelRatio());
+    pigment.uniforms.resolution.value.set(w * renderer.getPixelRatio(), h * renderer.getPixelRatio());
+    pigment.uniforms.scale.value = renderer.getPixelRatio();
     camera.aspect = w / h;
     // Keep R1's vertical view on wide screens; on narrow ones keep its horizontal view instead.
     const hTan = Math.tan(THREE.MathUtils.degToRad(C.fov / 2)) * C.aspect;
@@ -712,6 +730,8 @@ export function createInterior(canvas, { onReady } = {}) {
       landscape.dispose();
       gradientMap.dispose();
       outline.dispose();
+      pigment.dispose();
+      grade.dispose();
       composer.dispose();
       renderer.dispose();
     },

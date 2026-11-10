@@ -7,6 +7,7 @@ Notes for `src/lib/three/scene/interior.js` (+ `toon.js`, `paint.js`, `landscape
 - **R1**: the sitting room of a Sarawak Malay house. The user supplied the photo. It is **not in the repo**, because its licence is unknown.
 - It probably shows the Malay house at the Sarawak Cultural Village. This is **unconfirmed**. Compare [williamnyk's exterior photo](https://www.flickr.com/photos/92481623@N00/3430062533) (CC BY 2.0).
 - Rule from the user: **Sarawak Malay houses only.** H1–H6 (Orang Ulu/Bidayuh, [scv.com.my](https://scv.com.my/about-us/)) and the peninsula houses (H7–H15) are no longer used.
+- **R2**: a watercolour-style painting of the same room, supplied by the user. Source and licence unknown, so it is **not in the repo**. Only its *look* is copied (shading, texture, colour). Layout and items stay as in R1, at the user's request.
 - Background reading on the house type: [UNIMAS, Analysis of Design Character and Typology of Sarawak Traditional Malay House](https://ir.unimas.my/id/eprint/33200/).
 
 ## Visual contract (read from R1)
@@ -54,6 +55,17 @@ Comparison screenshots are 1240×894 (R1's aspect), next to R1.
 | m2 | Windows | Room materials have fog off. The fog is cream at 1–16 m, so the outside goes white. The frame is smaller, further away, and turned more (−0.42 rad). The floor is greyer |
 | m3 | Too bright and too orange. The cloth was too dark. The white curtain looked flat | Darker walls, a less red toon ramp, a lower hemisphere light, a cloth glow, less emissive on the white sheer, longer floor sheen |
 | m4 | Chair backs were plain slats | Carved panels (alpha lattice) in the armchair backs, a carved band on the settee |
+
+## Look (R2, branch `r2-painterly-look`)
+
+The skill pack has no watercolour/NPR skill. The look follows `threejs-procedural-fields` (one shared field), `threejs-exposure-color-grading` and `threejs-image-pipeline` (tone map once, grade after it) and `threejs-visual-validation` (no-post baseline, field views).
+
+- Pass order: RenderPass → ink (`toon.js`) → pigment (`watercolour.js`, linear) → OutputPass (the only tone map) → grade (`watercolour.js`, display values).
+- Pigment field: domain-warped fbm in screen pixels (~180 px blotches, ~45 px mottle). It drives the wash, granulation, wet-edge darkening and bleed, so they agree.
+- Grade: lifted warm blacks (`#2e2420`), cream paper whites (`#fbf3e4`), saturation 0.82, contrast 0.9.
+- Materials: a soft 5-band ramp (linear-filtered) with a lavender-grey shade band; lighter hemisphere light; exposure 1.3; browner walls, warmer floor; brown ink at strength 0.65.
+- Debug: `?debug=paint-off`, `paint-pigment`, `paint-edge`, `paint-bleed`.
+- Camera near plane 0.05 → 0.2: at 0.05 the 400 m ground plane drew over the near floor on tall screens.
 
 ## Open issues
 

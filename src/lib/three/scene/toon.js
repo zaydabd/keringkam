@@ -14,11 +14,12 @@ import * as THREE from 'three';
  * A three-band toon ramp: shadow, mid, light. Each band is an RGB colour, so the shadow band can
  * lean cool (blue-violet) instead of just going darker. Nearest filtering keeps the bands hard.
  */
-export function toonGradient(bands = [[0.34, 0.4, 0.62], [0.8, 0.76, 0.8], [1.0, 0.97, 0.9]]) {
+export function toonGradient(bands = [[0.34, 0.4, 0.62], [0.8, 0.76, 0.8], [1.0, 0.97, 0.9]], { smooth = false } = {}) {
   const data = new Uint8Array(bands.length * 4);
   bands.forEach((c, i) => data.set([c[0] * 255, c[1] * 255, c[2] * 255, 255], i * 4));
   const tex = new THREE.DataTexture(data, bands.length, 1, THREE.RGBAFormat);
-  tex.minFilter = tex.magFilter = THREE.NearestFilter;
+  // smooth: blend between the bands (painted gradation) instead of hard cel steps.
+  tex.minFilter = tex.magFilter = smooth ? THREE.LinearFilter : THREE.NearestFilter;
   tex.generateMipmaps = false;
   tex.needsUpdate = true;
   return tex;
