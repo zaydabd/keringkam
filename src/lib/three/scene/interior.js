@@ -436,7 +436,7 @@ export function createInterior(canvas, { onReady } = {}) {
   const landscape = createLandscape({ gradientMap, rand: mulberry32(21), groundY: -1.85 });
   scene.add(landscape.group);
   camera.layers.enable(1);
-  scene.fog = new THREE.Fog('#d3dec6', 16, 90); // aerial perspective on the far jungle
+  scene.fog = new THREE.Fog('#d3dec6', 24, 125); // aerial perspective on the far jungle
 
   const outline = createOutline(renderer, scene, camera, { ink: PALETTE.ink });
   const composer = new EffectComposer(renderer);

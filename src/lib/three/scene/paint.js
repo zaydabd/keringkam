@@ -487,7 +487,7 @@ export function paintFrond(seed = 6) {
   const W = 512;
   const H = 128;
   const [c, g] = canvas(W, H);
-  const greens = ['#4d7a3a', '#5c8c43', '#6a9c4b', '#7aab55'];
+  const greens = ['#5a8a3e', '#6f9f49', '#86b356', '#9cc462', '#b3cf74'];
   g.lineCap = 'round';
   for (let x = 16; x < W - 8; x += 6) {
     const t = x / W;
@@ -617,4 +617,57 @@ export function paintLeafClump(seed = 8) {
     g.restore();
   }
   return texture(c, [1, 1], false);
+}
+
+/** Tree bark: pale grey-brown with vertical fissures, lichen patches and a mossy foot. x wraps round the trunk. */
+export function paintBark(seed = 9) {
+  const r = rng(seed);
+  const W = 128;
+  const H = 512;
+  const [c, g] = canvas(W, H);
+  g.fillStyle = '#9a8a74';
+  g.fillRect(0, 0, W, H);
+  for (let i = 0; i < 26; i++) {
+    const rgb = ['196,186,160', '120,104,84', '150,160,128', '214,206,186'][Math.floor(r() * 4)];
+    blot(g, W, r() * W, r() * H, 10 + r() * 26, 20 + r() * 60, rgb, 0.18 + r() * 0.2);
+  }
+  g.lineCap = 'round';
+  for (let i = 0; i < 46; i++) {
+    const x0 = r() * W;
+    const y0 = r() * H;
+    const len = 30 + r() * 120;
+    g.strokeStyle = `rgba(58,44,34,${0.25 + r() * 0.35})`;
+    g.lineWidth = 0.8 + r() * 1.6;
+    wrapX(W, (dx) => {
+      g.beginPath();
+      for (let y = 0; y <= len; y += 10) g.lineTo(x0 + dx + Math.sin((y0 + y) / 26 + i) * 2.5, y0 + y);
+      g.stroke();
+    });
+  }
+  // moss creeping up from the ground (v = 0 is the foot of the trunk, drawn at the bottom)
+  const moss = g.createLinearGradient(0, H, 0, H * 0.55);
+  moss.addColorStop(0, 'rgba(84,110,60,0.6)');
+  moss.addColorStop(1, 'rgba(84,110,60,0)');
+  g.fillStyle = moss;
+  g.fillRect(0, 0, W, H);
+  return texture(c, [1, 1]);
+}
+
+/** Coconut trunk: grey with close leaf-scar rings. x runs along the trunk and repeats. */
+export function paintPalmTrunk(seed = 10) {
+  const r = rng(seed);
+  const W = 128;
+  const H = 64;
+  const [c, g] = canvas(W, H);
+  g.fillStyle = '#a39680';
+  g.fillRect(0, 0, W, H);
+  for (let i = 0; i < 8; i++) blot(g, W, r() * W, r() * H, 14 + r() * 20, 10 + r() * 16, r() < 0.5 ? '196,188,168' : '120,108,90', 0.25);
+  for (let x = 4; x < W; x += 16) {
+    g.strokeStyle = `rgba(70,56,44,${0.45 + r() * 0.25})`;
+    g.lineWidth = 2 + r() * 1.5;
+    g.beginPath();
+    for (let y = 0; y <= H; y += 8) g.lineTo(x + Math.sin(y / 9 + x) * 1.5, y);
+    g.stroke();
+  }
+  return texture(c, [7, 1]);
 }

@@ -4,7 +4,7 @@
 
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { paintSky, paintFrond, paintBananaLeaf, paintLeafClump } from './paint.js';
+import { paintSky, paintFrond, paintBananaLeaf, paintLeafClump, paintBark, paintPalmTrunk } from './paint.js';
 import { toonGradient } from './toon.js';
 
 /**
@@ -84,10 +84,14 @@ export function createLandscape({ gradientMap, rand, groundY }) {
   disposables.push(skyTex, skyMat);
   group.add(sky);
 
-  // Ground.
-  const ground = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), toon({ color: '#93ad62' }));
-  ground.rotation.x = -Math.PI / 2;
-  ground.position.y = groundY;
+  // Ground. The house stands on a rise: the land falls away from about 9 m out, so from the
+  // veranda you look over the nearer trees to the far canopy and the sky, as in H1.
+  const gy = (x, z) => groundY - Math.min(10, 0.19 * Math.max(0, Math.hypot(x, z) - 9));
+  const groundGeo = new THREE.PlaneGeometry(400, 400, 80, 80).rotateX(-Math.PI / 2);
+  const gp = groundGeo.attributes.position;
+  for (let i = 0; i < gp.count; i++) gp.setY(i, gy(gp.getX(i), gp.getZ(i)));
+  groundGeo.computeVertexNormals();
+  const ground = new THREE.Mesh(groundGeo, toon({ color: '#93ad62' }));
   ground.receiveShadow = true;
   group.add(ground);
 
@@ -141,32 +145,46 @@ export function createLandscape({ gradientMap, rand, groundY }) {
   const centre = new THREE.Vector3();
   // trees, then undergrowth bushes close to the house (h = 0: the crown sits on the ground)
   const plants = [];
-  for (let i = 0; i < 210; i++) plants.push({ r: away(12, 50, 3.5), h: 0.5 + rand() * 6, crown: 1.9 + rand() * 1.6 });
+  for (let i = 0; i < 210; i++) {
+    // The tree line starts well down the slope, leaving a clearing of grass, palms and bananas
+    // by the house (H1). Taller trees further out.
+    const r = away(24, 62, 3.5);
+    const far = Math.min(1, (r[2] - 24) / 30);
+    plants.push({ r, h: (0.5 + rand() * 0.7) * (3 + 4 * far), crown: 1.9 + rand() * 1.6 });
+  }
   for (let i = 0; i < 70; i++) plants.push({ r: away(6.5, 22, 1.6), h: -1.3, crown: 1.1 + rand() * 1.1, bush: true });
   for (const { r: [x, z, dist], h, crown, bush } of plants) {
+    const ground0 = gy(x, z);
     if (!bush) {
-      const tr = new THREE.CylinderGeometry(0.16, 0.3, h + crown * 0.6, 6);
-      tr.translate(x, groundY + (h + crown * 0.6) / 2, z);
-      trunks.push(tint(tr, 1, 1, 1));
+      // a tapering, slightly leaning trunk; pale and dark barks mixed
+      const len = h + crown * 0.6;
+      const tr = new THREE.CylinderGeometry(0.1 + crown * 0.02, 0.16 + crown * 0.05, len, 8, 3);
+      tr.translate(0, len / 2, 0);
+      tr.applyMatrix4(new THREE.Matrix4().makeShear(0, 0, (rand() - 0.5) * 0.3, (rand() - 0.5) * 0.3, 0, 0));
+      tr.translate(x, ground0, z);
+      const tone = 0.7 + rand() * 0.5;
+      trunks.push(tint(tr, tone, tone * (0.96 + rand() * 0.06), tone * (0.9 + rand() * 0.1)));
     }
     const base = new THREE.Color().setHSL(0.24 + rand() * 0.1, 0.32 + rand() * 0.2, (bush ? 0.27 : 0.24) + rand() * 0.12);
     const n = bush ? 3 + Math.floor(rand() * 3) : 5 + Math.floor(rand() * 4);
     for (let k = 0; k < n; k++) {
       const s = crown * (0.55 + rand() * 0.45);
       const squash = 0.75 + rand() * 0.2;
-      centre.set(x + (rand() - 0.5) * crown * 1.4, groundY + h + crown * 0.5 + (rand() - 0.2) * crown * 0.9, z + (rand() - 0.5) * crown * 1.4);
+      centre.set(x + (rand() - 0.5) * crown * 1.4, ground0 + h + crown * 0.5 + (rand() - 0.2) * crown * 0.9, z + (rand() - 0.5) * crown * 1.4);
       const c = base.clone().offsetHSL((rand() - 0.5) * 0.03, 0, (rand() - 0.3) * 0.08);
       const g = blob.clone();
       g.scale(s * 0.8, s * squash * 0.8, s * 0.8);
       g.translate(centre.x, centre.y, centre.z);
       blobs.push(skyLit(g, c.clone().offsetHSL(0.03, -0.05, -0.08).multiplyScalar(0.62))); // dark interior
       // fewer cards on the far trees: they are small on screen
-      addCards(centre, s, squash, c, Math.round((dist < 34 ? 14 : 10) + s * 4));
+      addCards(centre, s, squash, c, Math.round((dist < 40 ? 14 : 10) + s * 4));
     }
   }
   blob.dispose();
   const canopy = new THREE.Mesh(mergeGeometries(blobs), toon({ color: '#ffffff', vertexColors: true, gradientMap: leafRamp }));
-  const trunkMesh = new THREE.Mesh(mergeGeometries(trunks), toon({ color: '#6b5a48', vertexColors: true }));
+  const barkTex = paintBark();
+  disposables.push(barkTex);
+  const trunkMesh = new THREE.Mesh(mergeGeometries(trunks), toon({ color: '#d8ccb8', map: barkTex, vertexColors: true }));
   for (const g of [...blobs, ...trunks]) g.dispose();
   const cards = new THREE.BufferGeometry();
   cards.setAttribute('position', new THREE.Float32BufferAttribute(cardPos, 3));
@@ -187,27 +205,31 @@ export function createLandscape({ gradientMap, rand, groundY }) {
   const fronds = [];
   const palmTrunks = [];
   const palm = (x, z, h, lean) => {
-    const top = new THREE.Vector3(x + lean.x * h * 0.3, groundY + h, z + lean.y * h * 0.3);
+    const g0 = gy(x, z);
+    const top = new THREE.Vector3(x + lean.x * h * 0.3, g0 + h, z + lean.y * h * 0.3);
     const curve = new THREE.QuadraticBezierCurve3(
-      new THREE.Vector3(x, groundY, z),
-      new THREE.Vector3(x + lean.x * h * 0.05, groundY + h * 0.55, z + lean.y * h * 0.05),
+      new THREE.Vector3(x, g0, z),
+      new THREE.Vector3(x + lean.x * h * 0.05, g0 + h * 0.55, z + lean.y * h * 0.05),
       top,
     );
-    palmTrunks.push(new THREE.TubeGeometry(curve, 10, 0.15, 6, false));
+    palmTrunks.push(new THREE.TubeGeometry(curve, 10, 0.13, 7, false));
     const n = 11;
     for (let k = 0; k < n; k++) {
       const a = (k / n) * Math.PI * 2 + rand() * 0.4;
       const dir = new THREE.Vector3(Math.cos(a), 0, Math.sin(a));
       const len = 2.6 + rand() * 1.0;
-      fronds.push(leafStrip(top, dir, len, 1.5, 0.35 + rand() * 0.25, 0.9 + rand() * 0.5, 0.35, (rand() - 0.5) * 0.6));
+      fronds.push(leafStrip(top, dir, len, 1.15, 0.35 + rand() * 0.25, 0.9 + rand() * 0.5, 0.35, (rand() - 0.5) * 0.6));
     }
   };
-  for (let i = 0; i < 24; i++) {
-    const [x, z] = away(8, 28, 4.5);
-    palm(x, z, 5 + rand() * 4.5, new THREE.Vector2(rand() - 0.5, rand() - 0.5));
+  for (let i = 0; i < 30; i++) {
+    const [x, z] = away(8, 26, 4.5);
+    // short enough that the crowns show under the eave, not above it
+    palm(x, z, 3.4 + rand() * 2.4 + (-groundY + gy(x, z)) * -0.6, new THREE.Vector2(rand() - 0.5, rand() - 0.5));
   }
-  const palmMesh = new THREE.Mesh(mergeGeometries(fronds), leafMat(frondTex));
-  const palmTrunkMesh = new THREE.Mesh(mergeGeometries(palmTrunks), toon({ color: '#8a7a64' }));
+  const palmMesh = new THREE.Mesh(mergeGeometries(fronds), leafMat(frondTex, '#b9cfa6'));
+  const palmTrunkTex = paintPalmTrunk();
+  disposables.push(palmTrunkTex);
+  const palmTrunkMesh = new THREE.Mesh(mergeGeometries(palmTrunks), toon({ color: '#e0d6c4', map: palmTrunkTex }));
   for (const g of [...fronds, ...palmTrunks]) g.dispose();
   group.add(palmMesh, palmTrunkMesh);
 
@@ -217,8 +239,8 @@ export function createLandscape({ gradientMap, rand, groundY }) {
   const leaves = [];
   const stems = [];
   const banana = (x, z, h) => {
-    const top = new THREE.Vector3(x, groundY + h, z);
-    stems.push(new THREE.CylinderGeometry(0.1, 0.16, h, 6).translate(x, groundY + h / 2, z));
+    const top = new THREE.Vector3(x, gy(x, z) + h, z);
+    stems.push(new THREE.CylinderGeometry(0.1, 0.16, h, 6).translate(x, gy(x, z) + h / 2, z));
     const n = 5 + Math.floor(rand() * 3);
     for (let k = 0; k < n; k++) {
       const a = rand() * Math.PI * 2;
