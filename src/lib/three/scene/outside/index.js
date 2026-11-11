@@ -11,7 +11,8 @@
 //   farbank, nearbank  banks.js     procedural-geometry (swept cross-sections, contracts)
 //   trees              trees.js     procedural-vegetation
 //   river              water.js     water-optics
-//   assembly, bridge, skyline, boats: the first versions, moved to the new river; not rebuilt yet.
+//   bridge             bridge.js    procedural-geometry (named parts, topology audit, contract)
+//   assembly, skyline, boats: the first versions, moved to the new river; not rebuilt yet.
 // `stage` (a list of the names above, plus 'sky') builds only those, to look at one object alone.
 // The solids are on layer 0, so the ink pass outlines them like the room; the sky is on layer 1.
 // All solids share one flat paint material: a part is one colour, and the ink pass draws a seam
@@ -106,10 +107,11 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = '#f4faea', li
     for (const [name, s] of building.slots) copy(s, slotOf[name], S.assembly.x, S.lawn, S.assembly.z);
   }
 
-  // --- Bridge (checked against its contract; not rebuilt yet) ----------------------------------
+  // --- Bridge (bridge.js): from our bank's level ground to the far bank's surface ----------------
   if (want('bridge')) {
     const steel = new SlotWriter();
-    reports.bridge = buildBridge(steel, { points: S.bridge, water: S.water, bankY: S.ground });
+    const bank = reports.farbank ?? buildFarBank(new SlotWriter(), { seed });
+    reports.bridge = buildBridge(steel, { site: S.bridge, water: S.water, groundSouth: S.ground, groundNorth: bank.groundAt });
     copy(steel.slot('steel'), 'paint');
   }
 

@@ -22,6 +22,48 @@ export function createContract(name) {
   };
 }
 
+/**
+ * Topology of one solid given as triangles [{ a, b, c }] (arrays of 3), after the skill's
+ * mesh-topology-audit: vertices closer than `weld` metres are one; a closed, outward-wound
+ * solid has no degenerate triangle, every edge used once in each direction, and a positive
+ * signed volume.
+ */
+export function auditSolid(tris, weld = 1e-4) {
+  const ids = new Map();
+  const vid = (p) => {
+    const k = `${Math.round(p[0] / weld)},${Math.round(p[1] / weld)},${Math.round(p[2] / weld)}`;
+    if (!ids.has(k)) ids.set(k, ids.size);
+    return ids.get(k);
+  };
+  const edges = new Map();
+  let degenerate = 0, volume = 0;
+  for (const { a, b, c } of tris) {
+    const i = [vid(a), vid(b), vid(c)];
+    const ux = b[0] - a[0], uy = b[1] - a[1], uz = b[2] - a[2];
+    const vx = c[0] - a[0], vy = c[1] - a[1], vz = c[2] - a[2];
+    const nx = uy * vz - uz * vy, ny = uz * vx - ux * vz, nz = ux * vy - uy * vx;
+    if (i[0] === i[1] || i[1] === i[2] || i[0] === i[2] || Math.hypot(nx, ny, nz) < 1e-10) {
+      degenerate++;
+      continue;
+    }
+    volume += (a[0] * nx + a[1] * ny + a[2] * nz) / 6;
+    for (let e = 0; e < 3; e++) {
+      const u = i[e], v = i[(e + 1) % 3];
+      const k = u < v ? `${u}|${v}` : `${v}|${u}`;
+      const rec = edges.get(k) ?? [0, 0];
+      rec[u < v ? 0 : 1]++;
+      edges.set(k, rec);
+    }
+  }
+  let boundary = 0, nonManifold = 0, flipped = 0;
+  for (const [f, r] of edges.values()) {
+    if (f + r === 1) boundary++;
+    else if (f + r > 2) nonManifold++;
+    else if (f !== 1) flipped++;
+  }
+  return { triangles: tris.length, degenerate, boundary, nonManifold, flipped, volume };
+}
+
 /** Collects triangles per material slot (non-indexed), with a flat colour per part. */
 export class SlotWriter {
   constructor() {

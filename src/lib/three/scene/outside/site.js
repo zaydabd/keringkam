@@ -61,9 +61,34 @@ export const SITE = {
       { name: 'behind', box: [45, 105, -300, -245], count: 7, scale: [0.5, 0.7], detail: 0 },
     ],
   },
-  // Not rebuilt yet (old objects, moved roughly to the new river): bridge, Assembly, skyline, boats.
+  // The bridge (bridge.js). path: the walkway's centre line [x, z], from our bank to the far bank.
+  // A tower: pier [x, z]; lean = the horizontal direction its masts lean; side = which side of the
+  // walkway they stand (+1 left of travel, -1 right); sideMast = where the second mast stands,
+  // in metres along the deck from the tower; struts [place on the pier along the lean, metres
+  // along the deck]; cables [metres below the mast's head, metres along the deck from the tower].
+  // The north tower is the one in the painting. The south tower stands on our bank, left of the
+  // window's view; it mirrors the north one (a guess: the painting does not show it).
+  bridge: {
+    path: [[-128, -38], [-100, -44], [-76, -50], [-56, -54.5], [-46.5, -64], [-41, -88], [-37.5, -112], [-33, -122.3], [-24, -125.2], [-10, -134], [5, -150]],
+    towers: [
+      {
+        pier: [-56, -50], lean: [1, 0], side: -1, onLand: true, sideMast: -13,
+        struts: [[2.4, 0.9], [-2.4, -4.4]],
+        cables: { main: [[2, 7], [3.5, 12], [2.5, -10], [4, -17], [5.5, -24]], side: [[0.8, -38], [2.6, -31]] },
+      },
+      {
+        pier: [-29.45, -128], lean: [-1, 0], side: 1, tall: 1.01, sideMast: -13,
+        struts: [[2.4, -0.85], [-2.4, 4.15]],
+        cables: {
+          main: [[2.5, -31], [4, -24], [5.5, -17], [7.5, -10], [2, 22], [3.5, 17], [5, 12], [6.5, 8]],
+          side: [[0.6, -52], [2.4, -45], [4.2, -38], [1.5, 34], [3.3, 28]],
+        },
+      },
+    ],
+    columns: [-45, -54], // under the south approach, in metres along the deck from the south tower
+  },
+  // Not rebuilt yet (old objects, moved roughly to the new river): Assembly, skyline, boats.
   lawn: 1.9,
-  bridge: [[-190, 12], [-100, -58], [-22, -117], [30, -158]],
   assembly: { x: 150, z: -245 },
   skyline: { z: -430, x0: -170, x1: 50, count: 15 },
   boats: [
