@@ -26,18 +26,19 @@ export const ASSEMBLY = {
   points: 9, // sourced: nine-pointed star; its points carry the pyramids
   podium: { radius: 60, height: 2 },
   // columns on a ring; each arch bows out as it rises, so the arms carry the brim (P2)
-  arcade: { radius: 57, infill: 54.5, top: 26, columns: 42, spring: 0.58, floors: 3, bow: 5.5 },
+  arcade: { radius: 57, infill: 54.5, top: 26, columns: 42, spring: 0.5, reach: 2, floors: 3, bow: 5.5 },
   cornice: { radius: 66, depth: 1.3 }, // a thin brim, well out past the columns (P2)
   pyramid: { radius: 45, base: 25, height: 10.5 }, // on the brim, one per point of the star (P2: ~26 x 9.5 m)
   drum: { r0: 27, r1: 35, top: 48.6, struts: 36, lean: 1.5 }, // inverted cone of crossing struts
   roof: { folds: 18, valley: 51, rValley: 37, rTip: 45, tipDrop: 3.5, top: 82, neck: 5.5, power: 2, rings: 16, fascia: 2.2 },
   cone: { top: 100, r0: 5.5, r1: 1.0, ribs: 12, bands: [88, 94] }, // the ribbed spire base (P2)
   kiosk: { folds: 8, rValley: 3.4, rTip: 4.4, eave: 3.4, top: 6.2, spire: 7.4, legs: 2.6 },
+  kioskRow: { half: 3.4, eave: 3.4, rise: 2.6, fork: 1.6 }, // the front five (P2): about 7 m square
   kiosks: { row: [-22, -11, 0, 11, 22], rowZ: 71, sides: [-72, 72], sideZ: 42, sideScale: 1.7 },
   terrace: { z: 71, halfX: 30, halfZ: 7, height: 0.8 },
   colors: {
     gold: [0.92, 0.63, 0.08], // authored deep: the haze and the room's grade lift it to the photos' yellow gold
-    goldShade: [0.76, 0.49, 0.05], // every other roof facet: the ink pass draws the folds
+    goldShade: [0.66, 0.41, 0.04], // every other roof facet: the ink pass draws the folds
     bronze: [0.78, 0.56, 0.28],
     fascia: [0.66, 0.67, 0.69],
     white: [0.97, 0.94, 0.87],
@@ -137,7 +138,7 @@ function payung(writer, c, R, colors, { rings = R.rings, gold = 'gold' } = {}) {
   const ring = (k) => {
     const f = k / rings;
     const base = (R.rValley - R.neck) * (1 - f) ** R.power + R.neck; // the valleys' profile (fitted to P1)
-    const amp = (R.rTip - R.rValley) * (1 - f) ** 1.5; // folds die out towards the top
+    const amp = ((R.rTip - R.rValley) / R.rValley) * base * (1 - 0.45 * f); // the folds run up to the spire, in proportion (P2)
     const y = R.valley + (R.top - R.valley) * f;
     const pts = [];
     for (let i = 0; i < m; i++) {
@@ -194,34 +195,41 @@ function archArm(pointAt, h, rise, pointed, n = 4) {
  * the bays on either side, where they meet the neighbours' arms. A thin mullion stands in the
  * middle of each bay up to the apex.
  */
-function treeColumn(writer, { index, count, radius, y0, y1, spring, bow, shaft, arm, mullion, color }) {
+function treeColumn(writer, { index, count, radius, y0, y1, spring, reach, bow, shaft, arm, mullion, color }) {
   const da = (Math.PI * 2) / count;
   const a = index * da;
   const ys = y0 + (y1 - y0) * spring;
-  const apexY = y1 - 0.2;
-  const h = (radius * da) / 2; // half the bay, along the ring
+  const rise = y1 - 0.2 - ys;
+  const span = reach * radius * da; // how far along the ring each arm reaches (photos: two bays)
   const out = (ang) => [Math.sin(ang), 0, Math.cos(ang)];
   beam(writer, 'rib', P(a, radius, y0), P(a, radius, ys + 0.2), out(a), shaft, shaft * 1.3, color);
+  const n = 6;
   for (const dir of [-1, 1]) {
-    // the arm runs along the ring into the bay and bows outwards as it rises, out to the brim
-    const pointAt = (x, y) => {
-      const t = y / (apexY - ys);
-      return P(a + dir * (x / radius), radius + bow * t * t, ys + y);
-    };
-    const pts = archArm(pointAt, h, apexY - ys, true, 5);
-    for (let k = 0; k < pts.length - 1; k++) {
-      const mid = a + dir * ((k + 0.5) / (pts.length - 1)) * (h / radius);
+    // a quarter ellipse: leaves the column upright, reaches the brim above the column two bays
+    // away. Neighbouring arms cross: the lower crossing is the arch's point (about two thirds of
+    // the way up), the upper one sits over the next column (interlaced arches, P1 and P2). The
+    // arm bows outwards as it rises, out to the brim.
+    const pts = [];
+    for (let k = 0; k <= n; k++) {
+      const u = (k / n) * (Math.PI / 2);
+      const x = span * (1 - Math.cos(u)), y = rise * Math.sin(u);
+      pts.push(P(a + dir * (x / radius), radius + bow * (y / rise) ** 2, ys + y));
+    }
+    for (let k = 0; k < n; k++) {
+      const mid = a + dir * (span * (1 - Math.cos(((k + 0.5) / n) * (Math.PI / 2)))) / radius;
       beam(writer, 'rib', pts[k], pts[k + 1], out(mid), arm, arm * 1.3, color);
     }
   }
-  if (mullion) beam(writer, 'rib', P(a + da / 2, radius - 0.6, y0), P(a + da / 2, radius - 0.6, ys + (apexY - ys) * 0.55), out(a + da / 2), mullion, mullion, color);
+  // a thin mullion in the middle of each bay, up to where the arms cross
+  const cross = rise * Math.sin(Math.acos(1 - 1 / (2 * reach)));
+  if (mullion) beam(writer, 'rib', P(a + da / 2, radius - 0.6, y0), P(a + da / 2, radius - 0.6, ys + cross), out(a + da / 2), mullion, mullion, color);
 }
 
 const MODULES = {
   'tree-column'(ctx, p) {
     const { s, C } = ctx;
     const A = s.arcade;
-    treeColumn(ctx.writer, { index: p.index, count: A.columns, radius: A.radius, y0: s.podium.height, y1: A.top, spring: A.spring, bow: A.bow, shaft: 1.25, arm: 0.8, mullion: 0.4, color: C.white });
+    treeColumn(ctx.writer, { index: p.index, count: A.columns, radius: A.radius, y0: s.podium.height, y1: A.top, spring: A.spring, reach: A.reach, bow: A.bow, shaft: 1.2, arm: 0.7, mullion: 0.35, color: C.white });
   },
   'drum-strut'(ctx, p) {
     // crossing struts: half lean one way, half the other, so they read as an X lattice
@@ -251,25 +259,46 @@ const MODULES = {
     for (let i = 0; i < 4; i++) writer.tri('gold', base[i], base[(i + 1) % 4], apex, i % 2 === 0 ? C.gold : C.goldShade);
   },
   kiosk(ctx, p) {
-    // a small copy of the main roof on four legs (P1, P2)
     const { s, C, writer } = ctx;
     const K = s.kiosk;
     const k = p.scale;
-    const y = p.scale > 1 ? 0 : s.terrace.height;
-    const c = [p.x, y, p.z];
-    const light = { ...C, gold: [1.0, 0.82, 0.5], goldShade: [0.95, 0.75, 0.42] };
-    const R = { folds: K.folds, valley: K.eave * k, rValley: K.rValley * k, rTip: K.rTip * k, tipDrop: 0.5 * k, top: K.top * k, neck: 0.35 * k, power: 1.6, fascia: 0.25 * k };
-    payung(writer, c, R, light, { rings: 5, gold: 'gold' });
-    for (let i = 0; i < 4; i++) {
+    const light = { ...C, gold: [1.0, 0.8, 0.42], goldShade: [0.88, 0.66, 0.3] };
+    if (p.scale > 1) {
+      // the two at the sides: small copies of the main roof on four legs, with a spire (P1, P2)
+      const y = 0;
+      const c = [p.x, y, p.z];
+      const R = { folds: K.folds, valley: K.eave * k, rValley: K.rValley * k, rTip: K.rTip * k, tipDrop: 0.5 * k, top: K.top * k, neck: 0.35 * k, power: 1.6, fascia: 0.25 * k };
+      payung(writer, c, R, light, { rings: 5 });
+      for (let i = 0; i < 4; i++) {
+        const a = Math.PI / 4 + (i * Math.PI) / 2;
+        const foot = [c[0] + Math.sin(a) * K.legs * k, y, c[2] + Math.cos(a) * K.legs * k];
+        beam(writer, 'rib', foot, [foot[0], y + K.eave * k - 0.3, foot[2]], [Math.sin(a), 0, Math.cos(a)], 0.22 * k, 0.22 * k, C.white, true);
+      }
+      for (let i = 0; i < 6; i++) {
+        const a0 = (i / 6) * Math.PI * 2, a1 = ((i + 1) / 6) * Math.PI * 2;
+        const r = 0.3 * k;
+        writer.tri('gold', [c[0] + Math.sin(a0) * r, y + K.top * k - 0.2, c[2] + Math.cos(a0) * r], [c[0] + Math.sin(a1) * r, y + K.top * k - 0.2, c[2] + Math.cos(a1) * r], [c[0], y + K.spire * k, c[2]], C.bronze);
+      }
+      return;
+    }
+    // the five in front: a square, slightly concave pyramid roof on a white post that branches
+    // into four arms (P2)
+    const y = s.terrace.height;
+    const Q = s.kioskRow;
+    const corner = (i, half, h) => {
       const a = Math.PI / 4 + (i * Math.PI) / 2;
-      const foot = [c[0] + Math.sin(a) * K.legs * k, y, c[2] + Math.cos(a) * K.legs * k];
-      beam(writer, 'rib', foot, [foot[0], y + K.eave * k - 0.3, foot[2]], [Math.sin(a), 0, Math.cos(a)], 0.22 * k, 0.22 * k, C.white, true);
+      return [p.x + Math.sin(a) * half * Math.SQRT2, y + h, p.z + Math.cos(a) * half * Math.SQRT2];
+    };
+    for (let i = 0; i < 4; i++) {
+      const j = (i + 1) % 4;
+      const col = i % 2 ? light.goldShade : light.gold;
+      // lower skirt (shallow), then the steeper upper part: a concave profile
+      writer.quad('gold', corner(i, Q.half, Q.eave), corner(j, Q.half, Q.eave), corner(j, Q.half * 0.5, Q.eave + Q.rise * 0.35), corner(i, Q.half * 0.5, Q.eave + Q.rise * 0.35), col);
+      writer.tri('gold', corner(i, Q.half * 0.5, Q.eave + Q.rise * 0.35), corner(j, Q.half * 0.5, Q.eave + Q.rise * 0.35), [p.x, y + Q.eave + Q.rise, p.z], col);
     }
-    for (let i = 0; i < 6; i++) {
-      const a0 = (i / 6) * Math.PI * 2, a1 = ((i + 1) / 6) * Math.PI * 2;
-      const r = 0.3 * k;
-      writer.tri('gold', [c[0] + Math.sin(a0) * r, y + K.top * k - 0.2, c[2] + Math.cos(a0) * r], [c[0] + Math.sin(a1) * r, y + K.top * k - 0.2, c[2] + Math.cos(a1) * r], [c[0], y + K.spire * k, c[2]], C.bronze);
-    }
+    const fork = [p.x, y + Q.fork, p.z];
+    beam(writer, 'rib', [p.x, y, p.z], fork, [0, 0, 1], 0.4, 0.4, C.white, true);
+    for (let i = 0; i < 4; i++) beam(writer, 'rib', fork, corner(i, Q.half * 0.75, Q.eave - 0.1), [0, 0, 1], 0.25, 0.25, C.white, true);
   },
   podium({ s, C, writer }) {
     band(writer, 'stone', 48, s.podium.radius, 0, s.podium.radius, s.podium.height, C.stone);
