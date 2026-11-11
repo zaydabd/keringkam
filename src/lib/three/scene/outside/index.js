@@ -18,7 +18,7 @@
 // where two colours meet (toon.js). The haze is the scene fog.
 
 import * as THREE from 'three';
-import { paintSoftSky, paintZinc } from '../paint.js';
+import { paintSoftSky } from '../paint.js';
 import { SlotWriter, createContract } from './contract.js';
 import { SITE, mulberry32, rgb } from './site.js';
 import { buildFarBank, buildNearBank } from './banks.js';
@@ -162,7 +162,6 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = '#f4faea', li
   const hazeStyle = new THREE.Color(haze).getStyle().slice(4, -1);
   const textures = {
     sky: paintSoftSky(25 + seed, { haze: hazeStyle, vivid: true }),
-    zinc: paintZinc(24 + seed),
   };
   disposables.push(...Object.values(textures));
   const toon = ({ map, side = THREE.FrontSide } = {}) => {
@@ -179,7 +178,7 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = '#f4faea', li
   const materials = {
     paint: toon(),
     blade: toon({ side: THREE.DoubleSide }),
-    gold: toon({ map: textures.zinc, side: THREE.DoubleSide }),
+    gold: toon({ side: THREE.DoubleSide }), // the Assembly building's gold: plain paint; its folds come from the facets
   };
   for (const name of Object.keys(materials)) {
     if (!w.slots.has(name)) continue;

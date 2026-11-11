@@ -49,7 +49,7 @@ export const SITE = {
   // offset inland, scale]; rows: far-tier trees spread along the waterline (x0..x1 of the waterline,
   // offsets inland) or over a box [x0, x1, z0, z1]; `bush` rows are shrubs.
   trees: {
-    clump: [[2.9, -130, 1.05], [6.8, -132, 1.15], [10.8, -129, 1.2], [13.9, -133, 1.12], [17.2, -130, 1.05]],
+    clump: [[-9.1, -130, 1.05], [-5.2, -132, 1.15], [-1.2, -129, 1.2], [1.9, -133, 1.12], [5.2, -130, 1.05]], // between the bridge and the Assembly building, clear of its arcade (R3)
     big: [[-118, -219, 2.2]],
     bushes: [[-13, 12, 0.9], [-9, 11.5, 1.1], [-6, 12.5, 1.3], [-2.5, 11.5, 1], [1, 12, 1.2], [4.5, 13, 1.1]],
     rows: [

@@ -245,19 +245,23 @@ Open:
 
 ### Pass w3: the Assembly building rebuilt from two photos (2026-11-11)
 
-Two photos supplied by the user (a front view from the river and a raised three-quarter view; source and licence unknown, so not in the repo). Proportions were measured in pixels and scaled by the sourced 114 m height; every size except the height is an estimate.
+Two photos supplied by the user: P1 a front view from the river, P2 a raised view (source and licence unknown, so not in the repo). They were measured in pixels and scaled by the sourced 114 m height; every size except the height is an estimate. The first attempt misread P1 (a smooth cone roof, a second white ring); it was redone against both photos with fixed comparison cameras (P1: eye 300 m in front at 3 m, 33° lens; P2: raised, 380 m off, to the left).
 
-| Part | Photos | Before | Now |
-|---|---|---|---|
-| Arcade (body) | the widest part: tall cream "tree" columns into pointed arches, dark glass | radius 42 m, 9–46 m | radius 62 m (star 62/56), 6–39 m |
-| Cornice | flat white slab on top of the arcade | a gold skirt | white ring, radius 66 m |
-| Small roofs | a ring of gold tent roofs on the cornice | 9 | 18 |
-| Drum | recessed dark band of V struts | 9 m of arches | 20 m of V struts, 39–59 m |
-| Main roof | eave at about half the height, radius about 0.68 x the arcade, nearly flat at the eave, many small points, ribbed; pale band under the eave | 9 big upturned points | 36 small points, radius 44 m, profile r = R(1-f)^1.25 (matched at three heights in photo 2), pale band |
-| Kiosks | small gold umbrellas on the lawn in front | none | 7, in a row facing the river |
-| Place | – | bearing +11°, 300 m | bearing +8°, 360 m, so the wider arcade fits inside the window opening |
+| Part | Photos | Model |
+|---|---|---|
+| Arcade | white "tree" columns; their arms meet in pointed arches and flare out to carry the brim; dark red-brown infill with floor bands | 42 columns on a 57 m ring, spring at 58% of the height, arms bow 5.5 m out; infill on a 54.5 m ring, 3 floors; 0-26 m |
+| Brim | one thin white slab well past the columns. From the river its near edge looks higher than its sides, which can read as a second ring | radius 66 m, 1.3 m thick |
+| Pyramids | nine big gold pyramids on the brim, one front and centre | 9 at the star's points, 25 m square, 10.5 m tall, centred 45 m out |
+| Strut cone | an inverted cone of crossing white struts round a dark core | 36 + 36 struts from r 27 m (27 m up) to r 35 m (49 m up) |
+| Roof | a folded plate: 18 folds, tips hanging down and out at the eave inside a grey zigzag fascia, concave up to the spire | valleys r 37 m at 51 m, tips r 45 m and 3.5 m lower, valley profile r = 31.5 (1-f)^2 + 5.5 (checked against P1 at 61 m and 73 m), 2.2 m fascia; gold to 82 m |
+| Spire | a ribbed bronze cone with two rings, then a needle | 82-100 m, then to 114 m |
+| Kiosks | small copies of the roof on legs: five on a terrace in front, two larger at the sides | 8 folds, 4 legs, a small spire |
 
-The contract now also checks four ratios against the photos (eave height, roof radius to arcade radius, roof rise, arcade height), each within about 10%.
+- The gold is authored deep (0.92, 0.63, 0.08) and plain (the corrugated-zinc texture made it read as thatch); alternate facets are a shade darker so the ink pass draws the folds.
+- The tree clump on the far bank moved 12 m left so it stands between the bridge and the building (R3) instead of in front of the arcade.
+- Placed at bearing +8°, 360 m from the window shot, so the 132 m brim fits inside the window opening.
+- 8,240 triangles (contract limit 14,000). The contract checks the height, nine pyramids, and five ratios measured on the photos.
+- The two photos disagree on the upper heights by up to 10 m (P1 from low down, P2 from above); the model sits between them.
 
 ### Camera shots
 
