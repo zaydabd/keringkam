@@ -846,23 +846,41 @@ export function paintSoftSky(seed = 25, { haze = '244,250,234', vivid = false } 
       g.fillRect(x + dx - rad, y - rad, rad * 2, rad * 2);
     });
   };
-  const count = vivid ? 20 : 26;
-  for (let n = 0; n < count; n++) {
-    const cx = ((n + r()) / count) * W; // spread round the sky, so blue shows between them
-    const base = H / 2 - 36 - r() * (vivid ? 150 : 190); // between about 6 and 33 degrees up
-    const width = (vivid ? 50 : 70) + r() * (vivid ? 120 : 150);
-    const puffs = [];
-    for (let i = 0; i < (vivid ? 11 : 9); i++) {
-      const t = r();
-      const hump = Math.sin(Math.PI * t);
-      puffs.push([cx + (t - 0.5) * width, 12 + hump * width * (0.16 + r() * 0.1)]);
+  if (vivid) {
+    // R3: wide cumulus banks rather than single puffs. Each bank has a flat, shaded base and a
+    // lumpy top built from many small lobes; a few small clouds sit low near the horizon.
+    const banks = [];
+    for (let n = 0; n < 8; n++) banks.push({ cx: ((n + r() * 0.7) / 8) * W, base: H / 2 - 60 - r() * 120, width: 220 + r() * 300, tall: 0.22 + r() * 0.12 });
+    for (let n = 0; n < 10; n++) banks.push({ cx: r() * W, base: H / 2 - 18 - r() * 30, width: 60 + r() * 90, tall: 0.18 + r() * 0.08 });
+    for (const b of banks) {
+      const lobes = [];
+      const count = Math.round(b.width / 9);
+      for (let i = 0; i < count; i++) {
+        const t = r();
+        const hump = Math.sin(Math.PI * t) ** 0.7; // fuller in the middle of the bank
+        const rad = (8 + r() * 22) * (0.5 + hump) * (b.width / 380);
+        const lift = hump * b.width * b.tall * (0.4 + r() * 0.6); // how high this lobe stands
+        lobes.push([b.cx + (t - 0.5) * b.width, b.base - lift, Math.max(6, rad), lift]);
+      }
+      // the base: a long, flat shaded band, cool grey (the shade side of a cumulus)
+      for (let x = -0.5; x <= 0.5; x += 0.06) {
+        const hump = Math.cos(Math.PI * x);
+        puff(b.cx + x * b.width * 0.95, b.base + 2, 8 + hump * b.width * 0.05, '154,158,184', 0.4, 0.6);
+      }
+      // body: each lobe as a warm grey shade, then a lit cap offset up and to the light (left)
+      for (const [x, y, rad] of lobes) puff(x + rad * 0.15, y + rad * 0.3, rad * 1.08, '200,197,204', 0.8, 0.78);
+      for (const [x, y, rad, lift] of lobes) if (lift > b.width * b.tall * 0.2) puff(x - rad * 0.2, y - rad * 0.2, rad, '255,253,246', 0.97, 0.82);
     }
-    if (vivid) {
-      // shaded underside first (lilac-grey, a little lower), then the lit body on top of it
-      for (const [x, rad] of puffs) puff(x + 4, base + rad * 0.15, rad * 0.95, '150,156,190', 0.5, 0.35);
-      for (const [x, rad] of puffs) puff(x - 2, base - rad * 0.5, rad * 0.92, '255,253,246', 0.95, 0.55);
-    } else {
-      for (const [x, rad] of puffs) {
+  } else {
+    const count = 26;
+    for (let n = 0; n < count; n++) {
+      const cx = ((n + r()) / count) * W; // spread round the sky, so blue shows between them
+      const base = H / 2 - 36 - r() * 190; // between about 6 and 33 degrees up
+      const width = 70 + r() * 150;
+      for (let i = 0; i < 9; i++) {
+        const t = r();
+        const rad = 12 + Math.sin(Math.PI * t) * width * (0.16 + r() * 0.1);
+        const x = cx + (t - 0.5) * width;
         puff(x, base + 6, rad * 0.8, '190,192,214', 0.07);
         puff(x - 3, base - rad * 0.55, rad, '255,253,244', 0.6);
       }

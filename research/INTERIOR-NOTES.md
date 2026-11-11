@@ -224,10 +224,24 @@ Method: `.claude/skills/painting-to-scene` (layout first, then forms, then look)
 | Skyline | White boxes far left | Between the towers and the building (x −70 to 75, z −470); grey to grey-blue; a few taller | R3 |
 | River | Pale cream (`body #ecd2a2`) | Tan (`body #cf9a5c`, film `#f4d8a2`) | R3's river reads tan-brown after the grade |
 
-Not done in this pass:
-- **Standalone reference photos.** Wikimedia Commons and Openverse refused downloads from the build machine (HTTP 429 and 504), so object shapes still follow R3 and the sourced sizes only. Candidate photos (not used, not credited yet): [Darul Hana Bridge, Kuching, Sarawak](https://commons.wikimedia.org/wiki/File:Darul_Hana_Bridge,_Kuching,_Sarawak.jpg) (CC BY 2.0, Fabio Achilli), plus Commons searches "Darul Hana Bridge", "Sarawak State Legislative Assembly Building", "tambang Kuching".
-- The tower lean (both lean upstream in R3; ours lean away from each other) is unchanged until a photo settles it.
-- Clouds are still the soft painted blobs; R3 has large cumulus with grey undersides.
+### Pass w2: forms from photos, clouds (2026-11-11)
+
+Reference photos from Flickr (Commons and Openverse refused downloads from the build machine); credits in `CREDITS.md`.
+
+| Object | Photo shows | Change |
+|---|---|---|
+| Bridge towers | Each tower is an A-frame: two legs spread along the deck, meeting at the top; the two towers lean away from each other | Two tapered legs per tower (half-spread 5.5 m, estimated) on one footing. The lean was already right; R3's "two masts" are one A-frame |
+| Bridge rings | A round walkway at each tower with an arched shade roof | Ring of radius 10 m and width 3 m (estimated) beside each tower, rail inside, shade over the half away from the deck |
+| Bridge deck | A triangulated truss under the deck | Lower chord and diagonals, one bay per 7 m; clearance raised to 10 m so the truss clears the water |
+| Assembly roof | Deep scallops: the points reach out past the valleys at the eave | Tips 14% further out at the eave, valleys 24% in |
+| Boats | White fenders hung along the hull | Seven per side |
+| Clouds (R3) | Wide cumulus banks with flat grey bases | `paintSoftSky` vivid mode: 8 banks of many small lobes over a shaded base, plus 10 small clouds low on the horizon. The non-vivid sky (veranda) is unchanged |
+
+Checks: the outside's contracts (bridge, assembly, river, budget under 60,000 triangles and 10 meshes) all pass; the window frame draws 185,979 triangles in 37 calls (was 180,795). `svelte-check` has no errors. Frame time was not measured: the captures come from a software renderer.
+
+Open:
+- The window shot's clouds are magnified from a 2048 px sky texture, so they stay soft; a 4096 px sky would cost 32 MB more.
+- Tower and ring sizes other than height are estimates; no drawing of the bridge was found.
 
 ### Camera shots
 

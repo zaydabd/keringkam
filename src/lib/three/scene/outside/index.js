@@ -59,6 +59,7 @@ function buildBoat(w, b, y) {
   const az = (len) => [s * len, 0, c * len];
   w.box('paint', at(0, 0.36, 0), ax(L * 0.36), [0, 0.03, 0], az(W * 0.42), rgb('#b08a62')); // deck boards
   w.box('paint', at(0, 0.5, 0), ax(L * 0.34), [0, 0.05, 0], az(W * 0.5 + 0.02), rgb('#c9a37a')); // gunwale strip
+  for (let k = -3; k <= 3; k++) for (const dz of [-1, 1]) w.box('paint', at(k * 0.75, 0.12, dz * (W * 0.47)), ax(0.12), [0, 0.13, 0], az(0.09), rgb('#f2efe6')); // white fenders hung along both sides (photo: P. Albion)
   // The cabin (R3): a long, low roof arched across the beam, over open sides. The shaded
   // inside reads as the row of windows; posts stand at the corners and between the bays.
   const cabin = { half: L * 0.33, y0: 0.5, y1: 1.55, rise: 0.28, beam: W * 0.5 + 0.06 };

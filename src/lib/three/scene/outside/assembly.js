@@ -168,7 +168,7 @@ export function compileAssembly(plan, writer) {
         for (let i = 0; i < n * 2; i++) {
           const a = (i / (n * 2)) * Math.PI * 2;
           const tip = i % 2 === 0;
-          const rr = tip ? r : r * (0.8 + 0.2 * f);
+          const rr = tip ? r * (1 + 0.14 * (1 - f) ** 3) : r * (0.76 + 0.24 * f); // deep scallops: the points reach out past the valleys at the eave (photos)
           pts.push([Math.sin(a) * rr, y + (tip ? lift : 0), Math.cos(a) * rr]);
         }
         return pts;

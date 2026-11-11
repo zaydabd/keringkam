@@ -12,11 +12,13 @@ import * as THREE from 'three';
 import { createContract } from './contract.js';
 
 export const BRIDGE = {
-  deck: { width: 3.3, depth: 0.9, rail: 1.1, rise: 5, clearance: 8 }, // metres; clearance = deck soffit above water at the banks
-  tower: { height: 48, base: 2.8, top: 1.0, lean: 0.36 }, // lean in radians from upright
+  deck: { width: 3.3, depth: 0.9, rail: 1.1, rise: 5, clearance: 10 }, // metres; clearance = deck soffit above water at the banks
+  tower: { height: 48, base: 1.6, top: 0.9, lean: 0.36, spread: 5.5 }, // lean in radians from upright; spread: half the A-frame's foot (photos)
+  ring: { radius: 10, width: 3, shade: 3.2 }, // viewing ring at each tower (photos); estimated sizes
+  truss: { depth: 2.2, bay: 7 }, // the deck rides on a triangulated truss (photos)
   cables: 7, // per side of each tower
   samples: 96,
-  colors: { steel: [0.93, 0.92, 0.88], pier: [0.78, 0.76, 0.7], cable: [0.86, 0.86, 0.84] },
+  colors: { steel: [0.93, 0.92, 0.88], pier: [0.78, 0.76, 0.7], cable: [0.86, 0.86, 0.84], shade: [0.97, 0.96, 0.92], truss: [0.84, 0.83, 0.78] },
 };
 
 /**
@@ -69,6 +71,27 @@ export function buildBridge(writer, { points, water, bankY }, settings = BRIDGE)
   };
   sweep(0, B.deck.width / 2, -B.deck.depth, 0, C.steel);
   for (const s of [-1, 1]) sweep((s * B.deck.width) / 2, 0.05, 0, B.deck.rail, C.steel);
+  // Truss under the deck (photos): a lower chord on the centre line and diagonals from it to both
+  // deck edges, one zigzag per bay, over the water part of the span.
+  const strut = (a, b, r, color) => {
+    const axis = b.clone().sub(a);
+    const u = new THREE.Vector3(0, 1, 0).cross(axis);
+    if (u.lengthSq() < 1e-6) u.set(1, 0, 0);
+    u.normalize().multiplyScalar(r);
+    const v = axis.clone().cross(u).normalize().multiplyScalar(r);
+    const c = (o, i) => arr(o.clone().addScaledVector(u, Math.cos((i * Math.PI) / 2)).addScaledVector(v, Math.sin((i * Math.PI) / 2)));
+    for (let i = 0; i < 4; i++) writer.quad('steel', c(a, i), c(b, i), c(b, i + 1), c(a, i + 1), color);
+  };
+  const bays = Math.round((length * 0.76) / B.truss.bay);
+  let lastLow = null;
+  for (let i = 0; i <= bays; i++) {
+    const t = 0.12 + (0.76 * i) / bays;
+    const { p, side } = frame(t);
+    const low = p.clone().setY(p.y - B.deck.depth - B.truss.depth);
+    if (lastLow) strut(lastLow, low, 0.12, C.truss);
+    for (const e of [-1, 1]) strut(low, p.clone().addScaledVector(side, (e * B.deck.width) / 2).setY(p.y - B.deck.depth), 0.08, C.truss);
+    lastLow = low;
+  }
 
   // 2. Towers: each stands on a pier in the river beside the deck and leans away from the other.
   const curveT = (index) => {
@@ -93,19 +116,42 @@ export function buildBridge(writer, { points, water, bankY }, settings = BRIDGE)
     const top = foot.clone().addScaledVector(dir, (B.tower.height + 2) / dir.y);
     // pier: a squat block from the bed to just above the water
     const pierTop = water + 1.5;
-    writer.box('steel', [foot.x, (foot.y + pierTop) / 2, foot.z], [3, 0, 0], [0, (pierTop - foot.y) / 2, 0], [0, 0, 3], C.pier);
-    // mast: a tapered square loft from the pier to the top
-    const rings = 5;
-    let prev = null;
-    for (let k = 0; k <= rings; k++) {
-      const f = k / rings;
-      const c = foot.clone().lerp(top, f);
-      const half = THREE.MathUtils.lerp(B.tower.base, B.tower.top, f) / 2;
-      const ring = [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([a, b]) => arr(c.clone().addScaledVector(side, a * half).addScaledVector(tan, b * half)));
-      if (prev) for (let j = 0; j < 4; j++) writer.quad('steel', prev[j], prev[(j + 1) % 4], ring[(j + 1) % 4], ring[j], C.steel);
-      prev = ring;
+    writer.box('steel', [foot.x, (foot.y + pierTop) / 2, foot.z], arr(tan.clone().multiplyScalar(B.tower.spread + 2)), [0, (pierTop - foot.y) / 2, 0], arr(side.clone().multiplyScalar(2.5)), C.pier); // one footing under both legs
+    // Mast: an A-frame (photos): two tapered legs, spread along the deck on the pier, meeting at
+    // the top. Each leg is a square loft.
+    const loft = (a, b, w0, w1) => {
+      const rings = 4;
+      let prev = null;
+      for (let k = 0; k <= rings; k++) {
+        const f = k / rings;
+        const c = a.clone().lerp(b, f);
+        const half = THREE.MathUtils.lerp(w0, w1, f) / 2;
+        const ring = [[-1, -1], [1, -1], [1, 1], [-1, 1]].map(([u, v]) => arr(c.clone().addScaledVector(side, u * half).addScaledVector(tan, v * half)));
+        if (prev) for (let j = 0; j < 4; j++) writer.quad('steel', prev[j], prev[(j + 1) % 4], ring[(j + 1) % 4], ring[j], C.steel);
+        prev = ring;
+      }
+      writer.quad('steel', prev[0], prev[1], prev[2], prev[3], C.steel);
+    };
+    for (const s2 of [-1, 1]) loft(foot.clone().addScaledVector(tan, s2 * B.tower.spread), top, B.tower.base, B.tower.top);
+    // Viewing ring (photos): a round walkway around the tower at deck level, joined to the deck,
+    // with an arched shade roof over the side away from the deck.
+    const ringC = p.clone().addScaledVector(side, out * B.ring.radius * 0.8);
+    const ringY = p.y;
+    const seg = 20;
+    for (let i = 0; i < seg; i++) {
+      const a0 = (i / seg) * Math.PI * 2, a1 = ((i + 1) / seg) * Math.PI * 2;
+      const pt = (a, r, y) => [ringC.x + Math.cos(a) * r, y, ringC.z + Math.sin(a) * r];
+      const r0 = B.ring.radius - B.ring.width, r1 = B.ring.radius;
+      writer.quad('steel', pt(a0, r0, ringY), pt(a0, r1, ringY), pt(a1, r1, ringY), pt(a1, r0, ringY), C.steel); // walkway
+      writer.quad('steel', pt(a0, r1, ringY - B.deck.depth), pt(a1, r1, ringY - B.deck.depth), pt(a1, r1, ringY), pt(a0, r1, ringY), C.steel); // its edge
+      writer.quad('steel', pt(a0, r0 + 0.05, ringY), pt(a1, r0 + 0.05, ringY), pt(a1, r0 + 0.05, ringY + B.deck.rail), pt(a0, r0 + 0.05, ringY + B.deck.rail), C.steel); // inner rail
+      // shade roof: half the ring, a band rising in an arch over the walkway
+      const away = Math.cos((a0 + a1) / 2) * side.x + Math.sin((a0 + a1) / 2) * side.z;
+      if (away * out > 0) {
+        const h0 = ringY + B.ring.shade + Math.sqrt(Math.max(0, away * out)) * 2.5;
+        writer.quad('steel', pt(a0, r0, h0), pt(a1, r0, h0), pt(a1, r1 + 0.4, h0 - 0.6), pt(a0, r1 + 0.4, h0 - 0.6), C.shade);
+      }
     }
-    writer.quad('steel', prev[0], prev[1], prev[2], prev[3], C.steel);
     // 3. Cables: from the mast head to points on the near edge of the deck, either side of the tower.
     for (const along of [-1, 1]) {
       for (let k = 1; k <= B.cables; k++) {

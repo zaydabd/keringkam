@@ -124,3 +124,13 @@ Facts used, with their sources:
 | Sarawak Malay house: on stilts, windows down to floor level | [patrickcomerford.com](https://www.patrickcomerford.com/2024/11/a-morning-visiting-sarawak-cultural.html) |
 
 Not sourced (design choices): every position, and every size other than the bridge's length and tower height and the building's height. It is not a real viewpoint. See `INTERIOR-NOTES.md`, "Outside the windows".
+
+# Window view: object reference photos (2026-11-11)
+
+Used only to read shapes (tower form, platforms, truss, roof scallops, boat fenders). Nothing is copied into the scene; these images are not in the repo.
+
+| What it showed | Photo | Author | Licence |
+|---|---|---|---|
+| Bridge: A-frame towers leaning apart, round viewing ring with an arched shade roof, truss under the deck | [Darul Hana Bridge, Kuching, Sarawak](https://www.flickr.com/photos/63503049@N03/42339208710) | Fabio Achilli | [CC BY 2.0](https://creativecommons.org/licenses/by/2.0/) |
+| Bridge deck and ring; the Assembly building's roof tiers | [New Sarawak State Legislative Assembly Building from Darul Hana Bridge](https://www.flickr.com/photos/63503049@N03/43241481195) (and 44099618292, 44147738691, 43429289374 in the same set) | Fabio Achilli | [CC BY 2.0](https://creativecommons.org/licenses/by/2.0/) |
+| Tambang: long low arched roof over open sides, dark wooden hull, white fenders | [Tambang](https://www.flickr.com/photos/palbion/50786009142) | Peter Albion | [CC BY-NC-SA 2.0](https://creativecommons.org/licenses/by-nc-sa/2.0/) |
