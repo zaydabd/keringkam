@@ -399,3 +399,13 @@ What changed:
 - Geometry is merged per material. The shadow map renders once (`autoUpdate = false`).
 - pixelRatio is capped. The landscape is on layer 1, so the outline pass skips it.
 - I have not measured frame rate on a real phone yet. Screenshots are from a headless browser using software rendering (SwiftShader).
+
+### Pass w4: the Assembly building back where R3 has it (2026-11-11)
+
+The user said the curtain may cover the buildings, so the Assembly building no longer moves to stay
+inside the opening. Measured on R3 (opening mapped onto the window shot, 54° lens): spire about
+31° right of the view, top about 440 px above the horizon in a 1240 × 894 frame, which puts the
+centre about 220 m ahead and 254 m away. `SITE.assembly` is now (127, −225), near the first
+placement (150, −245). In the window shot the right curtain covers the roof; the arcade shows at the
+right edge. The 'behind' tree row moved left, out of the building's brim. All numbers are read off the
+painting, not surveyed.

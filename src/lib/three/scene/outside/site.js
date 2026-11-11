@@ -58,7 +58,7 @@ export const SITE = {
       { name: 'underwood', x0: -138, x1: -2, count: 20, offset: [7, 13], scale: [2, 3], detail: 0, bush: true },
       { name: 'low', x0: -28, x1: 0, count: 6, offset: [16, 44], scale: [0.55, 0.8], detail: 0 },
       { name: 'upstream', x0: -430, x1: -140, count: 9, offset: [10, 40], scale: [1, 1.5], detail: 0 },
-      { name: 'behind', box: [45, 105, -300, -245], count: 7, scale: [0.5, 0.7], detail: 0 },
+      { name: 'behind', box: [10, 45, -300, -250], count: 7, scale: [0.5, 0.7], detail: 0 }, // left of the Assembly building, outside its brim
     ],
   },
   // Placed for R3's composition as seen from the window shot (eye -0.475, 1.5, -4.62, looking
@@ -69,7 +69,7 @@ export const SITE = {
   // north landing on the far bank behind the trees, left of the Assembly building, so the deck
   // does not cross in front of it (R3). About 286 m along the deck.
   bridge: [[-230, -95], [-50, -150], [-22, -140], [10, -200]],
-  assembly: { x: 52, z: -381 }, // bearing +8, 380 m: the right of the window, as in R3, with the whole star-shaped brim (points 72 m out) inside the opening
+  assembly: { x: 127, z: -225 }, // bearing +31, 254 m: where R3 has it, at the right edge of the window and about as big; the right curtain may cover part of it (agreed with the user)
   skyline: { z: -470, x0: -70, x1: 75, count: 16 }, // between the bridge towers and the Assembly building (R3)
   boats: [
     { x: -6.5, z: -40, ry: 0.3 }, // the near boat, heading right (R3)
