@@ -18,7 +18,8 @@
 //   meter.js, the one tone map, sRGB, grade).
 // Inspection, all as URL parameters before the #:
 //   debug = nopost | flat | silhouette | paint-pigment | paint-edge | paint-bleed | gloss | meter
-//           | water-normal | water-fresnel | water-filter | tree-level | tree-kind
+//           | water-normal | water-fresnel | water-filter | water-reflection | water-body
+//           | water-crest | water-lost | tree-level | tree-kind
 //   off   = ink, pigment, grade, outside (comma-separated: switches those off)
 //   cam   = design (default) | near | far      look = x,y (fixes the pointer sway, -1..1)
 //   view  = seat (default) | window (start in that camera shot; SHOTS below)
@@ -32,7 +33,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { toonGradient, createOutline } from './toon.js';
 import { paintPlanks, paintLattice, paintCurtain, paintCloth, paintDecor, paintGlow } from './paint.js';
-import { createOutside, SKY_KEY, OBJECTS } from './outside/index.js';
+import { createOutside, SKY_KEY, OBJECTS, MIRROR_LAYER } from './outside/index.js';
 import { PIGMENT_SHADER, FINISH_SHADER } from './watercolour.js';
 import { createMeter } from './meter.js';
 
@@ -804,7 +805,8 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
   // then show plain daylight). ?debug=flat and ?debug=silhouette also apply to it.
   const landscape = createOutside({ gradientMap, seed, fog: scene.fog, haze: BRIGHT, light: LIGHT, key: OUTSIDE_KEY, sun: sun.position.clone().sub(sun.target.position), mode: debug === 'flat' || debug === 'silhouette' ? debug : undefined, stage, tint: debug?.startsWith('tree-') ? debug : undefined });
   landscape.group.visible = !off.has('outside');
-  landscape.setWaterView({ 'water-normal': 1, 'water-fresnel': 2, 'water-filter': 3 }[debug] ?? 0);
+  landscape.setWaterView({ 'water-normal': 1, 'water-fresnel': 2, 'water-filter': 3, 'water-reflection': 4, 'water-body': 5, 'water-crest': 6, 'water-lost': 7 }[debug] ?? 0);
+  scene.traverse((o) => o.isLight && o.layers.enable(MIRROR_LAYER)); // the river's mirror is lit like the view itself
   scene.add(landscape.group);
   if (debug) {
     console.info('outside', JSON.stringify(landscape.stats));
@@ -975,6 +977,7 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
       if (Math.abs(exposure - exposureTarget) < 0.002 || fixedLook) exposure = exposureTarget;
     }
     if (exposure !== null) applyExposure(exposure);
+    landscape.renderMirror(renderer, scene, camera);
     if (debug === 'nopost') renderer.render(scene, camera);
     else {
       if (!off.has('ink')) outline.render();

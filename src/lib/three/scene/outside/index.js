@@ -18,16 +18,19 @@
 // where two colours meet (toon.js). The haze is the scene fog.
 
 import * as THREE from 'three';
-import { paintSoftSky, paintWater, paintZinc } from '../paint.js';
+import { paintSoftSky, paintZinc } from '../paint.js';
 import { SlotWriter, createContract } from './contract.js';
 import { SITE, mulberry32, rgb } from './site.js';
 import { buildFarBank, buildNearBank } from './banks.js';
 import { buildTrees } from './trees.js';
 import { planAssembly, compileAssembly } from './assembly.js';
 import { buildBridge } from './bridge.js';
-import { createWaterMaterial } from './water.js';
+import { createWater, fresnelF0, WAVES } from './water.js';
 
 export { SITE };
+/** The mirrored camera of the river draws this layer: the outside without the water. Lights must be on it too. */
+export const MIRROR_LAYER = 2;
+
 export const OBJECTS = ['farbank', 'nearbank', 'trees', 'river', 'assembly', 'bridge', 'skyline', 'boats', 'sky'];
 
 // The sky is keyed down like the rest of the outdoors (see OUTSIDE_KEY in interior.js), so its
@@ -138,7 +141,6 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = '#f4faea', li
   const hazeStyle = new THREE.Color(haze).getStyle().slice(4, -1);
   const textures = {
     sky: paintSoftSky(25 + seed, { haze: hazeStyle, vivid: true }),
-    water: paintWater(22 + seed),
     zinc: paintZinc(24 + seed),
   };
   disposables.push(...Object.values(textures));
@@ -162,21 +164,30 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = '#f4faea', li
     if (!w.slots.has(name)) continue;
     const mesh = new THREE.Mesh(geometry(name), materials[name]);
     mesh.name = name;
+    mesh.layers.enable(MIRROR_LAYER);
     group.add(mesh);
   }
 
   // --- The river: one plane at the water level, under both banks' toes (water.js) --------------
+  // It mirrors everything else out here: those meshes are also on MIRROR_LAYER, the water is not.
   const E = S.extent;
-  const water = createWaterMaterial({ map: textures.water, horizon: haze, zenith: '#3f8fe6', fog, light: light * SKY_KEY, key, sun });
+  const water = createWater({ level: S.water, layer: MIRROR_LAYER, pale: haze, fog, light: light * SKY_KEY, key, sun });
   disposables.push(water);
+  const hasRiver = want('river') && mode !== 'silhouette';
   if (want('river')) {
     const river = new THREE.PlaneGeometry(E.x1 - E.x0, E.z1 - E.z0, 1, 1).rotateX(-Math.PI / 2).translate((E.x0 + E.x1) / 2, S.water, (E.z0 + E.z1) / 2);
-    const uv = river.attributes.uv;
-    for (let i = 0; i < uv.count; i++) uv.setXY(i, uv.getX(i) * ((E.x1 - E.x0) / 70), uv.getY(i) * ((E.z1 - E.z0) / 230));
-    river.setAttribute('color', new THREE.Float32BufferAttribute(new Array(uv.count * 3).fill(0.5), 3)); // one part, for the ink pass
-    const riverMesh = new THREE.Mesh(river, mode === 'silhouette' ? new THREE.MeshBasicMaterial({ color: '#8a8a8a', fog: false }) : water);
+    river.setAttribute('color', new THREE.Float32BufferAttribute(new Array(river.attributes.position.count * 3).fill(0.5), 3)); // one part, for the ink pass
+    const riverMesh = new THREE.Mesh(river, mode === 'silhouette' ? new THREE.MeshBasicMaterial({ color: '#8a8a8a', fog: false }) : water.material);
     riverMesh.name = 'water';
     group.add(riverMesh);
+    const c = createContract('river');
+    c.is('waves in the shared list', WAVES.length, 5);
+    c.max('steepest band (k A)', Math.max(...WAVES.map((v) => v.k * v.amplitude)), 0.08);
+    c.max('summed steepness (q k A), below 1: no loops', WAVES.reduce((a, v) => a + v.q * v.k * v.amplitude, 0), 1);
+    c.near('phase speed of the longest band (m/s) = sqrt(g / k)', WAVES[0].omega / WAVES[0].k, Math.sqrt((9.81 * WAVES[0].length) / (2 * Math.PI)), 1e-6);
+    c.near('Fresnel at normal incidence, from the air', fresnelF0(false), 0.0204, 0.0005);
+    c.near('Fresnel at normal incidence, from below (the same)', fresnelF0(true), fresnelF0(false), 1e-9);
+    reports.river = { contract: c.assert(), stats: { waves: WAVES.map((v) => ({ length: v.length, amplitude: v.amplitude, slope: +(v.k * v.amplitude).toFixed(4), speed: +(v.omega / v.k).toFixed(2) })) } };
   }
 
   // --- Sky: a painted dome; its horizon is the haze colour (layer 1: no ink) -------------------
@@ -188,6 +199,7 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = '#f4faea', li
     sky.renderOrder = -1;
     sky.name = 'sky';
     sky.layers.set(1);
+    sky.layers.enable(MIRROR_LAYER);
     disposables.push(skyMat);
     group.add(sky);
   }
@@ -211,10 +223,14 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = '#f4faea', li
     stats: { triangles: total, meshes: group.children.length, perMesh: triangles },
     /** Moves the water. t in seconds. */
     update(t) {
-      water.uniforms.uTime.value = t;
+      water.material.uniforms.uTime.value = t;
+    },
+    /** Draws the river's mirror image. Call each frame before the scene is drawn. */
+    renderMirror(renderer, scene, camera) {
+      if (hasRiver && group.visible) water.renderMirror(renderer, scene, camera);
     },
     setWaterView(v) {
-      water.uniforms.uView.value = v;
+      water.material.uniforms.uView.value = v;
     },
     dispose() {
       group.traverse((o) => o.geometry?.dispose());

@@ -748,40 +748,6 @@ export function paintGround(seed = 21) {
   return texture(c, [1, 1]);
 }
 
-/**
- * Tidal river, looking across it: v runs from the near bank (0) to the far bank (1) and does not
- * repeat; u repeats along the bank. Muddy tan water, pale sheen from the sky, the far trees
- * mirrored dark along the far side (K1, K2).
- */
-export function paintWater(seed = 22) {
-  const r = rng(seed);
-  const W = 512;
-  const H = 512;
-  const [c, g] = canvas(W, H);
-  const grad = g.createLinearGradient(0, H, 0, 0); // canvas bottom = near bank (v = 0)
-  grad.addColorStop(0, '#a89878'); // wet mud at the near edge
-  grad.addColorStop(0.1, '#c4b89c');
-  grad.addColorStop(0.55, '#d8d0bc');
-  grad.addColorStop(0.9, '#c8c6b2');
-  grad.addColorStop(0.97, '#93a384'); // the far bank, mirrored
-  grad.addColorStop(1, '#84987a');
-  g.fillStyle = grad;
-  g.fillRect(0, 0, W, H);
-  // broad pale patches: the clouds, mirrored and smeared
-  for (let i = 0; i < 14; i++) blot(g, W, r() * W, H * (0.15 + r() * 0.7), 60 + r() * 110, 14 + r() * 26, '250,246,234', 0.25 + r() * 0.3);
-  // long horizontal strokes: ripples and sheen
-  for (let i = 0; i < 150; i++) {
-    const y = r() * H;
-    const len = 60 + r() * 260;
-    const x = r() * W;
-    const light = r() < 0.55;
-    g.fillStyle = light ? `rgba(244,242,226,${0.1 + r() * 0.22})` : `rgba(120,108,80,${0.08 + r() * 0.14})`;
-    const h = 1 + r() * (1 + (y / H) * 4); // strokes are thinner towards the far bank (canvas top)
-    wrapX(W, (dx) => g.fillRect(x + dx, y, len, h));
-  }
-  return texture(c, [1, 1]);
-}
-
 /** Rainforest canopy seen from far off: packed round crowns, lit from the upper left. Tiles. */
 export function paintCanopy(seed = 23) {
   const r = rng(seed);
