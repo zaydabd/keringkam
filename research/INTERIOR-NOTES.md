@@ -243,6 +243,22 @@ Open:
 - The window shot's clouds are magnified from a 2048 px sky texture, so they stay soft; a 4096 px sky would cost 32 MB more.
 - Tower and ring sizes other than height are estimates; no drawing of the bridge was found.
 
+### Pass w3: the Assembly building rebuilt from two photos (2026-11-11)
+
+Two photos supplied by the user (a front view from the river and a raised three-quarter view; source and licence unknown, so not in the repo). Proportions were measured in pixels and scaled by the sourced 114 m height; every size except the height is an estimate.
+
+| Part | Photos | Before | Now |
+|---|---|---|---|
+| Arcade (body) | the widest part: tall cream "tree" columns into pointed arches, dark glass | radius 42 m, 9–46 m | radius 62 m (star 62/56), 6–39 m |
+| Cornice | flat white slab on top of the arcade | a gold skirt | white ring, radius 66 m |
+| Small roofs | a ring of gold tent roofs on the cornice | 9 | 18 |
+| Drum | recessed dark band of V struts | 9 m of arches | 20 m of V struts, 39–59 m |
+| Main roof | eave at about half the height, radius about 0.68 x the arcade, nearly flat at the eave, many small points, ribbed; pale band under the eave | 9 big upturned points | 36 small points, radius 44 m, profile r = R(1-f)^1.25 (matched at three heights in photo 2), pale band |
+| Kiosks | small gold umbrellas on the lawn in front | none | 7, in a row facing the river |
+| Place | – | bearing +11°, 300 m | bearing +8°, 360 m, so the wider arcade fits inside the window opening |
+
+The contract now also checks four ratios against the photos (eave height, roof radius to arcade radius, roof rise, arcade height), each within about 10%.
+
 ### Camera shots
 
 | Shot | Eye | Lens (vertical) | Pointer may turn it | Exposure |
