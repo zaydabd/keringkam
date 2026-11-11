@@ -166,6 +166,47 @@ Every signal has one producer; every pass has a way to switch it off.
   - The bag on the frame is a plain dark ball (seen in `cam=far`). It is an R1 item with no counterpart in R2.
   - On phones the exposure sits at its limit.
 
+## Outside the windows (branch `window-view`)
+
+`src/lib/three/scene/outside.js` replaces the old jungle backdrop (`landscape.js`, still used by the veranda scene) for `#/interior`.
+
+### What it shows, and why
+
+A Sarawak Malay river kampung, seen from a house on stilts.
+
+- **Source photos** (Wikimedia Commons, credited in `CREDITS.md`, contact sheet `sarawak-kampung.jpg`): K1, K2 and K5, all of Kampung Bako. They show houses on stilts with painted board walls and corrugated zinc roofs in rust red, blue, green and bare grey; a wide, muddy tidal river with small painted boats, some with a canopy; plank walkways; mangrove on the far bank; a forested hill behind; cumulus clouds.
+- **Kampung Bako** is a fishing village about 30 km from Kuching, established in the mid-1850s, with a mainly Malay population. It is named after the mangrove ("bakau", locally "bako") ([emily2u.com](https://www.emily2u.com/bako-heritage-tourism-kuching-sarawak/)).
+- **Stilts and tall windows.** The Malay house at the Sarawak Cultural Village "is built on stilts and is reached by a staircase", and "the windows are down to floor level to allow in the breeze" ([patrickcomerford.com](https://www.patrickcomerford.com/2024/11/a-morning-visiting-sarawak-cultural.html)). The room's floor is 1.85 m above the yard.
+- **Not from a source: design choices.**
+  - R1 does not show what is outside its windows (they are blown out), and it is not confirmed where R1 was taken. If it is the Sarawak Cultural Village, the real view would be that village's man-made lake and Mount Santubong, not a river kampung.
+  - No source was found for which plants stand around a Sarawak Malay house. The banana plants, coconut palms and fruit trees are a choice; R2 (the painting) shows a palm and soft green foliage in its windows.
+  - Every position, size and colour in `SITE` is estimated or chosen. It is a rendition of this kind of place, not a survey of Kampung Bako.
+- Kept out: K7–K14 (Melanau areas, or Brunei) and H1–H6 (Orang Ulu and Bidayuh houses).
+
+### Layout (`SITE`, metres; the window wall is at z = −5.5)
+
+| Distance from the window wall | What |
+|---|---|
+| 1–3 m | banana plants under the windows |
+| 4–18 m | yard; fruit trees; five neighbouring houses on stilts |
+| 17–18 m | coconut palms along the bank; a plank jetty running 13 m out |
+| 18.5–118 m | the river (1.15 m below the yard), four boats |
+| 118–130 m | far bank: thirteen houses over the mud, mangrove behind |
+| 230 m | forested hill, 20–55 m high |
+
+- From the seat (the design view), the open part of each window only shows what is above eye level: the hill, palm crowns, banana leaves, tree crowns, roofs and sky. The middle window is kept clear of houses so it looks to the hill.
+- The river, boats and jetty show through the lattice, and in full from the window (`eye=-0.5,1.55,-5.3&pitch=3&fov=64`).
+
+### How it is drawn
+
+- **One mesh per material** (11 meshes): ground, water, hill, wall (boards, posts, boats, jetty), roof (zinc), trunk, frond, banana, crown, cards, sky. Colours are per-part vertex colours over painted textures (`paintGround`, `paintWater`, `paintCanopy`, `paintZinc`, `paintSoftSky`).
+- **Layer 1:** no ink outline. It reads as a painted backdrop, as R2's windows do.
+- **Haze** (after `threejs-atmosphere-aerial-perspective`, small-scene tier: an analytic distance fog). One colour is shared by the fog and the sky's horizon. The fog starts 330 m behind the eye and ends at 620 m, so things at the window are about a third washed and the hill about two thirds.
+- **Outdoor key** (`OUTSIDE_KEY = 0.85`). The room is exposed for shade; sunlit paint outside would burn out. The outdoor colours are keyed down by this one factor so they keep their colour. This is a painter's choice, not physics.
+- **Leaves** use a soft green ramp, so their shaded side stays green against the light.
+- **Budget.** 12,408 triangles, against about 424,000 for the old backdrop.
+- `off=outside` hides it; `seed=n` changes its painted textures and small placements.
+
 ## Open issues
 - [ ] R2 look: see "Known defects" in the sign-off record above.
 

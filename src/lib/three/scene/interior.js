@@ -18,7 +18,7 @@
 //   meter.js, the one tone map, sRGB, grade).
 // Inspection, all as URL parameters before the #:
 //   debug = nopost | flat | paint-pigment | paint-edge | paint-bleed | gloss | meter
-//   off   = ink, pigment, grade (comma-separated: switches those stages off)
+//   off   = ink, pigment, grade, outside (comma-separated: switches those off)
 //   cam   = design (default) | near | far      look = x,y (fixes the pointer sway, -1..1)
 //   seed  = n (moves the pigment field and the painted textures)
 //   eye = x,y,z   yaw = deg   pitch = deg   fov = deg   (a free camera, for close-ups)
@@ -30,7 +30,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { toonGradient, createOutline } from './toon.js';
 import { paintPlanks, paintLattice, paintCurtain, paintCloth, paintDecor, paintGlow } from './paint.js';
-import { createLandscape } from './landscape.js';
+import { createOutside } from './outside.js';
 import { PIGMENT_SHADER, FINISH_SHADER } from './watercolour.js';
 import { createMeter } from './meter.js';
 
@@ -669,16 +669,23 @@ export function createInterior(canvas, { onReady } = {}) {
   const EXPOSURE_EV = 0; // stops of compensation on top of the metered exposure
 
   const scene = new THREE.Scene();
+  const HAZE = { near: -330, far: 620 }; // metres: about a third washed at the window, two thirds at the hill
   const BRIGHT = '#f4faea'; // daylight in the windows: pale, a little green from the garden (R2)
   // One light level for everything that gives off light (lamps, daylight colour, glowing cloth,
   // painted reflections). It is set so the metered exposure comes out near 1 in the design view;
   // at 1 the meter sat on its upper limit (1.85) in every view.
   const LIGHT = 1.75;
+  // The room is exposed for shade, so sunlit paint outside would burn out to white. The outdoor
+  // paint is keyed down by this much instead, as a painter would, so it keeps its colour.
+  const OUTSIDE_KEY = 0.85;
   scene.background = new THREE.Color(BRIGHT).multiplyScalar(LIGHT);
-  scene.fog = new THREE.Fog(BRIGHT, 3, 38); // only the landscape takes fog: the room's materials have fog off
+  // Daylight haze, for the outside only (the room's materials have fog off). It starts well behind
+  // the eye, so even the banana leaves at the window are washed a little (the glare of looking
+  // out of a dim room), and thickens to the hill. The sky's horizon is painted in the same colour.
+  scene.fog = new THREE.Fog(BRIGHT, HAZE.near, HAZE.far);
   scene.fog.color.multiplyScalar(LIGHT);
   const C = PLAN.camera;
-  const camera = new THREE.PerspectiveCamera(C.fov, C.aspect, 0.2, 400); // at 0.05 the big ground plane outside drew over the near floor on tall screens
+  const camera = new THREE.PerspectiveCamera(C.fov, C.aspect, 0.2, 800); // at 0.05 the big ground plane outside drew over the near floor on tall screens
 
   // Light: sun behind the window wall, high enough that the patches fall just inside the windows.
   const sun = new THREE.DirectionalLight('#ffe6c4', 3.2 * LIGHT);
@@ -775,12 +782,11 @@ export function createInterior(canvas, { onReady } = {}) {
   const contact = buildContactShadows(textures.blob);
   scene.add(contact.group);
 
-  // Outside: the jungle from the old scene, washed out by the fog; no painted sky (R1's windows are white).
-  const landscape = createLandscape({ gradientMap, rand: mulberry32(21), groundY: -1.85 });
-  landscape.group.traverse((o) => {
-    if (o.material && o.material.side === THREE.BackSide) o.visible = false;
-  });
+  // Outside: a river kampung (outside.js). ?off=outside hides it (the windows then show plain daylight).
+  const landscape = createOutside({ gradientMap, seed, haze: BRIGHT, light: LIGHT, key: OUTSIDE_KEY });
+  landscape.group.visible = !off.has('outside');
   scene.add(landscape.group);
+  if (debug) console.info('outside', JSON.stringify(landscape.stats));
   camera.layers.enable(1);
 
   const outline = createOutline(renderer, scene, camera, { ink: PALETTE.ink, lineWidth: 1 });

@@ -11,7 +11,7 @@ import { toonGradient } from './toon.js';
  * A leaf as a strip along a curve: out along `dir` for `len`, rising then drooping, folded
  * into a shallow V along the midrib. UV x runs base to tip, y across (0..1).
  */
-function leafStrip(base, dir, len, width, rise, droop, fold, twist = 0, segs = 10) {
+export function leafStrip(base, dir, len, width, rise, droop, fold, twist = 0, segs = 10) {
   const up = new THREE.Vector3(0, 1, 0);
   const side = new THREE.Vector3(-dir.z, 0, dir.x);
   const positions = [];
@@ -43,7 +43,7 @@ function leafStrip(base, dir, len, width, rise, droop, fold, twist = 0, segs = 1
   return g;
 }
 
-function tint(g, r, gc, b) {
+export function tint(g, r, gc, b) {
   const n = g.attributes.position.count;
   const colors = new Float32Array(n * 3);
   for (let i = 0; i < n; i++) colors.set([r, gc, b], i * 3);
@@ -52,7 +52,7 @@ function tint(g, r, gc, b) {
 }
 
 /** Vertex colours lighter on top and darker underneath, so backlit blobs still read as round. */
-function skyLit(g, c) {
+export function skyLit(g, c) {
   const nor = g.attributes.normal;
   const colors = new Float32Array(nor.count * 3);
   for (let i = 0; i < nor.count; i++) {

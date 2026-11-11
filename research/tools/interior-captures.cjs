@@ -24,6 +24,12 @@ const VIEWS = {
   seed2: ['seed=2', WIDE],
   'look-left': ['look=-1,0', WIDE],
   'look-right': ['look=1,0', WIDE],
+  'off-outside': ['off=outside', WIDE],
+  // from the middle window, looking out: the yard, the river and the far bank
+  'window-out': ['eye=-0.5,1.55,-5.3&pitch=3&fov=64', WIDE],
+  'window-left': ['eye=-0.5,1.55,-5.3&pitch=3&fov=64&yaw=-42', WIDE],
+  'window-right': ['eye=-0.5,1.55,-5.3&pitch=3&fov=64&yaw=42', WIDE],
+  'window-down': ['eye=-0.5,1.7,-5.35&pitch=-16&fov=64', WIDE],
 };
 const QUICK = ['final', 'nopost', 'phone'];
 

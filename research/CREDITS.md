@@ -109,3 +109,19 @@ placing a Sarawak photo behind them. Each combines the photos credited above:
 | S6 | H3 Sarawak Cultural Village basket-lamp veranda | #15 Mount Santubong | |
 
 Composites of CC BY-SA photos must themselves be shared under CC BY-SA with credit to every source.
+
+# Interior: the view outside the windows (2026-11-11)
+
+`src/lib/three/scene/outside.js` is drawn after K1, K2 and K5 above (Kampung Bako). No photo is copied into the scene: the houses, boats, river and hill are built and painted in code.
+
+Facts used, with their sources:
+
+| Fact | Source |
+|---|---|
+| Kampung Bako: fishing village, mainly Malay, established mid-1850s, named after mangrove | [emily2u.com](https://www.emily2u.com/bako-heritage-tourism-kuching-sarawak/) |
+| Sarawak Malay house: on stilts, reached by a staircase, windows down to floor level | [patrickcomerford.com](https://www.patrickcomerford.com/2024/11/a-morning-visiting-sarawak-cultural.html) |
+
+The zinc roofs, painted walls, boats, mangrove and hill are read from the photos themselves.
+
+Not sourced (design choices): the plants around the house, and every position and size. See `INTERIOR-NOTES.md`, "Outside the windows".
+

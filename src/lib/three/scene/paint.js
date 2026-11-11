@@ -169,7 +169,7 @@ export function paintPlanks(seed = 1, { weathered = false, brushy = false } = {}
 }
 
 /** A late-afternoon sky with painted cumulus, for an equirectangular sky dome. */
-export function paintSky(seed = 5) {
+export function paintSky(seed = 5, { haze = '243,226,198' } = {}) {
   const r = rng(seed);
   const W = 2048;
   const H = 1024;
@@ -177,7 +177,7 @@ export function paintSky(seed = 5) {
   const sky = g.createLinearGradient(0, 0, 0, H / 2);
   sky.addColorStop(0, '#6f9fd2');
   sky.addColorStop(0.55, '#a9c6e2');
-  sky.addColorStop(1, '#f3e2c6');
+  sky.addColorStop(1, `rgb(${haze})`); // the horizon takes the haze colour (the same one the fog uses)
   g.fillStyle = sky;
   g.fillRect(0, 0, W, H / 2);
   g.fillStyle = '#d9dcc4';
@@ -216,10 +216,10 @@ export function paintSky(seed = 5) {
     wrapX(W, (ox) => g.fillRect(cx - width * 0.5 + ox, base - 10, width, 14));
   }
   // soft haze at the horizon
-  const haze = g.createLinearGradient(0, H / 2 - 120, 0, H / 2);
-  haze.addColorStop(0, 'rgba(243,226,198,0)');
-  haze.addColorStop(1, 'rgba(243,226,198,0.85)');
-  g.fillStyle = haze;
+  const hazeBand = g.createLinearGradient(0, H / 2 - 120, 0, H / 2);
+  hazeBand.addColorStop(0, `rgba(${haze},0)`);
+  hazeBand.addColorStop(1, `rgba(${haze},0.85)`);
+  g.fillStyle = hazeBand;
   g.fillRect(0, H / 2 - 120, W, 120);
   const t = texture(c, [1, 1], false);
   t.wrapS = THREE.RepeatWrapping;
@@ -697,5 +697,196 @@ export function paintGlow(kind = 'round') {
     g.fillRect(0, 0, S, S);
   }
   const t = texture(c, [1, 1], false);
+  return t;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Outside the windows (outside.js): a Sarawak Malay river kampung, after the Commons photos of
+// Kampung Bako (K1, K2, K5 in research/CREDITS.md).
+
+/** Yard: rough grass with sandy, trodden patches. Tiles; made for UVs in metres / 8. */
+export function paintGround(seed = 21) {
+  const r = rng(seed);
+  const S = 512;
+  const [c, g] = canvas(S, S);
+  g.fillStyle = '#a3b872';
+  g.fillRect(0, 0, S, S);
+  const wrap = (fn) => {
+    for (const dx of [-S, 0, S]) for (const dy of [-S, 0, S]) fn(dx, dy);
+  };
+  for (let i = 0; i < 46; i++) {
+    const x = r() * S;
+    const y = r() * S;
+    const rx = 30 + r() * 80;
+    const ry = 20 + r() * 50;
+    const rgb = r() < 0.3 ? '204,184,140' : r() < 0.6 ? '118,150,84' : '176,196,120';
+    const a = 0.12 + r() * 0.2;
+    wrap((dx, dy) => {
+      g.save();
+      g.translate(x + dx, y + dy);
+      g.scale(1, ry / rx);
+      const grad = g.createRadialGradient(0, 0, 0, 0, 0, rx);
+      grad.addColorStop(0, `rgba(${rgb},${a})`);
+      grad.addColorStop(1, `rgba(${rgb},0)`);
+      g.fillStyle = grad;
+      g.fillRect(-rx, -rx, rx * 2, rx * 2);
+      g.restore();
+    });
+  }
+  // short brush flicks of grass
+  g.lineCap = 'round';
+  for (let i = 0; i < 900; i++) {
+    const x = r() * S;
+    const y = r() * S;
+    g.strokeStyle = r() < 0.5 ? `rgba(86,122,66,${0.15 + r() * 0.2})` : `rgba(212,222,150,${0.12 + r() * 0.18})`;
+    g.lineWidth = 1 + r() * 1.5;
+    g.beginPath();
+    g.moveTo(x, y);
+    g.lineTo(x + (r() - 0.5) * 6, y - 4 - r() * 8);
+    g.stroke();
+  }
+  return texture(c, [1, 1]);
+}
+
+/**
+ * Tidal river, looking across it: v runs from the near bank (0) to the far bank (1) and does not
+ * repeat; u repeats along the bank. Muddy tan water, pale sheen from the sky, the far trees
+ * mirrored dark along the far side (K1, K2).
+ */
+export function paintWater(seed = 22) {
+  const r = rng(seed);
+  const W = 512;
+  const H = 512;
+  const [c, g] = canvas(W, H);
+  const grad = g.createLinearGradient(0, H, 0, 0); // canvas bottom = near bank (v = 0)
+  grad.addColorStop(0, '#a3906c'); // wet mud at the near edge
+  grad.addColorStop(0.08, '#b5a685');
+  grad.addColorStop(0.5, '#c9c2aa');
+  grad.addColorStop(0.86, '#bdbfa8');
+  grad.addColorStop(0.93, '#7f9272'); // the far trees, mirrored
+  grad.addColorStop(1, '#6c8364');
+  g.fillStyle = grad;
+  g.fillRect(0, 0, W, H);
+  // long horizontal strokes: ripples and sheen
+  for (let i = 0; i < 150; i++) {
+    const y = r() * H;
+    const len = 60 + r() * 260;
+    const x = r() * W;
+    const light = r() < 0.55;
+    g.fillStyle = light ? `rgba(244,242,226,${0.1 + r() * 0.22})` : `rgba(120,108,80,${0.08 + r() * 0.14})`;
+    const h = 1 + r() * (1 + (y / H) * 4); // strokes are thinner towards the far bank (canvas top)
+    wrapX(W, (dx) => g.fillRect(x + dx, y, len, h));
+  }
+  return texture(c, [1, 1]);
+}
+
+/** Rainforest canopy seen from far off: packed round crowns, lit from the upper left. Tiles. */
+export function paintCanopy(seed = 23) {
+  const r = rng(seed);
+  const S = 512;
+  const [c, g] = canvas(S, S);
+  g.fillStyle = '#5f8556';
+  g.fillRect(0, 0, S, S);
+  const wrap = (fn) => {
+    for (const dx of [-S, 0, S]) for (const dy of [-S, 0, S]) fn(dx, dy);
+  };
+  for (let i = 0; i < 260; i++) {
+    const x = r() * S;
+    const y = r() * S;
+    const rad = 14 + r() * 26;
+    const hue = r();
+    const body = hue < 0.33 ? '104,146,88' : hue < 0.66 ? '84,128,84' : '128,160,96';
+    wrap((dx, dy) => {
+      g.fillStyle = 'rgba(52,84,62,0.55)'; // shadow under the crown
+      g.beginPath();
+      g.ellipse(x + dx + rad * 0.2, y + dy + rad * 0.3, rad, rad * 0.85, 0, 0, Math.PI * 2);
+      g.fill();
+      g.fillStyle = `rgb(${body})`;
+      g.beginPath();
+      g.ellipse(x + dx, y + dy, rad, rad * 0.85, 0, 0, Math.PI * 2);
+      g.fill();
+      g.fillStyle = 'rgba(190,212,140,0.5)'; // light on the upper left
+      g.beginPath();
+      g.ellipse(x + dx - rad * 0.3, y + dy - rad * 0.32, rad * 0.5, rad * 0.38, -0.5, 0, Math.PI * 2);
+      g.fill();
+    });
+  }
+  return texture(c, [1, 1]);
+}
+
+/**
+ * Corrugated zinc roofing: light, so the vertex colour gives the paint (rust red, blue, green,
+ * bare grey; K1, K2, K5). Ribs run down the slope (canvas y); sheets overlap; rust comes through.
+ * Tiles; made for UVs in metres / 2.
+ */
+export function paintZinc(seed = 24) {
+  const r = rng(seed);
+  const S = 256;
+  const [c, g] = canvas(S, S);
+  g.fillStyle = '#e9e6de';
+  g.fillRect(0, 0, S, S);
+  for (let x = 0; x < S; x += 8) {
+    g.fillStyle = 'rgba(70,60,54,0.28)';
+    g.fillRect(x, 0, 2, S);
+    g.fillStyle = 'rgba(255,255,255,0.5)';
+    g.fillRect(x + 4, 0, 2, S);
+  }
+  for (const y of [0, 128]) {
+    g.fillStyle = 'rgba(60,50,46,0.3)'; // sheet overlap
+    g.fillRect(0, y, S, 3);
+  }
+  for (let i = 0; i < 22; i++) blot(g, S, r() * S, r() * S, 14 + r() * 40, 10 + r() * 30, r() < 0.6 ? '150,84,50' : '90,80,74', 0.1 + r() * 0.2);
+  // streaks running down from the overlaps
+  for (let i = 0; i < 40; i++) {
+    g.fillStyle = `rgba(120,70,44,${0.06 + r() * 0.12})`;
+    g.fillRect(r() * S, r() * S, 2 + r() * 3, 20 + r() * 60);
+  }
+  return texture(c, [1, 1]);
+}
+
+/**
+ * A soft watercolour sky for the window view (R2): pale blue wash fading to the haze colour at
+ * the horizon, with a few soft cumulus (white tops, faint lilac bases). Equirectangular: the
+ * upper half of the canvas is the sky, the lower half takes the haze colour.
+ */
+export function paintSoftSky(seed = 25, { haze = '244,250,234' } = {}) {
+  const r = rng(seed);
+  const W = 2048;
+  const H = 1024;
+  const [c, g] = canvas(W, H);
+  const sky = g.createLinearGradient(0, 0, 0, H / 2);
+  sky.addColorStop(0, '#a9c8e4');
+  sky.addColorStop(0.5, '#d6e6ee');
+  sky.addColorStop(0.8, '#eaf2ee');
+  sky.addColorStop(1, `rgb(${haze})`);
+  g.fillStyle = sky;
+  g.fillRect(0, 0, W, H / 2);
+  g.fillStyle = `rgb(${haze})`;
+  g.fillRect(0, H / 2, W, H / 2);
+  const puff = (x, y, rad, rgb, a) => {
+    wrapX(W, (dx) => {
+      const grad = g.createRadialGradient(x + dx, y, 0, x + dx, y, rad);
+      grad.addColorStop(0, `rgba(${rgb},${a})`);
+      grad.addColorStop(0.6, `rgba(${rgb},${a * 0.55})`);
+      grad.addColorStop(1, `rgba(${rgb},0)`);
+      g.fillStyle = grad;
+      g.fillRect(x + dx - rad, y - rad, rad * 2, rad * 2);
+    });
+  };
+  for (let n = 0; n < 26; n++) {
+    const cx = r() * W;
+    const base = H / 2 - 40 - r() * 190; // between about 7 and 40 degrees up
+    const width = 70 + r() * 150;
+    for (let i = 0; i < 9; i++) {
+      const t = r();
+      const hump = Math.sin(Math.PI * t);
+      const rad = 16 + hump * width * (0.2 + r() * 0.12);
+      const x = cx + (t - 0.5) * width;
+      puff(x, base + 6, rad * 0.8, '190,192,214', 0.07); // faint lilac base
+      puff(x - 3, base - rad * 0.55, rad, '255,253,244', 0.6); // lit top
+    }
+  }
+  const t = texture(c, [1, 1], false);
+  t.wrapS = THREE.RepeatWrapping;
   return t;
 }
