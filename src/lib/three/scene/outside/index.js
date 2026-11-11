@@ -22,6 +22,7 @@ import { paintSoftSky, paintWater, paintZinc } from '../paint.js';
 import { SlotWriter, createContract } from './contract.js';
 import { SITE, mulberry32, rgb } from './site.js';
 import { buildFarBank, buildNearBank } from './banks.js';
+import { buildTrees } from './trees.js';
 import { planAssembly, compileAssembly } from './assembly.js';
 import { buildBridge } from './bridge.js';
 import { createWaterMaterial } from './water.js';
@@ -64,9 +65,10 @@ function buildBoat(w, b, y) {
  * water use its colour too); `light` scales what gives off its own light, to match the scene's
  * lamps; `key` darkens the outdoor paint so it keeps its colour next to a room exposed for
  * shade; `mode` 'flat' or 'silhouette' are the checks the geometry skill asks for; `stage` lists
- * the objects to build (default: all).
+ * the objects to build (default: all); `tint` 'tree-level' or 'tree-kind' paints the trees'
+ * growth diagnostics.
  */
-export function createOutside({ gradientMap, seed = 0, fog, haze = '#f4faea', light = 1, key = 1, sun, mode, stage }) {
+export function createOutside({ gradientMap, seed = 0, fog, haze = '#f4faea', light = 1, key = 1, sun, mode, stage, tint }) {
   const rand = mulberry32(51 + seed);
   const group = new THREE.Group();
   const disposables = [];
@@ -86,6 +88,12 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = '#f4faea', li
   // --- The banks (banks.js) ---------------------------------------------------------------------
   if (want('farbank')) reports.farbank = buildFarBank(w, { seed });
   if (want('nearbank')) reports.nearbank = buildNearBank(w, { seed });
+
+  // --- Trees and bushes of the far bank (trees.js); they stand on the far bank's surface ---------
+  if (want('trees')) {
+    const bank = reports.farbank ?? buildFarBank(new SlotWriter(), { seed });
+    reports.trees = buildTrees(w, { seed, place: bank.place, groundAt: bank.groundAt, tint });
+  }
 
   // --- Assembly building (planned, then compiled; not rebuilt yet) -----------------------------
   if (want('assembly')) {

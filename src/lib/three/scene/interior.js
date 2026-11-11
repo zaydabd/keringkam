@@ -18,7 +18,7 @@
 //   meter.js, the one tone map, sRGB, grade).
 // Inspection, all as URL parameters before the #:
 //   debug = nopost | flat | silhouette | paint-pigment | paint-edge | paint-bleed | gloss | meter
-//           | water-normal | water-fresnel | water-filter
+//           | water-normal | water-fresnel | water-filter | tree-level | tree-kind
 //   off   = ink, pigment, grade, outside (comma-separated: switches those off)
 //   cam   = design (default) | near | far      look = x,y (fixes the pointer sway, -1..1)
 //   view  = seat (default) | window (start in that camera shot; SHOTS below)
@@ -802,7 +802,7 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
 
   // Outside: the Sarawak River at Kuching (outside/index.js). ?off=outside hides it (the windows
   // then show plain daylight). ?debug=flat and ?debug=silhouette also apply to it.
-  const landscape = createOutside({ gradientMap, seed, fog: scene.fog, haze: BRIGHT, light: LIGHT, key: OUTSIDE_KEY, sun: sun.position.clone().sub(sun.target.position), mode: debug === 'flat' || debug === 'silhouette' ? debug : undefined, stage });
+  const landscape = createOutside({ gradientMap, seed, fog: scene.fog, haze: BRIGHT, light: LIGHT, key: OUTSIDE_KEY, sun: sun.position.clone().sub(sun.target.position), mode: debug === 'flat' || debug === 'silhouette' ? debug : undefined, stage, tint: debug?.startsWith('tree-') ? debug : undefined });
   landscape.group.visible = !off.has('outside');
   landscape.setWaterView({ 'water-normal': 1, 'water-fresnel': 2, 'water-filter': 3 }[debug] ?? 0);
   scene.add(landscape.group);

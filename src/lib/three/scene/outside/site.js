@@ -45,6 +45,22 @@ export const SITE = {
     tip: [-3, 1], // a patch of grass and tufts on the tip of the mud flat (x of the waterline)
     fern: [-7.6, -17], // where the fern stands [x, z]
   },
+  // Trees of the far bank (trees.js). clump and big: [x, z, scale]; bushes: [x of the waterline,
+  // offset inland, scale]; rows: far-tier trees spread along the waterline (x0..x1 of the waterline,
+  // offsets inland) or over a box [x0, x1, z0, z1]; `bush` rows are shrubs.
+  trees: {
+    clump: [[2.9, -130, 1.05], [6.8, -132, 1.15], [10.8, -129, 1.2], [13.9, -133, 1.12], [17.2, -130, 1.05]],
+    big: [[-118, -219, 2.2]],
+    bushes: [[-13, 12, 0.9], [-9, 11.5, 1.1], [-6, 12.5, 1.3], [-2.5, 11.5, 1], [1, 12, 1.2], [4.5, 13, 1.1]],
+    rows: [
+      { name: 'wood', x0: -135, x1: -30, count: 16, offset: [12, 26], scale: [1, 1.45], detail: 0 },
+      { name: 'wood behind', x0: -135, x1: -28, count: 8, offset: [34, 60], scale: [1.2, 1.6], detail: 0 },
+      { name: 'underwood', x0: -138, x1: -2, count: 20, offset: [7, 13], scale: [2, 3], detail: 0, bush: true },
+      { name: 'low', x0: -28, x1: 0, count: 6, offset: [16, 44], scale: [0.55, 0.8], detail: 0 },
+      { name: 'upstream', x0: -430, x1: -140, count: 9, offset: [10, 40], scale: [1, 1.5], detail: 0 },
+      { name: 'behind', box: [45, 105, -300, -245], count: 7, scale: [0.5, 0.7], detail: 0 },
+    ],
+  },
   // Not rebuilt yet (old objects, moved roughly to the new river): bridge, Assembly, skyline, boats.
   lawn: 1.9,
   bridge: [[-190, 12], [-100, -58], [-22, -117], [30, -158]],

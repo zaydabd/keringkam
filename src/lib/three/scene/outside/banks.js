@@ -214,7 +214,35 @@ export function buildFarBank(w, { seed = 0 } = {}) {
   }
   const tri = w.triangles();
   contract.range('triangles', (tri.paint ?? 0) + (tri.blade ?? 0), 1500, 9000);
-  return { contract: contract.assert(), stats, stations, rows, lawnAt };
+  // Where the bank's surface is, for what stands on it (trees.js).
+  const profile = (o, L) => {
+    if (o >= F.back) return F.backY;
+    for (let k = columns.length - 2; k >= 0; k--) {
+      if (o >= columns[k][0]) return lerp(columns[k][1](L), columns[k + 1][1](L), (o - columns[k][0]) / (columns[k + 1][0] - columns[k][0]));
+    }
+    return columns[0][1](L);
+  };
+  /** Height of the bank at a point, from the nearest station's cross-section. */
+  const groundAt = (x, z) => {
+    let best = stations[0], bd = Infinity, bo = 0;
+    for (const s of stations) {
+      const dx = x - s.x, dz = z - s.z;
+      const along = dx * s.tx + dz * s.tz, off = dx * s.nx + dz * s.nz;
+      const d = Math.hypot(along, off - Math.min(F.back, Math.max(0, off)));
+      if (d < bd) [bd, best, bo] = [d, s, off];
+    }
+    return profile(bo, lawnAt(best));
+  };
+  /** The point `offset` metres inland of the waterline where the waterline's x is `xWater`: [x, y, z]. */
+  const place = (xWater, offset) => {
+    let i = 0;
+    while (i < stations.length - 2 && stations[i + 1].x < xWater) i++;
+    const a = stations[i], b = stations[i + 1];
+    const t = Math.min(1, Math.max(0, (xWater - a.x) / (b.x - a.x)));
+    const nx = lerp(a.nx, b.nx, t), nz = lerp(a.nz, b.nz, t);
+    return [lerp(a.x, b.x, t) + nx * offset, profile(offset, lerp(lawnAt(a), lawnAt(b), t)) - 0.05, lerp(a.z, b.z, t) + nz * offset];
+  };
+  return { contract: contract.assert(), stats, stations, rows, lawnAt, groundAt, place };
 }
 
 /** One fern: fronds that rise from one root and arch over (two greens, so the ink pass parts them). */
