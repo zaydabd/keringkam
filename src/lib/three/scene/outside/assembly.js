@@ -24,18 +24,22 @@ import { createContract } from './contract.js';
 export const ASSEMBLY = {
   height: 114, // sourced
   points: 9, // sourced: nine-pointed star; its points carry the pyramids
-  podium: { radius: 60, height: 2 },
+  // The plan is a nine-pointed star (sourced), points at 0, 40, 80 ... degrees, point 0 facing
+  // the river. A scale model (TVS news photo, 9 May 2024) shows it clearly from above: the brim is
+  // a deep star, a pyramid on each point with the white tip running out beyond it; the arcade
+  // follows the star more gently. Tip and valley radii are estimates.
+  podium: { tip: 66, valley: 56, height: 2 },
   // columns on a ring; each arch bows out as it rises, so the arms carry the brim (P2)
-  arcade: { radius: 57, infill: 54.5, top: 26, columns: 42, spring: 0.5, reach: 2, floors: 3, bow: 5.5 },
-  cornice: { radius: 66, depth: 1.3 }, // a thin brim, well out past the columns (P2)
-  pyramid: { radius: 45, base: 25, height: 10.5 }, // on the brim, one per point of the star (P2: ~26 x 9.5 m)
+  arcade: { tip: 63, valley: 53, inset: 2.5, top: 26, columns: 45, spring: 0.5, reach: 2, floors: 3 }, // 5 columns per point
+  cornice: { tip: 76, valley: 56, depth: 1.3 }, // a thin star-shaped brim; the arms flare out to carry its tips (P2, model)
+  pyramid: { radius: 47, base: 24, height: 10.5 }, // one on each point of the brim (model; P2: ~26 x 9.5 m)
   drum: { r0: 27, r1: 35, top: 48.6, struts: 36, lean: 1.5 }, // inverted cone of crossing struts
   roof: { folds: 18, valley: 51, rValley: 37, rTip: 45, tipDrop: 3.5, top: 82, neck: 5.5, power: 2, rings: 16, fascia: 2.2 },
   cone: { top: 100, r0: 5.5, r1: 1.0, ribs: 12, bands: [88, 94] }, // the ribbed spire base (P2)
   kiosk: { folds: 8, rValley: 3.4, rTip: 4.4, eave: 3.4, top: 6.2, spire: 7.4, legs: 2.6 },
   kioskRow: { half: 3.4, eave: 3.4, rise: 2.6, fork: 1.6 }, // the front five (P2): about 7 m square
-  kiosks: { row: [-22, -11, 0, 11, 22], rowZ: 71, sides: [-72, 72], sideZ: 42, sideScale: 1.7 },
-  terrace: { z: 71, halfX: 30, halfZ: 7, height: 0.8 },
+  kiosks: { row: [-22, -11, 0, 11, 22], rowZ: 82, sides: [-72, 72], sideZ: 42, sideScale: 1.7 },
+  terrace: { z: 82, halfX: 30, halfZ: 7, height: 0.8 },
   colors: {
     gold: [0.92, 0.63, 0.08], // authored deep: the haze and the room's grade lift it to the photos' yellow gold
     goldShade: [0.66, 0.41, 0.04], // every other roof facet: the ink pass draws the folds
@@ -84,6 +88,27 @@ export function planAssembly(settings = ASSEMBLY) {
 // --- Small geometry helpers (building frame: y up, front towards +z) --------------------------
 
 const P = (a, r, y) => [Math.sin(a) * r, y, Math.cos(a) * r];
+const radiusAt = (r, a) => (typeof r === 'function' ? r(a) : r);
+
+/**
+ * The radius of a star outline at angle a: `n` points of radius `tip` at a = 2 pi k / n, valleys of
+ * radius `valley` half way between, joined by straight edges.
+ */
+export function star(n, tip, valley) {
+  const step = Math.PI / n;
+  return (a) => {
+    const t = ((a % (2 * Math.PI)) + 2 * Math.PI) % (2 * Math.PI);
+    const i = Math.floor(t / step);
+    const a0 = i * step, a1 = (i + 1) * step;
+    const r0 = i % 2 === 0 ? tip : valley, r1 = i % 2 === 0 ? valley : tip;
+    // the ray at angle t meets the edge from (a0, r0) to (a1, r1)
+    const p0 = [Math.sin(a0) * r0, Math.cos(a0) * r0], p1 = [Math.sin(a1) * r1, Math.cos(a1) * r1];
+    const d = [Math.sin(t), Math.cos(t)];
+    const e = [p1[0] - p0[0], p1[1] - p0[1]];
+    const den = d[0] * e[1] - d[1] * e[0];
+    return (p0[0] * e[1] - p0[1] * e[0]) / den;
+  };
+}
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
 const norm = (a) => {
@@ -115,8 +140,9 @@ function beam(writer, slot, a, b, out, w, d, color, back = false) {
 function band(writer, slot, segs, r0, y0, r1, y1, color, inward = false, a0 = 0) {
   for (let i = 0; i < segs; i++) {
     const p = a0 + (i / segs) * Math.PI * 2, q = a0 + ((i + 1) / segs) * Math.PI * 2;
-    if (inward) writer.quad(slot, P(q, r0, y0), P(p, r0, y0), P(p, r1, y1), P(q, r1, y1), color);
-    else writer.quad(slot, P(p, r0, y0), P(q, r0, y0), P(q, r1, y1), P(p, r1, y1), color);
+    const [a, b, c, d] = [radiusAt(r0, p), radiusAt(r0, q), radiusAt(r1, q), radiusAt(r1, p)];
+    if (inward) writer.quad(slot, P(q, b, y0), P(p, a, y0), P(p, d, y1), P(q, c, y1), color);
+    else writer.quad(slot, P(p, a, y0), P(q, b, y0), P(q, c, y1), P(p, d, y1), color);
   }
 }
 
@@ -124,8 +150,9 @@ function band(writer, slot, segs, r0, y0, r1, y1, color, inward = false, a0 = 0)
 function annulus(writer, slot, segs, r0, r1, y, color, down = false) {
   for (let i = 0; i < segs; i++) {
     const p = (i / segs) * Math.PI * 2, q = ((i + 1) / segs) * Math.PI * 2;
-    if (down) writer.quad(slot, P(p, r0, y), P(q, r0, y), P(q, r1, y), P(p, r1, y), color);
-    else writer.quad(slot, P(p, r0, y), P(p, r1, y), P(q, r1, y), P(q, r0, y), color);
+    const [i0, i1, o0, o1] = [radiusAt(r0, p), radiusAt(r0, q), radiusAt(r1, p), radiusAt(r1, q)];
+    if (down) writer.quad(slot, P(p, i0, y), P(q, i1, y), P(q, o1, y), P(p, o0, y), color);
+    else writer.quad(slot, P(p, i0, y), P(p, o0, y), P(q, o1, y), P(q, i1, y), color);
   }
 }
 
@@ -195,41 +222,42 @@ function archArm(pointAt, h, rise, pointed, n = 4) {
  * the bays on either side, where they meet the neighbours' arms. A thin mullion stands in the
  * middle of each bay up to the apex.
  */
-function treeColumn(writer, { index, count, radius, y0, y1, spring, reach, bow, shaft, arm, mullion, color }) {
+function treeColumn(writer, { index, count, ring, brim, y0, y1, spring, reach, shaft, arm, mullion, color }) {
   const da = (Math.PI * 2) / count;
   const a = index * da;
   const ys = y0 + (y1 - y0) * spring;
   const rise = y1 - 0.2 - ys;
-  const span = reach * radius * da; // how far along the ring each arm reaches (photos: two bays)
+  const span = reach * da; // how far round each arm reaches, as an angle (photos: two bays)
   const out = (ang) => [Math.sin(ang), 0, Math.cos(ang)];
-  beam(writer, 'rib', P(a, radius, y0), P(a, radius, ys + 0.2), out(a), shaft, shaft * 1.3, color);
+  beam(writer, 'rib', P(a, ring(a), y0), P(a, ring(a), ys + 0.2), out(a), shaft, shaft * 1.3, color);
   const n = 6;
   for (const dir of [-1, 1]) {
     // a quarter ellipse: leaves the column upright, reaches the brim above the column two bays
     // away. Neighbouring arms cross: the lower crossing is the arch's point (about two thirds of
-    // the way up), the upper one sits over the next column (interlaced arches, P1 and P2). The
-    // arm bows outwards as it rises, out to the brim.
-    const pts = [];
-    for (let k = 0; k <= n; k++) {
-      const u = (k / n) * (Math.PI / 2);
-      const x = span * (1 - Math.cos(u)), y = rise * Math.sin(u);
-      pts.push(P(a + dir * (x / radius), radius + bow * (y / rise) ** 2, ys + y));
-    }
+    // the way up), the upper one sits over the next column (interlaced arches, P1 and P2). As it
+    // rises the arm flares out from the column ring to just inside the brim's edge, so under each
+    // point of the star the arms reach far out to carry it (P2, model).
+    const at = (u) => {
+      const ang = a + dir * span * (1 - Math.cos(u));
+      const f = Math.sin(u);
+      return { ang, p: P(ang, ring(ang) + (brim(ang) - 1.5 - ring(ang)) * f * f, ys + rise * f) };
+    };
     for (let k = 0; k < n; k++) {
-      const mid = a + dir * (span * (1 - Math.cos(((k + 0.5) / n) * (Math.PI / 2)))) / radius;
-      beam(writer, 'rib', pts[k], pts[k + 1], out(mid), arm, arm * 1.3, color);
+      const u0 = (k / n) * (Math.PI / 2), u1 = ((k + 1) / n) * (Math.PI / 2);
+      beam(writer, 'rib', at(u0).p, at(u1).p, out(at((u0 + u1) / 2).ang), arm, arm * 1.3, color);
     }
   }
   // a thin mullion in the middle of each bay, up to where the arms cross
   const cross = rise * Math.sin(Math.acos(1 - 1 / (2 * reach)));
-  if (mullion) beam(writer, 'rib', P(a + da / 2, radius - 0.6, y0), P(a + da / 2, radius - 0.6, ys + cross), out(a + da / 2), mullion, mullion, color);
+  const m = a + da / 2;
+  if (mullion) beam(writer, 'rib', P(m, ring(m) - 0.6, y0), P(m, ring(m) - 0.6, ys + cross), out(m), mullion, mullion, color);
 }
 
 const MODULES = {
   'tree-column'(ctx, p) {
     const { s, C } = ctx;
     const A = s.arcade;
-    treeColumn(ctx.writer, { index: p.index, count: A.columns, radius: A.radius, y0: s.podium.height, y1: A.top, spring: A.spring, reach: A.reach, bow: A.bow, shaft: 1.2, arm: 0.7, mullion: 0.35, color: C.white });
+    treeColumn(ctx.writer, { index: p.index, count: A.columns, ring: ctx.shape.ring, brim: ctx.shape.brim, y0: s.podium.height, y1: A.top, spring: A.spring, reach: A.reach, shaft: 1.2, arm: 0.7, mullion: 0.35, color: C.white });
   },
   'drum-strut'(ctx, p) {
     // crossing struts: half lean one way, half the other, so they read as an X lattice
@@ -300,31 +328,32 @@ const MODULES = {
     beam(writer, 'rib', [p.x, y, p.z], fork, [0, 0, 1], 0.4, 0.4, C.white, true);
     for (let i = 0; i < 4; i++) beam(writer, 'rib', fork, corner(i, Q.half * 0.75, Q.eave - 0.1), [0, 0, 1], 0.25, 0.25, C.white, true);
   },
-  podium({ s, C, writer }) {
-    band(writer, 'stone', 48, s.podium.radius, 0, s.podium.radius, s.podium.height, C.stone);
-    annulus(writer, 'stone', 48, s.arcade.infill, s.podium.radius, s.podium.height, C.stone);
+  podium({ s, C, writer, shape }) {
+    band(writer, 'stone', 90, shape.podium, 0, shape.podium, s.podium.height, C.stone, false, 0);
+    annulus(writer, 'stone', 90, shape.infill, shape.podium, s.podium.height, C.stone);
   },
   terrace({ s, C, writer }) {
     const T = s.terrace;
     writer.box('stone', [0, T.height / 2, T.z], [T.halfX, 0, 0], [0, T.height / 2, 0], [0, 0, T.halfZ], C.stone);
   },
-  infill({ s, C, writer }) {
+  infill({ s, C, writer, shape }) {
     // dark red-brown glass and spandrels with lighter floor bands (P1, P2)
     const A = s.arcade;
     const y0 = s.podium.height;
     const step = (A.top - y0) / A.floors;
     for (let f = 0; f < A.floors; f++) {
       const yb = y0 + f * step;
-      band(writer, 'glass', A.columns, A.infill, yb, A.infill, yb + step - 1, C.infill);
-      band(writer, 'glass', A.columns, A.infill, yb + step - 1, A.infill, yb + step, C.band);
+      band(writer, 'glass', 90, shape.infill, yb, shape.infill, yb + step - 1, C.infill);
+      band(writer, 'glass', 90, shape.infill, yb + step - 1, shape.infill, yb + step, C.band);
     }
   },
-  cornice({ s, C, writer }) {
+  cornice({ s, C, writer, shape }) {
+    // the star-shaped brim: 90 segments put a vertex on every point and every valley
     const y = s.arcade.top;
     const top = y + s.cornice.depth;
-    annulus(writer, 'stone', 72, s.drum.r0 - 3, s.cornice.radius, top, C.white);
-    band(writer, 'stone', 72, s.cornice.radius, y, s.cornice.radius, top, C.white);
-    annulus(writer, 'stone', 72, s.arcade.infill, s.cornice.radius, y, C.soffit, true);
+    annulus(writer, 'stone', 90, s.drum.r0 - 3, shape.brim, top, C.white);
+    band(writer, 'stone', 90, shape.brim, y, shape.brim, top, C.white);
+    annulus(writer, 'stone', 90, shape.infill, shape.brim, y, C.soffit, true);
   },
   'drum-core'({ s, C, writer }) {
     // the glass core inside the strut cone: dark, with floor bands
@@ -384,7 +413,14 @@ export function compileAssembly(plan, writer) {
   const missing = [...new Set(plan.placements.map((p) => p.module))].filter((id) => !MODULES[id]);
   if (missing.length) throw new Error(`assembly: no builder for ${missing.join(', ')}`);
   if (plan.diagnostics.duplicateSurfaceOwners.length) throw new Error(`assembly: duplicate owners ${plan.diagnostics.duplicateSurfaceOwners.join(', ')}`);
-  const ctx = { s, C, writer };
+  const n9 = s.points;
+  const shape = {
+    podium: star(n9, s.podium.tip, s.podium.valley),
+    ring: star(n9, s.arcade.tip, s.arcade.valley),
+    infill: star(n9, s.arcade.tip - s.arcade.inset, s.arcade.valley - s.arcade.inset),
+    brim: star(n9, s.cornice.tip, s.cornice.valley),
+  };
+  const ctx = { s, C, writer, shape };
   for (const p of plan.placements) {
     usage[p.module] = (usage[p.module] ?? 0) + 1;
     MODULES[p.module](ctx, p);
@@ -406,7 +442,20 @@ export function compileAssembly(plan, writer) {
   contract.range('brim / height (P1 0.22, P2 0.28)', s.arcade.top / s.height, 0.19, 0.29);
   contract.range('eave valleys / height (P1 0.47, P2 0.49)', R.valley / s.height, 0.42, 0.51);
   contract.range('gold roof top / height (P1 0.69, P2 0.79)', R.top / s.height, 0.65, 0.8);
-  contract.range('eave tip radius / cornice radius (P1 0.69, P2 0.67)', R.rTip / s.cornice.radius, 0.62, 0.76);
+  contract.range('eave tip radius / mean brim radius (P1 0.69, P2 0.67)', R.rTip / ((s.cornice.tip + s.cornice.valley) / 2), 0.62, 0.76);
+  contract.range('brim star: tip / valley (model, estimated 1.35)', s.cornice.tip / s.cornice.valley, 1.2, 1.5);
+  contract.is('columns per point of the star (symmetry)', s.arcade.columns % s.points, 0);
+  // every pyramid's base stays on the brim
+  let worst = Infinity;
+  for (let k = 0; k < s.points; k++) {
+    const a = (k / s.points) * Math.PI * 2;
+    for (const [cu, cv] of [[-1, 1], [1, 1]]) {
+      const x = Math.sin(a) * s.pyramid.radius + (Math.cos(a) * cu + Math.sin(a) * cv) * (s.pyramid.base / 2);
+      const z = Math.cos(a) * s.pyramid.radius + (-Math.sin(a) * cu + Math.cos(a) * cv) * (s.pyramid.base / 2);
+      worst = Math.min(worst, shape.brim(Math.atan2(x, z)) - Math.hypot(x, z));
+    }
+  }
+  contract.min('pyramid corners inside the brim edge (m)', worst, 0.5);
   contract.near('roof radius 61 m up (P1: 19.7 m)', valleyAt(60.7), 19.7, 2.5);
   contract.near('roof radius 73 m up (P1: 7.4 m)', valleyAt(73), 7.4, 1.5);
   contract.max('triangles', Object.values(triangles).reduce((a, b) => a + b, 0), 14000);

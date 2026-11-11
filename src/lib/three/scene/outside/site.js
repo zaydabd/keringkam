@@ -69,7 +69,7 @@ export const SITE = {
   // north landing on the far bank behind the trees, left of the Assembly building, so the deck
   // does not cross in front of it (R3). About 286 m along the deck.
   bridge: [[-230, -95], [-50, -150], [-22, -140], [10, -200]],
-  assembly: { x: 50, z: -361 }, // bearing +8, 360 m: the right of the window, as in R3, with the whole arcade (radius 62 m, from photos) inside the opening
+  assembly: { x: 52, z: -381 }, // bearing +8, 380 m: the right of the window, as in R3, with the whole star-shaped brim (points 72 m out) inside the opening
   skyline: { z: -470, x0: -70, x1: 75, count: 16 }, // between the bridge towers and the Assembly building (R3)
   boats: [
     { x: -6.5, z: -40, ry: 0.3 }, // the near boat, heading right (R3)

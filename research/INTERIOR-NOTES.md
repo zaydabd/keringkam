@@ -249,9 +249,9 @@ Two photos supplied by the user: P1 a front view from the river, P2 a raised vie
 
 | Part | Photos | Model |
 |---|---|---|
-| Arcade | white "tree" columns that split halfway up; each arm reaches the brim two bays away, so neighbouring arms cross (interlaced pointed arches, the point about two thirds up); the arms flare out to carry the brim; dark red-brown infill with floor bands | 42 columns on a 57 m ring, split at 50% of the height, quarter-ellipse arms reaching two bays and bowing 5.5 m out; a thin mullion per bay up to the crossing; infill on a 54.5 m ring, 3 floors; 0-26 m |
-| Brim | one thin white slab well past the columns. From the river its near edge looks higher than its sides, which can read as a second ring | radius 66 m, 1.3 m thick |
-| Pyramids | nine big gold pyramids on the brim, one front and centre | 9 at the star's points, 25 m square, 10.5 m tall, centred 45 m out |
+| Arcade | white "tree" columns that split halfway up; each arm reaches the brim two bays away, so neighbouring arms cross (interlaced pointed arches, the point about two thirds up); the arms flare out to carry the brim; dark red-brown infill with floor bands | 45 columns (5 per point) on a shallow star (63 m at the points, 53 m between), split at 50% of the height; quarter-ellipse arms reach two bays and flare out to 1.5 m inside the brim's edge, far out under each point; a thin mullion per bay up to the crossing; infill 2.5 m inside the columns, 3 floors; 0-26 m |
+| Brim | one thin white slab well past the columns. From the river its near edge looks higher than its sides, which can read as a second ring. A scale model (TVS) shows its plan: a deep nine-pointed star | star with points 76 m out and valleys 56 m, 1.3 m thick |
+| Pyramids | nine big gold pyramids, one on each point of the brim, the white tip running out beyond it; one front and centre | 24 m square, 10.5 m tall, centred 47 m out; the contract checks every corner stays on the brim |
 | Strut cone | an inverted cone of crossing white struts round a dark core | 36 + 36 struts from r 27 m (27 m up) to r 35 m (49 m up) |
 | Roof | a folded plate: 18 folds running from the eave all the way up to the spire, tips hanging down and out at the eave inside a grey zigzag fascia, concave | valleys r 37 m at 51 m, tips r 45 m and 3.5 m lower, valley profile r = 31.5 (1-f)^2 + 5.5 (checked against P1 at 61 m and 73 m); fold depth 22% of the radius at the eave, 12% at the top; 2.2 m fascia; gold to 82 m |
 | Spire | a ribbed bronze cone with two rings, then a needle | 82-100 m, then to 114 m |
@@ -259,8 +259,8 @@ Two photos supplied by the user: P1 a front view from the river, P2 a raised vie
 
 - The gold is authored deep (0.92, 0.63, 0.08) and plain (the corrugated-zinc texture made it read as thatch); alternate facets are a shade darker so the ink pass draws the folds.
 - The tree clump on the far bank moved 12 m left so it stands between the bridge and the building (R3) instead of in front of the arcade.
-- Placed at bearing +8°, 360 m from the window shot, so the 132 m brim fits inside the window opening.
-- 7,854 triangles (contract limit 14,000). The contract checks the height, nine pyramids, and five ratios measured on the photos.
+- Placed at bearing +8°, 380 m from the window shot, so the star-shaped brim fits inside the window opening.
+- 8,958 triangles (contract limit 14,000). The contract checks the height, nine pyramids, and five ratios measured on the photos.
 - The two photos disagree on the upper heights by up to 10 m (P1 from low down, P2 from above); the model sits between them.
 
 ### Camera shots
