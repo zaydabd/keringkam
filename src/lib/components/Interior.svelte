@@ -5,9 +5,12 @@
 
   let canvas;
   let ready = $state(false);
+  let shot = $state('seat');
+  let scene;
 
   onMount(() => {
-    const scene = createInterior(canvas, { onReady: () => (ready = true) });
+    scene = createInterior(canvas, { onReady: () => (ready = true), onShot: (name) => (shot = name) });
+    shot = scene.getShot();
     return () => scene.destroy();
   });
 </script>
@@ -20,9 +23,14 @@
     <nav><a href="#/">Gallery</a><a href="#/veranda">Veranda</a></nav>
   </header>
 
+  <button class="shot" type="button" onclick={() => scene?.setShot(shot === 'seat' ? 'window' : 'seat')}>
+    {shot === 'seat' ? 'Look out of the window' : 'Back to the seat'}
+  </button>
+
   <p class="credit">
-    A hand-drawn style rendition of a sitting room in a Sarawak Malay house, after a reference photo. Sizes are
-    estimated.
+    A hand-drawn style rendition of a sitting room in a Sarawak Malay house, after a reference photo, with the
+    Sarawak River, the Darul Hana Bridge and the State Legislative Assembly building outside. Sizes and positions
+    are estimated; it is not a real viewpoint.
   </p>
 
   {#if !ready}
@@ -83,6 +91,27 @@
   nav a:hover {
     opacity: 1;
   }
+  .shot {
+    position: absolute;
+    right: 32px;
+    bottom: 64px;
+    padding: 10px 18px;
+    border: 1px solid rgba(246, 234, 210, 0.7);
+    border-radius: 999px;
+    background: rgba(58, 36, 24, 0.55);
+    color: #f6ead2;
+    font: inherit;
+    font-size: 13px;
+    letter-spacing: 0.04em;
+    cursor: pointer;
+  }
+  .shot:hover {
+    background: rgba(58, 36, 24, 0.8);
+  }
+  .shot:focus-visible {
+    outline: 2px solid #f6ead2;
+    outline-offset: 3px;
+  }
   .credit {
     position: absolute;
     left: 32px;
@@ -112,6 +141,10 @@
     .credit {
       left: 20px;
       right: 20px;
+    }
+    .shot {
+      right: 20px;
+      bottom: 84px;
     }
   }
 </style>

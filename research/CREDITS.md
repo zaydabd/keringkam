@@ -112,16 +112,15 @@ Composites of CC BY-SA photos must themselves be shared under CC BY-SA with cred
 
 # Interior: the view outside the windows (2026-11-11)
 
-`src/lib/three/scene/outside.js` is drawn after K1, K2 and K5 above (Kampung Bako). No photo is copied into the scene: the houses, boats, river and hill are built and painted in code.
+`src/lib/three/scene/outside/` is drawn after **R3**, a painting the user supplied (a window view of the Sarawak River at Kuching). Its source and licence are unknown, so it is not in the repo. Nothing is copied from it into the scene: the bridge, the building, the river and the trees are built and painted in code.
 
 Facts used, with their sources:
 
 | Fact | Source |
 |---|---|
-| Kampung Bako: fishing village, mainly Malay, established mid-1850s, named after mangrove | [emily2u.com](https://www.emily2u.com/bako-heritage-tourism-kuching-sarawak/) |
-| Sarawak Malay house: on stilts, reached by a staircase, windows down to floor level | [patrickcomerford.com](https://www.patrickcomerford.com/2024/11/a-morning-visiting-sarawak-cultural.html) |
+| Darul Hana Bridge: S-shaped cable-stayed footbridge, opened November 2017, 276 m long | [Wikipedia](https://en.wikipedia.org/wiki/Darul_Hana_Bridge) |
+| Darul Hana Bridge: about 335 m long (a different figure) | [KTA consulting engineers](https://ktas.com.my/?p=531) |
+| Assembly building: 114 m tall, nine-pointed-star plan, umbrella roof, on the river bank in Petra Jaya | [Wikipedia](https://en.wikipedia.org/wiki/New_Sarawak_State_Legislative_Assembly_Building) |
+| Sarawak Malay house: on stilts, windows down to floor level | [patrickcomerford.com](https://www.patrickcomerford.com/2024/11/a-morning-visiting-sarawak-cultural.html) |
 
-The zinc roofs, painted walls, boats, mangrove and hill are read from the photos themselves.
-
-Not sourced (design choices): the plants around the house, and every position and size. See `INTERIOR-NOTES.md`, "Outside the windows".
-
+Not sourced (design choices): every position, and every size other than the bridge's length and tower height and the building's height. It is not a real viewpoint. See `INTERIOR-NOTES.md`, "Outside the windows".

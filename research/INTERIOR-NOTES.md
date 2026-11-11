@@ -168,44 +168,64 @@ Every signal has one producer; every pass has a way to switch it off.
 
 ## Outside the windows (branch `window-view`)
 
-`src/lib/three/scene/outside.js` replaces the old jungle backdrop (`landscape.js`, still used by the veranda scene) for `#/interior`.
+`src/lib/three/scene/outside/` draws what is outside the windows of `#/interior`. The old jungle backdrop (`landscape.js`) is still used by the veranda scene.
 
-### What it shows, and why
+### Reference and facts
 
-A Sarawak Malay river kampung, seen from a house on stilts.
+- **R3**: a painting supplied by the user, a view from a window over the Sarawak River at Kuching. Source and licence unknown, so it is **not in the repo**. It gives the view and its look; the room keeps its own windows (R1).
+- **What R3 shows**: a wide muddy river with two roofed boats; the Darul Hana Bridge on the left; trees and a small skyline in the middle; the State Legislative Assembly building with its gold roof on a green lawn on the right; blue sky with cumulus. (R3 also has a cat on a wall and a cloth on the sill; the user did not want the cat, and the sill and casement belong to another window.)
+- **Darul Hana Bridge**: an S-shaped, cable-stayed footbridge over the Sarawak River, opened in November 2017. Its total length is 276 m according to [Wikipedia](https://en.wikipedia.org/wiki/Darul_Hana_Bridge) and about 335 m according to its [consulting engineers](https://ktas.com.my/?p=531); its towers are given as 48 m or 50 m. The model is 277.9 m long with 48 m towers.
+- **Assembly building** (Dewan Undangan Negeri Sarawak): 114 m tall, on a nine-pointed-star plan, with an umbrella ("payung negara") roof, on the river bank in Petra Jaya ([Wikipedia](https://en.wikipedia.org/wiki/New_Sarawak_State_Legislative_Assembly_Building)). The model keeps the height and the nine points; every other size is estimated from R3.
+- **Not a real viewpoint.** The Assembly building is on the north bank, so R3's viewpoint looks like the south bank. Whether a Malay house stands there was not checked. Every position in `SITE` is a design choice, made so that the bridge towers fall in the left and middle windows and the Assembly building in the right one when seen from the seat.
+- The first version of this branch (a river kampung after the Commons photos of Kampung Bako) was replaced at the user's request.
 
-- **Source photos** (Wikimedia Commons, credited in `CREDITS.md`, contact sheet `sarawak-kampung.jpg`): K1, K2 and K5, all of Kampung Bako. They show houses on stilts with painted board walls and corrugated zinc roofs in rust red, blue, green and bare grey; a wide, muddy tidal river with small painted boats, some with a canopy; plank walkways; mangrove on the far bank; a forested hill behind; cumulus clouds.
-- **Kampung Bako** is a fishing village about 30 km from Kuching, established in the mid-1850s, with a mainly Malay population. It is named after the mangrove ("bakau", locally "bako") ([emily2u.com](https://www.emily2u.com/bako-heritage-tourism-kuching-sarawak/)).
-- **Stilts and tall windows.** The Malay house at the Sarawak Cultural Village "is built on stilts and is reached by a staircase", and "the windows are down to floor level to allow in the breeze" ([patrickcomerford.com](https://www.patrickcomerford.com/2024/11/a-morning-visiting-sarawak-cultural.html)). The room's floor is 1.85 m above the yard.
-- **Not from a source: design choices.**
-  - R1 does not show what is outside its windows (they are blown out), and it is not confirmed where R1 was taken. If it is the Sarawak Cultural Village, the real view would be that village's man-made lake and Mount Santubong, not a river kampung.
-  - No source was found for which plants stand around a Sarawak Malay house. The banana plants, coconut palms and fruit trees are a choice; R2 (the painting) shows a palm and soft green foliage in its windows.
-  - Every position, size and colour in `SITE` is estimated or chosen. It is a rendition of this kind of place, not a survey of Kampung Bako.
-- Kept out: K7–K14 (Melanau areas, or Brunei) and H1–H6 (Orang Ulu and Bidayuh houses).
+### Visual contract (R3 view)
 
-### Layout (`SITE`, metres; the window wall is at z = −5.5)
+- **Identity:** the leaning bridge towers with their fans of cables; the gold umbrella roof over a ring of tall pointed ribs; a tan river; fresh green banks; blue sky with white clouds. Clear and colourful, but still paint: no ink lines outside, soft edges, the same paper and grade as the room.
+- **Invariants** (each has a capture or a check):
+  - The building and the bridge read as untextured grey and as a pure outline (`outside-flat`, `outside-silhouette`).
+  - The bridge is supported: tower feet below the water, deck ends on both banks, every cable ending on the deck edge (contract in `bridge.js`; it throws if not).
+  - The building's plan has no surface claimed twice, and all its modules have builders (contract in `assembly.js`).
+  - From the seat, each window shows its landmark; from the window shot, the whole view shows.
+  - The outside costs under 40,000 triangles and 10 draw calls (checked at build; it throws if not).
+- **Deliberate divergences from R3:** the room's tall lattice windows instead of a casement; no cat, no cloth on the sill; distances are real-sized, so the far bank is smaller in the frame than R3 paints it.
 
-| Distance from the window wall | What |
-|---|---|
-| 1–3 m | banana plants under the windows |
-| 4–18 m | yard; fruit trees; five neighbouring houses on stilts |
-| 17–18 m | coconut palms along the bank; a plank jetty running 13 m out |
-| 18.5–118 m | the river (1.15 m below the yard), four boats |
-| 118–130 m | far bank: thirteen houses over the mud, mangrove behind |
-| 230 m | forested hill, 20–55 m high |
+### Parts, and the skill each follows
 
-- From the seat (the design view), the open part of each window only shows what is above eye level: the hill, palm crowns, banana leaves, tree crowns, roofs and sky. The middle window is kept clear of houses so it looks to the hill.
-- The river, boats and jetty show through the lattice, and in full from the window (`eye=-0.5,1.55,-5.3&pitch=3&fov=64`).
+| Part | File | Skill | How |
+|---|---|---|---|
+| Assembly building | `assembly.js` | `threejs-procedural-architecture` | Settings → a plan (5 tiers, 85 module placements, checked for double ownership) → module builders in the frame of their face → triangles per slot (gold, rib, glass, stone). 5,208 triangles. |
+| Bridge | `bridge.js` | `threejs-procedural-geometry` | One sweep for the deck along an S-curve, two for the rails; each tower a tapered loft on a pier; 28 cables from the same curve as the deck. Nine measured checks. 2,616 triangles. |
+| River | `water.js` | `threejs-water-optics` | The "normal-only wave bundle" tier: a flat plane, four wave bands, Fresnel mix of water colour and an analytic mirror of the sky, each band switched off below a pixel. |
+| Trees | `trees.js` | `threejs-procedural-vegetation` | A species table for three branch levels, growth from a queue, children in stratified slots with shuffled directions, leaves along every twig with rounded normals. Two tiers: near (832 triangles) and far (448). |
+| Haze and sky | `index.js`, `paintSoftSky` | `threejs-atmosphere-aerial-perspective` | Small-scene tier: distance fog. The fog, the sky's horizon and the river's mirror of the sky share one colour and one brightness. |
+| Camera | `SHOTS` in `interior.js` | `threejs-camera-direction` | Two authored shots, each with a lens, pointer limits and exposure compensation. A move is one eased interpolation of position, direction and lens (2.2 s), with nothing smoothed on top. |
+| Banks, boats, skyline | `index.js` | – | Banks are profiles swept along the river; boats are lofted hulls with a canopy; the skyline is plain boxes far behind the trees. |
 
-### How it is drawn
+Stated limits, as the skills require:
 
-- **One mesh per material** (11 meshes): ground, water, hill, wall (boards, posts, boats, jetty), roof (zinc), trunk, frond, banana, crown, cards, sky. Colours are per-part vertex colours over painted textures (`paintGround`, `paintWater`, `paintCanopy`, `paintZinc`, `paintSoftSky`).
-- **Layer 1:** no ink outline. It reads as a painted backdrop, as R2's windows do.
-- **Haze** (after `threejs-atmosphere-aerial-perspective`, small-scene tier: an analytic distance fog). One colour is shared by the fog and the sky's horizon. The fog starts 330 m behind the eye and ends at 620 m, so things at the window are about a third washed and the hill about two thirds.
-- **Outdoor key** (`OUTSIDE_KEY = 0.85`). The room is exposed for shade; sunlit paint outside would burn out. The outdoor colours are keyed down by this one factor so they keep their colour. This is a painter's choice, not physics.
-- **Leaves** use a soft green ramp, so their shaded side stays green against the light.
-- **Budget.** 12,408 triangles, against about 424,000 for the old backdrop.
-- `off=outside` hides it; `seed=n` changes its painted textures and small placements.
+- **Water.** The surface is flat (no crest parallax). It is opaque, as silt-laden water is. It mirrors the sky's gradient only: not the clouds, the bridge or the far bank; the pale patches that suggest cloud reflections are painted in its texture. The Fresnel curve is scaled to 0.32, by eye, to keep the water tan.
+- **Clouds.** The pack's cloud skill is for volumetric weather clouds. These are painted on the sky dome, as R3's are.
+- **Trees.** Three branch levels instead of the skill's four, single leaf cards instead of crossed pairs, a low-poly crown volume behind the cards, and no wind.
+- **Outdoor key.** The room is exposed for shade, so sunlit paint outside would burn out. Outdoor colours are keyed down (`OUTSIDE_KEY = 0.3` for surfaces, `SKY_KEY = 0.3` for the sky, fog and water mirror). This is a painter's choice, not physics. The outdoor colours are also authored more saturated than they should look, because the room's grade removes about a third of the colour.
+- **Building shell.** The star prism behind the ribs is a plain dark surface standing in for glass; the ribs are boxes set proud of it, not openings cut in a wall.
+
+### Camera shots
+
+| Shot | Eye | Lens (vertical) | Pointer may turn it | Exposure |
+|---|---|---|---|---|
+| `seat` | 0, 0.9, 0 (R1) | 46.8° on wide screens | ±3.4° / ±1.7° | metered |
+| `window` | −0.475, 1.5, −4.62 | 54° (68° on tall screens) | ±20.6° / ±5.7° | metered + 1.3 stops |
+
+- The button in `Interior.svelte` moves between them; `view=window` starts at the window.
+- Exposure is metered from the destination frame when the move starts and then eases towards it (faster towards bright than towards dark), so the light changes during the move.
+- From the seat, the open part of each window only shows what is above eye level: tower tops, cables, tree crowns, the skyline, the building's ribs. The river and boats show through the lattice.
+
+### Debug views
+
+`debug=flat`, `debug=silhouette` (outside as outline), `debug=water-normal`, `water-fresnel`, `water-filter`, `off=outside`, `seed=n` (trees, skyline, clouds, painted textures).
+
+OUTSIDE_SIGNOFF
 
 ## Open issues
 - [ ] R2 look: see "Known defects" in the sign-off record above.

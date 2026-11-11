@@ -25,11 +25,22 @@ const VIEWS = {
   'look-left': ['look=-1,0', WIDE],
   'look-right': ['look=1,0', WIDE],
   'off-outside': ['off=outside', WIDE],
-  // from the middle window, looking out: the yard, the river and the far bank
-  'window-out': ['eye=-0.5,1.55,-5.3&pitch=3&fov=64', WIDE],
-  'window-left': ['eye=-0.5,1.55,-5.3&pitch=3&fov=64&yaw=-42', WIDE],
-  'window-right': ['eye=-0.5,1.55,-5.3&pitch=3&fov=64&yaw=42', WIDE],
-  'window-down': ['eye=-0.5,1.7,-5.35&pitch=-16&fov=64', WIDE],
+  // the window shot: standing at the middle window, looking out
+  window: ['view=window&look=0,0', WIDE],
+  'window-left': ['view=window&look=-1,0', WIDE],
+  'window-right': ['view=window&look=1,0', WIDE],
+  'window-phone': ['view=window&look=0,0', PHONE],
+  'window-seed1': ['view=window&look=0,0&seed=1', WIDE],
+  // the checks the architecture skill asks of a building: untextured, and outline only
+  'outside-flat': ['view=window&look=0,0&debug=flat', WIDE],
+  'outside-silhouette': ['view=window&look=0,0&debug=silhouette&off=ink,pigment,grade', WIDE],
+  'assembly-close': ['eye=-40,25,-200&yaw=37&pitch=16&fov=40&look=0,0', WIDE],
+  'assembly-close-flat': ['eye=-40,25,-200&yaw=37&pitch=16&fov=40&look=0,0&debug=flat', WIDE],
+  'bridge-close': ['eye=-112,10,-58&yaw=32&pitch=13&fov=52&look=0,0', WIDE],
+  // the river's wave model: its normal, its mirror strength, and what the pixel filter keeps
+  'water-normal': ['view=window&look=0,0&debug=water-normal&off=ink,pigment,grade', WIDE],
+  'water-fresnel': ['view=window&look=0,0&debug=water-fresnel&off=ink,pigment,grade', WIDE],
+  'water-filter': ['view=window&look=0,0&debug=water-filter&off=ink,pigment,grade', WIDE],
 };
 const QUICK = ['final', 'nopost', 'phone'];
 
@@ -49,7 +60,7 @@ const QUICK = ['final', 'nopost', 'phone'];
     await page.goto(`http://localhost:5173/?${query || 'debug=final'}#/interior`, { waitUntil: 'domcontentloaded' });
     // the scene reports metrics after 45 frames; that is also "warm and steady"
     await page.waitForFunction(() => window.__interiorMetrics?.done, null, { timeout: 150000 }).catch(() => log.push('no metrics after 150 s'));
-    await page.evaluate(() => document.querySelectorAll('header,.credit').forEach((e) => (e.style.display = 'none')));
+    await page.evaluate(() => document.querySelectorAll('header,.credit,.shot,.veil').forEach((e) => (e.style.display = 'none')));
     await page.screenshot({ path: `${out}/v-${name}.png` });
     console.log(`${name}: ${[...new Set(log)].join(' | ')}`);
     await page.close();

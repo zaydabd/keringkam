@@ -759,14 +759,16 @@ export function paintWater(seed = 22) {
   const H = 512;
   const [c, g] = canvas(W, H);
   const grad = g.createLinearGradient(0, H, 0, 0); // canvas bottom = near bank (v = 0)
-  grad.addColorStop(0, '#a3906c'); // wet mud at the near edge
-  grad.addColorStop(0.08, '#b5a685');
-  grad.addColorStop(0.5, '#c9c2aa');
-  grad.addColorStop(0.86, '#bdbfa8');
-  grad.addColorStop(0.93, '#7f9272'); // the far trees, mirrored
-  grad.addColorStop(1, '#6c8364');
+  grad.addColorStop(0, '#a89878'); // wet mud at the near edge
+  grad.addColorStop(0.1, '#c4b89c');
+  grad.addColorStop(0.55, '#d8d0bc');
+  grad.addColorStop(0.9, '#c8c6b2');
+  grad.addColorStop(0.97, '#93a384'); // the far bank, mirrored
+  grad.addColorStop(1, '#84987a');
   g.fillStyle = grad;
   g.fillRect(0, 0, W, H);
+  // broad pale patches: the clouds, mirrored and smeared
+  for (let i = 0; i < 14; i++) blot(g, W, r() * W, H * (0.15 + r() * 0.7), 60 + r() * 110, 14 + r() * 26, '250,246,234', 0.25 + r() * 0.3);
   // long horizontal strokes: ripples and sheen
   for (let i = 0; i < 150; i++) {
     const y = r() * H;
@@ -849,41 +851,55 @@ export function paintZinc(seed = 24) {
  * the horizon, with a few soft cumulus (white tops, faint lilac bases). Equirectangular: the
  * upper half of the canvas is the sky, the lower half takes the haze colour.
  */
-export function paintSoftSky(seed = 25, { haze = '244,250,234' } = {}) {
+export function paintSoftSky(seed = 25, { haze = '244,250,234', vivid = false } = {}) {
   const r = rng(seed);
   const W = 2048;
   const H = 1024;
   const [c, g] = canvas(W, H);
   const sky = g.createLinearGradient(0, 0, 0, H / 2);
-  sky.addColorStop(0, '#a9c8e4');
-  sky.addColorStop(0.5, '#d6e6ee');
-  sky.addColorStop(0.8, '#eaf2ee');
+  // vivid (R3): a strong, clear blue that holds almost to the horizon. It is painted more
+  // saturated than it should look: the room's grade takes about a third of the colour out again.
+  sky.addColorStop(0, vivid ? '#1f6fd6' : '#a9c8e4');
+  sky.addColorStop(vivid ? 0.6 : 0.5, vivid ? '#3f8fe6' : '#d6e6ee');
+  sky.addColorStop(vivid ? 0.93 : 0.8, vivid ? '#8cc4f0' : '#eaf2ee');
   sky.addColorStop(1, `rgb(${haze})`);
   g.fillStyle = sky;
   g.fillRect(0, 0, W, H / 2);
   g.fillStyle = `rgb(${haze})`;
   g.fillRect(0, H / 2, W, H / 2);
-  const puff = (x, y, rad, rgb, a) => {
+  // A puff with a soft edge; `core` is how far out it stays solid (watercolour clouds have
+  // a fairly firm edge on the lit side).
+  const puff = (x, y, rad, rgb, a, core = 0) => {
     wrapX(W, (dx) => {
       const grad = g.createRadialGradient(x + dx, y, 0, x + dx, y, rad);
       grad.addColorStop(0, `rgba(${rgb},${a})`);
-      grad.addColorStop(0.6, `rgba(${rgb},${a * 0.55})`);
+      grad.addColorStop(Math.max(0.01, core), `rgba(${rgb},${a})`);
+      grad.addColorStop(core + (1 - core) * 0.6, `rgba(${rgb},${a * 0.5})`);
       grad.addColorStop(1, `rgba(${rgb},0)`);
       g.fillStyle = grad;
       g.fillRect(x + dx - rad, y - rad, rad * 2, rad * 2);
     });
   };
-  for (let n = 0; n < 26; n++) {
-    const cx = r() * W;
-    const base = H / 2 - 40 - r() * 190; // between about 7 and 40 degrees up
-    const width = 70 + r() * 150;
-    for (let i = 0; i < 9; i++) {
+  const count = vivid ? 20 : 26;
+  for (let n = 0; n < count; n++) {
+    const cx = ((n + r()) / count) * W; // spread round the sky, so blue shows between them
+    const base = H / 2 - 36 - r() * (vivid ? 150 : 190); // between about 6 and 33 degrees up
+    const width = (vivid ? 50 : 70) + r() * (vivid ? 120 : 150);
+    const puffs = [];
+    for (let i = 0; i < (vivid ? 11 : 9); i++) {
       const t = r();
       const hump = Math.sin(Math.PI * t);
-      const rad = 16 + hump * width * (0.2 + r() * 0.12);
-      const x = cx + (t - 0.5) * width;
-      puff(x, base + 6, rad * 0.8, '190,192,214', 0.07); // faint lilac base
-      puff(x - 3, base - rad * 0.55, rad, '255,253,244', 0.6); // lit top
+      puffs.push([cx + (t - 0.5) * width, 12 + hump * width * (0.16 + r() * 0.1)]);
+    }
+    if (vivid) {
+      // shaded underside first (lilac-grey, a little lower), then the lit body on top of it
+      for (const [x, rad] of puffs) puff(x + 4, base + rad * 0.15, rad * 0.95, '150,156,190', 0.5, 0.35);
+      for (const [x, rad] of puffs) puff(x - 2, base - rad * 0.5, rad * 0.92, '255,253,246', 0.95, 0.55);
+    } else {
+      for (const [x, rad] of puffs) {
+        puff(x, base + 6, rad * 0.8, '190,192,214', 0.07);
+        puff(x - 3, base - rad * 0.55, rad, '255,253,244', 0.6);
+      }
     }
   }
   const t = texture(c, [1, 1], false);

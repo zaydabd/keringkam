@@ -17,9 +17,11 @@
 //   scene (linear HDR) -> ink (toon.js) -> pigment (watercolour.js) -> finish (exposure from
 //   meter.js, the one tone map, sRGB, grade).
 // Inspection, all as URL parameters before the #:
-//   debug = nopost | flat | paint-pigment | paint-edge | paint-bleed | gloss | meter
+//   debug = nopost | flat | silhouette | paint-pigment | paint-edge | paint-bleed | gloss | meter
+//           | water-normal | water-fresnel | water-filter
 //   off   = ink, pigment, grade, outside (comma-separated: switches those off)
 //   cam   = design (default) | near | far      look = x,y (fixes the pointer sway, -1..1)
+//   view  = seat (default) | window (start in that camera shot; SHOTS below)
 //   seed  = n (moves the pigment field and the painted textures)
 //   eye = x,y,z   yaw = deg   pitch = deg   fov = deg   (a free camera, for close-ups)
 
@@ -30,7 +32,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { toonGradient, createOutline } from './toon.js';
 import { paintPlanks, paintLattice, paintCurtain, paintCloth, paintDecor, paintGlow } from './paint.js';
-import { createOutside } from './outside.js';
+import { createOutside, SKY_KEY } from './outside/index.js';
 import { PIGMENT_SHADER, FINISH_SHADER } from './watercolour.js';
 import { createMeter } from './meter.js';
 
@@ -642,7 +644,17 @@ function buildContactShadows(texture) {
 }
 
 // ---------------------------------------------------------------------------------------------
-export function createInterior(canvas, { onReady } = {}) {
+// Camera shots (after .claude/skills/threejs-camera-direction): each is an authored frame with its
+// own lens, its own limits on how far the pointer may turn the view, and its own exposure
+// compensation. `seat` is the design view (R1). `window` stands at the middle window and looks
+// out over the lattice, framed by the curtains (R3).
+export const SHOTS = {
+  seat: { look: [0.06, 0.03], ev: 0 }, // eye, pitch and lens come from PLAN.camera
+  window: { eye: [-0.475, 1.5, -4.62], pitch: 2, fov: 54, look: [0.36, 0.1], ev: 1.3 }, // +1.3 stops: outdoors is meant to read as full daylight
+};
+const SHOT_MOVE_SECONDS = 2.2;
+
+export function createInterior(canvas, { onReady, onShot } = {}) {
   const params = new URLSearchParams(window.location.search);
   const debug = params.get('debug');
   const off = new Set((params.get('off') ?? '').split(',').filter(Boolean));
@@ -669,7 +681,7 @@ export function createInterior(canvas, { onReady } = {}) {
   const EXPOSURE_EV = 0; // stops of compensation on top of the metered exposure
 
   const scene = new THREE.Scene();
-  const HAZE = { near: -330, far: 620 }; // metres: about a third washed at the window, two thirds at the hill
+  const HAZE = { near: -100, far: 1500 }; // metres: clear air (R3). The Assembly, 330 m off, is about a sixth washed; the skyline a third
   const BRIGHT = '#f4faea'; // daylight in the windows: pale, a little green from the garden (R2)
   // One light level for everything that gives off light (lamps, daylight colour, glowing cloth,
   // painted reflections). It is set so the metered exposure comes out near 1 in the design view;
@@ -677,15 +689,14 @@ export function createInterior(canvas, { onReady } = {}) {
   const LIGHT = 1.75;
   // The room is exposed for shade, so sunlit paint outside would burn out to white. The outdoor
   // paint is keyed down by this much instead, as a painter would, so it keeps its colour.
-  const OUTSIDE_KEY = 0.85;
+  const OUTSIDE_KEY = 0.3;
   scene.background = new THREE.Color(BRIGHT).multiplyScalar(LIGHT);
-  // Daylight haze, for the outside only (the room's materials have fog off). It starts well behind
-  // the eye, so even the banana leaves at the window are washed a little (the glare of looking
-  // out of a dim room), and thickens to the hill. The sky's horizon is painted in the same colour.
+  // Daylight haze, for the outside only (the room's materials have fog off). One colour is shared
+  // by this fog, the sky's horizon and the river's reflection of the sky.
   scene.fog = new THREE.Fog(BRIGHT, HAZE.near, HAZE.far);
-  scene.fog.color.multiplyScalar(LIGHT);
+  scene.fog.color.multiplyScalar(LIGHT * SKY_KEY); // as bright as the sky's horizon, which it must match
   const C = PLAN.camera;
-  const camera = new THREE.PerspectiveCamera(C.fov, C.aspect, 0.2, 800); // at 0.05 the big ground plane outside drew over the near floor on tall screens
+  const camera = new THREE.PerspectiveCamera(C.fov, C.aspect, 0.2, 1600); // at 0.05 the big ground plane outside drew over the near floor on tall screens
 
   // Light: sun behind the window wall, high enough that the patches fall just inside the windows.
   const sun = new THREE.DirectionalLight('#ffe6c4', 3.2 * LIGHT);
@@ -782,11 +793,17 @@ export function createInterior(canvas, { onReady } = {}) {
   const contact = buildContactShadows(textures.blob);
   scene.add(contact.group);
 
-  // Outside: a river kampung (outside.js). ?off=outside hides it (the windows then show plain daylight).
-  const landscape = createOutside({ gradientMap, seed, haze: BRIGHT, light: LIGHT, key: OUTSIDE_KEY });
+  // Outside: the Sarawak River at Kuching (outside/index.js). ?off=outside hides it (the windows
+  // then show plain daylight). ?debug=flat and ?debug=silhouette also apply to it.
+  const landscape = createOutside({ gradientMap, seed, fog: scene.fog, haze: BRIGHT, light: LIGHT, key: OUTSIDE_KEY, sun: sun.position.clone().sub(sun.target.position), mode: debug === 'flat' || debug === 'silhouette' ? debug : undefined });
   landscape.group.visible = !off.has('outside');
+  landscape.setWaterView({ 'water-normal': 1, 'water-fresnel': 2, 'water-filter': 3 }[debug] ?? 0);
   scene.add(landscape.group);
-  if (debug) console.info('outside', JSON.stringify(landscape.stats));
+  if (debug) {
+    console.info('outside', JSON.stringify(landscape.stats));
+    for (const r of [landscape.reports.assembly.contract, landscape.reports.bridge.contract, landscape.reports.budget]) console.info(`contract ${r.name}: ${r.checks.map((c) => `${c.id} = ${c.value}`).join('; ')}`);
+    console.info('trees', JSON.stringify(landscape.reports.trees));
+  }
   camera.layers.enable(1);
 
   const outline = createOutline(renderer, scene, camera, { ink: PALETTE.ink, lineWidth: 1 });
@@ -813,6 +830,10 @@ export function createInterior(canvas, { onReady } = {}) {
 
   let width = 0;
   let height = 0;
+  let shot = SHOTS[params.get('view')] ? params.get('view') : 'seat';
+  const move = { t: 1, from: { position: new THREE.Vector3(), quaternion: new THREE.Quaternion(), fov: C.fov } };
+  let exposure = null; // the exposure in use; it follows exposureTarget
+  let exposureTarget = 1;
   function resize() {
     const w = canvas.clientWidth;
     const h = canvas.clientHeight;
@@ -826,10 +847,20 @@ export function createInterior(canvas, { onReady } = {}) {
     pigment.uniforms.scale.value = renderer.getPixelRatio();
     camera.aspect = w / h;
     // Keep R1's vertical view on wide screens; on narrow ones keep its horizontal view instead.
-    const hTan = Math.tan(THREE.MathUtils.degToRad(C.fov / 2)) * C.aspect;
-    camera.fov = fovParam || (camera.aspect >= C.aspect ? C.fov : Math.min(80, THREE.MathUtils.radToDeg(2 * Math.atan(hTan / camera.aspect))));
-    camera.updateProjectionMatrix();
+    if (move.t >= 1) {
+      camera.fov = shotFov(shot);
+      camera.updateProjectionMatrix();
+    }
     metered = false; // a new framing shows a different share of window and wall
+  }
+  /** The lens of a shot for the current screen shape (vertical degrees). */
+  function shotFov(name) {
+    if (name === 'seat') {
+      // Wide screens keep R1's vertical view; narrow ones keep its horizontal view instead.
+      const hTan = Math.tan(THREE.MathUtils.degToRad(C.fov / 2)) * C.aspect;
+      return fovParam || (camera.aspect >= C.aspect ? C.fov : Math.min(80, THREE.MathUtils.radToDeg(2 * Math.atan(hTan / camera.aspect))));
+    }
+    return camera.aspect >= 1 ? SHOTS[name].fov : Math.min(80, SHOTS[name].fov + 14); // a little wider on tall screens
   }
   const resizeObserver = new ResizeObserver(resize);
   resizeObserver.observe(canvas);
@@ -847,6 +878,53 @@ export function createInterior(canvas, { onReady } = {}) {
   if (eyeParam?.length === 3 && eyeParam.every(Number.isFinite)) eye.set(...eyeParam);
   if (fixedLook) pointer.set(fixedLook[0] || 0, fixedLook[1] || 0);
   const target = new THREE.Vector3();
+  // Where a shot puts the camera, with the pointer's turn added inside that shot's limits.
+  const poseCam = new THREE.PerspectiveCamera();
+  function poseOf(name, into) {
+    const sh = SHOTS[name];
+    const seat = name === 'seat';
+    const at = seat ? eye : V(...sh.eye);
+    const yaw = (seat ? yawParam : 0) - look.x * sh.look[0];
+    const pitch = THREE.MathUtils.degToRad(seat ? C.pitch : sh.pitch) + (seat ? pitchParam : 0) - look.y * sh.look[1];
+    into.position.copy(at);
+    target.set(at.x + Math.sin(yaw) * Math.cos(pitch), at.y + Math.sin(pitch), at.z - Math.cos(yaw) * Math.cos(pitch));
+    into.lookAt(target);
+  }
+  /** Meters the scene from a shot's frame and sets the exposure to move towards. */
+  function meterFor(name) {
+    poseCam.aspect = camera.aspect;
+    poseCam.fov = shotFov(name);
+    poseCam.near = camera.near;
+    poseCam.far = camera.far;
+    poseCam.layers.mask = camera.layers.mask;
+    poseCam.updateProjectionMatrix();
+    poseOf(name, poseCam);
+    poseCam.updateMatrixWorld();
+    const average = meter.measure(scene, poseCam);
+    exposureTarget = meter.exposureFor(average, EXPOSURE_EV + SHOTS[name].ev);
+    metrics.luminance = average;
+    metrics.exposure = exposureTarget;
+    if (debug) console.info('meter: average luminance', average.toFixed(4), 'exposure', exposureTarget.toFixed(3), 'shot', name);
+  }
+  // The ink and pigment passes work before the tone map: they need the exposure to judge what
+  // counts as a dark or a mid tone.
+  function applyExposure(value) {
+    finish.uniforms.toneMappingExposure.value = value;
+    outline.material.uniforms.exposure.value = value / 1.85; // 1.85: the exposure its thresholds were tuned at
+    pigment.uniforms.exposure.value = value;
+    renderer.toneMappingExposure = value;
+  }
+  /** Moves to another shot: one eased interpolation of position, direction and lens. */
+  function setShot(name, immediate = false) {
+    if (!SHOTS[name] || (name === shot && move.t >= 1)) return;
+    move.from.position.copy(camera.position);
+    move.from.quaternion.copy(camera.quaternion);
+    move.from.fov = camera.fov;
+    shot = name;
+    move.t = immediate ? 1 : 0;
+    if (width) meterFor(name); // start adapting now, so the light changes during the move, not after it
+    onShot?.(name);
+  }
   const timer = new THREE.Timer();
   let frame = 0;
   let readyCalled = false;
@@ -856,28 +934,35 @@ export function createInterior(canvas, { onReady } = {}) {
     timer.update(now);
     renderer.info.reset();
     const t0 = performance.now();
+    landscape.update(timer.getElapsed());
     const dt = Math.min(timer.getDelta(), 0.1);
     if (fixedLook) look.copy(pointer);
-    else look.lerp(pointer, 1 - Math.exp(-dt * 2));
-    const yaw = yawParam - look.x * 0.06;
-    const pitch = THREE.MathUtils.degToRad(C.pitch) + pitchParam - look.y * 0.03;
-    camera.position.copy(eye);
-    target.set(eye.x + Math.sin(yaw) * Math.cos(pitch), eye.y + Math.sin(pitch), eye.z - Math.cos(yaw) * Math.cos(pitch));
-    camera.lookAt(target);
+    else look.lerp(pointer, 1 - Math.exp(-dt * 2)); // smooths the input, not the camera
+    poseOf(shot, poseCam);
+    if (move.t < 1) {
+      // A move between shots is one interpolation and nothing else: no second smoother on top.
+      move.t = Math.min(1, move.t + dt / SHOT_MOVE_SECONDS);
+      const e = 1 - (1 - move.t) ** 1.8;
+      camera.position.lerpVectors(move.from.position, poseCam.position, e);
+      camera.quaternion.slerpQuaternions(move.from.quaternion, poseCam.quaternion, e);
+      camera.fov = THREE.MathUtils.lerp(move.from.fov, shotFov(shot), e);
+      camera.updateProjectionMatrix();
+    } else {
+      camera.position.copy(poseCam.position);
+      camera.quaternion.copy(poseCam.quaternion);
+    }
     if (!metered && width) {
       metered = true;
-      const average = meter.measure(scene, camera);
-      const exposure = meter.exposureFor(average, EXPOSURE_EV);
-      finish.uniforms.toneMappingExposure.value = exposure;
-      // the ink and pigment passes work before the tone map: they need the exposure to judge
-      // what counts as a dark or a mid tone
-      outline.material.uniforms.exposure.value = exposure / 1.85; // 1.85: the exposure its thresholds were tuned at
-      pigment.uniforms.exposure.value = exposure;
-      renderer.toneMappingExposure = exposure;
-      metrics.luminance = average;
-      metrics.exposure = exposure;
-      if (debug) console.info('meter: average luminance', average.toFixed(4), 'exposure', exposure.toFixed(3));
+      meterFor(shot);
+      if (exposure === null) exposure = exposureTarget; // first frame: no fade in
     }
+    if (exposure !== null && exposure !== exposureTarget) {
+      // Eye adaptation: quicker towards a brighter view than towards a darker one (the skill's rates).
+      const rate = exposureTarget > exposure ? 3.2 : 1.1;
+      exposure += (exposureTarget - exposure) * (1 - Math.exp(-dt * rate));
+      if (Math.abs(exposure - exposureTarget) < 0.002 || fixedLook) exposure = exposureTarget;
+    }
+    if (exposure !== null) applyExposure(exposure);
     if (debug === 'nopost') renderer.render(scene, camera);
     else {
       if (!off.has('ink')) outline.render();
@@ -893,6 +978,7 @@ export function createInterior(canvas, { onReady } = {}) {
     if (debug || params.has('cam') || params.has('off') || params.has('seed') || fixedLook || params.has('shot')) {
       window.__interiorMetrics = metrics; // inspection scripts wait on .frames and .done
       metrics.frames++;
+      metrics.eye = camera.position.toArray().map((v) => +v.toFixed(3));
       if (metrics.frames > 15 && metrics.frames <= 45) {
         metrics.cpuMs += (performance.now() - t0) / 30;
         metrics.frameMs += (timer.getDelta() * 1000) / 30;
@@ -912,6 +998,8 @@ export function createInterior(canvas, { onReady } = {}) {
   frame = requestAnimationFrame(tick);
 
   return {
+    setShot,
+    getShot: () => shot,
     destroy() {
       cancelAnimationFrame(frame);
       resizeObserver.disconnect();
