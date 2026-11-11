@@ -61,14 +61,19 @@ export const SITE = {
       { name: 'behind', box: [45, 105, -300, -245], count: 7, scale: [0.5, 0.7], detail: 0 },
     ],
   },
-  // Not rebuilt yet (old objects, moved roughly to the new river): bridge, Assembly, skyline, boats.
+  // Placed for R3's composition as seen from the window shot (eye -0.475, 1.5, -4.62, looking
+  // down -z): bearings are degrees right of that view, read off R3.
   lawn: 1.9,
-  bridge: [[-190, 12], [-100, -58], [-22, -117], [30, -158]],
-  assembly: { x: 150, z: -245 },
-  skyline: { z: -430, x0: -170, x1: 50, count: 15 },
+  // South landing (our bank, far upstream, off the left of the frame), the two tower piers in the
+  // river near the far bank (bearings -18 and -9: R3 paints them close together left of centre),
+  // north landing on the far bank behind the trees, left of the Assembly building, so the deck
+  // does not cross in front of it (R3). About 286 m along the deck.
+  bridge: [[-230, -95], [-50, -150], [-22, -140], [10, -200]],
+  assembly: { x: 57, z: -300 }, // bearing +11, 300 m: the right third of the window, as in R3
+  skyline: { z: -470, x0: -70, x1: 75, count: 16 }, // between the bridge towers and the Assembly building (R3)
   boats: [
-    { x: -8.4, z: -37.4, ry: 0.35 },
-    { x: -37.7, z: -83, ry: -0.2 },
+    { x: -6.5, z: -40, ry: 0.3 }, // the near boat, heading right (R3)
+    { x: -19, z: -72, ry: 0.15 }, // the far boat, left of it
   ],
 };
 

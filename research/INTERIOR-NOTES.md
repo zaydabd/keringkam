@@ -210,6 +210,25 @@ Stated limits, as the skills require:
 - **Outdoor key.** The room is exposed for shade, so sunlit paint outside would burn out. Outdoor colours are keyed down (`OUTSIDE_KEY = 0.3` for surfaces, `SKY_KEY = 0.3` for the sky, fog and water mirror). This is a painter's choice, not physics. The outdoor colours are also authored more saturated than they should look, because the room's grade removes about a third of the colour.
 - **Building shell.** The star prism behind the ribs is a plain dark surface standing in for glass; the ribs are boxes set proud of it, not openings cut in a wall.
 
+
+### Pass w1: composition after R3 (2026-11-11, branch `opus-medium-new-skills`)
+
+Method: `.claude/skills/painting-to-scene` (layout first, then forms, then look). Captures were compared with R3 from the window shot (`view=window&look=0,0`) and from the seat.
+
+| Object | Before | Change | Why (R3) |
+|---|---|---|---|
+| Assembly building | 32° right of the window shot, behind the curtain | Moved to bearing +11°, 300 m (`SITE.assembly` 57, −300) | R3 has it in the right third of the view |
+| Assembly roof | Near-straight cone | Concave tent: radius falls evenly, height rises as f^1.7; radius 40, eave kick 6 m | R3's roof is steep under the spire and flat and upturned at the eave |
+| Bridge | Towers 110 m apart; only one in the window | Towers at bearings −18° and −9°, 30 m apart, near the far bank; north landing behind the trees, left of the Assembly; ~286 m along the deck (contract 270–340 holds) | R3 paints both towers together left of centre, and the deck does not cross the building |
+| Boats | Flat board canopy on four posts | Arched roof over open sides, shaded cabin, posts per bay, darker red-brown hull | R3's tambang have a long, low, curved roof |
+| Skyline | White boxes far left | Between the towers and the building (x −70 to 75, z −470); grey to grey-blue; a few taller | R3 |
+| River | Pale cream (`body #ecd2a2`) | Tan (`body #cf9a5c`, film `#f4d8a2`) | R3's river reads tan-brown after the grade |
+
+Not done in this pass:
+- **Standalone reference photos.** Wikimedia Commons and Openverse refused downloads from the build machine (HTTP 429 and 504), so object shapes still follow R3 and the sourced sizes only. Candidate photos (not used, not credited yet): [Darul Hana Bridge, Kuching, Sarawak](https://commons.wikimedia.org/wiki/File:Darul_Hana_Bridge,_Kuching,_Sarawak.jpg) (CC BY 2.0, Fabio Achilli), plus Commons searches "Darul Hana Bridge", "Sarawak State Legislative Assembly Building", "tambang Kuching".
+- The tower lean (both lean upstream in R3; ours lean away from each other) is unchanged until a photo settles it.
+- Clouds are still the soft painted blobs; R3 has large cumulus with grey undersides.
+
 ### Camera shots
 
 | Shot | Eye | Lens (vertical) | Pointer may turn it | Exposure |

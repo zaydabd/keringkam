@@ -61,7 +61,7 @@ const f = (n) => n.toFixed(5);
  * The water material and its mirror. `level` is the water's height; `layer` is the layer the
  * mirrored camera draws (everything outside except the water itself).
  */
-export function createWater({ level, layer = 2, body = '#ecd2a2', film = '#fff0cc', pale = '#f4faea', sun = new THREE.Vector3(0, 1, 0), light = 1, key = 1, fog, gain = 1.2, chop = 0.45, shade = 0.8, reach = 14 }) {
+export function createWater({ level, layer = 2, body = '#cf9a5c', film = '#f4d8a2', pale = '#f4faea', sun = new THREE.Vector3(0, 1, 0), light = 1, key = 1, fog, gain = 1.2, chop = 0.45, shade = 0.8, reach = 14 }) {
   const target = new THREE.WebGLRenderTarget(2, 2, { type: THREE.HalfFloatType });
   const textureMatrix = new THREE.Matrix4();
   const material = new THREE.ShaderMaterial({

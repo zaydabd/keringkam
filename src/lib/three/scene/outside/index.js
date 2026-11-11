@@ -43,7 +43,7 @@ function buildBoat(w, b, y) {
   const W = 1.5;
   const c = Math.cos(b.ry), s = Math.sin(b.ry);
   const at = (dx, dy, dz) => [b.x + dx * c + dz * s, y + dy, b.z - dx * s + dz * c];
-  const hull = rgb('#8a5a3a');
+  const hull = rgb('#7a4630'); // dark red-brown wood (R3)
   const stations = 8;
   let prev = null;
   for (let i = 0; i <= stations; i++) {
@@ -58,9 +58,27 @@ function buildBoat(w, b, y) {
   const ax = (len) => [c * len, 0, -s * len];
   const az = (len) => [s * len, 0, c * len];
   w.box('paint', at(0, 0.36, 0), ax(L * 0.36), [0, 0.03, 0], az(W * 0.42), rgb('#b08a62')); // deck boards
-  for (const dx of [-2.1, 2.1]) for (const dz of [-0.6, 0.6]) w.box('paint', at(dx, 1.1, dz), ax(0.04), [0, 0.72, 0], az(0.04), rgb('#6a4a34'));
-  w.box('paint', at(0, 1.86, 0), ax(2.5), [0, 0.05, 0], az(0.82), rgb('#efe6d0')); // canopy
   w.box('paint', at(0, 0.5, 0), ax(L * 0.34), [0, 0.05, 0], az(W * 0.5 + 0.02), rgb('#c9a37a')); // gunwale strip
+  // The cabin (R3): a long, low roof arched across the beam, over open sides. The shaded
+  // inside reads as the row of windows; posts stand at the corners and between the bays.
+  const cabin = { half: L * 0.33, y0: 0.5, y1: 1.55, rise: 0.28, beam: W * 0.5 + 0.06 };
+  w.box('paint', at(0, (cabin.y0 + cabin.y1) / 2, 0), ax(cabin.half - 0.1), [0, (cabin.y1 - cabin.y0) / 2, 0], az(W * 0.36), rgb('#4a2f22')); // shade inside
+  for (let k = -3; k <= 3; k++) for (const dz of [-1, 1]) {
+    w.box('paint', at((k / 3) * (cabin.half - 0.06), (cabin.y0 + cabin.y1) / 2, dz * (W * 0.36 + 0.03)), ax(0.05), [0, (cabin.y1 - cabin.y0) / 2, 0], az(0.04), rgb('#7a4e34'));
+  }
+  const arc = 6;
+  const roofAt = (x, i, lift) => {
+    const a = (i / arc) * Math.PI; // 0..pi across the beam
+    return at(x, cabin.y1 + Math.sin(a) * cabin.rise + lift, -Math.cos(a) * cabin.beam);
+  };
+  for (const [lift, color] of [[0.07, '#e8dcc0'], [0, '#c9b590']]) {
+    // the top of the roof (light) and its underside (shaded), each a strip of quads
+    for (let i = 0; i < arc; i++) {
+      const q = [roofAt(-cabin.half - 0.25, i, lift), roofAt(cabin.half + 0.25, i, lift), roofAt(cabin.half + 0.25, i + 1, lift), roofAt(-cabin.half - 0.25, i + 1, lift)];
+      if (lift) w.quad('paint', q[0], q[1], q[2], q[3], rgb(color));
+      else w.quad('paint', q[3], q[2], q[1], q[0], rgb(color));
+    }
+  }
 }
 
 /**
@@ -118,10 +136,12 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = '#f4faea', li
     const K = S.skyline;
     for (let i = 0; i < K.count; i++) {
       const x = K.x0 + ((K.x1 - K.x0) * (i + rand() * 0.8)) / K.count;
-      const h = 14 + rand() * 38;
-      const bw = 6 + rand() * 7;
-      const tone = 0.74 + rand() * 0.14;
-      w.box('paint', [x, S.lawn + h / 2, K.z - rand() * 60], [bw, 0, 0], [0, h / 2, 0], [0, 0, bw], [tone * 0.92, tone * 0.97, tone * 1.05]);
+      // R3: slim towers, pale grey to grey-blue, a few much taller than the rest
+      const h = rand() < 0.3 ? 45 + rand() * 30 : 14 + rand() * 26;
+      const bw = 5 + rand() * 6;
+      const tone = 0.66 + rand() * 0.18;
+      const blue = rand();
+      w.box('paint', [x, S.lawn + h / 2, K.z - rand() * 60], [bw, 0, 0], [0, h / 2, 0], [0, 0, bw * (0.6 + rand() * 0.6)], [tone * (0.86 + 0.08 * (1 - blue)), tone * 0.94, tone * (1.02 + 0.1 * blue)]);
     }
   }
 

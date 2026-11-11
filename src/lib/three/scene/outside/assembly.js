@@ -17,7 +17,7 @@ export const ASSEMBLY = {
   eave: { radius: 47, drop: 4 }, // gold skirt above the ribs
   pavilion: { size: 13, height: 9, radius: 41 }, // small gold roofs on the star points
   drum: { tip: 26, valley: 21, height: 9 },
-  roof: { radius: 37, top: 100, rings: 14, flare: 3.5 }, // the umbrella
+  roof: { radius: 40, top: 100, rings: 14, flare: 6 }, // the umbrella
   colors: { gold: [1.0, 0.62, 0.12], rib: [0.95, 0.88, 0.72], glass: [0.3, 0.38, 0.46], stone: [0.84, 0.8, 0.68] },
 };
 
@@ -157,11 +157,13 @@ export function compileAssembly(plan, writer) {
       // The umbrella: star-shaped rings, wide and flared at the eave, drawn in to the spire.
       const t = tier('roof');
       const R = s.roof;
+      // A concave tent (R3): the radius falls evenly while the height rises as f^1.7, so the
+      // roof is steep under the spire and nearly flat at the eave, where the points kick up.
       const ring = (k) => {
         const f = k / R.rings;
-        const r = R.radius * (1 - f) ** 1.55 + 1.6 * f;
-        const y = t.y0 + (t.y1 - t.y0) * f ** 0.8;
-        const lift = R.flare * (1 - f) ** 6; // the ribs kick up at the eave
+        const r = R.radius * (1 - f) + 1.6 * f;
+        const y = t.y0 + (t.y1 - t.y0) * f ** 1.7;
+        const lift = R.flare * (1 - f) ** 4; // the ribs kick up at the eave
         const pts = [];
         for (let i = 0; i < n * 2; i++) {
           const a = (i / (n * 2)) * Math.PI * 2;
