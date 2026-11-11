@@ -409,3 +409,31 @@ centre about 220 m ahead and 254 m away. `SITE.assembly` is now (127, −225), n
 placement (150, −245). In the window shot the right curtain covers the roof; the arcade shows at the
 right edge. The 'behind' tree row moved left, out of the building's brim. All numbers are read off the
 painting, not surveyed.
+
+### Pass w5: the Assembly building rebuilt from the user's Sketchfab model (2026-11-11)
+
+Reference: 15 screenshots of "Dewan Undangan Negeri (DUN) Sarawak" by dpmedia
+(https://sketchfab.com/3d-models/dewan-undangan-negeri-dun-sarawak-80cf19aaf40a4f4895862a80395e6e47),
+the user's own photogrammetry model, taken in the plain embed viewer, 24 degrees apart, 1 degree
+lens, about 7.9 degrees above level. Scaled by the sourced 114 m height (9.15 px per metre).
+Screenshots are kept out of the repo. All sizes except the height and the nine-point star are
+read off the screenshots: estimates, not survey data.
+
+Gate: the building alone, orthographic, same angle and scale, overlaid on the screenshot at the
+spire tip (views 0, 96 and 336 degrees; 336 is nearest the window's angle).
+
+| Part | Before | Model (measured) | Now |
+| --- | --- | --- | --- |
+| Arcade top | 26 m | ~28.4 m | 28.4 m |
+| Brim | 1.3 m thin, points 76 m | ~4 m thick (28.4-32.6), points ~70 m | 28.4-32.6 + 0.8 m lip, points 70 m |
+| Pyramids | r 47, apex 37.8 m | r ~42.5, ~24-27 m, apex ~41-42 m | r 42.5, 24 m, apex 41.5 m |
+| Under the roof | strut lattice + glass drum | deep dark bowl, r 29 at 34.5 m to r ~47 at the eave | dark bowl after the measured outline |
+| Eave | 51 m, thin fascia | rim ~52.5-56 m at the tips, ~3.5 m, tips ~45-47 m out | rim 52.5-56 (tips), 4 m higher at valleys |
+| Gold roof | to 82 m | to ~89.5 m, outline r = 6.3 + 36.2 ((89.5 - y) / 33.5)^2 | as measured, 18 folds |
+| Spire | gold/dark cone to 100 m | gold neck to ~96.8 m, dark ribbed cone to ~109 m, needle | as measured |
+| Star points | arches only | the column under each point flares out to it | flared support added |
+
+Remaining differences, kept on purpose: colours follow the painting (cream columns, deep gold,
+red-brown glass), not the model's grey; kiosks follow the painting's placement; the arcade's
+arches stay as in the user's photos. In the window view the right curtain covers most of the
+building, as agreed with the user. 9,226 triangles (limit 14,000).
