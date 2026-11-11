@@ -32,7 +32,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { toonGradient, createOutline } from './toon.js';
 import { paintPlanks, paintLattice, paintCurtain, paintCloth, paintDecor, paintGlow } from './paint.js';
-import { createOutside, SKY_KEY } from './outside/index.js';
+import { createOutside, SKY_KEY, OBJECTS } from './outside/index.js';
 import { PIGMENT_SHADER, FINISH_SHADER } from './watercolour.js';
 import { createMeter } from './meter.js';
 
@@ -650,7 +650,7 @@ function buildContactShadows(texture) {
 // out over the lattice, framed by the curtains (R3).
 export const SHOTS = {
   seat: { look: [0.06, 0.03], ev: 0 }, // eye, pitch and lens come from PLAN.camera
-  window: { eye: [-0.475, 1.5, -4.62], pitch: 2, fov: 54, look: [0.36, 0.1], ev: 1.3 }, // +1.3 stops: outdoors is meant to read as full daylight
+  window: { eye: [-0.475, 1.5, -4.62], pitch: 4.3, fov: 54, look: [0.36, 0.1], ev: 1.3 }, // +1.3 stops: outdoors is meant to read as full daylight
 };
 const SHOT_MOVE_SECONDS = 2.2;
 
@@ -669,6 +669,11 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
   const yawParam = THREE.MathUtils.degToRad(num('yaw') ?? 0);
   const pitchParam = THREE.MathUtils.degToRad(num('pitch') ?? 0);
   const fovParam = num('fov');
+  // ?stage=farbank,trees,... shows only those objects of the view outside (outside/index.js
+  // OBJECTS), without the room, from the window shot's eye; yaw, pitch, fov and eye then apply to
+  // it. ?exposure=n sets the exposure instead of metering (the stage uses the window shot's 1.85).
+  const stage = params.get('stage')?.split(',').filter((n) => OBJECTS.includes(n)) ?? null;
+  const exposureParam = num('exposure') ?? (stage ? 1.85 : null);
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
   renderer.shadowMap.enabled = true;
@@ -786,27 +791,31 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
     if (mesh.name === 'lattice' || mesh.name === 'carve') {
       mesh.customDepthMaterial = mesh.name === 'lattice' ? latticeDepth : carveDepth;
       mesh.layers.set(1);
+      if (mesh.name === 'lattice') mesh.layers.enable(3); // and masks the ink of the view behind it (toon.js)
     }
     if (['leaf', 'cloth', 'decor'].includes(mesh.name)) mesh.castShadow = mesh.name === 'leaf';
   }
   scene.add(room);
   const contact = buildContactShadows(textures.blob);
   scene.add(contact.group);
+  room.visible = contact.group.visible = !stage;
 
   // Outside: the Sarawak River at Kuching (outside/index.js). ?off=outside hides it (the windows
   // then show plain daylight). ?debug=flat and ?debug=silhouette also apply to it.
-  const landscape = createOutside({ gradientMap, seed, fog: scene.fog, haze: BRIGHT, light: LIGHT, key: OUTSIDE_KEY, sun: sun.position.clone().sub(sun.target.position), mode: debug === 'flat' || debug === 'silhouette' ? debug : undefined });
+  const landscape = createOutside({ gradientMap, seed, fog: scene.fog, haze: BRIGHT, light: LIGHT, key: OUTSIDE_KEY, sun: sun.position.clone().sub(sun.target.position), mode: debug === 'flat' || debug === 'silhouette' ? debug : undefined, stage });
   landscape.group.visible = !off.has('outside');
   landscape.setWaterView({ 'water-normal': 1, 'water-fresnel': 2, 'water-filter': 3 }[debug] ?? 0);
   scene.add(landscape.group);
   if (debug) {
     console.info('outside', JSON.stringify(landscape.stats));
-    for (const r of [landscape.reports.assembly.contract, landscape.reports.bridge.contract, landscape.reports.budget]) console.info(`contract ${r.name}: ${r.checks.map((c) => `${c.id} = ${c.value}`).join('; ')}`);
-    console.info('trees', JSON.stringify(landscape.reports.trees));
+    for (const [name, r] of Object.entries(landscape.reports)) {
+      if (r.contract) console.info(`contract ${r.contract.name}: ${r.contract.checks.map((c) => `${c.id} = ${c.value}`).join('; ')}`);
+      if (r.stats) console.info(`built ${name}`, JSON.stringify(r.stats));
+    }
   }
   camera.layers.enable(1);
 
-  const outline = createOutline(renderer, scene, camera, { ink: PALETTE.ink, lineWidth: 1 });
+  const outline = createOutline(renderer, scene, camera, { ink: PALETTE.ink, lineWidth: 1, mask: { layer: 3, map: textures.lattice } });
   outline.material.uniforms.split.value = 0.18; // keep the dark wood warm
   outline.material.uniforms.strength.value = 0.85; // dark but thin lines, as in R2 (thickness is set in toon.js)
   outline.material.uniforms.seams.value = 0.75; // but R2 draws every plank seam clearly
@@ -830,7 +839,7 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
 
   let width = 0;
   let height = 0;
-  let shot = SHOTS[params.get('view')] ? params.get('view') : 'seat';
+  let shot = stage ? 'window' : SHOTS[params.get('view')] ? params.get('view') : 'seat';
   const move = { t: 1, from: { position: new THREE.Vector3(), quaternion: new THREE.Quaternion(), fov: C.fov } };
   let exposure = null; // the exposure in use; it follows exposureTarget
   let exposureTarget = 1;
@@ -860,6 +869,7 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
       const hTan = Math.tan(THREE.MathUtils.degToRad(C.fov / 2)) * C.aspect;
       return fovParam || (camera.aspect >= C.aspect ? C.fov : Math.min(80, THREE.MathUtils.radToDeg(2 * Math.atan(hTan / camera.aspect))));
     }
+    if (stage && fovParam) return fovParam;
     return camera.aspect >= 1 ? SHOTS[name].fov : Math.min(80, SHOTS[name].fov + 14); // a little wider on tall screens
   }
   const resizeObserver = new ResizeObserver(resize);
@@ -875,7 +885,8 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
 
   const eye = V(...C.eye);
   eye.z += camOffset;
-  if (eyeParam?.length === 3 && eyeParam.every(Number.isFinite)) eye.set(...eyeParam);
+  const eyeGiven = eyeParam?.length === 3 && eyeParam.every(Number.isFinite);
+  if (eyeGiven) eye.set(...eyeParam);
   if (fixedLook) pointer.set(fixedLook[0] || 0, fixedLook[1] || 0);
   const target = new THREE.Vector3();
   // Where a shot puts the camera, with the pointer's turn added inside that shot's limits.
@@ -883,9 +894,10 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
   function poseOf(name, into) {
     const sh = SHOTS[name];
     const seat = name === 'seat';
-    const at = seat ? eye : V(...sh.eye);
-    const yaw = (seat ? yawParam : 0) - look.x * sh.look[0];
-    const pitch = THREE.MathUtils.degToRad(seat ? C.pitch : sh.pitch) + (seat ? pitchParam : 0) - look.y * sh.look[1];
+    const free = seat || !!stage; // the inspection camera's parameters apply
+    const at = seat || (stage && eyeGiven) ? eye : V(...sh.eye);
+    const yaw = (free ? yawParam : 0) - look.x * sh.look[0];
+    const pitch = THREE.MathUtils.degToRad(seat ? C.pitch : sh.pitch) + (free ? pitchParam : 0) - look.y * sh.look[1];
     into.position.copy(at);
     target.set(at.x + Math.sin(yaw) * Math.cos(pitch), at.y + Math.sin(pitch), at.z - Math.cos(yaw) * Math.cos(pitch));
     into.lookAt(target);
@@ -901,7 +913,7 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
     poseOf(name, poseCam);
     poseCam.updateMatrixWorld();
     const average = meter.measure(scene, poseCam);
-    exposureTarget = meter.exposureFor(average, EXPOSURE_EV + SHOTS[name].ev);
+    exposureTarget = exposureParam ?? meter.exposureFor(average, EXPOSURE_EV + SHOTS[name].ev);
     metrics.luminance = average;
     metrics.exposure = exposureTarget;
     if (debug) console.info('meter: average luminance', average.toFixed(4), 'exposure', exposureTarget.toFixed(3), 'shot', name);
