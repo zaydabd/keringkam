@@ -72,9 +72,11 @@ export const PLAN = {
     { x: -1.85, z: -4.0, ry: Math.PI / 2, w: 0.6, d: 0.55, back: 0.98 },
     { x: 0.15, z: -4.0, ry: -Math.PI / 2, w: 0.6, d: 0.55, back: 0.98 },
   ],
+  // The tables start 7.5 cm clear of the left armchair's arms (its front is at x = -1.525);
+  // furnitureOverlaps() checks every pair.
   tables: [
-    { x0: -1.68, x1: -0.36, z0: -4.5, z1: -4.1, h: 0.46 },
-    { x0: -1.9, x1: -0.45, z0: -3.8, z1: -3.0, h: 0.45, stretcher: true },
+    { x0: -1.45, x1: -0.36, z0: -4.5, z1: -4.1, h: 0.46 },
+    { x0: -1.45, x1: -0.45, z0: -3.8, z1: -3.0, h: 0.45, stretcher: true },
   ],
   frame: { x: 0.5, z: -1.78, ry: -0.42, w: 0.62, d: 0.52, front: 0.36, back: 0.5 }, // embroidery frame
 };
@@ -428,6 +430,30 @@ function buildSeat(b, { x, z, ry, w, d, back }) {
     carve(yA, yB);
     for (const px of [-w / 2 + 0.12, w / 2 - 0.12]) box(0.04, yB - yA, 0.024, px, (yA + yB) / 2, yz((yA + yB) / 2), lean);
   }
+}
+
+/**
+ * Floor footprints (x0, x1, z0, z1 in metres) of the seats and tables, from the same sizes the
+ * builders use: a seat's arms reach 0.31 m to each side and from 0.285 m behind to 0.325 m in front
+ * of its centre (buildSeat). Returns the pairs that overlap, with the overlap in metres.
+ */
+export function furnitureOverlaps(plan = PLAN) {
+  const seat = ({ x, z, ry, w }) => {
+    const half = w / 2 + 0.04; // hx + arm half-width
+    const c = Math.round(Math.cos(ry)), s = Math.round(Math.sin(ry)); // seats are turned by 0 or ±90°
+    const corners = [[-half, -0.285], [half, -0.285], [-half, 0.325], [half, 0.325]].map(([lx, lz]) => [x + lx * c + lz * s, z - lx * s + lz * c]);
+    const xs = corners.map((p) => p[0]), zs = corners.map((p) => p[1]);
+    return { x0: Math.min(...xs), x1: Math.max(...xs), z0: Math.min(...zs), z1: Math.max(...zs) };
+  };
+  const items = [['settee', seat(plan.settee)], ...plan.chairs.map((c, i) => [`chair ${i}`, seat(c)]), ...plan.tables.map((t, i) => [`table ${i}`, t])];
+  const out = [];
+  for (let i = 0; i < items.length; i++)
+    for (let j = i + 1; j < items.length; j++) {
+      const [na, a] = items[i], [nb, b] = items[j];
+      const ox = Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0), oz = Math.min(a.z1, b.z1) - Math.max(a.z0, b.z0);
+      if (ox > 0 && oz > 0) out.push(`${na} / ${nb}: ${ox.toFixed(3)} x ${oz.toFixed(3)} m`);
+    }
+  return out;
 }
 
 function buildTable(b, { x0, x1, z0, z1, h, stretcher }) {
@@ -788,6 +814,8 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
   buildSeat(b, PLAN.settee);
   for (const c of PLAN.chairs) buildSeat(b, c);
   for (const t of PLAN.tables) buildTable(b, t);
+  const overlaps = furnitureOverlaps();
+  if (overlaps.length) console.warn('furniture overlaps:', overlaps.join('; '));
   buildEmbroideryFrame(b);
   buildHangings(b);
   buildVines(b);
