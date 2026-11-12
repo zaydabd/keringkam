@@ -3,16 +3,17 @@
 
 import { INTERIOR_THEME as THEME } from '../themes/interior.js';
 import { PLAN } from './plan.js';
-import { rand } from './builder.js';
+import { dice } from './builder.js';
 
 /** Splits [from, to] into boards of uneven width (0.15–0.22 m), with joints at every `edges` value. */
-function boardRuns(from, to, edges) {
+function boardRuns(from, to, edges, job) {
   const cuts = [from, ...edges.filter((e) => e > from && e < to), to].sort((a, b) => a - b);
   const boards = [];
+  let n = 0; // the board's number along the run: its roll in `job`
   for (let i = 0; i < cuts.length - 1; i++) {
     let a = cuts[i];
     while (a < cuts[i + 1] - 0.01) {
-      const bEnd = Math.min(cuts[i + 1], a + 0.15 + rand() * 0.07);
+      const bEnd = Math.min(cuts[i + 1], a + 0.15 + dice(job, n++)() * 0.07);
       boards.push([a, cuts[i + 1] - bEnd < 0.06 ? cuts[i + 1] : bEnd]);
       a = boards[boards.length - 1][1];
     }
@@ -24,9 +25,9 @@ function boardRuns(from, to, edges) {
  * A wall of vertical boards along one axis. `openings` are [a0, a1, y0, y1] along that axis; boards
  * stop at their edges. `at(a, y, w, h)` returns the box centre and size for a board piece.
  */
-function boardWall(b, from, to, top, openings, at) {
+function boardWall(b, from, to, top, openings, job, at) {
   const edges = openings.flatMap((o) => [o[0], o[1]]);
-  for (const [a0, a1] of boardRuns(from, to, edges)) {
+  for (const [a0, a1] of boardRuns(from, to, edges, job)) {
     const mid = (a0 + a1) / 2;
     const o = openings.find((o) => mid > o[0] && mid < o[1]);
     const spans = o ? [[0, o[2]], [o[3], top]] : [[0, top]];
@@ -38,26 +39,27 @@ export function buildRoom(b) {
   const { x0, x1, z0, z1, top } = PLAN.room;
   const W = PLAN.window;
   // Floor: wide boards running towards the window wall, in staggered lengths.
-  for (const [a0, a1] of boardRuns(x0, x1, [])) {
+  boardRuns(x0, x1, [], 'room/floor').forEach(([a0, a1], strip) => {
     let z = z0;
+    let k = 0;
     while (z < z1) {
-      const len = Math.min(z1 - z, 1.6 + rand() * 2.4);
+      const len = Math.min(z1 - z, 1.6 + dice('room/floor/length', strip, k++)() * 2.4);
       b.box('floor', a1 - a0 - 0.006, 0.03, len - 0.004, (a0 + a1) / 2, -0.015, z + len / 2);
       z += len;
     }
-  }
+  });
   // A dark sub-floor under the boards, so the gaps between them never show the daylight below.
   b.box('frame', x1 - x0, 0.02, z1 - z0, (x0 + x1) / 2, -0.045, (z0 + z1) / 2, 0, 0, 0, 0);
   // Back wall (the window wall), boards outside the room line so the inner face is at z0.
   const back = PLAN.backWindows.map((w) => [w.x0, w.x1, 0, W.y1]);
-  boardWall(b, x0, x1, top, back, (a, y, w, h) => b.box('wall', w, h, 0.025, a, y, z0 - 0.0125, 0, 0, 0, THEME.wallTint));
+  boardWall(b, x0, x1, top, back, 'room/walls/back', (a, y, w, h) => b.box('wall', w, h, 0.025, a, y, z0 - 0.0125, 0, 0, 0, THEME.wallTint));
   // Right wall, with the window near the camera.
   const s = PLAN.sideWindow;
-  boardWall(b, z0, z1, top, [[s.z0, s.z1, s.y0, W.y1]], (a, y, w, h) => b.box('wall', 0.025, h, w, x1 + 0.0125, y, a, 0, 0, 0, THEME.wallTint));
+  boardWall(b, z0, z1, top, [[s.z0, s.z1, s.y0, W.y1]], 'room/walls/side', (a, y, w, h) => b.box('wall', 0.025, h, w, x1 + 0.0125, y, a, 0, 0, 0, THEME.wallTint));
   // Left and front walls (out of shot: they close the room and cast shadows). Ceiling boards.
-  boardWall(b, z0, z1, top, [], (a, y, w, h) => b.box('wall', 0.025, h, w, x0 - 0.0125, y, a, 0, 0, 0, THEME.wallTint));
-  boardWall(b, x0, x1, top, [], (a, y, w, h) => b.box('wall', w, h, 0.025, a, y, z1 + 0.0125, 0, 0, 0, THEME.wallTint));
-  for (const [a0, a1] of boardRuns(z0, z1, [])) b.box('ceiling', x1 - x0, 0.02, a1 - a0 - 0.004, (x0 + x1) / 2, top + 0.01, (a0 + a1) / 2);
+  boardWall(b, z0, z1, top, [], 'room/walls/left', (a, y, w, h) => b.box('wall', 0.025, h, w, x0 - 0.0125, y, a, 0, 0, 0, THEME.wallTint));
+  boardWall(b, x0, x1, top, [], 'room/walls/front', (a, y, w, h) => b.box('wall', w, h, 0.025, a, y, z1 + 0.0125, 0, 0, 0, THEME.wallTint));
+  for (const [a0, a1] of boardRuns(z0, z1, [], 'room/ceiling')) b.box('ceiling', x1 - x0, 0.02, a1 - a0 - 0.004, (x0 + x1) / 2, top + 0.01, (a0 + a1) / 2);
   for (let x = x0 + 0.6; x < x1; x += 1.2) b.box('ceiling', 0.1, 0.14, z1 - z0, x, top - 0.07, (z0 + z1) / 2);
 
   // Window frames on the back wall: jambs, head, threshold, and the lattice rail.

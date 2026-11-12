@@ -236,17 +236,18 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
     glossBoards(materials.top, { window: windowGloss, clothTint, ...L.gloss.top, light: LIGHT, view: debug === 'gloss' });
   }
   const b = new Builder();
-  buildRoom(b);
-  buildLattice(b);
-  buildCurtains(b);
-  buildSeat(b, PLAN.settee);
+  // Each object rolls its own dice (interior/builder.js), so this order does not change the look.
+  buildRoom(b.as('room'));
+  buildLattice(b.as('lattice'));
+  buildCurtains(b.as('curtains'));
+  buildSeat(b.as('furniture'), PLAN.settee);
   for (const c of PLAN.chairs) buildSeat(b, c);
   for (const t of PLAN.tables) buildTable(b, t);
   const overlaps = furnitureOverlaps();
   if (overlaps.length) console.warn('furniture overlaps:', overlaps.join('; '));
-  buildEmbroideryFrame(b);
-  buildHangings(b);
-  buildVines(b);
+  buildEmbroideryFrame(b.as('frame'));
+  buildHangings(b.as('hangings'));
+  buildVines(b.as('vines'));
   const room = new THREE.Group();
   room.add(...b.build(materials));
   // The lattice is cut out by its texture: give its shadow the same holes, and keep it out of the

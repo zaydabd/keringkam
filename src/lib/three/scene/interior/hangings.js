@@ -3,7 +3,7 @@
 
 import * as THREE from 'three';
 import { PLAN } from './plan.js';
-import { M, rand, boxWithGrainUVs } from './builder.js';
+import { M, dice, boxWithGrainUVs } from './builder.js';
 
 /** Woven mats and framed pictures hung as diamonds on the right wall; a plate on the back wall. */
 export function buildHangings(b) {
@@ -13,6 +13,7 @@ export function buildHangings(b) {
   const cells = [[0, 0], [1, 0], [-1, 0], [0, 1], [1, 1], [-1, 1], [0, -1], [1, -1], [0, 2], [-1, -1]];
   cells.forEach(([i, j], k) => {
     const cz = z + (i + j) * step;
+    const rand = dice('hangings', k); // this mat's own rolls: height, size, tilt
     const cy = y + (i - j) * step + (rand() - 0.5) * 0.02;
     const s = size * (0.88 + rand() * 0.18);
     const g = new THREE.PlaneGeometry(s, s);

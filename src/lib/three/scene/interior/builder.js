@@ -14,7 +14,24 @@ export const ONE = V(1, 1, 1);
 
 export const M = (x, y, z, rx, ry, rz) => new THREE.Matrix4().compose(V(x, y, z), Q(rx, ry, rz), ONE);
 
-export const rand = mulberry32(7);
+// Randomness, the way 3D tools split it (SpeedTree generators, Blender Random Value Seed/ID,
+// Unreal PCG seeds): one master seed; one job per thing that makes a set of similar pieces
+// ('room/floor', 'vines', 'look/furniture'…); and a number per piece. dice(job, ...id) is that
+// piece's own little stream, so a piece's rolls never depend on what was built before it: adding a
+// leaf or changing the build order leaves every other piece as it was.
+export const MASTER = 7;
+
+/** FNV-1a, 32-bit: a string to a seed. */
+function hash(text) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 0x01000193);
+  return h >>> 0;
+}
+
+/** The random stream of one piece: `job` names the set it belongs to, `id` numbers it in that set. */
+export function dice(job, ...id) {
+  return mulberry32(hash(`${MASTER}|${job}|${id.join(',')}`));
+}
 
 function mulberry32(a) {
   return () => {
@@ -32,9 +49,20 @@ function mulberry32(a) {
 export class Builder {
   constructor() {
     this.parts = new Map();
+    this.object = 'room'; // whose parts are being added: names their 'look/…' job (see as())
+    this.counts = new Map(); // parts added so far, per object: the part's number in its look job
+  }
+  /** Names the object whose parts follow, e.g. buildRoom(b.as('room')). */
+  as(object) {
+    this.object = object;
+    return this;
   }
   add(key, geometry, tint = 0.08, jitterUV = true) {
     const n = geometry.attributes.position.count;
+    // This part's own rolls: its object's look job, numbered by the parts that object added before.
+    const k = this.counts.get(this.object) ?? 0;
+    this.counts.set(this.object, k + 1);
+    const rand = dice('look/' + this.object, k);
     // Shift each part's UVs, so no two planks show the same stretch of painted grain.
     const uv = geometry.attributes.uv;
     if (uv && jitterUV) {
