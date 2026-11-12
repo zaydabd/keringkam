@@ -312,7 +312,7 @@ const MODULES = {
     const { s, C, writer } = ctx;
     const K = s.kiosk;
     const k = p.scale;
-    const light = { ...C, gold: [1.0, 0.8, 0.42], goldShade: [0.88, 0.66, 0.3] };
+    const light = { ...C, ...OUTSIDE_THEME.kiosk }; // a lighter gold than the main roof
     if (p.scale > 1) {
       // the two at the sides: small copies of the main roof on four legs, with a spire (P1, P2)
       const y = 0;

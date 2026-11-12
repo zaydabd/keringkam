@@ -57,9 +57,10 @@ const OUTLINE_SHADER = {
     resolution: { value: new THREE.Vector2(1, 1) },
     cameraNear: { value: 0.05 },
     cameraFar: { value: 400 },
-    ink: { value: new THREE.Color('#3a2418') },
+    ink: { value: new THREE.Color('#000000') }, // the caller's theme sets the ink colour
     strength: { value: 0.9 },
     split: { value: 0.7 }, // how far dark tones lean blue (0 = not at all)
+    splitTint: { value: new THREE.Vector3(1, 1, 1) }, // the tone they lean towards, times their value (the caller's theme sets it)
     exposure: { value: 1 }, // the scene's exposure, if it is not 1: the tone thresholds below are in exposed values
     seams: { value: 0.5 }, // ink between touching parts (planks), relative to silhouettes
     thickness: { value: 1 },
@@ -76,7 +77,7 @@ const OUTLINE_SHADER = {
     uniform sampler2D tDiffuse, tEdge, tDepth, tWobble, tGrain;
     uniform vec2 resolution, fade, farDepth;
     uniform float cameraNear, cameraFar, strength, thickness, split, seams, exposure, farInk;
-    uniform vec3 ink;
+    uniform vec3 ink, splitTint;
     varying vec2 vUv;
 
     float depthAt(vec2 uv) {
@@ -90,7 +91,7 @@ const OUTLINE_SHADER = {
       // Painted shadows: darker tones lean blue-violet (split toning) instead of going grey-brown.
       float lum = dot(base.rgb, vec3(0.299, 0.587, 0.114));
       float sh = 1.0 - smoothstep(0.03, 0.22, lum * exposure); // linear values: this is before the output pass
-      vec3 cool = mix(base.rgb, vec3(lum) * vec3(0.7, 0.86, 1.5), 0.45); // half-way to a blue-grey of the same value
+      vec3 cool = mix(base.rgb, vec3(lum) * splitTint, 0.45); // half-way to a blue-grey of the same value
       base.rgb = mix(base.rgb, cool, sh * split);
       // Hand wobble: nudge where we look for edges by a slow noise, so lines waver like ink.
       // The noise (wobble x, y, thickness, pressure) is precomputed: INK_FIELD_FRAGMENT.
@@ -202,7 +203,7 @@ const MASK_FRAGMENT = /* glsl */ `
  * edge buffer for objects on `layer` (default 0). `mask` = { layer, map }: objects on that layer
  * are panels cut out by `map` (alpha); they hide the ink of what is behind them and get none.
  */
-export function createOutline(renderer, scene, camera, { layer = 0, ink = '#3a2418', lineWidth = 1.3, mask = null } = {}) {
+export function createOutline(renderer, scene, camera, { layer = 0, ink = '#000000', lineWidth = 1.3, mask = null } = {}) {
   const target = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType });
   target.depthTexture = new THREE.DepthTexture(1, 1);
   target.texture.minFilter = target.texture.magFilter = THREE.NearestFilter;

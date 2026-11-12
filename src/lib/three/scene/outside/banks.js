@@ -14,7 +14,7 @@ import { OUTSIDE_THEME } from '../themes/outside.js';
 const lerp = (a, b, t) => a + (b - a) * t;
 
 // Paint, as vertex colours (themes/outside.js).
-export const BANK_PAINT = rgbTable(OUTSIDE_THEME.banks);
+export const BANK_PAINT = rgbTable(OUTSIDE_THEME.farBank);
 
 /** Sweeps bands between columns of points. rows[i][k] is station i, column k; colour(i, k) per quad. */
 function sweep(w, slot, rows, colour, landOnLeft, stats) {

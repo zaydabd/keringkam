@@ -42,6 +42,7 @@ export const OBJECTS = ['farbank', 'nearbank', 'trees', 'river', 'assembly', 'br
 // The sky is keyed down like the rest of the outdoors, so its blue survives an exposure set for
 // the shaded room (themes/outside.js air.skyKey).
 const SKY_KEY = OUTSIDE_THEME.air.skyKey;
+const SKYLINE = OUTSIDE_THEME.skyline;
 
 /**
  * Builds the outside. `fog` is the scene's fog (the daylight haze: the sky's horizon and the
@@ -101,9 +102,9 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
       // R3: slim towers, pale grey to grey-blue, a few much taller than the rest
       const h = rand() < 0.3 ? 45 + rand() * 30 : 14 + rand() * 26;
       const bw = 5 + rand() * 6;
-      const tone = 0.66 + rand() * 0.18;
+      const tone = SKYLINE.tone.min + rand() * SKYLINE.tone.spread;
       const blue = rand();
-      w.box('paint', [x, S.lawn + h / 2, K.z - rand() * 60], [bw, 0, 0], [0, h / 2, 0], [0, 0, bw * (0.6 + rand() * 0.6)], [tone * (0.86 + 0.08 * (1 - blue)), tone * 0.94, tone * (1.02 + 0.1 * blue)]);
+      w.box('paint', [x, S.lawn + h / 2, K.z - rand() * 60], [bw, 0, 0], [0, h / 2, 0], [0, 0, bw * (0.6 + rand() * 0.6)], [tone * (SKYLINE.red[0] + SKYLINE.red[1] * (1 - blue)), tone * SKYLINE.green, tone * (SKYLINE.blue[0] + SKYLINE.blue[1] * blue)]);
     }
   }
 
@@ -122,9 +123,9 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
   };
   const hazeStyle = new THREE.Color(haze).getStyle().slice(4, -1);
   const textures = {
-    sky: paintSoftSky(25 + seed, { haze: hazeStyle, vivid: true }),
-    mud: paintMud(31 + seed),
-    turf: paintTurf(37 + seed),
+    sky: paintSoftSky(25 + seed, { colours: OUTSIDE_THEME.sky, haze: hazeStyle, vivid: OUTSIDE_THEME.sky.style === 'vivid' }),
+    mud: paintMud(31 + seed, { colours: OUTSIDE_THEME.textures.mud }),
+    turf: paintTurf(37 + seed, { colours: OUTSIDE_THEME.textures.turf }),
   };
   disposables.push(...Object.values(textures));
   const toon = ({ map, side = THREE.FrontSide } = {}) => {

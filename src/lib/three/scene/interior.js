@@ -43,15 +43,17 @@ import { INTERIOR_THEME } from './themes/interior.js';
 import { OUTSIDE_THEME } from './themes/outside.js';
 
 const THEME = INTERIOR_THEME;
-const PALETTE = THEME.palette;
 
-/** Sets a pass's uniforms from a theme section: colour uniforms take a hex, the rest a number. */
+/** Sets a pass's uniforms from a theme section: colours take a hex, vectors an array, the rest a number. */
 function setUniforms(uniforms, values) {
   for (const [k, v] of Object.entries(values)) {
     if (uniforms[k].value?.isColor) uniforms[k].value.set(v);
+    else if (uniforms[k].value?.isVector3) uniforms[k].value.fromArray(v);
     else uniforms[k].value = v;
   }
 }
+
+const vec3 = (a) => `vec3(${a.map((n) => n.toFixed(2)).join(', ')})`; // a linear colour, written into GLSL
 
 // Everything in metres. The camera stands at the origin and looks along -z at the window wall.
 export const PLAN = {
@@ -575,7 +577,7 @@ function buildVines(b) {
  * stretched along the boards, as a real polished floor does. `falloff` darkens the boards away
  * from the windows (R2's foreground floor is in shade). `view` shows the mask alone.
  */
-function glossBoards(material, { strength = 0.6, cloth = 0, falloff = 0, light = 1, view = false } = {}) {
+function glossBoards(material, { window, clothTint, strength = 0.6, cloth = 0, falloff = 0, light = 1, view = false }) {
   const { z0 } = PLAN.room;
   const W = PLAN.window;
   const F = PLAN.frame;
@@ -632,7 +634,7 @@ function glossBoards(material, { strength = 0.6, cloth = 0, falloff = 0, light =
         red = max(red, 0.8 * exp(-dot(spill, spill)));
         red *= (0.5 + 0.5 * streak) * ${cloth.toFixed(2)};
       }
-      ${view ? 'outgoingLight = vec3(gloss) + vec3(red, 0.0, 0.0);' : `outgoingLight = mix(outgoingLight, vec3(1.0, 0.74, 0.46) * ${light.toFixed(2)}, gloss); outgoingLight = mix(outgoingLight, outgoingLight * vec3(1.7, 0.6, 0.45) + vec3(0.05, 0.0, 0.0) * ${light.toFixed(2)}, red);`} // the red is a tint: the boards keep their value
+      ${view ? 'outgoingLight = vec3(gloss) + vec3(red, 0.0, 0.0);' : `outgoingLight = mix(outgoingLight, ${vec3(window)} * ${light.toFixed(2)}, gloss); outgoingLight = mix(outgoingLight, outgoingLight * ${vec3(clothTint.multiply)} + ${vec3(clothTint.add)} * ${light.toFixed(2)}, red);`} // the red is a tint: the boards keep their value
     }
     #include <opaque_fragment>`,
       );
@@ -647,7 +649,7 @@ function glossBoards(material, { strength = 0.6, cloth = 0, falloff = 0, light =
 function buildContactShadows(texture) {
   const group = new THREE.Group();
   const shade = THEME.light.contactShadow;
-  const mat = new THREE.MeshBasicMaterial({ map: texture, color: PALETTE.contactShadow, transparent: true, opacity: shade.opacity, depthWrite: false, fog: false });
+  const mat = new THREE.MeshBasicMaterial({ map: texture, color: shade.color, transparent: true, opacity: shade.opacity, depthWrite: false, fog: false });
   const core = mat.clone(); // a darker, tighter patch right under each piece
   core.opacity = shade.core;
   const patch = (x, z, w, d, ry = 0, m = mat) => {
@@ -746,17 +748,18 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
   scene.add(sun, sun.target, hemi, fill);
 
   const gradientMap = toonGradient(THEME.shading.bands, { smooth: THEME.shading.smooth });
+  const T = THEME.textures;
   const textures = {
-    planks: paintPlanks(1 + seed),
-    floor: paintPlanks(9 + seed, { weathered: true }),
-    wall: paintPlanks(5 + seed, { brushy: true }),
-    lattice: paintLattice(),
-    carve: paintLattice(17),
-    valance: paintCurtain(12 + seed, 'valance'),
-    sheer: paintCurtain(16 + seed, 'drape'),
-    cloth: paintCloth(13 + seed),
-    pale: paintCurtain(31 + seed, 'pale'),
-    decor: paintDecor(),
+    planks: paintPlanks(1 + seed, { colours: T.planks }),
+    floor: paintPlanks(9 + seed, { colours: T.planks, weathered: true }),
+    wall: paintPlanks(5 + seed, { colours: T.planks, brushy: true }),
+    lattice: paintLattice(11, { colours: T.lattice }),
+    carve: paintLattice(17, { colours: T.lattice }),
+    valance: paintCurtain(12 + seed, 'valance', { colours: T.curtains.valance }),
+    sheer: paintCurtain(16 + seed, 'drape', { colours: T.curtains.drape }),
+    cloth: paintCloth(13 + seed, { colours: T.cloth }),
+    pale: paintCurtain(31 + seed, 'pale', { colours: T.curtains.pale }),
+    decor: paintDecor(14, { colours: T.decor }),
     blob: paintGlow('round'),
   };
   textures.lattice.repeat.set(1.6, 1.6);
@@ -764,25 +767,27 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
   const aniso = Math.min(4, renderer.capabilities.getMaxAnisotropy());
   for (const t of Object.values(textures)) t.anisotropy = aniso;
   const D = THREE.DoubleSide;
+  const M = THEME.materials;
+  const G = THEME.glow;
   const materials = {};
   for (const [key, color, map, extra] of [
-    ['floor', PALETTE.floor, textures.floor],
-    ['wall', PALETTE.wall, textures.wall],
-    ['ceiling', PALETTE.ceiling, textures.wall],
-    ['frame', PALETTE.frame, textures.planks],
-    ['wood', PALETTE.wood, textures.planks],
-    ['top', PALETTE.top, textures.planks],
-    ['lattice', PALETTE.lattice, textures.lattice, { side: D, alphaTest: 0.5 }],
-    ['carve', PALETTE.wood, textures.carve, { side: D, alphaTest: 0.5 }],
-    ['valance', '#ffffff', textures.valance, { side: D, emissive: '#ffffff', emissiveMap: textures.valance, emissiveIntensity: L.glow.valance }], // lit from behind
-    ['sheer', '#ffffff', textures.sheer, { side: D, emissive: '#ffffff', emissiveMap: textures.sheer, emissiveIntensity: L.glow.sheer }],
-    ['white', PALETTE.white, textures.pale, { side: D, emissive: PALETTE.whiteGlow, emissiveMap: textures.pale, emissiveIntensity: L.glow.white }],
-    ['cloth', '#ffffff', textures.cloth, { side: D, emissive: '#ffffff', emissiveMap: textures.cloth, emissiveIntensity: L.glow.cloth }],
-    ['decor', '#ffffff', textures.decor, { side: D }],
-    ['plate', PALETTE.plate, null],
-    ['leaf', PALETTE.leaf, null, { side: D }],
-    ['tape', PALETTE.tape, null],
-    ['bag', PALETTE.bag, null],
+    ['floor', M.floor, textures.floor],
+    ['wall', M.wall, textures.wall],
+    ['ceiling', M.ceiling, textures.wall],
+    ['frame', M.frame, textures.planks],
+    ['wood', M.wood, textures.planks],
+    ['top', M.top, textures.planks],
+    ['lattice', M.lattice, textures.lattice, { side: D, alphaTest: 0.5 }],
+    ['carve', M.carve, textures.carve, { side: D, alphaTest: 0.5 }],
+    ['valance', M.valance, textures.valance, { side: D, emissive: G.valance, emissiveMap: textures.valance, emissiveIntensity: L.glow.valance }], // lit from behind
+    ['sheer', M.sheer, textures.sheer, { side: D, emissive: G.sheer, emissiveMap: textures.sheer, emissiveIntensity: L.glow.sheer }],
+    ['white', M.white, textures.pale, { side: D, emissive: G.white, emissiveMap: textures.pale, emissiveIntensity: L.glow.white }],
+    ['cloth', M.cloth, textures.cloth, { side: D, emissive: G.cloth, emissiveMap: textures.cloth, emissiveIntensity: L.glow.cloth }],
+    ['decor', M.decor, textures.decor, { side: D }],
+    ['plate', M.plate, null],
+    ['leaf', M.leaf, null, { side: D }],
+    ['tape', M.tape, null],
+    ['bag', M.bag, null],
   ]) {
     materials[key] = new THREE.MeshToonMaterial({ color, map, vertexColors: true, gradientMap, fog: false, ...extra });
     materials[key].emissiveIntensity *= LIGHT;
@@ -793,8 +798,9 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
   }
 
   shadeWalls(materials.wall, PLAN.room.top);
-  glossBoards(materials.floor, { ...L.gloss.floor, light: LIGHT, view: debug === 'gloss' });
-  glossBoards(materials.top, { ...L.gloss.top, light: LIGHT, view: debug === 'gloss' });
+  const { window: windowGloss, clothTint } = L.gloss;
+  glossBoards(materials.floor, { window: windowGloss, clothTint, ...L.gloss.floor, light: LIGHT, view: debug === 'gloss' });
+  glossBoards(materials.top, { window: windowGloss, clothTint, ...L.gloss.top, light: LIGHT, view: debug === 'gloss' });
   const b = new Builder();
   buildRoom(b);
   buildLattice(b);
@@ -844,8 +850,9 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
   }
   camera.layers.enable(1);
 
-  const outline = createOutline(renderer, scene, camera, { ink: PALETTE.ink, lineWidth: THEME.ink.lineWidth, mask: { layer: 3, map: textures.lattice } });
-  for (const k of ['split', 'strength', 'seams']) outline.material.uniforms[k].value = THEME.ink[k];
+  const { color: ink, lineWidth, ...inkLook } = THEME.ink;
+  const outline = createOutline(renderer, scene, camera, { ink, lineWidth, mask: { layer: 3, map: textures.lattice } });
+  setUniforms(outline.material.uniforms, inkLook);
   const composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
   if (!off.has('ink')) composer.addPass(new ShaderPass(outline.material));

@@ -35,6 +35,9 @@ function texture(c, repeat = [1, 1], wrap = true) {
 }
 
 /** Draws fn(dx) at dx = -w, 0, w so strokes wrap seamlessly across the left/right edge. */
+/** A hex colour as 'r,g,b', for rgba() strings with their own alpha. */
+const css = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(',');
+
 function wrapX(w, fn) {
   for (const dx of [-w, 0, w]) fn(dx);
 }
@@ -61,18 +64,18 @@ function blot(g, W, x, y, rx, ry, rgb, a) {
  * streaks and only a few faint grain lines, no knots. `weathered` adds the silver-grey streaks and
  * checks of sun-bleached timber, as on the rails and benches in H1/H4.
  */
-export function paintPlanks(seed = 1, { weathered = false, brushy = false } = {}) {
+export function paintPlanks(seed = 1, { colours: C, weathered = false, brushy = false }) {
   const r = rng(seed);
   const W = 1024;
   const H = 256;
   const [c, g] = canvas(W, H);
-  g.fillStyle = weathered ? '#e6e4e0' : '#eeeae4';
+  g.fillStyle = weathered ? C.paperWeathered : C.paper;
   g.fillRect(0, 0, W, H);
 
   // Watercolour blots: big soft patches of warmer and cooler wood.
   for (let i = 0; i < 34; i++) {
     const warm = r() < 0.5;
-    blot(g, W, r() * W, r() * H, 60 + r() * 160, 20 + r() * 50, warm ? '150,104,60' : '255,248,236', 0.06 + r() * 0.08);
+    blot(g, W, r() * W, r() * H, 60 + r() * 160, 20 + r() * 50, warm ? css(C.blotWarm) : css(C.blotPale), 0.06 + r() * 0.08);
   }
 
   // Broad soft streaks of lighter and darker wood.
@@ -83,7 +86,7 @@ export function paintPlanks(seed = 1, { weathered = false, brushy = false } = {}
     const k = 1 + Math.floor(r() * 3);
     const ph = r() * Math.PI * 2;
     const amp = 2 + r() * 6;
-    g.fillStyle = r() < 0.4 ? `rgba(255,250,238,${a})` : `rgba(96,70,46,${a})`;
+    g.fillStyle = r() < 0.4 ? `rgba(${css(C.streakLight)},${a})` : `rgba(${css(C.streakDark)},${a})`;
     g.beginPath();
     for (let x = 0; x <= W; x += 16) g.lineTo(x, y0 + Math.sin((x / W) * Math.PI * 2 * k + ph) * amp);
     for (let x = W; x >= 0; x -= 16) g.lineTo(x, y0 + h + Math.sin((x / W) * Math.PI * 2 * k + ph + 0.6) * amp);
@@ -101,7 +104,7 @@ export function paintPlanks(seed = 1, { weathered = false, brushy = false } = {}
     const ph = r() * Math.PI * 2;
     const x0 = r() * W;
     const len = 120 + r() * 520;
-    g.strokeStyle = `rgba(66,40,22,${0.07 + r() * 0.15})`;
+    g.strokeStyle = `rgba(${css(C.line)},${0.07 + r() * 0.15})`;
     g.lineWidth = 0.8 + r() * 1.5;
     wrapX(W, (dx) => {
       g.beginPath();
@@ -120,11 +123,11 @@ export function paintPlanks(seed = 1, { weathered = false, brushy = false } = {}
   }
   for (const [x, y, rx] of knots) {
     wrapX(W, (dx) => {
-      g.fillStyle = 'rgba(70,42,24,0.35)';
+      g.fillStyle = `rgba(${css(C.knot)},0.35)`;
       g.beginPath();
       g.ellipse(x + dx, y, rx * 0.45, rx * 0.25, 0, 0, Math.PI * 2);
       g.fill();
-      g.strokeStyle = 'rgba(70,42,24,0.22)';
+      g.strokeStyle = `rgba(${css(C.knot)},0.22)`;
       g.lineWidth = 1.2;
       for (let k = 1; k <= 3; k++) {
         g.beginPath();
@@ -139,14 +142,14 @@ export function paintPlanks(seed = 1, { weathered = false, brushy = false } = {}
     for (let i = 0; i < 40; i++) {
       const y = r() * H;
       const x = r() * W;
-      g.fillStyle = `rgba(205,210,214,${0.12 + r() * 0.16})`;
+      g.fillStyle = `rgba(${css(C.silver)},${0.12 + r() * 0.16})`;
       wrapX(W, (dx) => g.fillRect(x + dx, y, 80 + r() * 300, 2 + r() * 6));
     }
     for (let i = 0; i < 26; i++) {
       const y = r() * H;
       const x = r() * W;
       const len = 30 + r() * 120;
-      g.strokeStyle = `rgba(48,32,22,${0.35 + r() * 0.3})`;
+      g.strokeStyle = `rgba(${css(C.check)},${0.35 + r() * 0.3})`;
       g.lineWidth = 1 + r() * 1.2;
       wrapX(W, (dx) => {
         g.beginPath();
@@ -162,7 +165,7 @@ export function paintPlanks(seed = 1, { weathered = false, brushy = false } = {}
     const y = r() * H;
     let x = r() * W;
     const end = x + 60 + r() * 200;
-    g.fillStyle = `rgba(255,252,244,${0.18 + r() * 0.15})`;
+    g.fillStyle = `rgba(${css(C.sheen)},${0.18 + r() * 0.15})`;
     while (x < end) {
       const w = 6 + r() * 22;
       wrapX(W, (dx) => g.fillRect(x + dx, y + (r() - 0.5) * 2, w, 1.5));
@@ -427,7 +430,7 @@ export function paintPalmTrunk(seed = 10) {
  * 0.4 m square, so with UVs in metres the repeat is 2.5. Inked edges, cream face: the material
  * colour sets the wood tone.
  */
-export function paintLattice(seed = 11) {
+export function paintLattice(seed = 11, { colours: C }) {
   const r = rng(seed);
   const S = 512;
   const P = 128; // crossing pitch: 10 cm
@@ -448,16 +451,16 @@ export function paintLattice(seed = 11) {
   const nodes = (fn) => {
     for (let i = -1; i <= S / 64 + 1; i++) for (let j = -1; j <= S / 64 + 1; j++) if ((i + j) % 2 === 0) fn(i * 64, j * 64, (i / 2 + j / 2) % 2 === 0);
   };
-  strips(26, '#3a2418');
+  strips(26, C.dark);
   nodes((x, y, ring) => {
-    g.fillStyle = '#3a2418';
+    g.fillStyle = C.dark;
     g.beginPath();
     g.arc(x, y, ring ? 34 : 17, 0, Math.PI * 2);
     g.fill();
   });
-  strips(17, '#efe2c8');
+  strips(17, C.light);
   nodes((x, y, ring) => {
-    g.fillStyle = '#efe2c8';
+    g.fillStyle = C.light;
     g.beginPath();
     g.arc(x, y, ring ? 29 : 12, 0, Math.PI * 2);
     g.fill();
@@ -467,7 +470,7 @@ export function paintLattice(seed = 11) {
       g.arc(x, y, 18, 0, Math.PI * 2);
       g.fill();
       g.globalCompositeOperation = 'source-over';
-      g.strokeStyle = '#3a2418';
+      g.strokeStyle = C.dark;
       g.lineWidth = 4;
       g.beginPath();
       g.arc(x, y, 18, 0, Math.PI * 2);
@@ -476,7 +479,7 @@ export function paintLattice(seed = 11) {
   });
   // brush tone along the strips
   for (let i = 0; i < 400; i++) {
-    g.fillStyle = `rgba(${r() < 0.5 ? '120,80,50' : '255,250,240'},${0.06 + r() * 0.08})`;
+    g.fillStyle = `rgba(${r() < 0.5 ? css(C.toneDark) : css(C.toneLight)},${0.06 + r() * 0.08})`;
     g.globalCompositeOperation = 'source-atop';
     g.fillRect(r() * S, r() * S, 10 + r() * 30, 2 + r() * 3);
   }
@@ -521,17 +524,17 @@ function motif(g, S, x, y, s, r) {
  * 'drape': cream-grey ground with rust and slate-blue patches. 'pale': a sheer, the same pattern
  * very faint on cream. All tile; repeat is (2, 2).
  */
-export function paintCurtain(seed = 12, kind = 'valance') {
+export function paintCurtain(seed = 12, kind = 'valance', { colours: C }) {
   const r = rng(seed);
   const S = 256;
   const [c, g] = canvas(S, S);
   const valance = kind === 'valance';
   const pale = kind === 'pale';
-  g.fillStyle = valance ? '#94412a' : pale ? '#efe6d6' : '#8f8274';
+  g.fillStyle = C.ground;
   g.fillRect(0, 0, S, S);
   // uneven dye
-  for (let i = 0; i < 18; i++) blot(g, S, r() * S, r() * S, 20 + r() * 40, 20 + r() * 40, valance ? (r() < 0.5 ? '110,36,22' : '180,90,50') : r() < 0.5 ? '150,150,160' : '232,220,200', (pale ? 0.04 : 0.12) + r() * (pale ? 0.05 : 0.14));
-  const inks = valance ? ['#ead7aa', '#dcb46e', '#efe0bc', '#e2c48a', '#6e2616'] : ['#8e4630', '#66728a', '#9c5638', '#55637c', '#cdbda4', '#7a4a3a', '#6b7890'];
+  for (let i = 0; i < 18; i++) blot(g, S, r() * S, r() * S, 20 + r() * 40, 20 + r() * 40, r() < 0.5 ? css(C.dye[0]) : css(C.dye[1]), (pale ? 0.04 : 0.12) + r() * (pale ? 0.05 : 0.14));
+  const inks = C.inks;
   const cell = valance ? 51.2 : 64; // large flowing shapes (R2), four or five across the tile
   for (let y = cell / 2; y < S; y += cell) {
     for (let x = cell / 2; x < S; x += cell) {
@@ -549,11 +552,11 @@ export function paintCurtain(seed = 12, kind = 'valance') {
   g.globalAlpha = 1;
   // brush streaks down the cloth (folds catch the paint)
   for (let i = 0; i < 22; i++) {
-    g.fillStyle = r() < 0.5 ? `rgba(60,34,26,${(pale ? 0.02 : 0.05) + r() * (pale ? 0.03 : 0.08)})` : `rgba(255,244,226,${0.04 + r() * 0.07})`;
+    g.fillStyle = r() < 0.5 ? `rgba(${css(C.streaks[0])},${(pale ? 0.02 : 0.05) + r() * (pale ? 0.03 : 0.08)})` : `rgba(${css(C.streaks[1])},${0.04 + r() * 0.07})`;
     g.fillRect(r() * S, 0, 2 + r() * 9, S);
   }
   if (valance) {
-    g.fillStyle = 'rgba(92,30,18,0.6)';
+    g.fillStyle = `rgba(${css(C.hem)},0.6)`;
     g.fillRect(0, S - 22, S, 7);
   }
   return texture(c, [2, 2]);
@@ -563,21 +566,21 @@ export function paintCurtain(seed = 12, kind = 'valance') {
  * The red cloth on the embroidery frame, after R2: deep crimson with painted creases and a gold
  * border band. Still plain in the middle (no keringkam motif yet).
  */
-export function paintCloth(seed = 13) {
+export function paintCloth(seed = 13, { colours: C }) {
   const r = rng(seed);
   const W = 512;
   const H = 256;
   const [c, g] = canvas(W, H);
-  g.fillStyle = '#b3242a';
+  g.fillStyle = C.ground;
   g.fillRect(0, 0, W, H);
-  for (let i = 0; i < 22; i++) blot(g, W, r() * W, r() * H, 40 + r() * 90, 30 + r() * 60, r() < 0.55 ? '130,14,24' : '236,84,74', 0.1 + r() * 0.12);
+  for (let i = 0; i < 22; i++) blot(g, W, r() * W, r() * H, 40 + r() * 90, 30 + r() * 60, r() < 0.55 ? css(C.blots[0]) : css(C.blots[1]), 0.1 + r() * 0.12);
   // creases: long soft diagonal strokes, dark with a light edge
   for (let i = 0; i < 9; i++) {
     const x = r() * W;
     const y = r() * H;
     const len = 80 + r() * 180;
     const a = -0.5 + r() * 1.0;
-    for (const [off, col] of [[0, `rgba(110,10,20,${0.16 + r() * 0.12})`], [3, `rgba(255,130,110,${0.1 + r() * 0.1})`]]) {
+    for (const [off, col] of [[0, `rgba(${css(C.creases[0])},${0.16 + r() * 0.12})`], [3, `rgba(${css(C.creases[1])},${0.1 + r() * 0.1})`]]) {
       g.strokeStyle = col;
       g.lineWidth = 2 + r() * 3;
       g.lineCap = 'round';
@@ -588,7 +591,7 @@ export function paintCloth(seed = 13) {
     }
   }
   for (let y = 0; y < H; y += 2) {
-    g.fillStyle = `rgba(90,0,16,${0.03 + r() * 0.04})`;
+    g.fillStyle = `rgba(${css(C.weave)},${0.03 + r() * 0.04})`;
     g.fillRect(0, y, W, 1);
   }
   // gold bands across the two ends (R2): ruled lines with a row of diamonds and dots between them
@@ -601,17 +604,17 @@ export function paintCloth(seed = 13) {
     g.fill();
   };
   for (const x0 of [34, W - 34 - 58]) {
-    g.fillStyle = 'rgba(120,16,20,0.35)'; // the band sits on slightly darker cloth
+    g.fillStyle = `rgba(${css(C.bandShade)},0.35)`; // the band sits on slightly darker cloth
     g.fillRect(x0 - 4, 0, 66, H);
-    g.fillStyle = '#e2b860';
+    g.fillStyle = C.gold;
     for (const dx of [0, 5, 53, 58]) g.fillRect(x0 + dx, 10, dx === 0 || dx === 58 ? 2.5 : 1.5, H - 20);
-    g.fillStyle = '#edc978';
+    g.fillStyle = C.goldLight;
     for (let y = 22; y < H - 14; y += 20) {
       diamond(x0 + 29, y, 7);
       g.fillRect(x0 + 14, y + 9, 3, 3);
       g.fillRect(x0 + 42, y + 9, 3, 3);
     }
-    g.fillStyle = '#b3242a';
+    g.fillStyle = C.ground;
     for (let y = 22; y < H - 14; y += 20) diamond(x0 + 29, y, 3);
   }
   return texture(c, [1, 1], false);
@@ -621,30 +624,30 @@ export function paintCloth(seed = 13) {
  * Wall hangings atlas, 4 x 2 tiles: woven mats in tan, green and violet checks, and framed pictures
  * with a painted spray of flowers. Each item's face takes one tile by its UVs.
  */
-export function paintDecor(seed = 14) {
+export function paintDecor(seed = 14, { colours: C }) {
   const r = rng(seed);
   const T = 192;
   const [c, g] = canvas(T * 4, T * 2);
-  const weave = (x0, y0, a, b) => {
+  const weave = (x0, y0, [a, b]) => {
     const n = 12;
     const s = T / n;
     for (let i = 0; i < n; i++)
       for (let j = 0; j < n; j++) {
         g.fillStyle = (i + j) % 2 ? a : b;
         g.fillRect(x0 + i * s, y0 + j * s, s, s);
-        g.fillStyle = 'rgba(40,24,12,0.18)';
+        g.fillStyle = `rgba(${css(C.matShadow)},0.18)`;
         g.fillRect(x0 + i * s, y0 + j * s + ((i + j) % 2 ? 0 : s - 2), s, 2);
       }
-    g.strokeStyle = '#3a2418';
+    g.strokeStyle = C.matEdge;
     g.lineWidth = 8;
     g.strokeRect(x0 + 4, y0 + 4, T - 8, T - 8);
   };
-  const picture = (x0, y0, ground, flower) => {
-    g.fillStyle = '#6b4a2c';
+  const picture = (x0, y0, { ground, flower }) => {
+    g.fillStyle = C.frame;
     g.fillRect(x0, y0, T, T);
     g.fillStyle = ground;
     g.fillRect(x0 + 18, y0 + 18, T - 36, T - 36);
-    g.strokeStyle = '#4c7a3a';
+    g.strokeStyle = C.stem;
     g.lineWidth = 3;
     for (let k = 0; k < 5; k++) {
       g.beginPath();
@@ -657,14 +660,15 @@ export function paintDecor(seed = 14) {
       g.fill();
     }
   };
-  weave(0, 0, '#d8b77a', '#a8804a');
-  weave(T, 0, '#7da35a', '#d9c690');
-  picture(T * 2, 0, '#efe6d0', '#d8473a');
-  weave(T * 3, 0, '#8a5a8a', '#e0c890');
-  picture(0, T, '#d9e4e8', '#3a6aa8');
-  weave(T, T, '#c9a05a', '#5f8a6a');
-  picture(T * 2, T, '#f2ead8', '#e09a2a');
-  weave(T * 3, T, '#b04a3a', '#e8d4a8');
+  const [m, p] = [C.mats, C.pictures];
+  weave(0, 0, m[0]);
+  weave(T, 0, m[1]);
+  picture(T * 2, 0, p[0]);
+  weave(T * 3, 0, m[2]);
+  picture(0, T, p[1]);
+  weave(T, T, m[3]);
+  picture(T * 2, T, p[2]);
+  weave(T * 3, T, m[4]);
   return texture(c, [1, 1], false);
 }
 
@@ -821,7 +825,7 @@ export function paintZinc(seed = 24) {
  * the horizon, with a few soft cumulus (white tops, faint lilac bases). Equirectangular: the
  * upper half of the canvas is the sky, the lower half takes the haze colour.
  */
-export function paintSoftSky(seed = 25, { haze = '244,250,234', vivid = false } = {}) {
+export function paintSoftSky(seed = 25, { colours: C, haze, vivid = false }) {
   const r = rng(seed);
   const W = 2048;
   const H = 1024;
@@ -829,9 +833,7 @@ export function paintSoftSky(seed = 25, { haze = '244,250,234', vivid = false } 
   const sky = g.createLinearGradient(0, 0, 0, H / 2);
   // vivid (R3): a strong, clear blue that holds almost to the horizon. It is painted more
   // saturated than it should look: the room's grade takes about a third of the colour out again.
-  sky.addColorStop(0, vivid ? '#1f6fd6' : '#a9c8e4');
-  sky.addColorStop(vivid ? 0.6 : 0.5, vivid ? '#3f8fe6' : '#d6e6ee');
-  sky.addColorStop(vivid ? 0.93 : 0.8, vivid ? '#8cc4f0' : '#eaf2ee');
+  for (const [at, colour] of vivid ? C.vivid.gradient : C.soft.gradient) sky.addColorStop(at, colour);
   sky.addColorStop(1, `rgb(${haze})`);
   g.fillStyle = sky;
   g.fillRect(0, 0, W, H / 2);
@@ -869,11 +871,11 @@ export function paintSoftSky(seed = 25, { haze = '244,250,234', vivid = false } 
       // the base: a long, flat shaded band, cool grey (the shade side of a cumulus)
       for (let x = -0.5; x <= 0.5; x += 0.06) {
         const hump = Math.cos(Math.PI * x);
-        puff(b.cx + x * b.width * 0.95, b.base + 2, 8 + hump * b.width * 0.05, '154,158,184', 0.4, 0.6);
+        puff(b.cx + x * b.width * 0.95, b.base + 2, 8 + hump * b.width * 0.05, css(C.vivid.cloudBase), 0.4, 0.6);
       }
       // body: each lobe as a warm grey shade, then a lit cap offset up and to the light (left)
-      for (const [x, y, rad] of lobes) puff(x + rad * 0.15, y + rad * 0.3, rad * 1.08, '200,197,204', 0.8, 0.78);
-      for (const [x, y, rad, lift] of lobes) if (lift > b.width * b.tall * 0.2) puff(x - rad * 0.2, y - rad * 0.2, rad, '255,253,246', 0.97, 0.82);
+      for (const [x, y, rad] of lobes) puff(x + rad * 0.15, y + rad * 0.3, rad * 1.08, css(C.vivid.cloudShade), 0.8, 0.78);
+      for (const [x, y, rad, lift] of lobes) if (lift > b.width * b.tall * 0.2) puff(x - rad * 0.2, y - rad * 0.2, rad, css(C.vivid.cloudLit), 0.97, 0.82);
     }
   } else {
     const count = 26;
@@ -885,8 +887,8 @@ export function paintSoftSky(seed = 25, { haze = '244,250,234', vivid = false } 
         const t = r();
         const rad = 12 + Math.sin(Math.PI * t) * width * (0.16 + r() * 0.1);
         const x = cx + (t - 0.5) * width;
-        puff(x, base + 6, rad * 0.8, '190,192,214', 0.07);
-        puff(x - 3, base - rad * 0.55, rad, '255,253,244', 0.6);
+        puff(x, base + 6, rad * 0.8, css(C.soft.cloudBase), 0.07);
+        puff(x - 3, base - rad * 0.55, rad, css(C.soft.cloudLit), 0.6);
       }
     }
   }
@@ -940,21 +942,21 @@ function grain(g, S, r, amount) {
 }
 
 /** River mud: mottled wet and dry patches, trickle and drag marks, clods with a lit top, grit. */
-export function paintMud(seed = 31) {
+export function paintMud(seed = 31, { colours: C }) {
   const r = rng(seed);
   const S = 512;
   const [c, g] = canvas(S, S);
   const at = tileDraw(S, g), soft = softSpot(g, at);
-  g.fillStyle = 'rgb(246,240,232)';
+  g.fillStyle = C.ground;
   g.fillRect(0, 0, S, S);
-  for (let i = 0; i < 90; i++) soft(r() * S, r() * S, 28 + r() * 70, 18 + r() * 46, r() < 0.6 ? '140,124,108' : '255,252,244', 0.2 + r() * 0.25);
-  for (let i = 0; i < 34; i++) soft(r() * S, r() * S, 16 + r() * 40, 8 + r() * 22, '92,80,72', 0.3 + r() * 0.25); // wet hollows
+  for (let i = 0; i < 90; i++) soft(r() * S, r() * S, 28 + r() * 70, 18 + r() * 46, r() < 0.6 ? css(C.patches[0]) : css(C.patches[1]), 0.2 + r() * 0.25);
+  for (let i = 0; i < 34; i++) soft(r() * S, r() * S, 16 + r() * 40, 8 + r() * 22, css(C.hollow), 0.3 + r() * 0.25); // wet hollows
   g.lineCap = 'round';
   for (let i = 0; i < 140; i++) {
     const x = r() * S, y = r() * S, len = 18 + r() * 60, a = (r() - 0.5) * 0.7 + (r() < 0.6 ? 0 : Math.PI / 2);
     const pts = [0, 1, 2, 3].map((k) => [x + Math.cos(a) * len * (k / 3) + (r() - 0.5) * 6, y + Math.sin(a) * len * (k / 3) + (r() - 0.5) * 6]);
     at(x, y, len + 6, (X, Y) => {
-      g.strokeStyle = `rgba(88,76,68,${0.3 + r() * 0.35})`;
+      g.strokeStyle = `rgba(${css(C.trickle)},${0.3 + r() * 0.35})`;
       g.lineWidth = 1.2 + r() * 2.8;
       g.beginPath();
       pts.forEach(([px, py], k) => (k ? g.lineTo(px - x + X, py - y + Y) : g.moveTo(px - x + X, py - y + Y)));
@@ -965,11 +967,11 @@ export function paintMud(seed = 31) {
     const x = r() * S, y = r() * S, rad = 1.2 + r() * r() * 5.5;
     const dark = 0.3 + r() * 0.35, lit = 0.25 + r() * 0.3;
     at(x, y, rad + 2, (X, Y) => {
-      g.fillStyle = `rgba(78,68,62,${dark})`;
+      g.fillStyle = `rgba(${css(C.clod[0])},${dark})`;
       g.beginPath();
       g.ellipse(X, Y + rad * 0.3, rad, rad * 0.7, 0, 0, Math.PI * 2);
       g.fill();
-      g.fillStyle = `rgba(255,252,246,${lit})`;
+      g.fillStyle = `rgba(${css(C.clod[1])},${lit})`;
       g.beginPath();
       g.ellipse(X - rad * 0.2, Y - rad * 0.25, rad * 0.6, rad * 0.38, 0, 0, Math.PI * 2);
       g.fill();
@@ -978,8 +980,8 @@ export function paintMud(seed = 31) {
   for (let i = 0; i < 260; i++) {
     const x = r() * S, y = r() * S, rad = 0.8 + r() * 1.8;
     at(x, y, rad + 1, (X, Y) => {
-      g.fillStyle = 'rgba(250,248,242,0.7)';
-      g.strokeStyle = 'rgba(90,84,78,0.35)';
+      g.fillStyle = `rgba(${css(C.grit[0])},0.7)`;
+      g.strokeStyle = `rgba(${css(C.grit[1])},0.35)`;
       g.lineWidth = 0.8;
       g.beginPath();
       g.arc(X, Y, rad, 0, Math.PI * 2);
@@ -994,20 +996,20 @@ export function paintMud(seed = 31) {
 }
 
 /** Turf: short blade strokes in light, dark and straw tones over soft lush and dry patches. */
-export function paintTurf(seed = 37) {
+export function paintTurf(seed = 37, { colours: C }) {
   const r = rng(seed);
   const S = 512;
   const [c, g] = canvas(S, S);
   const at = tileDraw(S, g), soft = softSpot(g, at);
-  g.fillStyle = 'rgb(238,242,226)';
+  g.fillStyle = C.ground;
   g.fillRect(0, 0, S, S);
-  for (let i = 0; i < 70; i++) soft(r() * S, r() * S, 24 + r() * 60, 18 + r() * 44, '120,134,100', 0.2 + r() * 0.22);
-  for (let i = 0; i < 26; i++) soft(r() * S, r() * S, 20 + r() * 50, 14 + r() * 36, '255,244,196', 0.14 + r() * 0.16);
+  for (let i = 0; i < 70; i++) soft(r() * S, r() * S, 24 + r() * 60, 18 + r() * 44, css(C.lush), 0.2 + r() * 0.22);
+  for (let i = 0; i < 26; i++) soft(r() * S, r() * S, 20 + r() * 50, 14 + r() * 36, css(C.dry), 0.14 + r() * 0.16);
   g.lineCap = 'round';
   for (let i = 0; i < 14000; i++) {
     const x = r() * S, y = r() * S, len = 3 + r() * 7, a = -Math.PI / 2 + (r() - 0.5) * 1.1;
     const k = r();
-    const col = k < 0.45 ? `rgba(70,88,58,${0.4 + r() * 0.35})` : k < 0.8 ? `rgba(255,255,238,${0.35 + r() * 0.3})` : `rgba(236,220,150,${0.3 + r() * 0.3})`;
+    const col = k < 0.45 ? `rgba(${css(C.blades[0])},${0.4 + r() * 0.35})` : k < 0.8 ? `rgba(${css(C.blades[1])},${0.35 + r() * 0.3})` : `rgba(${css(C.blades[2])},${0.3 + r() * 0.3})`;
     const lw = 0.9 + r() * 0.8;
     at(x, y, len + 1, (X, Y) => {
       g.strokeStyle = col;
