@@ -437,3 +437,45 @@ Remaining differences, kept on purpose: colours follow the painting (cream colum
 red-brown glass), not the model's grey; kiosks follow the painting's placement; the arcade's
 arches stay as in the user's photos. In the window view the right curtain covers most of the
 building, as agreed with the user. 9,226 triangles (limit 14,000).
+
+### Pass w6: river taxis (penambang) rebuilt like the Assembly building (2026-11-12)
+
+`src/lib/three/scene/outside/boats.js` replaces the old `buildBoat` in `index.js`. Same pattern as
+`assembly.js`: settings (`PENAMBANG`) -> plan (`planBoat`, parts in build order) -> part builders
+(hull, deck, cabin, porch, roof, hatch, boatman) -> `compileBoat` with a checks contract.
+
+Sourced: covered sampans carrying about 10-12 passengers
+([Borneo Post, 2024-05-29](https://www.theborneopost.com/2024/05/29/iconic-sarawak-perahu-tambang-boats-embrace-modern-tech/),
+[Malay Mail, 2025-08-31](https://www.malaymail.com/news/malaysia/2025/08/31/kuchings-iconic-river-boat-goes-green-with-electric-powered-penambang-fleet-under-smart-city-plan/189520)).
+No published dimensions were found. Every size is read off photos B1-B4 (`CREDITS.md`), scaled by the
+boatman's head: estimates, not measured data. Length 6.2 m, beam 1.5 m, roof 0.92 m above the
+water over the middle, 1.8 m at the bow.
+
+Contract (each boat, values from the B3 broadside photo unless noted):
+
+| Check | Photo | Model |
+| --- | --- | --- |
+| beam / length | ~0.25 (B1, B2) | 0.242 |
+| roof over the middle / length | 0.15 | 0.148 |
+| roof at the bow / roof over the middle | 2.0 (traced) | 2.0 |
+| roof length / boat length | 0.98 | 0.977 |
+| cabin length / boat length | 0.67 | 0.666 |
+| boatman's head / roof over the middle | 1.95 | 2.01 |
+| ridge rise / roof half-width | 0.47 (B3), ~0.75 (B1) | 0.53 |
+| roof clearance over the gunwale | >= 0.3 m | 0.59 m |
+| triangles | <= 1600 | 836 |
+| colour values that are not finite numbers | 0 | 0 |
+
+Gate (`gate-boat.html`, not committed): the boat alone on water, perspective camera, aligned to the
+photo on the bow and stern tips, then the roof and hull edges traced column by column.
+- Pass 1, B3 (broadside, camera about 6 degrees above level, estimated): roof, sheer and waterline
+  within about 5-10 px along the whole length.
+- Pass 2, B1 (three-quarter): compared by eye only. B1's boat has a taller gable (rise about 0.65
+  against 0.45) and a closed bow. Boats differ from each other, so the model keeps B3's shape.
+- Which roof slopes carry the hatch is a guess (noted in the code).
+
+Colour schemes, read off the photos: `red` (B1), `orange` (B3), `green` (B2). The window view uses
+`red` for the near boat and `orange` for the far one (`SITE.boats`).
+
+Fix: the first build drew black blobs in the window view because some colours were hex strings
+(NaN on the GPU). All colours now go through `rgb()`, and the contract counts non-finite colours.

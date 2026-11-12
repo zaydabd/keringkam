@@ -136,3 +136,14 @@ Used only to read shapes (tower form, platforms, truss, roof scallops, boat fend
 | Tambang: long low arched roof over open sides, dark wooden hull, white fenders | [Tambang](https://www.flickr.com/photos/palbion/50786009142) | Peter Albion | [CC BY-NC-SA 2.0](https://creativecommons.org/licenses/by-nc-sa/2.0/) |
 | Assembly building: proportions of the arcade, cornice, small roofs, drum, main roof; lawn kiosks | Two photos supplied by the user (front view from the river; raised three-quarter view) | Unknown | Unknown: not in the repo; used for measurement only |
 | Assembly building: plan (nine-pointed star brim, a pyramid on each point, arcade following the star) | Photo of a scale model, supplied by the user; captioned TVS, Kuching, 9 May 2024, Elani Rosllan (TVS) | TVS | Unknown: not in the repo; used for shape only |
+
+# Window view: river taxi reference photos (2026-11-12)
+
+Used only to read shapes, proportions and colours for `boats.js`. Nothing is copied into the scene; these images are not in the repo.
+
+| Label | Photo | Author | Used for |
+|---|---|---|---|
+| B1 | [Kuching river taxi 03.JPG](https://commons.wikimedia.org/wiki/File:Kuching_river_taxi_03.JPG) | Ilya Plekhanov | Three-quarter view; red scheme; gate pass 2 (qualitative) |
+| B2 | [Kuching river taxi 01.JPG](https://commons.wikimedia.org/wiki/File:Kuching_river_taxi_01.JPG) | Ilya Plekhanov | Green scheme |
+| B3 | [Kuching river taxi 02.JPG](https://commons.wikimedia.org/wiki/File:Kuching_river_taxi_02.JPG) | Ilya Plekhanov | Broadside view: main measurements; orange scheme; gate pass 1 |
+| B4 | [Kuching river taxi boatman (28759462792).jpg](https://commons.wikimedia.org/wiki/File:Kuching_river_taxi_boatman_(28759462792).jpg) | Thomas Quine | Boatman's stance and size (scale) |

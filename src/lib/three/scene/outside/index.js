@@ -12,7 +12,8 @@
 //   trees              trees.js     procedural-vegetation
 //   river              water.js     water-optics
 //   assembly: rebuilt from the user's Sketchfab model (pass w5, research/INTERIOR-NOTES.md).
-//   bridge, skyline, boats: the first versions, moved to the new river; not rebuilt yet.
+//   boats: Kuching river taxis (penambang) in boats.js, gated against photos (pass w6).
+//   bridge, skyline: the first versions, moved to the new river; not rebuilt yet.
 // `stage` (a list of the names above, plus 'sky') builds only those, to look at one object alone.
 // The solids are on layer 0, so the ink pass outlines them like the room; the sky is on layer 1.
 // All solids share one flat paint material: a part is one colour, and the ink pass draws a seam
@@ -21,10 +22,11 @@
 import * as THREE from 'three';
 import { paintSoftSky } from '../paint.js';
 import { SlotWriter, createContract } from './contract.js';
-import { SITE, mulberry32, rgb } from './site.js';
+import { SITE, mulberry32 } from './site.js';
 import { buildFarBank, buildNearBank } from './banks.js';
 import { buildTrees } from './trees.js';
 import { planAssembly, compileAssembly } from './assembly.js';
+import { PENAMBANG, planBoat, compileBoat } from './boats.js';
 import { buildBridge } from './bridge.js';
 import { createWater, fresnelF0, WAVES } from './water.js';
 
@@ -37,51 +39,6 @@ export const OBJECTS = ['farbank', 'nearbank', 'trees', 'river', 'assembly', 'br
 // The sky is keyed down like the rest of the outdoors (see OUTSIDE_KEY in interior.js), so its
 // blue survives an exposure set for the shaded room.
 export const SKY_KEY = 0.3;
-
-/** A roofed river boat (tambang): a hull drawn in to both ends, benches, a long canopy on posts (R3). */
-function buildBoat(w, b, y) {
-  const L = 7.5;
-  const W = 1.5;
-  const c = Math.cos(b.ry), s = Math.sin(b.ry);
-  const at = (dx, dy, dz) => [b.x + dx * c + dz * s, y + dy, b.z - dx * s + dz * c];
-  const hull = rgb('#7a4630'); // dark red-brown wood (R3)
-  const stations = 8;
-  let prev = null;
-  for (let i = 0; i <= stations; i++) {
-    const t = i / stations;
-    const half = (W / 2) * (1 - Math.abs(2 * t - 1) ** 2.4) + 0.04;
-    const sheer = Math.abs(2 * t - 1) ** 3 * 0.45; // the ends rise
-    const x = (t - 0.5) * L;
-    const ring = [at(x, -0.25, -half * 0.55), at(x, -0.25, half * 0.55), at(x, 0.42 + sheer, half), at(x, 0.42 + sheer, -half)];
-    if (prev) for (let k = 0; k < 4; k++) w.quad('paint', prev[k], ring[k], ring[(k + 1) % 4], prev[(k + 1) % 4], hull);
-    prev = ring;
-  }
-  const ax = (len) => [c * len, 0, -s * len];
-  const az = (len) => [s * len, 0, c * len];
-  w.box('paint', at(0, 0.36, 0), ax(L * 0.36), [0, 0.03, 0], az(W * 0.42), rgb('#b08a62')); // deck boards
-  w.box('paint', at(0, 0.5, 0), ax(L * 0.34), [0, 0.05, 0], az(W * 0.5 + 0.02), rgb('#c9a37a')); // gunwale strip
-  for (let k = -3; k <= 3; k++) for (const dz of [-1, 1]) w.box('paint', at(k * 0.75, 0.12, dz * (W * 0.47)), ax(0.12), [0, 0.13, 0], az(0.09), rgb('#f2efe6')); // white fenders hung along both sides (photo: P. Albion)
-  // The cabin (R3): a long, low roof arched across the beam, over open sides. The shaded
-  // inside reads as the row of windows; posts stand at the corners and between the bays.
-  const cabin = { half: L * 0.33, y0: 0.5, y1: 1.55, rise: 0.28, beam: W * 0.5 + 0.06 };
-  w.box('paint', at(0, (cabin.y0 + cabin.y1) / 2, 0), ax(cabin.half - 0.1), [0, (cabin.y1 - cabin.y0) / 2, 0], az(W * 0.36), rgb('#4a2f22')); // shade inside
-  for (let k = -3; k <= 3; k++) for (const dz of [-1, 1]) {
-    w.box('paint', at((k / 3) * (cabin.half - 0.06), (cabin.y0 + cabin.y1) / 2, dz * (W * 0.36 + 0.03)), ax(0.05), [0, (cabin.y1 - cabin.y0) / 2, 0], az(0.04), rgb('#7a4e34'));
-  }
-  const arc = 6;
-  const roofAt = (x, i, lift) => {
-    const a = (i / arc) * Math.PI; // 0..pi across the beam
-    return at(x, cabin.y1 + Math.sin(a) * cabin.rise + lift, -Math.cos(a) * cabin.beam);
-  };
-  for (const [lift, color] of [[0.07, '#e8dcc0'], [0, '#c9b590']]) {
-    // the top of the roof (light) and its underside (shaded), each a strip of quads
-    for (let i = 0; i < arc; i++) {
-      const q = [roofAt(-cabin.half - 0.25, i, lift), roofAt(cabin.half + 0.25, i, lift), roofAt(cabin.half + 0.25, i + 1, lift), roofAt(-cabin.half - 0.25, i + 1, lift)];
-      if (lift) w.quad('paint', q[0], q[1], q[2], q[3], rgb(color));
-      else w.quad('paint', q[3], q[2], q[1], q[0], rgb(color));
-    }
-  }
-}
 
 /**
  * Builds the outside. `fog` is the scene's fog (the daylight haze: the sky's horizon and the
@@ -147,8 +104,8 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = '#f4faea', li
     }
   }
 
-  // --- Boats (not rebuilt yet) ------------------------------------------------------------------
-  if (want('boats')) for (const b of S.boats) buildBoat(w, b, S.water);
+  // --- Boats: Kuching river taxis (boats.js; planned, compiled, checked against photos) ---------
+  if (want('boats')) reports.boats = S.boats.map((b) => compileBoat(planBoat(PENAMBANG, b.scheme), w, b, S.water));
 
   // --- Geometry per material -------------------------------------------------------------------
   const geometry = (name) => {

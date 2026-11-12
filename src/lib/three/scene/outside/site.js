@@ -72,8 +72,8 @@ export const SITE = {
   assembly: { x: 127, z: -225 }, // bearing +31, 254 m: where R3 has it, at the right edge of the window and about as big; the right curtain may cover part of it (agreed with the user)
   skyline: { z: -470, x0: -70, x1: 75, count: 16 }, // between the bridge towers and the Assembly building (R3)
   boats: [
-    { x: -6.5, z: -40, ry: 0.3 }, // the near boat, heading right (R3)
-    { x: -19, z: -72, ry: 0.15 }, // the far boat, left of it
+    { x: -6.5, z: -40, ry: 0.3, scheme: 'red' }, // the near boat, heading right (R3); colours of photo B1
+    { x: -19, z: -72, ry: 0.15, scheme: 'orange' }, // the far boat, left of it; colours of photo B3
   ],
 };
 
