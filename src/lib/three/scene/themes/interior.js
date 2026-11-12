@@ -225,7 +225,7 @@ export const INTERIOR_THEME = {
     fill: { color: '#ffd6ac', intensity: 0.55 }, // soft light from the room behind the camera
     // Curtains and cloth lit from behind (emissive strength, times the level above).
     glow: { valance: 0.25, sheer: 0.12, white: 0.35, cloth: 0.12 },
-    // Polished boards mirror the bright windows and the red cloth (glossBoards in interior.js).
+    // Polished boards mirror the bright windows and the red cloth (glossBoards in interior/surfaces.js).
     gloss: {
       window: [1.0, 0.74, 0.46], // the windows' colour in the boards (linear)
       clothTint: { multiply: [1.7, 0.6, 0.45], add: [0.05, 0.0, 0.0] }, // the red cloth's tint on the boards (linear)
