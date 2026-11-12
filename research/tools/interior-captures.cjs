@@ -20,6 +20,10 @@ const VIEWS = {
   near: ['cam=near', WIDE],
   far: ['cam=far', WIDE],
   phone: ['', PHONE],
+  // ?theme=off: the clay render (the scene without its look)
+  clay: ['theme=off', WIDE],
+  'clay-window': ['theme=off&view=window&look=0,0', WIDE],
+  'clay-phone': ['theme=off', PHONE],
   seed1: ['seed=1', WIDE],
   seed2: ['seed=2', WIDE],
   'look-left': ['look=-1,0', WIDE],

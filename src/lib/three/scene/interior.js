@@ -27,6 +27,9 @@
 //   t     = seconds (stops the clock of the view outside, so two captures match pixel for pixel)
 //   eye = x,y,z   yaw = deg   pitch = deg   fov = deg   (a free camera, for close-ups)
 //   perf  (or perf=n: n seconds per shot) a timed run from the seat to the window (perf.js)
+//   theme = off: a clay render, the scene without its look (no colours, painted textures, toon
+//           bands, ink, watercolour, grade or painted fakes; white light, real shadows). The
+//           "Theme off" button in Interior.svelte sets it.
 
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -35,7 +38,7 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { toonGradient, createOutline } from './toon.js';
 import { paintPlanks, paintLattice, paintCurtain, paintCloth, paintDecor, paintGlow } from './paint.js';
-import { createOutside, OBJECTS, MIRROR_LAYER } from './outside/index.js';
+import { createOutside, OBJECTS, MIRROR_LAYER, CLAY } from './outside/index.js';
 import { PIGMENT_SHADER, FINISH_SHADER, createPigmentField } from './watercolour.js';
 import { createMeter } from './meter.js';
 import { createPerfRun } from './perf.js';
@@ -51,6 +54,31 @@ function setUniforms(uniforms, values) {
     else if (uniforms[k].value?.isVector3) uniforms[k].value.fromArray(v);
     else uniforms[k].value = v;
   }
+}
+
+/** A white copy of a cut-out texture with the same alpha: keeps the holes, drops the paint (clay render). */
+function maskOf(texture) {
+  const src = texture.image;
+  const c = document.createElement('canvas');
+  c.width = src.width;
+  c.height = src.height;
+  const g = c.getContext('2d');
+  g.drawImage(src, 0, 0);
+  g.globalCompositeOperation = 'source-in';
+  g.fillStyle = '#ffffff';
+  g.fillRect(0, 0, c.width, c.height);
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = texture.wrapS;
+  t.wrapT = texture.wrapT;
+  t.repeat.copy(texture.repeat);
+  t.anisotropy = texture.anisotropy;
+  return t;
+}
+
+/** A light's colour turned to the grey of the same luminance (linear), so the clay render keeps its balance. */
+function neutral(color) {
+  const y = 0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b;
+  return color.setRGB(y, y, y);
 }
 
 const vec3 = (a) => `vec3(${a.map((n) => n.toFixed(2)).join(', ')})`; // a linear colour, written into GLSL
@@ -689,6 +717,7 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
   const startedAt = performance.now();
   const params = new URLSearchParams(window.location.search);
   const debug = params.get('debug');
+  const clay = params.get('theme') === 'off';
   const off = new Set((params.get('off') ?? '').split(',').filter(Boolean));
   const seed = Number(params.get('seed') ?? 0) || 0;
   const fixedLook = params.get('look')?.split(',').map(Number);
@@ -746,6 +775,10 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
   const fill = new THREE.DirectionalLight(L.fill.color, L.fill.intensity * LIGHT); // soft light from the room behind the camera
   fill.position.set(1.5, 2.5, 4);
   scene.add(sun, sun.target, hemi, fill);
+  if (clay) {
+    for (const c of [sun.color, hemi.color, hemi.groundColor, fill.color]) neutral(c);
+    scene.background = new THREE.Color(CLAY).multiplyScalar(LIGHT);
+  }
 
   const gradientMap = toonGradient(THEME.shading.bands, { smooth: THEME.shading.smooth });
   const T = THEME.textures;
@@ -770,6 +803,7 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
   const M = THEME.materials;
   const G = THEME.glow;
   const materials = {};
+  const masks = [];
   for (const [key, color, map, extra] of [
     ['floor', M.floor, textures.floor],
     ['wall', M.wall, textures.wall],
@@ -789,6 +823,13 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
     ['tape', M.tape, null],
     ['bag', M.bag, null],
   ]) {
+    if (clay) {
+      // Plain grey, lit as it is; the lattice and carving keep their holes (their texture as a mask).
+      const cut = key === 'lattice' || key === 'carve';
+      if (cut) masks.push(maskOf(map));
+      materials[key] = new THREE.MeshStandardMaterial({ color: CLAY, roughness: 1, metalness: 0, fog: false, side: extra?.side ?? THREE.FrontSide, map: cut ? masks.at(-1) : null, alphaTest: cut ? 0.5 : 0 });
+      continue;
+    }
     materials[key] = new THREE.MeshToonMaterial({ color, map, vertexColors: true, gradientMap, fog: false, ...extra });
     materials[key].emissiveIntensity *= LIGHT;
     if (debug === 'flat' && key !== 'lattice' && key !== 'carve') {
@@ -797,10 +838,12 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
     }
   }
 
-  shadeWalls(materials.wall, PLAN.room.top);
-  const { window: windowGloss, clothTint } = L.gloss;
-  glossBoards(materials.floor, { window: windowGloss, clothTint, ...L.gloss.floor, light: LIGHT, view: debug === 'gloss' });
-  glossBoards(materials.top, { window: windowGloss, clothTint, ...L.gloss.top, light: LIGHT, view: debug === 'gloss' });
+  if (!clay) {
+    shadeWalls(materials.wall, PLAN.room.top);
+    const { window: windowGloss, clothTint } = L.gloss;
+    glossBoards(materials.floor, { window: windowGloss, clothTint, ...L.gloss.floor, light: LIGHT, view: debug === 'gloss' });
+    glossBoards(materials.top, { window: windowGloss, clothTint, ...L.gloss.top, light: LIGHT, view: debug === 'gloss' });
+  }
   const b = new Builder();
   buildRoom(b);
   buildLattice(b);
@@ -831,12 +874,14 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
   const contact = buildContactShadows(textures.blob);
   scene.add(contact.group);
   room.visible = contact.group.visible = !stage;
+  if (clay) contact.group.visible = false; // painted shadows: the clay render shows only the sun's
 
   // Outside: the Sarawak River at Kuching (outside/index.js). ?off=outside hides it (the windows
   // then show plain daylight). ?debug=flat and ?debug=silhouette also apply to it.
   const outsideAt = performance.now();
-  const landscape = createOutside({ gradientMap, seed, fog: scene.fog, haze: AIR.daylight, light: LIGHT, key: AIR.key, sun: sun.position.clone().sub(sun.target.position), mode: debug === 'flat' || debug === 'silhouette' ? debug : undefined, stage, tint: debug?.startsWith('tree-') ? debug : undefined });
+  const landscape = createOutside({ gradientMap, seed, fog: scene.fog, haze: AIR.daylight, light: LIGHT, key: AIR.key, sun: sun.position.clone().sub(sun.target.position), mode: clay ? 'clay' : debug === 'flat' || debug === 'silhouette' ? debug : undefined, stage, tint: debug?.startsWith('tree-') ? debug : undefined });
   const outsideMs = performance.now() - outsideAt;
+  if (clay) scene.fog = null; // no haze
   landscape.group.visible = !off.has('outside');
   landscape.setWaterView({ 'water-normal': 1, 'water-fresnel': 2, 'water-filter': 3, 'water-reflection': 4, 'water-body': 5, 'water-crest': 6, 'water-lost': 7 }[debug] ?? 0);
   scene.traverse((o) => o.isLight && o.layers.enable(MIRROR_LAYER)); // the river's mirror is lit like the view itself
@@ -855,7 +900,8 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
   setUniforms(outline.material.uniforms, inkLook);
   const composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
-  if (!off.has('ink')) composer.addPass(new ShaderPass(outline.material));
+  const inkPass = !off.has('ink') && !clay;
+  if (inkPass) composer.addPass(new ShaderPass(outline.material));
   // Watercolour (watercolour.js): pigment in linear light, then the finish pass.
   const pigment = new ShaderPass(PIGMENT_SHADER);
   const finish = new ShaderPass(FINISH_SHADER);
@@ -866,8 +912,8 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
   pigment.uniforms.view.value = paintView;
   const pigmentField = createPigmentField(renderer);
   pigment.uniforms.tField.value = pigmentField.texture;
-  if (!off.has('pigment')) composer.addPass(pigment);
-  finish.uniforms.view.value = off.has('grade') || paintView ? 1 : 0;
+  if (!off.has('pigment') && !clay) composer.addPass(pigment);
+  finish.uniforms.view.value = off.has('grade') || paintView || clay ? 1 : 0; // 1: tone map and encode only, no grade
   composer.addPass(finish);
   const meter = createMeter(renderer);
   let metered = false;
@@ -1027,7 +1073,7 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
     perf?.section(debug === 'nopost' ? 'scene' : 'ink-prep');
     if (debug === 'nopost') renderer.render(scene, camera);
     else {
-      if (!off.has('ink')) outline.render();
+      if (inkPass) outline.render();
       composer.render(dt);
     }
     perf?.end(now, performance.now() - t0);
@@ -1041,7 +1087,7 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
     }
     // Inspection metrics: after 15 warm-up frames, average 30 frames. cpuMs is the time spent in
     // this function (it does not include the GPU's own work); frameMs is the time between frames.
-    if (debug || params.has('cam') || params.has('off') || params.has('seed') || fixedLook || params.has('shot')) {
+    if (debug || params.has('cam') || params.has('off') || params.has('seed') || params.has('theme') || fixedLook || params.has('shot')) {
       window.__interiorMetrics = metrics; // inspection scripts wait on .frames and .done
       metrics.frames++;
       metrics.eye = camera.position.toArray().map((v) => +v.toFixed(3));
@@ -1077,7 +1123,7 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
       stop: () => cancelAnimationFrame(frame),
       draw() {
         landscape.renderMirror(renderer, scene, camera);
-        if (!off.has('ink')) outline.render();
+        if (inkPass) outline.render();
         composer.render(0);
       },
     };
@@ -1098,6 +1144,7 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
       });
       for (const m of Object.values(materials)) m.dispose();
       for (const t of Object.values(textures)) t.dispose();
+      for (const t of masks) t.dispose();
       latticeDepth.dispose();
       carveDepth.dispose();
       contact.mat.dispose();

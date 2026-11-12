@@ -44,11 +44,15 @@ export const OBJECTS = ['farbank', 'nearbank', 'trees', 'river', 'assembly', 'br
 const SKY_KEY = OUTSIDE_THEME.air.skyKey;
 const SKYLINE = OUTSIDE_THEME.skyline;
 
+/** The one grey of the clay render (?theme=off): every surface, inside and out. */
+export const CLAY = '#c8c8c8';
+
 /**
  * Builds the outside. `fog` is the scene's fog (the daylight haze: the sky's horizon and the
  * water use its colour too); `light` scales what gives off its own light, to match the scene's
  * lamps; `key` darkens the outdoor paint so it keeps its colour next to a room exposed for
- * shade; `mode` 'flat' or 'silhouette' are the checks the geometry skill asks for; `stage` lists
+ * shade; `mode` 'flat' or 'silhouette' are the checks the geometry skill asks for, 'clay' the
+ * clay render of ?theme=off (plain grey, no painted textures, no water shader); `stage` lists
  * the objects to build (default: all); `tint` 'tree-level' or 'tree-kind' paints the trees'
  * growth diagnostics.
  */
@@ -132,6 +136,11 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
     let m;
     if (mode === 'silhouette') m = new THREE.MeshBasicMaterial({ color: '#000000', fog: false, side });
     else if (mode === 'flat') m = new THREE.MeshToonMaterial({ gradientMap, color: '#bdbdbd', side });
+    else if (mode === 'clay') {
+      // plain grey, lit as it is; keyed down like the paint so sunlit ground does not burn out
+      m = new THREE.MeshStandardMaterial({ color: CLAY, roughness: 1, metalness: 0, side });
+      m.color.multiplyScalar(key);
+    }
     else {
       m = new THREE.MeshToonMaterial({ gradientMap, vertexColors: true, side, map: map ?? null });
       m.color.multiplyScalar(key);
@@ -159,11 +168,11 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
   const E = S.extent;
   const water = createWater({ level: S.water, layer: MIRROR_LAYER, pale: haze, fog, light: light * SKY_KEY, key, sun });
   disposables.push(water);
-  const hasRiver = want('river') && mode !== 'silhouette';
+  const hasRiver = want('river') && mode !== 'silhouette' && mode !== 'clay'; // the plain river mirrors nothing
   if (want('river')) {
     const river = new THREE.PlaneGeometry(E.x1 - E.x0, E.z1 - E.z0, 1, 1).rotateX(-Math.PI / 2).translate((E.x0 + E.x1) / 2, S.water, (E.z0 + E.z1) / 2);
     river.setAttribute('color', new THREE.Float32BufferAttribute(new Array(river.attributes.position.count * 3).fill(0.5), 3)); // one part, for the ink pass
-    const riverMesh = new THREE.Mesh(river, mode === 'silhouette' ? new THREE.MeshBasicMaterial({ color: '#8a8a8a', fog: false }) : water.material);
+    const riverMesh = new THREE.Mesh(river, mode === 'silhouette' ? new THREE.MeshBasicMaterial({ color: '#8a8a8a', fog: false }) : mode === 'clay' ? toon() : water.material);
     riverMesh.name = 'water';
     group.add(riverMesh);
     const c = createContract('river');
@@ -178,7 +187,7 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
 
   // --- Sky: a painted dome; its horizon is the haze colour (layer 1: no ink) -------------------
   if (want('sky')) {
-    const skyMat = new THREE.MeshBasicMaterial({ map: mode === 'silhouette' ? null : textures.sky, color: '#ffffff', side: THREE.BackSide, fog: false, depthWrite: false });
+    const skyMat = new THREE.MeshBasicMaterial({ map: mode === 'silhouette' || mode === 'clay' ? null : textures.sky, color: '#ffffff', side: THREE.BackSide, fog: false, depthWrite: false });
     skyMat.color.setScalar(mode === 'silhouette' ? light * 2 : light * SKY_KEY);
     const sky = new THREE.Mesh(new THREE.SphereGeometry(1300, 32, 16), skyMat);
     sky.rotation.y = 1.1 + seed;

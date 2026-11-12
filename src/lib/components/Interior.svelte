@@ -7,6 +7,16 @@
   let ready = $state(false);
   let shot = $state('seat');
   let scene;
+  // ?theme=off: the scene as a clay render, without its look (interior.js). Read once: the button
+  // reloads the page, since every texture and material is built at load.
+  const themeOff = new URLSearchParams(window.location.search).get('theme') === 'off';
+
+  function toggleTheme() {
+    const url = new URL(window.location.href);
+    if (themeOff) url.searchParams.delete('theme');
+    else url.searchParams.set('theme', 'off');
+    window.location.assign(url);
+  }
 
   onMount(() => {
     scene = createInterior(canvas, { onReady: () => (ready = true), onShot: (name) => (shot = name) });
@@ -25,6 +35,10 @@
 
   <button class="shot" type="button" onclick={() => scene?.setShot(shot === 'seat' ? 'window' : 'seat')}>
     {shot === 'seat' ? 'Look out of the window' : 'Back to the seat'}
+  </button>
+
+  <button class="shot theme" type="button" aria-pressed={themeOff} onclick={toggleTheme}>
+    {themeOff ? 'Theme on' : 'Theme off'}
   </button>
 
   <p class="credit">
@@ -108,6 +122,9 @@
   .shot:hover {
     background: rgba(58, 36, 24, 0.8);
   }
+  .theme {
+    bottom: 112px;
+  }
   .shot:focus-visible {
     outline: 2px solid #f6ead2;
     outline-offset: 3px;
@@ -145,6 +162,9 @@
     .shot {
       right: 20px;
       bottom: 84px;
+    }
+    .theme {
+      bottom: 132px;
     }
   }
 </style>
