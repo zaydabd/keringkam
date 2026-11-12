@@ -24,6 +24,7 @@
 //   cam   = design (default) | near | far      look = x,y (fixes the pointer sway, -1..1)
 //   view  = seat (default) | window (start in that camera shot; SHOTS below)
 //   seed  = n (moves the pigment field and the painted textures)
+//   t     = seconds (stops the clock of the view outside, so two captures match pixel for pixel)
 //   eye = x,y,z   yaw = deg   pitch = deg   fov = deg   (a free camera, for close-ups)
 //   perf  (or perf=n: n seconds per shot) a timed run from the seat to the window (perf.js)
 
@@ -35,7 +36,7 @@ import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { toonGradient, createOutline } from './toon.js';
 import { paintPlanks, paintLattice, paintCurtain, paintCloth, paintDecor, paintGlow } from './paint.js';
 import { createOutside, SKY_KEY, OBJECTS, MIRROR_LAYER } from './outside/index.js';
-import { PIGMENT_SHADER, FINISH_SHADER } from './watercolour.js';
+import { PIGMENT_SHADER, FINISH_SHADER, createPigmentField } from './watercolour.js';
 import { createMeter } from './meter.js';
 import { createPerfRun } from './perf.js';
 
@@ -673,12 +674,17 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
   const yawParam = THREE.MathUtils.degToRad(num('yaw') ?? 0);
   const pitchParam = THREE.MathUtils.degToRad(num('pitch') ?? 0);
   const fovParam = num('fov');
+  const clockParam = num('t');
   // ?stage=farbank,trees,... shows only those objects of the view outside (outside/index.js
   // OBJECTS), without the room, from the window shot's eye; yaw, pitch, fov and eye then apply to
   // it. ?exposure=n sets the exposure instead of metering (the stage uses the window shot's 1.85).
   const stage = params.get('stage')?.split(',').filter((n) => OBJECTS.includes(n)) ?? null;
   const exposureParam = num('exposure') ?? (stage ? 1.85 : null);
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  // No MSAA on the screen under post-processing: the scene is drawn into the composer's own
+  // (single-sample) buffers and only the last full-screen pass reaches the screen, so screen MSAA
+  // would smooth nothing and still cost its memory and resolve. ?debug=nopost draws straight to
+  // the screen and keeps it.
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: debug === 'nopost' });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;
@@ -835,12 +841,15 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
   finish.material.toneMapped = false; // the shader tone-maps itself
   const paintView = { 'paint-pigment': 1, 'paint-edge': 2, 'paint-bleed': 3 }[debug] ?? 0;
   pigment.uniforms.view.value = paintView;
-  pigment.uniforms.seed.value = seed;
+  const pigmentField = createPigmentField(renderer);
+  pigment.uniforms.tField.value = pigmentField.texture;
   if (!off.has('pigment')) composer.addPass(pigment);
   finish.uniforms.view.value = off.has('grade') || paintView ? 1 : 0;
   composer.addPass(finish);
   const meter = createMeter(renderer);
   let metered = false;
+  let meterToken = 0;
+  let destroyed = false;
   const metrics = { frames: 0, cpuMs: 0, frameMs: 0 };
   renderer.info.autoReset = false; // count draw calls over all passes of a frame
 
@@ -861,6 +870,7 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
     outline.setSize(w, h, renderer.getPixelRatio());
     pigment.uniforms.resolution.value.set(w * renderer.getPixelRatio(), h * renderer.getPixelRatio());
     pigment.uniforms.scale.value = renderer.getPixelRatio();
+    pigmentField.update(w * renderer.getPixelRatio(), h * renderer.getPixelRatio(), renderer.getPixelRatio(), seed);
     camera.aspect = w / h;
     // Keep R1's vertical view on wide screens; on narrow ones keep its horizontal view instead.
     if (move.t >= 1) {
@@ -919,11 +929,18 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
     poseCam.updateProjectionMatrix();
     poseOf(name, poseCam);
     poseCam.updateMatrixWorld();
-    const average = meter.measure(scene, poseCam);
-    exposureTarget = exposureParam ?? meter.exposureFor(average, EXPOSURE_EV + SHOTS[name].ev);
-    metrics.luminance = average;
-    metrics.exposure = exposureTarget;
-    if (debug) console.info('meter: average luminance', average.toFixed(4), 'exposure', exposureTarget.toFixed(3), 'shot', name);
+    const token = ++meterToken; // only the latest reading counts
+    meter
+      .measure(scene, poseCam)
+      .then((average) => {
+        if (token !== meterToken || destroyed) return;
+        exposureTarget = exposureParam ?? meter.exposureFor(average, EXPOSURE_EV + SHOTS[name].ev);
+        if (exposure === null) exposure = exposureTarget; // the first reading: no fade in
+        metrics.luminance = average;
+        metrics.exposure = exposureTarget;
+        if (debug) console.info('meter: average luminance', average.toFixed(4), 'exposure', exposureTarget.toFixed(3), 'shot', name);
+      })
+      .catch(() => {}); // the scene was destroyed while the read was in flight
   }
   // The ink and pigment passes work before the tone map: they need the exposure to judge what
   // counts as a dark or a mid tone.
@@ -954,7 +971,7 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
     renderer.info.reset();
     const t0 = performance.now();
     perf?.begin();
-    landscape.update(timer.getElapsed());
+    landscape.update(clockParam ?? timer.getElapsed());
     const dt = Math.min(timer.getDelta(), 0.1);
     if (fixedLook) look.copy(pointer);
     else look.lerp(pointer, 1 - Math.exp(-dt * 2)); // smooths the input, not the camera
@@ -973,8 +990,7 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
     }
     if (!metered && width) {
       metered = true;
-      meterFor(shot);
-      if (exposure === null) exposure = exposureTarget; // first frame: no fade in
+      meterFor(shot); // the reading arrives a frame or two later; the veil stays up until then
     }
     if (exposure !== null && exposure !== exposureTarget) {
       // Eye adaptation: quicker towards a brighter view than towards a darker one (the skill's rates).
@@ -992,9 +1008,11 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
       composer.render(dt);
     }
     perf?.end(now, performance.now() - t0);
-    if (!readyCalled) {
+    if (perf && perfLoad.firstFrameMs == null) Object.assign(perfLoad, { firstFrameMs: +(performance.now() - t0).toFixed(1), firstFrameAtMs: Math.round(performance.now()) });
+    if (!readyCalled && exposure !== null) {
+      // Ready once a frame has been drawn at the metered exposure.
       readyCalled = true;
-      if (perf) Object.assign(perfLoad, { firstFrameMs: +(performance.now() - t0).toFixed(1), firstFrameAtMs: Math.round(performance.now()) });
+      if (perf) perfLoad.readyAtMs = Math.round(performance.now());
       if (debug) console.info('triangles', renderer.info.render.triangles, 'calls', renderer.info.render.calls);
       onReady?.();
     }
@@ -1029,12 +1047,25 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
     // Time each composer pass on its own (scene, ink, pigment, finish).
     for (const pass of composer.passes) perf.wrap(pass, pass === pigment ? 'pigment' : pass === finish ? 'finish' : pass instanceof RenderPass ? 'scene' : 'ink');
   }
+  // Inspection handle for profiling scripts (?perf or ?debug only): stop the loop, draw one frame.
+  if (perf || debug) {
+    window.__interior = {
+      renderer, scene, camera, composer, outline, landscape, setShot,
+      stop: () => cancelAnimationFrame(frame),
+      draw() {
+        landscape.renderMirror(renderer, scene, camera);
+        if (!off.has('ink')) outline.render();
+        composer.render(0);
+      },
+    };
+  }
   frame = requestAnimationFrame(tick);
 
   return {
     setShot,
     getShot: () => shot,
     destroy() {
+      destroyed = true;
       cancelAnimationFrame(frame);
       perf?.dispose();
       resizeObserver.disconnect();
@@ -1052,6 +1083,7 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
       gradientMap.dispose();
       outline.dispose();
       pigment.dispose();
+      pigmentField.dispose();
       finish.dispose();
       meter.dispose();
       composer.dispose();

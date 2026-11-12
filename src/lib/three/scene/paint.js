@@ -18,7 +18,11 @@ function canvas(w, h) {
   const c = document.createElement('canvas');
   c.width = w;
   c.height = h;
-  return [c, c.getContext('2d')];
+  // willReadFrequently keeps the canvas on the CPU. These textures are thousands of small strokes,
+  // drawn once and then uploaded: on a GPU-backed canvas every one of them is a GPU command that
+  // must finish before the upload (2.1 s for the turf alone under software WebGL), on the CPU the
+  // same strokes take 20-100 ms. Measured: research/INTERIOR-NOTES.md, "Performance pass".
+  return [c, c.getContext('2d', { willReadFrequently: true })];
 }
 
 function texture(c, repeat = [1, 1], wrap = true) {

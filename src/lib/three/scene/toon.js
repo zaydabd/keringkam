@@ -9,6 +9,7 @@
 // and Maxime Heckel, "Moebius-style post-processing and other stylized shaders" (2024).
 
 import * as THREE from 'three';
+import { FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
 
 /**
  * A three-band toon ramp: shadow, mid, light. Each band is an RGB colour, so the shadow band can
@@ -51,6 +52,8 @@ const OUTLINE_SHADER = {
     tDiffuse: { value: null },
     tEdge: { value: null },
     tDepth: { value: null },
+    tWobble: { value: null }, // the hand-wobble noise, drawn once per screen size (INK_FIELD_FRAGMENT)
+    tGrain: { value: null }, // the paper grain, likewise
     resolution: { value: new THREE.Vector2(1, 1) },
     cameraNear: { value: 0.05 },
     cameraFar: { value: 400 },
@@ -70,18 +73,12 @@ const OUTLINE_SHADER = {
   `,
   fragmentShader: /* glsl */ `
     #include <packing>
-    uniform sampler2D tDiffuse, tEdge, tDepth;
+    uniform sampler2D tDiffuse, tEdge, tDepth, tWobble, tGrain;
     uniform vec2 resolution, fade, farDepth;
     uniform float cameraNear, cameraFar, strength, thickness, split, seams, exposure, farInk;
     uniform vec3 ink;
     varying vec2 vUv;
 
-    float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-    float noise(vec2 p) {
-      vec2 i = floor(p), f = fract(p);
-      f = f * f * (3.0 - 2.0 * f);
-      return mix(mix(hash(i), hash(i + vec2(1, 0)), f.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.x), f.y);
-    }
     float depthAt(vec2 uv) {
       float d = texture2D(tDepth, uv).x;
       return d >= 1.0 ? cameraFar : perspectiveDepthToViewZ(d, cameraNear, cameraFar) * -1.0;
@@ -96,10 +93,11 @@ const OUTLINE_SHADER = {
       vec3 cool = mix(base.rgb, vec3(lum) * vec3(0.7, 0.86, 1.5), 0.45); // half-way to a blue-grey of the same value
       base.rgb = mix(base.rgb, cool, sh * split);
       // Hand wobble: nudge where we look for edges by a slow noise, so lines waver like ink.
+      // The noise (wobble x, y, thickness, pressure) is precomputed: INK_FIELD_FRAGMENT.
       vec2 px = 1.0 / resolution;
-      vec2 q = vUv * resolution / 9.0;
-      vec2 wob = (vec2(noise(q), noise(q + 17.3)) - 0.5) * 2.2 * px;
-      float t = thickness * (0.75 + 0.5 * noise(q * 0.35 + 5.0));
+      vec4 hand = texelFetch(tWobble, ivec2(gl_FragCoord.xy), 0);
+      vec2 wob = (hand.xy - 0.5) * 2.2 * px;
+      float t = thickness * (0.75 + 0.5 * hand.z);
       vec2 uv = vUv + wob;
 
       // A cut-out panel (the window lattice) is drawn into the edge buffer as "nothing" (alpha 0)
@@ -143,18 +141,43 @@ const OUTLINE_SHADER = {
       float farEdge = max(max(smoothstep(farDepth.x, farDepth.y, lap / i0), creases), seam * 0.6);
       farEdge *= farInk * mix(1.0, 0.5, smoothstep(80.0, 800.0, nearest)); // fainter in the haze
       edge = max(edge, farEdge * outside);
-      edge *= 0.5 + 0.5 * noise(q * 2.3); // uneven pressure: the line thins and breaks
+      edge *= 0.5 + 0.5 * hand.w; // uneven pressure: the line thins and breaks
       vec3 col = mix(base.rgb, ink, edge * strength);
       col *= 1.0 - seam * 0.55 * (1.0 - smoothstep(fade.x, fade.y, dc)) * (cm ? 0.0 : 1.0); // seams darken whatever they cross, so they show on dark wood too
-      // Paper grain: fine tooth plus a faint larger mottling, like watercolour paper.
-      vec2 fc = gl_FragCoord.xy;
-      float tooth = noise(fc * 0.85) * 0.6 + noise(fc * 0.21 + 3.0) * 0.4;
-      float mottle = noise(fc * 0.012 + 11.0);
-      col *= 0.955 + 0.07 * tooth + 0.04 * (mottle - 0.5);
+      // Paper grain: fine tooth plus a faint larger mottling, like watercolour paper (precomputed).
+      col *= 0.935 + 0.11 * texelFetch(tGrain, ivec2(gl_FragCoord.xy), 0).r;
       gl_FragColor = vec4(col, base.a);
     }
   `,
 };
+
+// The ink pass's noise depends on the pixel's position only, never on the image, so it is drawn
+// once per screen size instead of every frame (7 value-noise lookups, 28 sines, per pixel per
+// frame saved). part 0: wobble x, wobble y, thickness, pressure (RGBA, 8 bits: a wobble step is
+// 0.01 px); part 1: the paper grain (one channel). size = the buffer's size in pixels; resolution
+// = the ink pass's resolution uniform, which can be a fraction of a pixel larger (dpr 1.5).
+const INK_FIELD_FRAGMENT = /* glsl */ `
+  uniform vec2 resolution, size;
+  uniform float part;
+  float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+  float noise(vec2 p) {
+    vec2 i = floor(p), f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(hash(i), hash(i + vec2(1, 0)), f.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.x), f.y);
+  }
+  void main() {
+    if (part < 0.5) {
+      vec2 q = gl_FragCoord.xy / size * resolution / 9.0; // vUv * resolution / 9 in the ink pass
+      gl_FragColor = vec4(noise(q), noise(q + 17.3), noise(q * 0.35 + 5.0), noise(q * 2.3));
+    } else {
+      vec2 fc = gl_FragCoord.xy;
+      float tooth = noise(fc * 0.85) * 0.6 + noise(fc * 0.21 + 3.0) * 0.4;
+      float mottle = noise(fc * 0.012 + 11.0);
+      // 0.955 + 0.07 tooth + 0.04 (mottle - 0.5) = 0.935 + 0.11 g, with g in 0..1
+      gl_FragColor = vec4((0.07 * tooth + 0.04 * mottle) / 0.11, 0.0, 0.0, 1.0);
+    }
+  }
+`;
 
 // A cut-out panel in the edge buffer: "nothing here" (alpha 0), but at the panel's own depth.
 const MASK_VERTEX = /* glsl */ `
@@ -192,6 +215,17 @@ export function createOutline(renderer, scene, camera, { layer = 0, ink = '#3a24
   }
   material.uniforms.ink.value.set(ink);
   const clear = new THREE.Color();
+  const fieldOptions = { type: THREE.UnsignedByteType, depthBuffer: false, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, generateMipmaps: false };
+  const wobble = new THREE.WebGLRenderTarget(1, 1, fieldOptions);
+  const grain = new THREE.WebGLRenderTarget(1, 1, { ...fieldOptions, format: THREE.RedFormat });
+  const fieldMaterial = new THREE.ShaderMaterial({
+    uniforms: { resolution: { value: new THREE.Vector2() }, size: { value: new THREE.Vector2() }, part: { value: 0 } },
+    vertexShader: 'void main() { gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+    fragmentShader: INK_FIELD_FRAGMENT,
+  });
+  const fieldQuad = new FullScreenQuad(fieldMaterial);
+  material.uniforms.tWobble.value = wobble.texture;
+  material.uniforms.tGrain.value = grain.texture;
 
   return {
     material,
@@ -199,6 +233,17 @@ export function createOutline(renderer, scene, camera, { layer = 0, ink = '#3a24
       target.setSize(Math.round(w * pixelRatio), Math.round(h * pixelRatio));
       material.uniforms.resolution.value.set(w * pixelRatio, h * pixelRatio);
       material.uniforms.thickness.value = Math.max(0.75, pixelRatio * 0.7) * lineWidth;
+      // The fields, at the size of the composer's buffers (WebGL truncates w * pixelRatio).
+      const size = fieldMaterial.uniforms.size.value.set(Math.floor(w * pixelRatio), Math.floor(h * pixelRatio));
+      fieldMaterial.uniforms.resolution.value.copy(material.uniforms.resolution.value);
+      const previous = renderer.getRenderTarget();
+      for (const [part, field] of [wobble, grain].entries()) {
+        field.setSize(size.x, size.y);
+        fieldMaterial.uniforms.part.value = part;
+        renderer.setRenderTarget(field);
+        fieldQuad.render(renderer);
+      }
+      renderer.setRenderTarget(previous);
     },
     render() {
       const background = scene.background;
@@ -241,6 +286,10 @@ export function createOutline(renderer, scene, camera, { layer = 0, ink = '#3a24
       edgeMaterial.dispose();
       maskMaterial?.dispose();
       material.dispose();
+      wobble.dispose();
+      grain.dispose();
+      fieldMaterial.dispose();
+      fieldQuad.dispose();
     },
   };
 }

@@ -40,8 +40,8 @@ const glArgs = (args.gl ?? 'swiftshader') === 'swiftshader' ? ['--use-gl=angle',
   const f = (s) => (s ? `${s.median}/${s.p95}/${s.max}` : 'n/a');
   console.log(`size ${w}x${h} css, dpr ${dpr}, buffer ${r.env.drawingBuffer.join('x')}, gl ${r.run.gl}`);
   console.log(`gpu ${r.env.gpu}; GPU timer ${r.env.gpuTimer ? 'yes' : 'no'}`);
-  console.log(`load: build ${r.load.buildMs} ms (outside ${r.load.outsideMs} ms), first frame ${r.load.firstFrameMs} ms, page to first frame ${r.load.firstFrameAtMs} ms`);
-  console.log(`switch to window (meter render + readback): cpu ${r.switch?.cpuMs} ms, gpu ${r.switch?.gpuMs ?? 'n/a'} ms`);
+  console.log(`load: build ${r.load.buildMs} ms (outside ${r.load.outsideMs} ms), first frame ${r.load.firstFrameMs} ms, page to first frame ${r.load.firstFrameAtMs} ms, to ready ${r.load.readyAtMs} ms`);
+  console.log(`switch to window (meter render): cpu ${r.switch?.cpuMs} ms, gpu ${r.switch?.gpuMs ?? 'n/a'} ms`);
   console.table(
     Object.fromEntries(
       Object.entries(r.phases).map(([k, p]) => [

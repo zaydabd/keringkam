@@ -30,30 +30,41 @@ export function createMeter(renderer) {
   const bytes = new THREE.WebGLRenderTarget(W, H, { type: THREE.UnsignedByteType, depthBuffer: false });
   const material = new THREE.ShaderMaterial(ENCODE);
   const quad = new FullScreenQuad(material);
-  const pixels = new Uint8Array(W * H * 4);
+  function draw(scene, camera) {
+    const previous = renderer.getRenderTarget();
+    renderer.setRenderTarget(hdr);
+    renderer.clear();
+    renderer.render(scene, camera); // no tone mapping when drawing into a target
+    material.uniforms.tDiffuse.value = hdr.texture;
+    renderer.setRenderTarget(bytes);
+    quad.render(renderer);
+    renderer.setRenderTarget(previous);
+  }
+  function average(pixels) {
+    let sum = 0;
+    let weights = 0;
+    for (let i = 0; i < pixels.length; i += 4) {
+      const e = (pixels[i] + pixels[i + 1] / 255) / 255;
+      const l = e / Math.max(0.0001, 1 - e);
+      const w = l > 0.002 ? 1 : 0.15; // near-black pixels count for less
+      sum += Math.log(Math.max(l, 0.0001)) * w;
+      weights += w;
+    }
+    return Math.exp(sum / weights);
+  }
   return {
     targets: [hdr, bytes],
-    /** Returns the weighted log-average scene luminance (linear, before exposure). */
-    measure(scene, camera) {
-      const previous = renderer.getRenderTarget();
-      renderer.setRenderTarget(hdr);
-      renderer.clear();
-      renderer.render(scene, camera); // no tone mapping when drawing into a target
-      material.uniforms.tDiffuse.value = hdr.texture;
-      renderer.setRenderTarget(bytes);
-      quad.render(renderer);
-      renderer.readRenderTargetPixels(bytes, 0, 0, W, H, pixels);
-      renderer.setRenderTarget(previous);
-      let sum = 0;
-      let weights = 0;
-      for (let i = 0; i < pixels.length; i += 4) {
-        const e = (pixels[i] + pixels[i + 1] / 255) / 255;
-        const l = e / Math.max(0.0001, 1 - e);
-        const w = l > 0.002 ? 1 : 0.15; // near-black pixels count for less
-        sum += Math.log(Math.max(l, 0.0001)) * w;
-        weights += w;
-      }
-      return Math.exp(sum / weights);
+    /**
+     * Resolves to the weighted log-average scene luminance (linear, before exposure). The pixels
+     * come back through an asynchronous read (a pixel buffer and a fence), so the CPU never waits
+     * for the GPU: a synchronous read here stalled the shot switch until every queued frame was
+     * drawn (research/INTERIOR-NOTES.md, "Perf run").
+     */
+    async measure(scene, camera) {
+      draw(scene, camera);
+      const pixels = new Uint8Array(W * H * 4);
+      await renderer.readRenderTargetPixelsAsync(bytes, 0, 0, W, H, pixels);
+      return average(pixels);
     },
     /** Exposure for a measured average, with `ev` stops of compensation (the one artistic control). */
     exposureFor(average, ev = 0) {

@@ -457,6 +457,60 @@ What it shows (relative, from these runs):
 - Load: building the room took about 3.0 s, 2.9 s of it the outside; the first frame (shader builds,
   shadow map) took 2.6-2.8 s. Both measured under SwiftShader in a headless browser.
 
+### Performance pass (2026-11-12, branch `performance`)
+
+Rule for this pass: the image stays the same, and the resolution is not lowered. Each change was
+checked with captures at a fixed clock (`CLOCK=5 node research/tools/interior-captures.cjs`, which adds
+`?t=5`) against captures from before, and timed.
+
+**Warning: all times below come from SwiftShader (software rendering, headless, 4 CPU cores). They
+are not real GPU or phone timings.** Pass times are GPU timer queries, smallest of 7 runs; the "A/B"
+rows ran the old and new shaders alternately in the same browser (old code served from a git worktree
+on another port), twice each. SwiftShader times vary by about ±10% from run to run.
+
+| Change | Measured | Image |
+| --- | --- | --- |
+| 1. Painted textures drawn on a CPU canvas (`willReadFrequently: true` in `paint.js`) | build 2,994 → 375 ms; outside 2,905 → 292 ms; page to first frame 6,372 → 1,315 ms (perf runs, wide) | mean diff 0.78 of 255; > 8 on 0.08% of pixels |
+| 2. The meter reads back asynchronously (`readRenderTargetPixelsAsync` in `meter.js`) | switch to the window: CPU 19,951 → 0.8 ms (the 20 s stall is gone) | the same (the exposure fades in from the first reading as before) |
+| 3a. Pigment pass: pigment field and paper tooth drawn once per screen size (`createPigmentField`), the bleed ring rotated instead of 8 sin/cos, skipped on dry paper | pigment pass, A/B: window 139/165 → 90/104 ms; seat 139/133 → 88/93 ms (about -35%) | against step 1: mean 0.36, > 8 on 0.32%, max 33 (the field is stored in 8 bits) |
+| 3b. Ink pass: hand wobble, thickness, pressure and paper grain drawn once per screen size (`toon.js`) | ink pass, A/B: window 73/77 → 65/67 ms (about -11%); seat within noise | about 170 single pixels on ink lines change (thresholds); the same to the eye at 3x zoom |
+| 4. No MSAA on the screen when post-processing (`antialias: debug === 'nopost'`) | finish pass, A/B, seat: 27/28 → 21/21 ms | identical (0 pixels differ) |
+
+Whole frame (perf run, wide, GPU median): seat 727 → 719 ms, move 670 → 552 ms, window 541 → 509 ms.
+The scene pass (200-380 ms) and its noise hide most of the pass savings in these totals.
+
+Tried and not kept (measured, no gain worth the change):
+- Drawing the view outside after the room: three.js already draws the room first (only the sky,
+  `renderOrder = -1`, comes before it). Moving the sky last and its anisotropy to 1: 0 pixels differ,
+  time within noise under SwiftShader. A real GPU might gain from the sky drawn last (fewer hidden
+  pixels shaded); not measured, so not changed.
+- Leaving the near bank's `mud` and `turf` meshes out of the mirror: 0 pixels differ in the window
+  shot, but they are only 7,632 triangles and the mirror time did not change. The rest of the near
+  bank is merged into the `paint` and `blade` meshes with everything else outside, so it cannot be
+  left out without splitting them.
+- Adaptive resolution: not done (the user asked not to lower the resolution).
+
+Where the time still goes (SwiftShader, scene pass, seat): with the colour, emissive and gradient
+maps removed the pass took 200 instead of 366 ms; anisotropy 1 instead of 4 on every texture: 286
+instead of 349 ms; no shadow receiving: 317 ms. So texture sampling, not the shadows, is the big cost
+there. Anisotropy was kept at 4: at 1 the floor planks blur at grazing angles.
+
+Sources:
+- MDN, WebGL best practices: "Use non-blocking async data readback" and "Avoid blocking API calls in
+  production" (`readPixels` without a pixel-pack buffer is a "finish + round-trip"):
+  https://developer.mozilla.org/en-US/docs/Web/API/WebGL_API/WebGL_best_practices
+- MDN, `getContext` `willReadFrequently`: "This will force the use of a software (instead of hardware
+  accelerated) 2D canvas and can save memory when calling getImageData() frequently":
+  https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/getContext
+- three.js r187 `WebGLRenderer.readRenderTargetPixelsAsync` (pixel-pack buffer, `fenceSync`, then
+  polls): https://github.com/mrdoob/three.js/blob/r187/src/renderers/WebGLRenderer.js
+- PlayCanvas optimization guidelines (pixels filled and the device pixel ratio, "Post effects can be
+  expensive", texture memory):
+  https://developer.playcanvas.com/user-manual/optimization/guidelines/
+- Chromium, "Intent to Remove: SwiftShader Fallback" (WebGL no longer falls back to SwiftShader on
+  desktop; opt in with `--enable-unsafe-swiftshader`):
+  https://groups.google.com/a/chromium.org/g/blink-dev/c/yhFguWS_3pM
+
 ### Pass w4: the Assembly building back where R3 has it (2026-11-11)
 
 The user said the curtain may cover the buildings, so the Assembly building no longer moves to stay

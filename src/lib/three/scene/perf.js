@@ -11,7 +11,7 @@
 //   calls, triangles  renderer.info over all passes of the frame (interior.js sets autoReset off),
 //               also split into the passes
 // Also: build and first-frame times, the cost of the shot switch itself (setShot meters the new
-// view at once: a small render and a synchronous pixel readback), long frames, and memory counts.
+// view at once: a small render, read back asynchronously), long frames, and memory counts.
 // The result goes to window.__perf (scripts wait on .done), to the console, and to a panel on the
 // page, so a run on a phone can be read without a console. research/tools/perf-run.cjs drives it.
 
@@ -155,8 +155,8 @@ export function createPerfRun(renderer, { hold = 3, go, moving, load }) {
     const text = [
       `PERF RUN  ${r.env.css.join('x')} css px, ratio ${r.env.pixelRatio}, buffer ${r.env.drawingBuffer.join('x')}`,
       `gpu: ${r.env.gpu}${r.env.gpuTimer ? '' : ' (no GPU timer)'}`,
-      `load: page to first frame ${r.load.firstFrameAtMs} ms; build ${r.load.buildMs} ms (outside ${r.load.outsideMs} ms); first frame ${r.load.firstFrameMs} ms`,
-      `switch to window (meter render + readback): cpu ${r.switch?.cpuMs} ms, gpu ${r.switch?.gpuMs ?? 'n/a'} ms`,
+      `load: page to first frame ${r.load.firstFrameAtMs} ms, to ready ${r.load.readyAtMs} ms; build ${r.load.buildMs} ms (outside ${r.load.outsideMs} ms); first frame ${r.load.firstFrameMs} ms`,
+      `switch to window (meter render): cpu ${r.switch?.cpuMs} ms, gpu ${r.switch?.gpuMs ?? 'n/a'} ms`,
       `(ms values: median / p95 / max)`,
       ...phaseLines,
       `long frames: ${r.long.length}${r.long.length ? ' (' + r.long.slice(0, 6).map((l) => `${l.phase} ${l.intervalMs}`).join(', ') + ')' : ''}`,

@@ -57,7 +57,8 @@ const QUICK = ['final', 'nopost', 'phone'];
     page.on('console', (m) => {
       if (m.type() === 'error' || /meter|metrics/.test(m.text())) log.push(m.text().slice(0, 600));
     });
-    await page.goto(`http://localhost:5173/?${query || 'debug=final'}#/interior`, { waitUntil: 'domcontentloaded' });
+    const clock = process.env.CLOCK ? `&t=${process.env.CLOCK}` : ''; // CLOCK=5: water stopped, for pixel diffs
+    await page.goto(`http://localhost:5173/?${query || 'debug=final'}${clock}#/interior`, { waitUntil: 'domcontentloaded' });
     // the scene reports metrics after 45 frames; that is also "warm and steady"
     await page.waitForFunction(() => window.__interiorMetrics?.done, null, { timeout: 150000 }).catch(() => log.push('no metrics after 150 s'));
     await page.evaluate(() => document.querySelectorAll('header,.credit,.shot,.veil').forEach((e) => (e.style.display = 'none')));
