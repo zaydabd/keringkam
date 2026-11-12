@@ -117,6 +117,7 @@ export const INTERIOR_THEME = {
   // The colour of the light through the curtains and cloth (emissive; strengths are in light.glow).
   glow: { valance: FABRIC.undyed, sheer: FABRIC.undyed, white: FABRIC.whiteGlow, cloth: FABRIC.undyed },
   wallTint: 0.45, // R2: neighbouring wall boards differ clearly in value
+  partWarmth: 0.5, // each plank and part is also a little warmer or cooler: this share of its value variation
 
   // The painted textures (paint.js), and which swatches each uses.
   textures: {

@@ -117,7 +117,7 @@ class Builder {
     }
     const colors = new Float32Array(n * 3);
     const shade = 1 - tint / 2 + rand() * tint;
-    const warm = (rand() - 0.5) * tint * 0.5;
+    const warm = (rand() - 0.5) * tint * THEME.partWarmth;
     for (let i = 0; i < n; i++) {
       colors[i * 3] = shade + warm;
       colors[i * 3 + 1] = shade;
