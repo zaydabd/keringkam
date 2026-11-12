@@ -397,8 +397,65 @@ What changed:
 ## Performance notes
 
 - Geometry is merged per material. The shadow map renders once (`autoUpdate = false`).
-- pixelRatio is capped. The landscape is on layer 1, so the outline pass skips it.
+- pixelRatio is capped at 1.5. The room's windows, lattice and sky are on layer 1, so the ink pre-pass skips them;
+  the view outside (river, banks, trees, buildings) is on layer 0 and is inked, so the pre-pass draws it too.
 - I have not measured frame rate on a real phone yet. Screenshots are from a headless browser using software rendering (SwiftShader).
+
+### Perf run: from the seat to the window (2026-11-12)
+
+`?perf` (`src/lib/three/scene/perf.js`) runs the visitor's path: the seat shot for 3 s (`?perf=n`: n s),
+the button's move to the window (`setShot`, 2.2 s), then the window shot for 3 s. Each frame records
+the time between frames, CPU time in the frame function, GPU time per pass
+(`EXT_disjoint_timer_query_webgl2`, where the browser has it), and draw calls and triangles per pass.
+The result shows in a panel on the page, in the console and in `window.__perf`.
+- On any device: open `/?perf#/interior` and read the panel when it appears (about 10 s).
+- Headless: `node research/tools/perf-run.cjs out.json --size=wide|phone --dpr=n [--gl=default]`.
+
+**Warning: the numbers below come from SwiftShader, a software renderer on 4 CPU cores. They are not
+real GPU or phone timings.** Use them only to compare passes and shots with each other. Under
+SwiftShader the GPU work queues up, so the time between frames means nothing there (median 16.7 ms
+while each frame takes 400-750 ms of GPU work); use the GPU column.
+
+Counts (the same on any device):
+
+| | seat | window |
+| --- | --- | --- |
+| draw calls per frame | 67 (65 on phone) | 43 (44 on phone) |
+| triangles per frame (all passes) | 287,895 | 285,411 |
+| mirror (river reflection) | 6 calls, 85,298 triangles | same |
+| ink pre-pass | 22 calls, 100,802 triangles | 16 calls, 99,572 triangles |
+| scene pass | 36 calls, 101,792 triangles | 18 calls, 100,538 triangles |
+| ink, pigment, finish | 1 full-screen draw each | same |
+
+Memory after the run: 37 geometries, 24 textures, 22 shader programs, JS heap 64.9 MB.
+
+GPU ms per frame, median, SwiftShader only:
+
+| Pass | wide 1240x894, seat | wide, window | phone 437x946 @3 (buffer 655x1419), seat | phone, window |
+| --- | --- | --- | --- | --- |
+| mirror | 37.0 | 34.8 | 27.1 | 24.5 |
+| ink pre-pass | 70.8 | 57.3 | 52.9 | 40.2 |
+| scene | 363.3 | 200.7 | 252.4 | 114.1 |
+| ink | 80.5 | 76.5 | 67.4 | 77.9 |
+| pigment | 142.2 | 136.9 | 118.0 | 121.8 |
+| finish | 27.7 | 30.4 | 23.5 | 23.2 |
+| total (median of frame totals) | 727 | 541 | 549 | 404 |
+
+What it shows (relative, from these runs):
+- The scene pass costs the most. The seat costs more than the window: its scene pass draws twice as
+  many calls (36 against 18), because more of the room is in view.
+- The full-screen watercolour passes (ink, pigment, finish) are 45% (wide) to 55% (phone) of a window
+  frame. They scale with pixels, not with the scene.
+- The mirror draws the whole outside (85,298 triangles, the near bank included) every frame. Not
+  checked: whether the near bank shows in the reflection at all. If not, leaving it out of the mirror
+  layer saves about 32,000 triangles per frame.
+- The switch to the window: `setShot` meters the new view at once, and `meter.measure` reads the pixels
+  back synchronously (`readRenderTargetPixels`), so the CPU waits for all queued GPU work. Under
+  SwiftShader that wait was 15-20 s, because many frames had queued. The meter render itself took
+  23-30 ms of GPU time. On a real GPU the wait is the frames in flight; not measured. three r187 has
+  `readRenderTargetPixelsAsync` (WebGLRenderer.js), which avoids the wait.
+- Load: building the room took about 3.0 s, 2.9 s of it the outside; the first frame (shader builds,
+  shadow map) took 2.6-2.8 s. Both measured under SwiftShader in a headless browser.
 
 ### Pass w4: the Assembly building back where R3 has it (2026-11-11)
 

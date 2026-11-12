@@ -25,6 +25,7 @@
 //   view  = seat (default) | window (start in that camera shot; SHOTS below)
 //   seed  = n (moves the pigment field and the painted textures)
 //   eye = x,y,z   yaw = deg   pitch = deg   fov = deg   (a free camera, for close-ups)
+//   perf  (or perf=n: n seconds per shot) a timed run from the seat to the window (perf.js)
 
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
@@ -36,6 +37,7 @@ import { paintPlanks, paintLattice, paintCurtain, paintCloth, paintDecor, paintG
 import { createOutside, SKY_KEY, OBJECTS, MIRROR_LAYER } from './outside/index.js';
 import { PIGMENT_SHADER, FINISH_SHADER } from './watercolour.js';
 import { createMeter } from './meter.js';
+import { createPerfRun } from './perf.js';
 
 // Colours picked from R1, then lifted a little for the painted look.
 export const PALETTE = {
@@ -656,6 +658,7 @@ export const SHOTS = {
 const SHOT_MOVE_SECONDS = 2.2;
 
 export function createInterior(canvas, { onReady, onShot } = {}) {
+  const startedAt = performance.now();
   const params = new URLSearchParams(window.location.search);
   const debug = params.get('debug');
   const off = new Set((params.get('off') ?? '').split(',').filter(Boolean));
@@ -803,7 +806,9 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
 
   // Outside: the Sarawak River at Kuching (outside/index.js). ?off=outside hides it (the windows
   // then show plain daylight). ?debug=flat and ?debug=silhouette also apply to it.
+  const outsideAt = performance.now();
   const landscape = createOutside({ gradientMap, seed, fog: scene.fog, haze: BRIGHT, light: LIGHT, key: OUTSIDE_KEY, sun: sun.position.clone().sub(sun.target.position), mode: debug === 'flat' || debug === 'silhouette' ? debug : undefined, stage, tint: debug?.startsWith('tree-') ? debug : undefined });
+  const outsideMs = performance.now() - outsideAt;
   landscape.group.visible = !off.has('outside');
   landscape.setWaterView({ 'water-normal': 1, 'water-fresnel': 2, 'water-filter': 3, 'water-reflection': 4, 'water-body': 5, 'water-crest': 6, 'water-lost': 7 }[debug] ?? 0);
   scene.traverse((o) => o.isLight && o.layers.enable(MIRROR_LAYER)); // the river's mirror is lit like the view itself
@@ -948,6 +953,7 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
     timer.update(now);
     renderer.info.reset();
     const t0 = performance.now();
+    perf?.begin();
     landscape.update(timer.getElapsed());
     const dt = Math.min(timer.getDelta(), 0.1);
     if (fixedLook) look.copy(pointer);
@@ -977,14 +983,18 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
       if (Math.abs(exposure - exposureTarget) < 0.002 || fixedLook) exposure = exposureTarget;
     }
     if (exposure !== null) applyExposure(exposure);
+    perf?.section('mirror');
     landscape.renderMirror(renderer, scene, camera);
+    perf?.section(debug === 'nopost' ? 'scene' : 'ink-prep');
     if (debug === 'nopost') renderer.render(scene, camera);
     else {
       if (!off.has('ink')) outline.render();
       composer.render(dt);
     }
+    perf?.end(now, performance.now() - t0);
     if (!readyCalled) {
       readyCalled = true;
+      if (perf) Object.assign(perfLoad, { firstFrameMs: +(performance.now() - t0).toFixed(1), firstFrameAtMs: Math.round(performance.now()) });
       if (debug) console.info('triangles', renderer.info.render.triangles, 'calls', renderer.info.render.calls);
       onReady?.();
     }
@@ -1010,6 +1020,15 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
       }
     }
   }
+  // ?perf: the timed run from the seat to the window (perf.js). It starts from the seat whatever
+  // ?view says, so every run covers the same path.
+  const perfLoad = { buildMs: +(performance.now() - startedAt).toFixed(1), outsideMs: +outsideMs.toFixed(1) };
+  const perf = params.has('perf') ? createPerfRun(renderer, { hold: Number(params.get('perf')) || 3, go: () => setShot('window'), moving: () => move.t < 1, load: perfLoad }) : null;
+  if (perf) {
+    setShot('seat', true);
+    // Time each composer pass on its own (scene, ink, pigment, finish).
+    for (const pass of composer.passes) perf.wrap(pass, pass === pigment ? 'pigment' : pass === finish ? 'finish' : pass instanceof RenderPass ? 'scene' : 'ink');
+  }
   frame = requestAnimationFrame(tick);
 
   return {
@@ -1017,6 +1036,7 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
     getShot: () => shot,
     destroy() {
       cancelAnimationFrame(frame);
+      perf?.dispose();
       resizeObserver.disconnect();
       window.removeEventListener('pointermove', onPointerMove);
       scene.traverse((o) => {
