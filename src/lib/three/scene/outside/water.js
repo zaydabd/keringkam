@@ -31,6 +31,7 @@
 //       4 reflection alone, 5 body alone, 6 crest metric, 7 roughness lost to the filter.
 
 import * as THREE from 'three';
+import { OUTSIDE_THEME } from '../themes/outside.js';
 
 const G = 9.81;
 const N_AIR = 1.0;
@@ -61,7 +62,7 @@ const f = (n) => n.toFixed(5);
  * The water material and its mirror. `level` is the water's height; `layer` is the layer the
  * mirrored camera draws (everything outside except the water itself).
  */
-export function createWater({ level, layer = 2, body = '#cf9a5c', film = '#f4d8a2', pale = '#f4faea', sun = new THREE.Vector3(0, 1, 0), light = 1, key = 1, fog, gain = 1.2, chop = 0.45, shade = 0.8, reach = 14 }) {
+export function createWater({ level, layer = 2, body = OUTSIDE_THEME.water.body, film = OUTSIDE_THEME.water.film, pale = OUTSIDE_THEME.air.daylight, sun = new THREE.Vector3(0, 1, 0), light = 1, key = 1, fog, gain = 1.2, chop = 0.45, shade = 0.8, reach = 14 }) {
   const target = new THREE.WebGLRenderTarget(2, 2, { type: THREE.HalfFloatType });
   const textureMatrix = new THREE.Matrix4();
   const material = new THREE.ShaderMaterial({

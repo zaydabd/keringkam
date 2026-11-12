@@ -129,3 +129,7 @@ export const rgb = (hex) => {
   const c = new THREE.Color(hex);
   return [c.r, c.g, c.b];
 };
+
+/** A theme's paint table as vertex colours: each hex (or list of hexes) through rgb. */
+export const rgbTable = (table) =>
+  Object.fromEntries(Object.entries(table).map(([k, v]) => [k, Array.isArray(v) ? v.map(rgb) : rgb(v)]));

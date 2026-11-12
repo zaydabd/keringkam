@@ -14,7 +14,8 @@
 
 import * as THREE from 'three';
 import { createContract } from './contract.js';
-import { SITE, sampleLine, mulberry32, rgb } from './site.js';
+import { SITE, sampleLine, mulberry32, rgbTable } from './site.js';
+import { OUTSIDE_THEME } from '../themes/outside.js';
 import { checkSweep } from './banks.js';
 
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -33,31 +34,8 @@ const UP = [0, 1, 0];
 // so their two-sided material shades their front, and detail is only placed where it can be seen.
 const EYE = [-0.475, 1.5, -4.62];
 
-// Paint, as vertex colours. The textured bands are lifted because the detail texture darkens them.
-export const NEAR_PAINT = {
-  mudUnder: rgb('#5a4430'),
-  mudWet: rgb('#6c5238'),
-  mudFlat: rgb('#bca47c'),
-  mudTrack: rgb('#c6b08a'),
-  berm: rgb('#8fae4c'),
-  shoulder: rgb('#7c9c44'),
-  level: rgb('#80a048'),
-  clod: rgb('#6a5038'),
-  clodLight: rgb('#a8875e'),
-  stone: rgb('#928b7c'),
-  stoneLight: rgb('#b4ac9a'),
-  wood: rgb('#7a6650'),
-  woodPale: rgb('#b0a088'),
-  puddle: rgb('#b8b49e'),
-  leafLight: rgb('#a2c85e'),
-  leafMid: rgb('#78a844'),
-  leafDark: rgb('#527e36'),
-  leafCore: rgb('#6a9c40'),
-  blade: [rgb('#7aa63e'), rgb('#94b84e'), rgb('#5e8a36'), rgb('#a8c060')],
-  straw: rgb('#c2b06a'),
-  fern: rgb('#5c9638'),
-  fernLight: rgb('#84b44a'),
-};
+// Paint, as vertex colours (themes/outside.js).
+export const NEAR_PAINT = rgbTable(OUTSIDE_THEME.nearBank);
 
 // Design choices for the detail (not measured).
 export const NEAR_DETAIL = {

@@ -24,6 +24,7 @@ import * as THREE from 'three';
 import { paintSoftSky, paintMud, paintTurf } from '../paint.js';
 import { SlotWriter, createContract } from './contract.js';
 import { SITE, mulberry32 } from './site.js';
+import { OUTSIDE_THEME } from '../themes/outside.js';
 import { buildFarBank } from './banks.js';
 import { buildNearBank } from './nearbank.js';
 import { buildTrees } from './trees.js';
@@ -38,9 +39,9 @@ export const MIRROR_LAYER = 2;
 
 export const OBJECTS = ['farbank', 'nearbank', 'trees', 'river', 'assembly', 'bridge', 'skyline', 'boats', 'sky'];
 
-// The sky is keyed down like the rest of the outdoors (see OUTSIDE_KEY in interior.js), so its
-// blue survives an exposure set for the shaded room.
-export const SKY_KEY = 0.3;
+// The sky is keyed down like the rest of the outdoors, so its blue survives an exposure set for
+// the shaded room (themes/outside.js air.skyKey).
+const SKY_KEY = OUTSIDE_THEME.air.skyKey;
 
 /**
  * Builds the outside. `fog` is the scene's fog (the daylight haze: the sky's horizon and the
@@ -50,7 +51,7 @@ export const SKY_KEY = 0.3;
  * the objects to build (default: all); `tint` 'tree-level' or 'tree-kind' paints the trees'
  * growth diagnostics.
  */
-export function createOutside({ gradientMap, seed = 0, fog, haze = '#f4faea', light = 1, key = 1, sun, mode, stage, tint }) {
+export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME.air.daylight, light = 1, key = 1, sun, mode, stage, tint }) {
   const rand = mulberry32(51 + seed);
   const group = new THREE.Group();
   const disposables = [];

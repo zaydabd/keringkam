@@ -21,6 +21,7 @@
 // Colours follow the painting (R3): gold roof, cream columns, dark underside.
 
 import { createContract } from './contract.js';
+import { OUTSIDE_THEME } from '../themes/outside.js';
 
 export const ASSEMBLY = {
   height: 114, // sourced
@@ -50,25 +51,7 @@ export const ASSEMBLY = {
   kioskRow: { half: 3.4, eave: 3.4, rise: 2.6, fork: 1.6 }, // the front five: about 7 m square
   kiosks: { row: [-22, -11, 0, 11, 22], rowZ: 82, sides: [-72, 72], sideZ: 42, sideScale: 1.7 },
   terrace: { z: 82, halfX: 30, halfZ: 7, height: 0.8 },
-  colors: {
-    gold: [0.92, 0.63, 0.08], // authored deep: the haze and the room's grade lift it to the photos' yellow gold
-    goldShade: [0.66, 0.41, 0.04], // every other roof facet: the ink pass draws the folds
-    band: [0.86, 0.8, 0.62],
-    rim: [0.74, 0.74, 0.75],
-    rimShade: [0.6, 0.6, 0.62],
-    bowl: [0.17, 0.11, 0.07], // authored very dark and warm: dark like the model, brown like the painting once hazed
-    bowlShade: [0.25, 0.17, 0.1],
-    cone: [0.3, 0.29, 0.3],
-    coneShade: [0.42, 0.4, 0.4],
-    bronze: [0.78, 0.56, 0.28], // the side kiosks' spires
-    white: [0.97, 0.94, 0.87],
-    brim: [0.88, 0.87, 0.84],
-    brimEdge: [0.76, 0.75, 0.72], // a shade darker than the columns, so they read against it
-    soffit: [0.66, 0.62, 0.56],
-    infill: [0.27, 0.17, 0.14],
-    floor: [0.46, 0.3, 0.24],
-    stone: [0.9, 0.88, 0.82],
-  },
+  colors: OUTSIDE_THEME.assembly, // linear vertex colours (themes/outside.js)
 };
 
 /** Tiers (bottom to top) and module placements. Pure data: no geometry. */

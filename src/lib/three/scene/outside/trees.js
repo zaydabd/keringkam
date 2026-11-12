@@ -22,7 +22,8 @@
 
 import * as THREE from 'three';
 import { createContract } from './contract.js';
-import { SITE, mulberry32, rgb } from './site.js';
+import { SITE, mulberry32, rgbTable } from './site.js';
+import { OUTSIDE_THEME } from '../themes/outside.js';
 
 const UP = new THREE.Vector3(0, 1, 0);
 const AXIS_X = new THREE.Vector3(1, 0, 0);
@@ -54,13 +55,8 @@ export const BANK_BUSH = {
   lobe: { radius: 5.2, variance: 0.3, squash: 0.72, lumps: 0.15, core: 1.25 },
 };
 
-// Paint, as vertex colours (tuned in the window shot against colours sampled from R3).
-export const TREE_PAINT = {
-  trunk: rgb('#5c5a34'),
-  light: rgb('#74a845'),
-  mid: rgb('#528c3c'),
-  dark: rgb('#3a6c38'),
-};
+// Paint, as vertex colours (themes/outside.js).
+export const TREE_PAINT = rgbTable(OUTSIDE_THEME.trees);
 
 /**
  * Grows one plant at the origin (base at y = 0), in metres. Returns its branches (sections with

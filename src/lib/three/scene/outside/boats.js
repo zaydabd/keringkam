@@ -18,7 +18,8 @@
 //   - the boatman standing on the stern deck with a long oar.
 
 import { createContract } from './contract.js';
-import { rgb } from './site.js';
+import { rgbTable } from './site.js';
+import { OUTSIDE_THEME } from '../themes/outside.js';
 
 export const PENAMBANG = {
   length: 6.2, // overall, stem to stern (B3: 892 px at ~143 px per metre)
@@ -49,23 +50,9 @@ export const PENAMBANG = {
   stations: 18,
 };
 
-// Colours, chosen from the photos: each boat is painted its own bright colours.
-export const SCHEMES = {
-  red: { // B1 ("Kuching river taxi 03"): red hull and cabin, black bottom, dark rub rail, white roof,
-    // pale green ceiling, orange roof edges
-    bottom: '#1c1a1a', stripe: '#3a2a26', hull: '#c42a1e', cabin: '#c42a1e', frame: '#e07a1f',
-    roof: '#f2efe8', roofUnder: '#a9c9b4', fascia: '#e07a1f', hatch: '#f6f4ee', hatchEdge: '#e07a1f', shirt: '#2aa58a', trousers: '#c9b79a',
-  },
-  orange: { // B3 ("Kuching river taxi 02"): teal bottom, yellow stripe, orange cabin, blue roof, yellow edge
-    bottom: '#1e9a95', stripe: '#f0c419', hull: '#e5671c', cabin: '#e5671c', frame: '#d4561a',
-    roof: '#2f5fa8', roofUnder: '#8a7a66', fascia: '#f0c419', hatch: '#e9eef0', hatchEdge: '#2f9a4a', shirt: '#d8382e', trousers: '#3b3b44',
-  },
-  green: { // B2, B4 ("Kuching river taxi 01", "boatman"): green hull, white roof, red roof patch
-    bottom: '#1d3b2c', stripe: '#e8e4da', hull: '#2e8a4e', cabin: '#2e8a4e', frame: '#f1ede4',
-    roof: '#efece4', roofUnder: '#9a958a', fascia: '#d23b2a', hatch: '#d23b2a', hatchEdge: '#efece4', shirt: '#f0eee8', trousers: '#40404a',
-  },
-};
-const SHADE = { inside: '#2a2220', glass: '#1f2326', deck: '#6b5440', skin: '#8a5a3c', oar: '#a8875e' };
+// Colours (themes/outside.js): each boat is painted its own bright colours, chosen from the photos.
+export const SCHEMES = OUTSIDE_THEME.boats.schemes;
+const SHADE = OUTSIDE_THEME.boats.shade;
 
 /** Parts in build order. Pure data: no geometry. */
 export function planBoat(settings = PENAMBANG, scheme = 'red') {
@@ -315,7 +302,7 @@ const dirZ = (at, k) => {
  */
 export function compileBoat(plan, w, place = { x: 0, z: 0, ry: 0 }, y = 0) {
   const B = plan.settings;
-  const C = Object.fromEntries(Object.entries({ ...SCHEMES[plan.scheme], ...SHADE }).map(([k, v]) => [k, rgb(v)]));
+  const C = rgbTable({ ...SCHEMES[plan.scheme], ...SHADE });
   const c = Math.cos(place.ry), s = Math.sin(place.ry);
   const at = (dx, dy, dz) => [place.x + dx * c + dz * s, y + dy, place.z - dx * s + dz * c];
   const before = w.slot('paint').triangles;

@@ -8,28 +8,13 @@
 
 import * as THREE from 'three';
 import { createContract } from './contract.js';
-import { SITE, sampleLine, smooth, mulberry32, rgb } from './site.js';
+import { SITE, sampleLine, smooth, mulberry32, rgbTable } from './site.js';
+import { OUTSIDE_THEME } from '../themes/outside.js';
 
 const lerp = (a, b, t) => a + (b - a) * t;
 
-// Paint, as vertex colours. Tuned in the window shot against colours sampled from R3 (the scene's
-// grade takes about a third of the colour out again, so these are stronger than the painting's).
-export const BANK_PAINT = {
-  mud: rgb('#70522e'),
-  mudDark: rgb('#6e5234'),
-  rough: rgb('#74903a'),
-  path: rgb('#a8905a'),
-  verge: rgb('#7c9434'),
-  lawnFoot: rgb('#839a36'),
-  lawn: rgb('#9aa62f'),
-  terrace: rgb('#93a03a'),
-  meadow: rgb('#6b822d'),
-  meadowFar: rgb('#74883a'),
-  wall: rgb('#efe7d1'),
-  reed: rgb('#4e6a2c'),
-  tuft: rgb('#5c7630'),
-  tick: rgb('#7c9030'),
-};
+// Paint, as vertex colours (themes/outside.js).
+export const BANK_PAINT = rgbTable(OUTSIDE_THEME.banks);
 
 /** Sweeps bands between columns of points. rows[i][k] is station i, column k; colour(i, k) per quad. */
 function sweep(w, slot, rows, colour, landOnLeft, stats) {

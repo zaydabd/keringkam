@@ -10,6 +10,7 @@
 
 import * as THREE from 'three';
 import { createContract } from './contract.js';
+import { OUTSIDE_THEME } from '../themes/outside.js';
 
 export const BRIDGE = {
   deck: { width: 3.3, depth: 0.9, rail: 1.1, rise: 5, clearance: 10 }, // metres; clearance = deck soffit above water at the banks
@@ -18,7 +19,7 @@ export const BRIDGE = {
   truss: { depth: 2.2, bay: 7 }, // the deck rides on a triangulated truss (photos)
   cables: 7, // per side of each tower
   samples: 96,
-  colors: { steel: [0.93, 0.92, 0.88], pier: [0.78, 0.76, 0.7], cable: [0.86, 0.86, 0.84], shade: [0.97, 0.96, 0.92], truss: [0.84, 0.83, 0.78] },
+  colors: OUTSIDE_THEME.bridge, // linear vertex colours (themes/outside.js)
 };
 
 /**

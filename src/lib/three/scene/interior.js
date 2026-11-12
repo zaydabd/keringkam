@@ -35,23 +35,23 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { toonGradient, createOutline } from './toon.js';
 import { paintPlanks, paintLattice, paintCurtain, paintCloth, paintDecor, paintGlow } from './paint.js';
-import { createOutside, SKY_KEY, OBJECTS, MIRROR_LAYER } from './outside/index.js';
+import { createOutside, OBJECTS, MIRROR_LAYER } from './outside/index.js';
 import { PIGMENT_SHADER, FINISH_SHADER, createPigmentField } from './watercolour.js';
 import { createMeter } from './meter.js';
 import { createPerfRun } from './perf.js';
+import { INTERIOR_THEME } from './themes/interior.js';
+import { OUTSIDE_THEME } from './themes/outside.js';
 
-// Colours picked from R1, then lifted a little for the painted look.
-export const PALETTE = {
-  wall: '#977462', // mid brown boards, a little grey, as in R2
-  frame: '#6a3a24', // window frames, dado rail
-  floor: '#a06e50', // warm brown floor boards (R2)
-  wood: '#9c683e', // honey-brown furniture (R2 is browner than R1's gold)
-  top: '#c08a56', // table tops: brown and polished in R2 (they mirror the windows)
-  lattice: '#d6bb98', // lighter carved panels, as in R2
-  cloth: '#d8283a', // red cloth on the frame
-  leaf: '#84a552', // lighter, yellower leaves (R2)
-  ink: '#38200f', // dark brown ink, not black (R2)
-};
+const THEME = INTERIOR_THEME;
+const PALETTE = THEME.palette;
+
+/** Sets a pass's uniforms from a theme section: colour uniforms take a hex, the rest a number. */
+function setUniforms(uniforms, values) {
+  for (const [k, v] of Object.entries(values)) {
+    if (uniforms[k].value?.isColor) uniforms[k].value.set(v);
+    else uniforms[k].value = v;
+  }
+}
 
 // Everything in metres. The camera stands at the origin and looks along -z at the window wall.
 export const PLAN = {
@@ -222,8 +222,6 @@ function boardWall(b, from, to, top, openings, at) {
   }
 }
 
-const WALL_TINT = 0.45; // R2: neighbouring boards differ clearly in value
-
 /**
  * R2's walls are darker low down and lighter up near the ceiling. Done in the material, not in the
  * vertex colours: the ink pass tells parts apart by their vertex colour.
@@ -255,13 +253,13 @@ function buildRoom(b) {
   b.box('frame', x1 - x0, 0.02, z1 - z0, (x0 + x1) / 2, -0.045, (z0 + z1) / 2, 0, 0, 0, 0);
   // Back wall (the window wall), boards outside the room line so the inner face is at z0.
   const back = PLAN.backWindows.map((w) => [w.x0, w.x1, 0, W.y1]);
-  boardWall(b, x0, x1, top, back, (a, y, w, h) => b.box('wall', w, h, 0.025, a, y, z0 - 0.0125, 0, 0, 0, WALL_TINT));
+  boardWall(b, x0, x1, top, back, (a, y, w, h) => b.box('wall', w, h, 0.025, a, y, z0 - 0.0125, 0, 0, 0, THEME.wallTint));
   // Right wall, with the window near the camera.
   const s = PLAN.sideWindow;
-  boardWall(b, z0, z1, top, [[s.z0, s.z1, s.y0, W.y1]], (a, y, w, h) => b.box('wall', 0.025, h, w, x1 + 0.0125, y, a, 0, 0, 0, WALL_TINT));
+  boardWall(b, z0, z1, top, [[s.z0, s.z1, s.y0, W.y1]], (a, y, w, h) => b.box('wall', 0.025, h, w, x1 + 0.0125, y, a, 0, 0, 0, THEME.wallTint));
   // Left and front walls (out of shot: they close the room and cast shadows). Ceiling boards.
-  boardWall(b, z0, z1, top, [], (a, y, w, h) => b.box('wall', 0.025, h, w, x0 - 0.0125, y, a, 0, 0, 0, WALL_TINT));
-  boardWall(b, x0, x1, top, [], (a, y, w, h) => b.box('wall', w, h, 0.025, a, y, z1 + 0.0125, 0, 0, 0, WALL_TINT));
+  boardWall(b, z0, z1, top, [], (a, y, w, h) => b.box('wall', 0.025, h, w, x0 - 0.0125, y, a, 0, 0, 0, THEME.wallTint));
+  boardWall(b, x0, x1, top, [], (a, y, w, h) => b.box('wall', w, h, 0.025, a, y, z1 + 0.0125, 0, 0, 0, THEME.wallTint));
   for (const [a0, a1] of boardRuns(z0, z1, [])) b.box('ceiling', x1 - x0, 0.02, a1 - a0 - 0.004, (x0 + x1) / 2, top + 0.01, (a0 + a1) / 2);
   for (let x = x0 + 0.6; x < x1; x += 1.2) b.box('ceiling', 0.1, 0.14, z1 - z0, x, top - 0.07, (z0 + z1) / 2);
 
@@ -648,9 +646,10 @@ function glossBoards(material, { strength = 0.6, cloth = 0, falloff = 0, light =
  */
 function buildContactShadows(texture) {
   const group = new THREE.Group();
-  const mat = new THREE.MeshBasicMaterial({ map: texture, color: '#24140e', transparent: true, opacity: 0.9, depthWrite: false, fog: false });
+  const shade = THEME.light.contactShadow;
+  const mat = new THREE.MeshBasicMaterial({ map: texture, color: PALETTE.contactShadow, transparent: true, opacity: shade.opacity, depthWrite: false, fog: false });
   const core = mat.clone(); // a darker, tighter patch right under each piece
-  core.opacity = 0.75;
+  core.opacity = shade.core;
   const patch = (x, z, w, d, ry = 0, m = mat) => {
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, d).rotateX(-Math.PI / 2), m);
     mesh.position.set(x, 0.004, z);
@@ -719,28 +718,21 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
   // Tone mapping belongs to the finish pass. The renderer's own setting only matters for
   // ?debug=nopost (drawn straight to the screen); it gets the same metered exposure.
   renderer.toneMapping = THREE.NeutralToneMapping;
-  const EXPOSURE_EV = 0; // stops of compensation on top of the metered exposure
 
   const scene = new THREE.Scene();
-  const HAZE = { near: -100, far: 1500 }; // metres: clear air (R3). The Assembly, 330 m off, is about a sixth washed; the skyline a third
-  const BRIGHT = '#f4faea'; // daylight in the windows: pale, a little green from the garden (R2)
-  // One light level for everything that gives off light (lamps, daylight colour, glowing cloth,
-  // painted reflections). It is set so the metered exposure comes out near 1 in the design view;
-  // at 1 the meter sat on its upper limit (1.85) in every view.
-  const LIGHT = 1.75;
-  // The room is exposed for shade, so sunlit paint outside would burn out to white. The outdoor
-  // paint is keyed down by this much instead, as a painter would, so it keeps its colour.
-  const OUTSIDE_KEY = 0.3;
-  scene.background = new THREE.Color(BRIGHT).multiplyScalar(LIGHT);
+  const L = THEME.light;
+  const AIR = OUTSIDE_THEME.air;
+  const LIGHT = L.level; // one level for everything that gives off light (themes/interior.js)
+  scene.background = new THREE.Color(AIR.daylight).multiplyScalar(LIGHT);
   // Daylight haze, for the outside only (the room's materials have fog off). One colour is shared
   // by this fog, the sky's horizon and the river's reflection of the sky.
-  scene.fog = new THREE.Fog(BRIGHT, HAZE.near, HAZE.far);
-  scene.fog.color.multiplyScalar(LIGHT * SKY_KEY); // as bright as the sky's horizon, which it must match
+  scene.fog = new THREE.Fog(AIR.daylight, AIR.haze.near, AIR.haze.far);
+  scene.fog.color.multiplyScalar(LIGHT * AIR.skyKey); // as bright as the sky's horizon, which it must match
   const C = PLAN.camera;
   const camera = new THREE.PerspectiveCamera(C.fov, C.aspect, 0.2, 1600); // at 0.05 the big ground plane outside drew over the near floor on tall screens
 
   // Light: sun behind the window wall, high enough that the patches fall just inside the windows.
-  const sun = new THREE.DirectionalLight('#ffe6c4', 3.2 * LIGHT);
+  const sun = new THREE.DirectionalLight(L.sun.color, L.sun.intensity * LIGHT);
   sun.target.position.set(-1, 0, -4);
   sun.position.set(-4, 11, -14);
   sun.castShadow = true;
@@ -748,16 +740,12 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
   Object.assign(sun.shadow.camera, { left: -7, right: 7, top: 7, bottom: -7, near: 1, far: 40 });
   sun.shadow.bias = -0.0005;
   sun.shadow.normalBias = 0.02;
-  const hemi = new THREE.HemisphereLight('#fff2e4', '#5a443a', 2.2 * LIGHT); // warm bounce off the floor and walls
-  const fill = new THREE.DirectionalLight('#ffd6ac', 0.55 * LIGHT); // soft light from the room behind the camera
+  const hemi = new THREE.HemisphereLight(L.bounce.sky, L.bounce.ground, L.bounce.intensity * LIGHT); // warm bounce off the floor and walls
+  const fill = new THREE.DirectionalLight(L.fill.color, L.fill.intensity * LIGHT); // soft light from the room behind the camera
   fill.position.set(1.5, 2.5, 4);
   scene.add(sun, sun.target, hemi, fill);
 
-  // Soft painted ramp (R2): lavender-grey shade, warm half-tones, cream light, blended not stepped.
-  const gradientMap = toonGradient(
-    [[0.44, 0.4, 0.4], [0.6, 0.55, 0.53], [0.76, 0.71, 0.68], [0.93, 0.88, 0.82], [1.0, 0.97, 0.9]],
-    { smooth: true },
-  );
+  const gradientMap = toonGradient(THEME.shading.bands, { smooth: THEME.shading.smooth });
   const textures = {
     planks: paintPlanks(1 + seed),
     floor: paintPlanks(9 + seed, { weathered: true }),
@@ -780,21 +768,21 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
   for (const [key, color, map, extra] of [
     ['floor', PALETTE.floor, textures.floor],
     ['wall', PALETTE.wall, textures.wall],
-    ['ceiling', '#6e5646', textures.wall], // grey-brown boards, as R2's ceiling (seen on tall screens)
+    ['ceiling', PALETTE.ceiling, textures.wall],
     ['frame', PALETTE.frame, textures.planks],
     ['wood', PALETTE.wood, textures.planks],
     ['top', PALETTE.top, textures.planks],
     ['lattice', PALETTE.lattice, textures.lattice, { side: D, alphaTest: 0.5 }],
     ['carve', PALETTE.wood, textures.carve, { side: D, alphaTest: 0.5 }],
-    ['valance', '#ffffff', textures.valance, { side: D, emissive: '#ffffff', emissiveMap: textures.valance, emissiveIntensity: 0.25 }], // lit from behind
-    ['sheer', '#ffffff', textures.sheer, { side: D, emissive: '#ffffff', emissiveMap: textures.sheer, emissiveIntensity: 0.12 }],
-    ['white', '#fffaf2', textures.pale, { side: D, emissive: '#fff4e4', emissiveMap: textures.pale, emissiveIntensity: 0.35 }],
-    ['cloth', '#ffffff', textures.cloth, { side: D, emissive: '#ffffff', emissiveMap: textures.cloth, emissiveIntensity: 0.12 }],
+    ['valance', '#ffffff', textures.valance, { side: D, emissive: '#ffffff', emissiveMap: textures.valance, emissiveIntensity: L.glow.valance }], // lit from behind
+    ['sheer', '#ffffff', textures.sheer, { side: D, emissive: '#ffffff', emissiveMap: textures.sheer, emissiveIntensity: L.glow.sheer }],
+    ['white', PALETTE.white, textures.pale, { side: D, emissive: PALETTE.whiteGlow, emissiveMap: textures.pale, emissiveIntensity: L.glow.white }],
+    ['cloth', '#ffffff', textures.cloth, { side: D, emissive: '#ffffff', emissiveMap: textures.cloth, emissiveIntensity: L.glow.cloth }],
     ['decor', '#ffffff', textures.decor, { side: D }],
-    ['plate', '#e6dcc0', null],
+    ['plate', PALETTE.plate, null],
     ['leaf', PALETTE.leaf, null, { side: D }],
-    ['tape', '#2f5f6a', null],
-    ['bag', '#2c2420', null],
+    ['tape', PALETTE.tape, null],
+    ['bag', PALETTE.bag, null],
   ]) {
     materials[key] = new THREE.MeshToonMaterial({ color, map, vertexColors: true, gradientMap, fog: false, ...extra });
     materials[key].emissiveIntensity *= LIGHT;
@@ -805,8 +793,8 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
   }
 
   shadeWalls(materials.wall, PLAN.room.top);
-  glossBoards(materials.floor, { strength: 1.45, cloth: 0.55, falloff: 0.62, light: LIGHT, view: debug === 'gloss' });
-  glossBoards(materials.top, { strength: 1.5, light: LIGHT, view: debug === 'gloss' });
+  glossBoards(materials.floor, { ...L.gloss.floor, light: LIGHT, view: debug === 'gloss' });
+  glossBoards(materials.top, { ...L.gloss.top, light: LIGHT, view: debug === 'gloss' });
   const b = new Builder();
   buildRoom(b);
   buildLattice(b);
@@ -841,7 +829,7 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
   // Outside: the Sarawak River at Kuching (outside/index.js). ?off=outside hides it (the windows
   // then show plain daylight). ?debug=flat and ?debug=silhouette also apply to it.
   const outsideAt = performance.now();
-  const landscape = createOutside({ gradientMap, seed, fog: scene.fog, haze: BRIGHT, light: LIGHT, key: OUTSIDE_KEY, sun: sun.position.clone().sub(sun.target.position), mode: debug === 'flat' || debug === 'silhouette' ? debug : undefined, stage, tint: debug?.startsWith('tree-') ? debug : undefined });
+  const landscape = createOutside({ gradientMap, seed, fog: scene.fog, haze: AIR.daylight, light: LIGHT, key: AIR.key, sun: sun.position.clone().sub(sun.target.position), mode: debug === 'flat' || debug === 'silhouette' ? debug : undefined, stage, tint: debug?.startsWith('tree-') ? debug : undefined });
   const outsideMs = performance.now() - outsideAt;
   landscape.group.visible = !off.has('outside');
   landscape.setWaterView({ 'water-normal': 1, 'water-fresnel': 2, 'water-filter': 3, 'water-reflection': 4, 'water-body': 5, 'water-crest': 6, 'water-lost': 7 }[debug] ?? 0);
@@ -856,10 +844,8 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
   }
   camera.layers.enable(1);
 
-  const outline = createOutline(renderer, scene, camera, { ink: PALETTE.ink, lineWidth: 1, mask: { layer: 3, map: textures.lattice } });
-  outline.material.uniforms.split.value = 0.18; // keep the dark wood warm
-  outline.material.uniforms.strength.value = 0.85; // dark but thin lines, as in R2 (thickness is set in toon.js)
-  outline.material.uniforms.seams.value = 0.75; // but R2 draws every plank seam clearly
+  const outline = createOutline(renderer, scene, camera, { ink: PALETTE.ink, lineWidth: THEME.ink.lineWidth, mask: { layer: 3, map: textures.lattice } });
+  for (const k of ['split', 'strength', 'seams']) outline.material.uniforms[k].value = THEME.ink[k];
   const composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
   if (!off.has('ink')) composer.addPass(new ShaderPass(outline.material));
@@ -867,6 +853,8 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
   const pigment = new ShaderPass(PIGMENT_SHADER);
   const finish = new ShaderPass(FINISH_SHADER);
   finish.material.toneMapped = false; // the shader tone-maps itself
+  setUniforms(pigment.uniforms, THEME.paint);
+  setUniforms(finish.uniforms, THEME.grade);
   const paintView = { 'paint-pigment': 1, 'paint-edge': 2, 'paint-bleed': 3 }[debug] ?? 0;
   pigment.uniforms.view.value = paintView;
   const pigmentField = createPigmentField(renderer);
@@ -962,7 +950,7 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
       .measure(scene, poseCam)
       .then((average) => {
         if (token !== meterToken || destroyed) return;
-        exposureTarget = exposureParam ?? meter.exposureFor(average, EXPOSURE_EV + SHOTS[name].ev);
+        exposureTarget = exposureParam ?? meter.exposureFor(average, L.exposureEV + SHOTS[name].ev);
         if (exposure === null) exposure = exposureTarget; // the first reading: no fade in
         metrics.luminance = average;
         metrics.exposure = exposureTarget;
