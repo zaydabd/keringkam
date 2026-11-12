@@ -8,7 +8,8 @@
 // painting); sourced sizes are in assembly.js and bridge.js.
 //
 // The view is built object by object, each after its skill in .claude/skills:
-//   farbank, nearbank  banks.js     procedural-geometry (swept cross-sections, contracts)
+//   farbank            banks.js     procedural-geometry (swept cross-sections, contracts)
+//   nearbank           nearbank.js  procedural-geometry + procedural-vegetation (pass w7)
 //   trees              trees.js     procedural-vegetation
 //   river              water.js     water-optics
 //   assembly: rebuilt from the user's Sketchfab model (pass w5, research/INTERIOR-NOTES.md).
@@ -20,10 +21,11 @@
 // where two colours meet (toon.js). The haze is the scene fog.
 
 import * as THREE from 'three';
-import { paintSoftSky } from '../paint.js';
+import { paintSoftSky, paintMud, paintTurf } from '../paint.js';
 import { SlotWriter, createContract } from './contract.js';
 import { SITE, mulberry32 } from './site.js';
-import { buildFarBank, buildNearBank } from './banks.js';
+import { buildFarBank } from './banks.js';
+import { buildNearBank } from './nearbank.js';
 import { buildTrees } from './trees.js';
 import { planAssembly, compileAssembly } from './assembly.js';
 import { PENAMBANG, planBoat, compileBoat } from './boats.js';
@@ -120,6 +122,8 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = '#f4faea', li
   const hazeStyle = new THREE.Color(haze).getStyle().slice(4, -1);
   const textures = {
     sky: paintSoftSky(25 + seed, { haze: hazeStyle, vivid: true }),
+    mud: paintMud(31 + seed),
+    turf: paintTurf(37 + seed),
   };
   disposables.push(...Object.values(textures));
   const toon = ({ map, side = THREE.FrontSide } = {}) => {
@@ -137,6 +141,8 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = '#f4faea', li
     paint: toon(),
     blade: toon({ side: THREE.DoubleSide }),
     gold: toon({ side: THREE.DoubleSide }), // the Assembly building's gold: plain paint; its folds come from the facets
+    mud: toon({ map: textures.mud }), // the near bank's ground: painted detail, UVs in tiles of NEAR_DETAIL.tile metres
+    turf: toon({ map: textures.turf }),
   };
   for (const name of Object.keys(materials)) {
     if (!w.slots.has(name)) continue;
@@ -191,7 +197,7 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = '#f4faea', li
     total += n;
   }
   const budget = createContract('outside budget');
-  budget.max('triangles', total, 60000);
+  budget.max('triangles', total, 95000); // was 60,000; the detailed near bank (nearbank.js) adds about 28,000
   budget.max('meshes (draw calls)', group.children.length, 10);
   reports.budget = { contract: budget.assert() };
 

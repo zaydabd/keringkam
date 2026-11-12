@@ -187,7 +187,7 @@ Every signal has one producer; every pass has a way to switch it off.
   - The bridge is supported: tower feet below the water, deck ends on both banks, every cable ending on the deck edge (contract in `bridge.js`; it throws if not).
   - The building's plan has no surface claimed twice, and all its modules have builders (contract in `assembly.js`).
   - From the seat, each window shows its landmark; from the window shot, the whole view shows.
-  - The outside costs under 40,000 triangles and 10 draw calls (checked at build; it throws if not).
+  - The outside costs under 95,000 triangles and 10 draw calls (checked at build; it throws if not). It was 40,000 at first, 60,000 after pass w2, and 95,000 since pass w7 (the detailed near bank).
 - **Deliberate divergences from R3:** the room's tall lattice windows instead of a casement; no cat, no cloth on the sill; distances are real-sized, so the far bank is smaller in the frame than R3 paints it.
 
 ### Parts, and the skill each follows
@@ -479,3 +479,35 @@ Colour schemes, read off the photos: `red` (B1), `orange` (B3), `green` (B2). Th
 
 Fix: the first build drew black blobs in the window view because some colours were hex strings
 (NaN on the GPU). All colours now go through `rgb()`, and the contract counts non-finite colours.
+
+### Pass w7: the near bank in detail (2026-11-12, branch `fix-near-bank`)
+
+`src/lib/three/scene/outside/nearbank.js` replaces the old `buildNearBank` in `banks.js`, which now
+builds the far bank only. Reference: R3's foreground (mud flat, bush mass on the left, grass, fern).
+**Every size, density and colour here is a design choice read off R3 by eye, not measured data.**
+
+- Ground: one swept grid along `SITE.nearLine`, 17 bands per section (under, lip, berm, track,
+  shoulder, level). The zone edges wander with value noise, and each edge sits on a grid column, so
+  the boundaries are ragged without slivers. Ruts on the track, fbm bumps (<= 0.15 m), smoothed normals.
+- Textures: `paintMud` and `paintTurf` (`paint.js`), 512 px tileable, mapped by world x/z. The mud has
+  mottling, wet hollows, streaks, clods and pebbles; the turf has patches and blade strokes.
+  Detail goes into textures, not vertex colours, because the ink pass reads every colour change as a
+  part edge (`toon.js`) and would draw a seam around each speck.
+- Plants and props: lumpy shrubs with leaf cards (the left bush mass), curved-blade grass clumps,
+  weeds on the mud, two ferns (`SITE.near.ferns`), clods, stones, driftwood, puddles. Only placed
+  inside the window's view cone; simpler versions past 25 m. Blades face the eye (double-sided material).
+- Contract (throws if not met): no fold, faces up, no slivers; waterline at the water level; 17 bands;
+  shoulder 15-42 degrees; zone edges in order; level grass 1-2 m above the water; relief <= 0.15 m;
+  every plant and stone above the water; >= 12 shrubs, >= 300 clumps; triangle ranges below.
+
+| Measure (seed 0) | Value |
+| --- | --- |
+| ground triangles | 7,632 |
+| plant triangles | 21,537 |
+| near bank total | 31,837 |
+| outside total / meshes | 85,300 / 7 |
+| window frame | 285,411 triangles, 43 calls |
+
+Seeds 0, 1 and 2 pass every check. Frame time was not measured (software renderer).
+Remaining divergences from R3: the bush mass is smaller and sits further left; R3's mud is a
+warmer, darker brown in its shadowed parts; the seat view does not show the near bank.

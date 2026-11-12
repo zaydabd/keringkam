@@ -43,7 +43,7 @@ export const SITE = {
     bermY: -2.5,
     bermTo: -6.5, // the berm runs down to this x of the waterline; from there the mud meets the water
     tip: [-3, 1], // a patch of grass and tufts on the tip of the mud flat (x of the waterline)
-    fern: [-7.6, -17], // where the fern stands [x, z]
+    ferns: [[-7.6, -17, 1.4], [-4.6, -13.8, 1.1]], // ferns on the level grass below the window [x, z, reach] (design choice)
   },
   // Trees of the far bank (trees.js). clump and big: [x, z, scale]; bushes: [x of the waterline,
   // offset inland, scale]; rows: far-tier trees spread along the waterline (x0..x1 of the waterline,

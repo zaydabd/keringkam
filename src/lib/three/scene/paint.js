@@ -890,3 +890,132 @@ export function paintSoftSky(seed = 25, { haze = '244,250,234', vivid = false } 
   t.wrapS = THREE.RepeatWrapping;
   return t;
 }
+
+/**
+ * Tileable ground detail for the near bank (outside/nearbank.js), painted in light values: the
+ * band's vertex colour sets the hue, this adds the texture. One tile covers `tile` metres; the
+ * near bank maps it by world x and z.
+ */
+function tileDraw(S, g) {
+  // Draws fn at (x, y) and at its wrapped copies wherever a shape of radius r crosses an edge.
+  return (x, y, r, fn) => {
+    for (const dx of [-S, 0, S]) {
+      for (const dy of [-S, 0, S]) {
+        if (x + dx + r < 0 || x + dx - r > S || y + dy + r < 0 || y + dy - r > S) continue;
+        fn(x + dx, y + dy);
+      }
+    }
+  };
+}
+
+function softSpot(g, at) {
+  return (x, y, rx, ry, rgbs, a) =>
+    at(x, y, Math.max(rx, ry), (X, Y) => {
+      g.save();
+      g.translate(X, Y);
+      g.scale(1, ry / rx);
+      const gr = g.createRadialGradient(0, 0, 0, 0, 0, rx);
+      gr.addColorStop(0, `rgba(${rgbs},${a})`);
+      gr.addColorStop(0.65, `rgba(${rgbs},${a * 0.55})`);
+      gr.addColorStop(1, `rgba(${rgbs},0)`);
+      g.fillStyle = gr;
+      g.fillRect(-rx, -rx, rx * 2, rx * 2);
+      g.restore();
+    });
+}
+
+function grain(g, S, r, amount) {
+  const im = g.getImageData(0, 0, S, S);
+  for (let p = 0; p < im.data.length; p += 4) {
+    const n = (r() - 0.5) * amount;
+    im.data[p] += n;
+    im.data[p + 1] += n;
+    im.data[p + 2] += n;
+  }
+  g.putImageData(im, 0, 0);
+}
+
+/** River mud: mottled wet and dry patches, trickle and drag marks, clods with a lit top, grit. */
+export function paintMud(seed = 31) {
+  const r = rng(seed);
+  const S = 512;
+  const [c, g] = canvas(S, S);
+  const at = tileDraw(S, g), soft = softSpot(g, at);
+  g.fillStyle = 'rgb(246,240,232)';
+  g.fillRect(0, 0, S, S);
+  for (let i = 0; i < 90; i++) soft(r() * S, r() * S, 28 + r() * 70, 18 + r() * 46, r() < 0.6 ? '140,124,108' : '255,252,244', 0.2 + r() * 0.25);
+  for (let i = 0; i < 34; i++) soft(r() * S, r() * S, 16 + r() * 40, 8 + r() * 22, '92,80,72', 0.3 + r() * 0.25); // wet hollows
+  g.lineCap = 'round';
+  for (let i = 0; i < 140; i++) {
+    const x = r() * S, y = r() * S, len = 18 + r() * 60, a = (r() - 0.5) * 0.7 + (r() < 0.6 ? 0 : Math.PI / 2);
+    const pts = [0, 1, 2, 3].map((k) => [x + Math.cos(a) * len * (k / 3) + (r() - 0.5) * 6, y + Math.sin(a) * len * (k / 3) + (r() - 0.5) * 6]);
+    at(x, y, len + 6, (X, Y) => {
+      g.strokeStyle = `rgba(88,76,68,${0.3 + r() * 0.35})`;
+      g.lineWidth = 1.2 + r() * 2.8;
+      g.beginPath();
+      pts.forEach(([px, py], k) => (k ? g.lineTo(px - x + X, py - y + Y) : g.moveTo(px - x + X, py - y + Y)));
+      g.stroke();
+    });
+  }
+  for (let i = 0; i < 520; i++) {
+    const x = r() * S, y = r() * S, rad = 1.2 + r() * r() * 5.5;
+    const dark = 0.3 + r() * 0.35, lit = 0.25 + r() * 0.3;
+    at(x, y, rad + 2, (X, Y) => {
+      g.fillStyle = `rgba(78,68,62,${dark})`;
+      g.beginPath();
+      g.ellipse(X, Y + rad * 0.3, rad, rad * 0.7, 0, 0, Math.PI * 2);
+      g.fill();
+      g.fillStyle = `rgba(255,252,246,${lit})`;
+      g.beginPath();
+      g.ellipse(X - rad * 0.2, Y - rad * 0.25, rad * 0.6, rad * 0.38, 0, 0, Math.PI * 2);
+      g.fill();
+    });
+  }
+  for (let i = 0; i < 260; i++) {
+    const x = r() * S, y = r() * S, rad = 0.8 + r() * 1.8;
+    at(x, y, rad + 1, (X, Y) => {
+      g.fillStyle = 'rgba(250,248,242,0.7)';
+      g.strokeStyle = 'rgba(90,84,78,0.35)';
+      g.lineWidth = 0.8;
+      g.beginPath();
+      g.arc(X, Y, rad, 0, Math.PI * 2);
+      g.fill();
+      g.stroke();
+    });
+  }
+  grain(g, S, r, 18);
+  const t = texture(c);
+  t.anisotropy = 8;
+  return t;
+}
+
+/** Turf: short blade strokes in light, dark and straw tones over soft lush and dry patches. */
+export function paintTurf(seed = 37) {
+  const r = rng(seed);
+  const S = 512;
+  const [c, g] = canvas(S, S);
+  const at = tileDraw(S, g), soft = softSpot(g, at);
+  g.fillStyle = 'rgb(238,242,226)';
+  g.fillRect(0, 0, S, S);
+  for (let i = 0; i < 70; i++) soft(r() * S, r() * S, 24 + r() * 60, 18 + r() * 44, '120,134,100', 0.2 + r() * 0.22);
+  for (let i = 0; i < 26; i++) soft(r() * S, r() * S, 20 + r() * 50, 14 + r() * 36, '255,244,196', 0.14 + r() * 0.16);
+  g.lineCap = 'round';
+  for (let i = 0; i < 14000; i++) {
+    const x = r() * S, y = r() * S, len = 3 + r() * 7, a = -Math.PI / 2 + (r() - 0.5) * 1.1;
+    const k = r();
+    const col = k < 0.45 ? `rgba(70,88,58,${0.4 + r() * 0.35})` : k < 0.8 ? `rgba(255,255,238,${0.35 + r() * 0.3})` : `rgba(236,220,150,${0.3 + r() * 0.3})`;
+    const lw = 0.9 + r() * 0.8;
+    at(x, y, len + 1, (X, Y) => {
+      g.strokeStyle = col;
+      g.lineWidth = lw;
+      g.beginPath();
+      g.moveTo(X, Y);
+      g.lineTo(X + Math.cos(a) * len, Y + Math.sin(a) * len);
+      g.stroke();
+    });
+  }
+  grain(g, S, r, 14);
+  const t = texture(c);
+  t.anisotropy = 8;
+  return t;
+}
