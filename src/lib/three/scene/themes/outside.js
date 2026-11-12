@@ -10,8 +10,12 @@
 //   1. Swatches: every colour once, grouped by what it is (earth, plants, wood, paint...).
 //   2. The theme: what each object is made of, pointing at the swatches.
 // Hex colours are sRGB vertex or texture colours; arrays of three numbers are linear (0-1).
+//
+// The painted textures' marks (clouds, mud, turf) sit with their material, as in
+// themes/interior.js: sizes in texture pixels, opacities 0-1, a plain number is fixed and a pair
+// [from, by] is random, from `from` up to `from + by`.
 
-// --- 1. Swatches ----------------------------------------------------------------------------------
+// --- 1. Swatches and marks ----------------------------------------------------------------------
 
 const AIR = {
   // Daylight: the colour in the windows, the haze, the sky's horizon and the river's reflection
@@ -33,6 +37,22 @@ const SKY = {
     gradient: [[0, '#a9c8e4'], [0.5, '#d6e6ee'], [0.8, '#eaf2ee']],
     cloudBase: '#bec0d6', // faint lilac bases
     cloudLit: '#fffdf4', // white tops
+  },
+  // The clouds' marks (paintSoftSky), on a 2048 x 1024 sky; heights are px above the horizon.
+  cloudMarks: {
+    vivid: {
+      banks: { count: 8, scatter: 0.7, height: [60, 120], width: [220, 300], tall: [0.22, 0.12] }, // wide cumulus banks round the sky
+      low: { count: 10, height: [18, 30], width: [60, 90], tall: [0.18, 0.08] }, // small clouds low near the horizon
+      lobes: { spacing: 9, size: [8, 22], minSize: 6, lift: [0.4, 0.6] }, // the lumpy tops: px of bank per lobe
+      base: { opacity: 0.4, core: 0.6 }, // the flat shaded base (core: how far out a puff stays solid)
+      shade: { opacity: 0.8, core: 0.78 }, // each lobe's shade
+      lit: { opacity: 0.97, core: 0.82, minLift: 0.2 }, // and its lit cap (only on lobes standing this high)
+    },
+    soft: {
+      clouds: { count: 26, height: [36, 190], width: [70, 150], puffs: 9, size: [0.16, 0.1] }, // single puffs
+      base: { opacity: 0.07 },
+      lit: { opacity: 0.6 },
+    },
   },
 };
 
@@ -62,6 +82,15 @@ const EARTH = {
     trickle: '#584c44', // trickle and drag marks
     clod: ['#4e443e', '#fffcf6'], // small clods: shade, lit top
     grit: ['#faf8f2', '#5a544e'], // grit: fill, outline
+  },
+  // The mud's marks (paintMud), one 512 px tile.
+  mudMarks: {
+    patches: { count: 90, length: [28, 70], width: [18, 46], opacity: [0.2, 0.25], darkShare: 0.6 }, // mottled wet and dry patches
+    hollows: { count: 34, length: [16, 40], width: [8, 22], opacity: [0.3, 0.25] }, // wet hollows
+    trickles: { count: 140, length: [18, 60], width: [1.2, 2.8], opacity: [0.3, 0.35], tilt: 0.7, alongShare: 0.6, wobble: 6 }, // trickle and drag marks
+    clods: { count: 520, size: [1.2, 5.5], shadeOpacity: [0.3, 0.35], litOpacity: [0.25, 0.3] }, // size is skewed small
+    grit: { count: 260, size: [0.8, 1.8], opacity: 0.7, outline: 0.8, outlineOpacity: 0.35 },
+    noise: 18, // fine paper grain over everything
   },
 };
 
@@ -105,6 +134,14 @@ const PLANT = {
     lush: '#788664', // soft lush patches
     dry: '#fff4c4', // and dry ones
     blades: ['#46583a', '#ffffee', '#ecdc96'], // short blade strokes: dark, light, straw
+  },
+  // The turf's marks (paintTurf), one 512 px tile.
+  turfMarks: {
+    lush: { count: 70, length: [24, 60], width: [18, 44], opacity: [0.2, 0.22] },
+    dry: { count: 26, length: [20, 50], width: [14, 36], opacity: [0.14, 0.16] },
+    // blades: lean in radians from upright; split: dark below the first, light below the second, the rest straw
+    blades: { count: 14000, length: [3, 7], width: [0.9, 0.8], lean: 1.1, split: [0.45, 0.8], opacity: [[0.4, 0.35], [0.35, 0.3], [0.3, 0.3]] },
+    noise: 14,
   },
 };
 
@@ -188,7 +225,12 @@ export const OUTSIDE_THEME = {
     skyKey: 0.3, // the sky likewise, so its blue survives an exposure set for the shaded room
   },
 
-  sky: { style: 'vivid', ...SKY }, // paintSoftSky; its horizon is air.daylight
+  // paintSoftSky; its horizon is air.daylight. style picks one of the two looks below.
+  sky: {
+    style: 'vivid',
+    vivid: { colours: SKY.vivid, pattern: SKY.cloudMarks.vivid },
+    soft: { colours: SKY.soft, pattern: SKY.cloudMarks.soft },
+  },
 
   water: { body: WATER.river, film: WATER.film }, // water.js
 
@@ -237,7 +279,10 @@ export const OUTSIDE_THEME = {
     fernLight: PLANT.fernLight,
   },
   // The near bank's painted detail textures (paint.js).
-  textures: { mud: EARTH.texture, turf: PLANT.turf },
+  textures: {
+    mud: { colours: EARTH.texture, pattern: EARTH.mudMarks },
+    turf: { colours: PLANT.turf, pattern: PLANT.turfMarks },
+  },
 
   // Trees and bushes on the banks (trees.js).
   trees: { trunk: WOOD.trunk, light: PLANT.foliageLight, mid: PLANT.foliageMid, dark: PLANT.foliageDark },

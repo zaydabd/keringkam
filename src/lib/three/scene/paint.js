@@ -38,6 +38,12 @@ function texture(c, repeat = [1, 1], wrap = true) {
 /** A hex colour as 'r,g,b', for rgba() strings with their own alpha. */
 const css = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16)).join(',');
 
+/**
+ * A pattern value from a theme: a plain number is fixed; a pair [from, by] is random, from `from`
+ * up to `from + by`. Only a pair draws a random number, so fixed values keep the sequence.
+ */
+const vary = (r, v) => (typeof v === 'number' ? v : v[0] + r() * v[1]);
+
 function wrapX(w, fn) {
   for (const dx of [-w, 0, w]) fn(dx);
 }
@@ -60,33 +66,35 @@ function blot(g, W, x, y, rx, ry, rgb, a) {
 
 /**
  * Wood planks. One tile is 2 m along the grain (canvas x) by 0.5 m across (canvas y), so with
- * UVs in metres the texture repeat is (0.5, 2). `brushy` (walls, after R2): long soft brush
- * streaks and only a few faint grain lines, no knots. `weathered` adds the silver-grey streaks and
- * checks of sun-bleached timber, as on the rails and benches in H1/H4.
+ * UVs in metres the texture repeat is (0.5, 2). The pattern (themes/interior.js WOOD.grainMarks)
+ * sets how many marks of each kind and how big and strong they are; a pattern with `weathering`
+ * also gets the silver streaks and checks of sun-bleached timber, on the greyer paper.
  */
-export function paintPlanks(seed = 1, { colours: C, weathered = false, brushy = false }) {
+export function paintPlanks(seed = 1, { colours: C, pattern: P }) {
   const r = rng(seed);
   const W = 1024;
   const H = 256;
   const [c, g] = canvas(W, H);
-  g.fillStyle = weathered ? C.paperWeathered : C.paper;
+  g.fillStyle = P.weathering ? C.paperWeathered : C.paper;
   g.fillRect(0, 0, W, H);
 
   // Watercolour blots: big soft patches of warmer and cooler wood.
-  for (let i = 0; i < 34; i++) {
-    const warm = r() < 0.5;
-    blot(g, W, r() * W, r() * H, 60 + r() * 160, 20 + r() * 50, warm ? css(C.blotWarm) : css(C.blotPale), 0.06 + r() * 0.08);
+  const B = P.blots;
+  for (let i = 0; i < B.count; i++) {
+    const warm = r() < B.warmShare;
+    blot(g, W, r() * W, r() * H, vary(r, B.length), vary(r, B.width), warm ? css(C.blotWarm) : css(C.blotPale), vary(r, B.opacity));
   }
 
   // Broad soft streaks of lighter and darker wood.
-  for (let i = 0; i < (brushy ? 110 : 70); i++) {
+  const S = P.streaks;
+  for (let i = 0; i < S.count; i++) {
     const y0 = r() * H;
-    const h = 3 + r() * 16;
-    const a = brushy ? 0.07 + r() * 0.12 : 0.045 + r() * 0.08;
-    const k = 1 + Math.floor(r() * 3);
+    const h = vary(r, S.width);
+    const a = vary(r, S.opacity);
+    const k = 1 + Math.floor(r() * S.waves);
     const ph = r() * Math.PI * 2;
-    const amp = 2 + r() * 6;
-    g.fillStyle = r() < 0.4 ? `rgba(${css(C.streakLight)},${a})` : `rgba(${css(C.streakDark)},${a})`;
+    const amp = vary(r, S.sway);
+    g.fillStyle = r() < S.lightShare ? `rgba(${css(C.streakLight)},${a})` : `rgba(${css(C.streakDark)},${a})`;
     g.beginPath();
     for (let x = 0; x <= W; x += 16) g.lineTo(x, y0 + Math.sin((x / W) * Math.PI * 2 * k + ph) * amp);
     for (let x = W; x >= 0; x -= 16) g.lineTo(x, y0 + h + Math.sin((x / W) * Math.PI * 2 * k + ph + 0.6) * amp);
@@ -95,17 +103,19 @@ export function paintPlanks(seed = 1, { colours: C, weathered = false, brushy = 
 
   // Grain strokes, as if drawn with a fine brush; some sweep around a knot.
   g.lineCap = 'round';
+  const L = P.lines;
+  const K = P.knots;
   const knots = [];
-  for (let i = 0; i < (brushy ? 0 : 3); i++) knots.push([r() * W, 30 + r() * (H - 60), 8 + r() * 10]);
-  for (let i = 0; i < (brushy ? 9 : 26); i++) {
+  for (let i = 0; i < K.count; i++) knots.push([r() * W, 30 + r() * (H - 60), vary(r, K.size)]);
+  for (let i = 0; i < L.count; i++) {
     const y0 = r() * H;
-    const amp = 1 + r() * 4;
-    const k = 1 + Math.floor(r() * 3);
+    const amp = vary(r, L.sway);
+    const k = 1 + Math.floor(r() * L.waves);
     const ph = r() * Math.PI * 2;
     const x0 = r() * W;
-    const len = 120 + r() * 520;
-    g.strokeStyle = `rgba(${css(C.line)},${0.07 + r() * 0.15})`;
-    g.lineWidth = 0.8 + r() * 1.5;
+    const len = vary(r, L.length);
+    g.strokeStyle = `rgba(${css(C.line)},${vary(r, L.opacity)})`;
+    g.lineWidth = vary(r, L.width);
     wrapX(W, (dx) => {
       g.beginPath();
       for (let x = 0; x <= len; x += 6) {
@@ -123,13 +133,13 @@ export function paintPlanks(seed = 1, { colours: C, weathered = false, brushy = 
   }
   for (const [x, y, rx] of knots) {
     wrapX(W, (dx) => {
-      g.fillStyle = `rgba(${css(C.knot)},0.35)`;
+      g.fillStyle = `rgba(${css(C.knot)},${K.opacity})`;
       g.beginPath();
       g.ellipse(x + dx, y, rx * 0.45, rx * 0.25, 0, 0, Math.PI * 2);
       g.fill();
-      g.strokeStyle = `rgba(${css(C.knot)},0.22)`;
-      g.lineWidth = 1.2;
-      for (let k = 1; k <= 3; k++) {
+      g.strokeStyle = `rgba(${css(C.knot)},${K.ringOpacity})`;
+      g.lineWidth = K.ringWidth;
+      for (let k = 1; k <= K.rings; k++) {
         g.beginPath();
         g.ellipse(x + dx, y, rx * (0.5 + k * 0.45), rx * (0.3 + k * 0.22), 0, 0, Math.PI * 2);
         g.stroke();
@@ -137,20 +147,21 @@ export function paintPlanks(seed = 1, { colours: C, weathered = false, brushy = 
     });
   }
 
-  if (weathered) {
+  if (P.weathering) {
     // sun-bleached silver streaks and dark checks (short cracks along the grain)
-    for (let i = 0; i < 40; i++) {
+    const { silver: Sv, checks: Ck } = P.weathering;
+    for (let i = 0; i < Sv.count; i++) {
       const y = r() * H;
       const x = r() * W;
-      g.fillStyle = `rgba(${css(C.silver)},${0.12 + r() * 0.16})`;
-      wrapX(W, (dx) => g.fillRect(x + dx, y, 80 + r() * 300, 2 + r() * 6));
+      g.fillStyle = `rgba(${css(C.silver)},${vary(r, Sv.opacity)})`;
+      wrapX(W, (dx) => g.fillRect(x + dx, y, vary(r, Sv.length), vary(r, Sv.width)));
     }
-    for (let i = 0; i < 26; i++) {
+    for (let i = 0; i < Ck.count; i++) {
       const y = r() * H;
       const x = r() * W;
-      const len = 30 + r() * 120;
-      g.strokeStyle = `rgba(${css(C.check)},${0.35 + r() * 0.3})`;
-      g.lineWidth = 1 + r() * 1.2;
+      const len = vary(r, Ck.length);
+      g.strokeStyle = `rgba(${css(C.check)},${vary(r, Ck.opacity)})`;
+      g.lineWidth = vary(r, Ck.width);
       wrapX(W, (dx) => {
         g.beginPath();
         g.moveTo(x + dx, y);
@@ -161,15 +172,16 @@ export function paintPlanks(seed = 1, { colours: C, weathered = false, brushy = 
   }
 
   // Dry-brush highlights: broken light dashes along the grain.
-  for (let i = 0; i < 30; i++) {
+  const Sh = P.sheen;
+  for (let i = 0; i < Sh.count; i++) {
     const y = r() * H;
     let x = r() * W;
-    const end = x + 60 + r() * 200;
-    g.fillStyle = `rgba(${css(C.sheen)},${0.18 + r() * 0.15})`;
+    const end = x + Sh.length[0] + r() * Sh.length[1];
+    g.fillStyle = `rgba(${css(C.sheen)},${vary(r, Sh.opacity)})`;
     while (x < end) {
-      const w = 6 + r() * 22;
-      wrapX(W, (dx) => g.fillRect(x + dx, y + (r() - 0.5) * 2, w, 1.5));
-      x += w + 3 + r() * 10;
+      const w = vary(r, Sh.dash);
+      wrapX(W, (dx) => g.fillRect(x + dx, y + (r() - 0.5) * 2, w, Sh.thickness));
+      x += w + Sh.gap[0] + r() * Sh.gap[1];
     }
   }
   return texture(c, [0.5, 2]);
@@ -430,10 +442,10 @@ export function paintPalmTrunk(seed = 10) {
  * 0.4 m square, so with UVs in metres the repeat is 2.5. Inked edges, cream face: the material
  * colour sets the wood tone.
  */
-export function paintLattice(seed = 11, { colours: C }) {
+export function paintLattice(seed = 11, { colours: C, pattern: P }) {
   const r = rng(seed);
   const S = 512;
-  const P = 128; // crossing pitch: 10 cm
+  const pitch = 128; // crossing pitch: 10 cm
   const [c, g] = canvas(S, S);
   g.lineCap = 'round';
   const strips = (width, style) => {
@@ -441,47 +453,48 @@ export function paintLattice(seed = 11, { colours: C }) {
     g.lineWidth = width;
     for (let k = -8; k <= 8; k++) {
       g.beginPath();
-      g.moveTo(k * P - S, -S);
-      g.lineTo(k * P + S * 2, S * 2);
-      g.moveTo(k * P - S, S * 2);
-      g.lineTo(k * P + S * 2, -S);
+      g.moveTo(k * pitch - S, -S);
+      g.lineTo(k * pitch + S * 2, S * 2);
+      g.moveTo(k * pitch - S, S * 2);
+      g.lineTo(k * pitch + S * 2, -S);
       g.stroke();
     }
   };
   const nodes = (fn) => {
     for (let i = -1; i <= S / 64 + 1; i++) for (let j = -1; j <= S / 64 + 1; j++) if ((i + j) % 2 === 0) fn(i * 64, j * 64, (i / 2 + j / 2) % 2 === 0);
   };
-  strips(26, C.dark);
+  const { back: Bk, front: Fr, hole: Ho, tone: To } = P;
+  strips(Bk.strip, C.dark);
   nodes((x, y, ring) => {
     g.fillStyle = C.dark;
     g.beginPath();
-    g.arc(x, y, ring ? 34 : 17, 0, Math.PI * 2);
+    g.arc(x, y, ring ? Bk.ring : Bk.node, 0, Math.PI * 2);
     g.fill();
   });
-  strips(17, C.light);
+  strips(Fr.strip, C.light);
   nodes((x, y, ring) => {
     g.fillStyle = C.light;
     g.beginPath();
-    g.arc(x, y, ring ? 29 : 12, 0, Math.PI * 2);
+    g.arc(x, y, ring ? Fr.ring : Fr.node, 0, Math.PI * 2);
     g.fill();
     if (ring) {
       g.globalCompositeOperation = 'destination-out';
       g.beginPath();
-      g.arc(x, y, 18, 0, Math.PI * 2);
+      g.arc(x, y, Ho.radius, 0, Math.PI * 2);
       g.fill();
       g.globalCompositeOperation = 'source-over';
       g.strokeStyle = C.dark;
-      g.lineWidth = 4;
+      g.lineWidth = Ho.edge;
       g.beginPath();
-      g.arc(x, y, 18, 0, Math.PI * 2);
+      g.arc(x, y, Ho.radius, 0, Math.PI * 2);
       g.stroke();
     }
   });
   // brush tone along the strips
-  for (let i = 0; i < 400; i++) {
-    g.fillStyle = `rgba(${r() < 0.5 ? css(C.toneDark) : css(C.toneLight)},${0.06 + r() * 0.08})`;
+  for (let i = 0; i < To.count; i++) {
+    g.fillStyle = `rgba(${r() < To.darkShare ? css(C.toneDark) : css(C.toneLight)},${vary(r, To.opacity)})`;
     g.globalCompositeOperation = 'source-atop';
-    g.fillRect(r() * S, r() * S, 10 + r() * 30, 2 + r() * 3);
+    g.fillRect(r() * S, r() * S, vary(r, To.length), vary(r, To.width));
   }
   g.globalCompositeOperation = 'source-over';
   return texture(c, [2.5, 2.5]);
@@ -524,40 +537,41 @@ function motif(g, S, x, y, s, r) {
  * 'drape': cream-grey ground with rust and slate-blue patches. 'pale': a sheer, the same pattern
  * very faint on cream. All tile; repeat is (2, 2).
  */
-export function paintCurtain(seed = 12, kind = 'valance', { colours: C }) {
+export function paintCurtain(seed = 12, { colours: C, pattern: P }) {
   const r = rng(seed);
   const S = 256;
   const [c, g] = canvas(S, S);
-  const valance = kind === 'valance';
-  const pale = kind === 'pale';
   g.fillStyle = C.ground;
   g.fillRect(0, 0, S, S);
   // uneven dye
-  for (let i = 0; i < 18; i++) blot(g, S, r() * S, r() * S, 20 + r() * 40, 20 + r() * 40, r() < 0.5 ? css(C.dye[0]) : css(C.dye[1]), (pale ? 0.04 : 0.12) + r() * (pale ? 0.05 : 0.14));
+  const D = P.dye;
+  for (let i = 0; i < D.count; i++) blot(g, S, r() * S, r() * S, vary(r, D.size), vary(r, D.size), r() < D.darkShare ? css(C.dye[0]) : css(C.dye[1]), vary(r, D.opacity));
   const inks = C.inks;
-  const cell = valance ? 51.2 : 64; // large flowing shapes (R2), four or five across the tile
+  const M = P.motifs;
+  const cell = M.cell; // large flowing shapes (R2), four or five across the tile
   for (let y = cell / 2; y < S; y += cell) {
     for (let x = cell / 2; x < S; x += cell) {
       g.fillStyle = inks[Math.floor(r() * inks.length)];
-      g.globalAlpha = pale ? 0.08 : 0.78 + r() * 0.2;
+      g.globalAlpha = vary(r, M.opacity);
       const row = Math.round(y / cell);
-      motif(g, S, x + (r() - 0.5) * cell * 0.4 + (row % 2 ? cell / 2 : 0), y + (r() - 0.5) * cell * 0.3, cell * (0.44 + r() * 0.14), r);
+      motif(g, S, x + (r() - 0.5) * cell * 0.4 + (row % 2 ? cell / 2 : 0), y + (r() - 0.5) * cell * 0.3, cell * vary(r, M.main), r);
       // a smaller patch of another colour inside it, and a third beside it
       g.fillStyle = inks[Math.floor(r() * inks.length)];
-      motif(g, S, x + (r() - 0.5) * cell * 0.3 + (row % 2 ? cell / 2 : 0), y + (r() - 0.5) * cell * 0.3, cell * (0.16 + r() * 0.08), r);
+      motif(g, S, x + (r() - 0.5) * cell * 0.3 + (row % 2 ? cell / 2 : 0), y + (r() - 0.5) * cell * 0.3, cell * vary(r, M.inner), r);
       g.fillStyle = inks[Math.floor(r() * inks.length)];
-      motif(g, S, x + cell * 0.5 + (r() - 0.5) * cell * 0.3, y + cell * 0.5 + (r() - 0.5) * cell * 0.3, cell * (0.14 + r() * 0.08), r);
+      motif(g, S, x + cell * 0.5 + (r() - 0.5) * cell * 0.3, y + cell * 0.5 + (r() - 0.5) * cell * 0.3, cell * vary(r, M.beside), r);
     }
   }
   g.globalAlpha = 1;
   // brush streaks down the cloth (folds catch the paint)
-  for (let i = 0; i < 22; i++) {
-    g.fillStyle = r() < 0.5 ? `rgba(${css(C.streaks[0])},${(pale ? 0.02 : 0.05) + r() * (pale ? 0.03 : 0.08)})` : `rgba(${css(C.streaks[1])},${0.04 + r() * 0.07})`;
-    g.fillRect(r() * S, 0, 2 + r() * 9, S);
+  const St = P.streaks;
+  for (let i = 0; i < St.count; i++) {
+    g.fillStyle = r() < St.darkShare ? `rgba(${css(C.streaks[0])},${vary(r, St.darkOpacity)})` : `rgba(${css(C.streaks[1])},${vary(r, St.lightOpacity)})`;
+    g.fillRect(r() * S, 0, vary(r, St.width), S);
   }
-  if (valance) {
-    g.fillStyle = `rgba(${css(C.hem)},0.6)`;
-    g.fillRect(0, S - 22, S, 7);
+  if (P.hem) {
+    g.fillStyle = `rgba(${css(C.hem)},${P.hem.opacity})`;
+    g.fillRect(0, S - P.hem.fromBottom, S, P.hem.height);
   }
   return texture(c, [2, 2]);
 }
@@ -566,33 +580,36 @@ export function paintCurtain(seed = 12, kind = 'valance', { colours: C }) {
  * The red cloth on the embroidery frame, after R2: deep crimson with painted creases and a gold
  * border band. Still plain in the middle (no keringkam motif yet).
  */
-export function paintCloth(seed = 13, { colours: C }) {
+export function paintCloth(seed = 13, { colours: C, pattern: P }) {
   const r = rng(seed);
   const W = 512;
   const H = 256;
   const [c, g] = canvas(W, H);
   g.fillStyle = C.ground;
   g.fillRect(0, 0, W, H);
-  for (let i = 0; i < 22; i++) blot(g, W, r() * W, r() * H, 40 + r() * 90, 30 + r() * 60, r() < 0.55 ? css(C.blots[0]) : css(C.blots[1]), 0.1 + r() * 0.12);
+  const Bl = P.blots;
+  for (let i = 0; i < Bl.count; i++) blot(g, W, r() * W, r() * H, vary(r, Bl.length), vary(r, Bl.width), r() < Bl.darkShare ? css(C.blots[0]) : css(C.blots[1]), vary(r, Bl.opacity));
   // creases: long soft diagonal strokes, dark with a light edge
-  for (let i = 0; i < 9; i++) {
+  const Cr = P.creases;
+  for (let i = 0; i < Cr.count; i++) {
     const x = r() * W;
     const y = r() * H;
-    const len = 80 + r() * 180;
-    const a = -0.5 + r() * 1.0;
-    for (const [off, col] of [[0, `rgba(${css(C.creases[0])},${0.16 + r() * 0.12})`], [3, `rgba(${css(C.creases[1])},${0.1 + r() * 0.1})`]]) {
+    const len = vary(r, Cr.length);
+    const a = vary(r, Cr.angle);
+    for (const [off, col] of [[0, `rgba(${css(C.creases[0])},${vary(r, Cr.darkOpacity)})`], [Cr.edgeOffset, `rgba(${css(C.creases[1])},${vary(r, Cr.edgeOpacity)})`]]) {
       g.strokeStyle = col;
-      g.lineWidth = 2 + r() * 3;
+      g.lineWidth = vary(r, Cr.width);
       g.lineCap = 'round';
       g.beginPath();
       g.moveTo(x, y + off);
-      g.quadraticCurveTo(x + (Math.cos(a) * len) / 2, y + off + (Math.sin(a) * len) / 2 + (r() - 0.5) * 24, x + Math.cos(a) * len, y + off + Math.sin(a) * len);
+      g.quadraticCurveTo(x + (Math.cos(a) * len) / 2, y + off + (Math.sin(a) * len) / 2 + (r() - 0.5) * Cr.bend, x + Math.cos(a) * len, y + off + Math.sin(a) * len);
       g.stroke();
     }
   }
-  for (let y = 0; y < H; y += 2) {
-    g.fillStyle = `rgba(${css(C.weave)},${0.03 + r() * 0.04})`;
-    g.fillRect(0, y, W, 1);
+  const Wv = P.weave;
+  for (let y = 0; y < H; y += Wv.spacing) {
+    g.fillStyle = `rgba(${css(C.weave)},${vary(r, Wv.opacity)})`;
+    g.fillRect(0, y, W, Wv.thread);
   }
   // gold bands across the two ends (R2): ruled lines with a row of diamonds and dots between them
   const diamond = (x, y, k) => {
@@ -603,19 +620,20 @@ export function paintCloth(seed = 13, { colours: C }) {
     g.lineTo(x - k, y);
     g.fill();
   };
-  for (const x0 of [34, W - 34 - 58]) {
-    g.fillStyle = `rgba(${css(C.bandShade)},0.35)`; // the band sits on slightly darker cloth
-    g.fillRect(x0 - 4, 0, 66, H);
+  const Bd = P.band;
+  const Rw = Bd.rows;
+  for (const x0 of [Bd.inset, W - Bd.inset - Bd.width]) {
+    g.fillStyle = `rgba(${css(C.bandShade)},${Bd.shadeOpacity})`; // the band sits on slightly darker cloth
+    g.fillRect(x0 - Bd.shadeMargin, 0, Bd.width + 2 * Bd.shadeMargin, H);
     g.fillStyle = C.gold;
-    for (const dx of [0, 5, 53, 58]) g.fillRect(x0 + dx, 10, dx === 0 || dx === 58 ? 2.5 : 1.5, H - 20);
+    for (const [dx, w] of Bd.rules) g.fillRect(x0 + dx, Bd.ruleMargin, w, H - 2 * Bd.ruleMargin);
     g.fillStyle = C.goldLight;
-    for (let y = 22; y < H - 14; y += 20) {
-      diamond(x0 + 29, y, 7);
-      g.fillRect(x0 + 14, y + 9, 3, 3);
-      g.fillRect(x0 + 42, y + 9, 3, 3);
+    for (let y = Rw.from; y < H - Rw.endMargin; y += Rw.every) {
+      diamond(x0 + Bd.width / 2, y, Rw.diamond);
+      for (const dx of Rw.dots) g.fillRect(x0 + dx, y + Rw.dotDrop, Rw.dot, Rw.dot);
     }
     g.fillStyle = C.ground;
-    for (let y = 22; y < H - 14; y += 20) diamond(x0 + 29, y, 3);
+    for (let y = Rw.from; y < H - Rw.endMargin; y += Rw.every) diamond(x0 + Bd.width / 2, y, Rw.hole);
   }
   return texture(c, [1, 1], false);
 }
@@ -624,39 +642,40 @@ export function paintCloth(seed = 13, { colours: C }) {
  * Wall hangings atlas, 4 x 2 tiles: woven mats in tan, green and violet checks, and framed pictures
  * with a painted spray of flowers. Each item's face takes one tile by its UVs.
  */
-export function paintDecor(seed = 14, { colours: C }) {
+export function paintDecor(seed = 14, { colours: C, pattern: P }) {
   const r = rng(seed);
   const T = 192;
   const [c, g] = canvas(T * 4, T * 2);
+  const { weave: Wv, picture: Pc } = P;
   const weave = (x0, y0, [a, b]) => {
-    const n = 12;
+    const n = Wv.cells;
     const s = T / n;
     for (let i = 0; i < n; i++)
       for (let j = 0; j < n; j++) {
         g.fillStyle = (i + j) % 2 ? a : b;
         g.fillRect(x0 + i * s, y0 + j * s, s, s);
-        g.fillStyle = `rgba(${css(C.matShadow)},0.18)`;
-        g.fillRect(x0 + i * s, y0 + j * s + ((i + j) % 2 ? 0 : s - 2), s, 2);
+        g.fillStyle = `rgba(${css(C.matShadow)},${Wv.shadowOpacity})`;
+        g.fillRect(x0 + i * s, y0 + j * s + ((i + j) % 2 ? 0 : s - Wv.shadow), s, Wv.shadow);
       }
     g.strokeStyle = C.matEdge;
-    g.lineWidth = 8;
-    g.strokeRect(x0 + 4, y0 + 4, T - 8, T - 8);
+    g.lineWidth = Wv.edge;
+    g.strokeRect(x0 + Wv.edge / 2, y0 + Wv.edge / 2, T - Wv.edge, T - Wv.edge);
   };
   const picture = (x0, y0, { ground, flower }) => {
     g.fillStyle = C.frame;
     g.fillRect(x0, y0, T, T);
     g.fillStyle = ground;
-    g.fillRect(x0 + 18, y0 + 18, T - 36, T - 36);
+    g.fillRect(x0 + Pc.frame, y0 + Pc.frame, T - 2 * Pc.frame, T - 2 * Pc.frame);
     g.strokeStyle = C.stem;
-    g.lineWidth = 3;
-    for (let k = 0; k < 5; k++) {
+    g.lineWidth = Pc.stemWidth;
+    for (let k = 0; k < Pc.stems; k++) {
       g.beginPath();
       g.moveTo(x0 + T / 2, y0 + T - 30);
       g.quadraticCurveTo(x0 + T / 2 + (r() - 0.5) * 60, y0 + T / 2, x0 + 40 + r() * (T - 80), y0 + 40 + r() * 50);
       g.stroke();
       g.fillStyle = flower;
       g.beginPath();
-      g.arc(x0 + 40 + r() * (T - 80), y0 + 40 + r() * 60, 7 + r() * 6, 0, Math.PI * 2);
+      g.arc(x0 + 40 + r() * (T - 80), y0 + 40 + r() * 60, vary(r, Pc.flower), 0, Math.PI * 2);
       g.fill();
     }
   };
@@ -825,7 +844,7 @@ export function paintZinc(seed = 24) {
  * the horizon, with a few soft cumulus (white tops, faint lilac bases). Equirectangular: the
  * upper half of the canvas is the sky, the lower half takes the haze colour.
  */
-export function paintSoftSky(seed = 25, { colours: C, haze, vivid = false }) {
+export function paintSoftSky(seed = 25, { colours: C, pattern: P, haze }) {
   const r = rng(seed);
   const W = 2048;
   const H = 1024;
@@ -833,7 +852,7 @@ export function paintSoftSky(seed = 25, { colours: C, haze, vivid = false }) {
   const sky = g.createLinearGradient(0, 0, 0, H / 2);
   // vivid (R3): a strong, clear blue that holds almost to the horizon. It is painted more
   // saturated than it should look: the room's grade takes about a third of the colour out again.
-  for (const [at, colour] of vivid ? C.vivid.gradient : C.soft.gradient) sky.addColorStop(at, colour);
+  for (const [at, colour] of C.gradient) sky.addColorStop(at, colour);
   sky.addColorStop(1, `rgb(${haze})`);
   g.fillStyle = sky;
   g.fillRect(0, 0, W, H / 2);
@@ -852,43 +871,45 @@ export function paintSoftSky(seed = 25, { colours: C, haze, vivid = false }) {
       g.fillRect(x + dx - rad, y - rad, rad * 2, rad * 2);
     });
   };
-  if (vivid) {
+  if (P.banks) {
     // R3: wide cumulus banks rather than single puffs. Each bank has a flat, shaded base and a
     // lumpy top built from many small lobes; a few small clouds sit low near the horizon.
+    const { banks: Bk, low: Lw, lobes: Lb, base: Ba, shade: Sd, lit: Lt } = P;
     const banks = [];
-    for (let n = 0; n < 8; n++) banks.push({ cx: ((n + r() * 0.7) / 8) * W, base: H / 2 - 60 - r() * 120, width: 220 + r() * 300, tall: 0.22 + r() * 0.12 });
-    for (let n = 0; n < 10; n++) banks.push({ cx: r() * W, base: H / 2 - 18 - r() * 30, width: 60 + r() * 90, tall: 0.18 + r() * 0.08 });
+    for (let n = 0; n < Bk.count; n++) banks.push({ cx: ((n + r() * Bk.scatter) / Bk.count) * W, base: H / 2 - Bk.height[0] - r() * Bk.height[1], width: vary(r, Bk.width), tall: vary(r, Bk.tall) });
+    for (let n = 0; n < Lw.count; n++) banks.push({ cx: r() * W, base: H / 2 - Lw.height[0] - r() * Lw.height[1], width: vary(r, Lw.width), tall: vary(r, Lw.tall) });
     for (const b of banks) {
       const lobes = [];
-      const count = Math.round(b.width / 9);
+      const count = Math.round(b.width / Lb.spacing);
       for (let i = 0; i < count; i++) {
         const t = r();
         const hump = Math.sin(Math.PI * t) ** 0.7; // fuller in the middle of the bank
-        const rad = (8 + r() * 22) * (0.5 + hump) * (b.width / 380);
-        const lift = hump * b.width * b.tall * (0.4 + r() * 0.6); // how high this lobe stands
-        lobes.push([b.cx + (t - 0.5) * b.width, b.base - lift, Math.max(6, rad), lift]);
+        const rad = vary(r, Lb.size) * (0.5 + hump) * (b.width / 380);
+        const lift = hump * b.width * b.tall * vary(r, Lb.lift); // how high this lobe stands
+        lobes.push([b.cx + (t - 0.5) * b.width, b.base - lift, Math.max(Lb.minSize, rad), lift]);
       }
       // the base: a long, flat shaded band, cool grey (the shade side of a cumulus)
       for (let x = -0.5; x <= 0.5; x += 0.06) {
         const hump = Math.cos(Math.PI * x);
-        puff(b.cx + x * b.width * 0.95, b.base + 2, 8 + hump * b.width * 0.05, css(C.vivid.cloudBase), 0.4, 0.6);
+        puff(b.cx + x * b.width * 0.95, b.base + 2, 8 + hump * b.width * 0.05, css(C.cloudBase), Ba.opacity, Ba.core);
       }
       // body: each lobe as a warm grey shade, then a lit cap offset up and to the light (left)
-      for (const [x, y, rad] of lobes) puff(x + rad * 0.15, y + rad * 0.3, rad * 1.08, css(C.vivid.cloudShade), 0.8, 0.78);
-      for (const [x, y, rad, lift] of lobes) if (lift > b.width * b.tall * 0.2) puff(x - rad * 0.2, y - rad * 0.2, rad, css(C.vivid.cloudLit), 0.97, 0.82);
+      for (const [x, y, rad] of lobes) puff(x + rad * 0.15, y + rad * 0.3, rad * 1.08, css(C.cloudShade), Sd.opacity, Sd.core);
+      for (const [x, y, rad, lift] of lobes) if (lift > b.width * b.tall * Lt.minLift) puff(x - rad * 0.2, y - rad * 0.2, rad, css(C.cloudLit), Lt.opacity, Lt.core);
     }
   } else {
-    const count = 26;
+    const { clouds: Cl, base: Ba, lit: Lt } = P;
+    const count = Cl.count;
     for (let n = 0; n < count; n++) {
       const cx = ((n + r()) / count) * W; // spread round the sky, so blue shows between them
-      const base = H / 2 - 36 - r() * 190; // between about 6 and 33 degrees up
-      const width = 70 + r() * 150;
-      for (let i = 0; i < 9; i++) {
+      const base = H / 2 - Cl.height[0] - r() * Cl.height[1]; // between about 6 and 33 degrees up
+      const width = vary(r, Cl.width);
+      for (let i = 0; i < Cl.puffs; i++) {
         const t = r();
-        const rad = 12 + Math.sin(Math.PI * t) * width * (0.16 + r() * 0.1);
+        const rad = 12 + Math.sin(Math.PI * t) * width * vary(r, Cl.size);
         const x = cx + (t - 0.5) * width;
-        puff(x, base + 6, rad * 0.8, css(C.soft.cloudBase), 0.07);
-        puff(x - 3, base - rad * 0.55, rad, css(C.soft.cloudLit), 0.6);
+        puff(x, base + 6, rad * 0.8, css(C.cloudBase), Ba.opacity);
+        puff(x - 3, base - rad * 0.55, rad, css(C.cloudLit), Lt.opacity);
       }
     }
   }
@@ -942,30 +963,31 @@ function grain(g, S, r, amount) {
 }
 
 /** River mud: mottled wet and dry patches, trickle and drag marks, clods with a lit top, grit. */
-export function paintMud(seed = 31, { colours: C }) {
+export function paintMud(seed = 31, { colours: C, pattern: P }) {
   const r = rng(seed);
   const S = 512;
   const [c, g] = canvas(S, S);
   const at = tileDraw(S, g), soft = softSpot(g, at);
   g.fillStyle = C.ground;
   g.fillRect(0, 0, S, S);
-  for (let i = 0; i < 90; i++) soft(r() * S, r() * S, 28 + r() * 70, 18 + r() * 46, r() < 0.6 ? css(C.patches[0]) : css(C.patches[1]), 0.2 + r() * 0.25);
-  for (let i = 0; i < 34; i++) soft(r() * S, r() * S, 16 + r() * 40, 8 + r() * 22, css(C.hollow), 0.3 + r() * 0.25); // wet hollows
+  const { patches: Pa, hollows: Ho, trickles: Tr, clods: Cd, grit: Gr } = P;
+  for (let i = 0; i < Pa.count; i++) soft(r() * S, r() * S, vary(r, Pa.length), vary(r, Pa.width), r() < Pa.darkShare ? css(C.patches[0]) : css(C.patches[1]), vary(r, Pa.opacity));
+  for (let i = 0; i < Ho.count; i++) soft(r() * S, r() * S, vary(r, Ho.length), vary(r, Ho.width), css(C.hollow), vary(r, Ho.opacity)); // wet hollows
   g.lineCap = 'round';
-  for (let i = 0; i < 140; i++) {
-    const x = r() * S, y = r() * S, len = 18 + r() * 60, a = (r() - 0.5) * 0.7 + (r() < 0.6 ? 0 : Math.PI / 2);
-    const pts = [0, 1, 2, 3].map((k) => [x + Math.cos(a) * len * (k / 3) + (r() - 0.5) * 6, y + Math.sin(a) * len * (k / 3) + (r() - 0.5) * 6]);
-    at(x, y, len + 6, (X, Y) => {
-      g.strokeStyle = `rgba(${css(C.trickle)},${0.3 + r() * 0.35})`;
-      g.lineWidth = 1.2 + r() * 2.8;
+  for (let i = 0; i < Tr.count; i++) {
+    const x = r() * S, y = r() * S, len = vary(r, Tr.length), a = (r() - 0.5) * Tr.tilt + (r() < Tr.alongShare ? 0 : Math.PI / 2);
+    const pts = [0, 1, 2, 3].map((k) => [x + Math.cos(a) * len * (k / 3) + (r() - 0.5) * Tr.wobble, y + Math.sin(a) * len * (k / 3) + (r() - 0.5) * Tr.wobble]);
+    at(x, y, len + Tr.wobble, (X, Y) => {
+      g.strokeStyle = `rgba(${css(C.trickle)},${vary(r, Tr.opacity)})`;
+      g.lineWidth = vary(r, Tr.width);
       g.beginPath();
       pts.forEach(([px, py], k) => (k ? g.lineTo(px - x + X, py - y + Y) : g.moveTo(px - x + X, py - y + Y)));
       g.stroke();
     });
   }
-  for (let i = 0; i < 520; i++) {
-    const x = r() * S, y = r() * S, rad = 1.2 + r() * r() * 5.5;
-    const dark = 0.3 + r() * 0.35, lit = 0.25 + r() * 0.3;
+  for (let i = 0; i < Cd.count; i++) {
+    const x = r() * S, y = r() * S, rad = Cd.size[0] + r() * r() * Cd.size[1]; // mostly small: r * r
+    const dark = vary(r, Cd.shadeOpacity), lit = vary(r, Cd.litOpacity);
     at(x, y, rad + 2, (X, Y) => {
       g.fillStyle = `rgba(${css(C.clod[0])},${dark})`;
       g.beginPath();
@@ -977,40 +999,42 @@ export function paintMud(seed = 31, { colours: C }) {
       g.fill();
     });
   }
-  for (let i = 0; i < 260; i++) {
-    const x = r() * S, y = r() * S, rad = 0.8 + r() * 1.8;
+  for (let i = 0; i < Gr.count; i++) {
+    const x = r() * S, y = r() * S, rad = vary(r, Gr.size);
     at(x, y, rad + 1, (X, Y) => {
-      g.fillStyle = `rgba(${css(C.grit[0])},0.7)`;
-      g.strokeStyle = `rgba(${css(C.grit[1])},0.35)`;
-      g.lineWidth = 0.8;
+      g.fillStyle = `rgba(${css(C.grit[0])},${Gr.opacity})`;
+      g.strokeStyle = `rgba(${css(C.grit[1])},${Gr.outlineOpacity})`;
+      g.lineWidth = Gr.outline;
       g.beginPath();
       g.arc(X, Y, rad, 0, Math.PI * 2);
       g.fill();
       g.stroke();
     });
   }
-  grain(g, S, r, 18);
+  grain(g, S, r, P.noise);
   const t = texture(c);
   t.anisotropy = 8;
   return t;
 }
 
 /** Turf: short blade strokes in light, dark and straw tones over soft lush and dry patches. */
-export function paintTurf(seed = 37, { colours: C }) {
+export function paintTurf(seed = 37, { colours: C, pattern: P }) {
   const r = rng(seed);
   const S = 512;
   const [c, g] = canvas(S, S);
   const at = tileDraw(S, g), soft = softSpot(g, at);
   g.fillStyle = C.ground;
   g.fillRect(0, 0, S, S);
-  for (let i = 0; i < 70; i++) soft(r() * S, r() * S, 24 + r() * 60, 18 + r() * 44, css(C.lush), 0.2 + r() * 0.22);
-  for (let i = 0; i < 26; i++) soft(r() * S, r() * S, 20 + r() * 50, 14 + r() * 36, css(C.dry), 0.14 + r() * 0.16);
+  const { lush: Lu, dry: Dr, blades: Bl } = P;
+  for (let i = 0; i < Lu.count; i++) soft(r() * S, r() * S, vary(r, Lu.length), vary(r, Lu.width), css(C.lush), vary(r, Lu.opacity));
+  for (let i = 0; i < Dr.count; i++) soft(r() * S, r() * S, vary(r, Dr.length), vary(r, Dr.width), css(C.dry), vary(r, Dr.opacity));
   g.lineCap = 'round';
-  for (let i = 0; i < 14000; i++) {
-    const x = r() * S, y = r() * S, len = 3 + r() * 7, a = -Math.PI / 2 + (r() - 0.5) * 1.1;
+  for (let i = 0; i < Bl.count; i++) {
+    const x = r() * S, y = r() * S, len = vary(r, Bl.length), a = -Math.PI / 2 + (r() - 0.5) * Bl.lean;
     const k = r();
-    const col = k < 0.45 ? `rgba(${css(C.blades[0])},${0.4 + r() * 0.35})` : k < 0.8 ? `rgba(${css(C.blades[1])},${0.35 + r() * 0.3})` : `rgba(${css(C.blades[2])},${0.3 + r() * 0.3})`;
-    const lw = 0.9 + r() * 0.8;
+    const [dark, light, straw] = Bl.opacity;
+    const col = k < Bl.split[0] ? `rgba(${css(C.blades[0])},${vary(r, dark)})` : k < Bl.split[1] ? `rgba(${css(C.blades[1])},${vary(r, light)})` : `rgba(${css(C.blades[2])},${vary(r, straw)})`;
+    const lw = vary(r, Bl.width);
     at(x, y, len + 1, (X, Y) => {
       g.strokeStyle = col;
       g.lineWidth = lw;
@@ -1020,7 +1044,7 @@ export function paintTurf(seed = 37, { colours: C }) {
       g.stroke();
     });
   }
-  grain(g, S, r, 14);
+  grain(g, S, r, P.noise);
   const t = texture(c);
   t.anisotropy = 8;
   return t;

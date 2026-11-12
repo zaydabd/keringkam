@@ -750,16 +750,16 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
   const gradientMap = toonGradient(THEME.shading.bands, { smooth: THEME.shading.smooth });
   const T = THEME.textures;
   const textures = {
-    planks: paintPlanks(1 + seed, { colours: T.planks }),
-    floor: paintPlanks(9 + seed, { colours: T.planks, weathered: true }),
-    wall: paintPlanks(5 + seed, { colours: T.planks, brushy: true }),
-    lattice: paintLattice(11, { colours: T.lattice }),
-    carve: paintLattice(17, { colours: T.lattice }),
-    valance: paintCurtain(12 + seed, 'valance', { colours: T.curtains.valance }),
-    sheer: paintCurtain(16 + seed, 'drape', { colours: T.curtains.drape }),
-    cloth: paintCloth(13 + seed, { colours: T.cloth }),
-    pale: paintCurtain(31 + seed, 'pale', { colours: T.curtains.pale }),
-    decor: paintDecor(14, { colours: T.decor }),
+    planks: paintPlanks(1 + seed, T.planks.boards),
+    floor: paintPlanks(9 + seed, T.planks.floor),
+    wall: paintPlanks(5 + seed, T.planks.wall),
+    lattice: paintLattice(11, T.lattice),
+    carve: paintLattice(17, T.lattice),
+    valance: paintCurtain(12 + seed, T.curtains.valance),
+    sheer: paintCurtain(16 + seed, T.curtains.drape),
+    cloth: paintCloth(13 + seed, T.cloth),
+    pale: paintCurtain(31 + seed, T.curtains.pale),
+    decor: paintDecor(14, T.decor),
     blob: paintGlow('round'),
   };
   textures.lattice.repeat.set(1.6, 1.6);

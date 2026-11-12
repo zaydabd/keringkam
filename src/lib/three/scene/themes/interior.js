@@ -11,8 +11,22 @@
 //
 // Hex colours are sRGB. The painted textures are mostly light values: the material colour sets
 // the hue. Arrays of three numbers are linear multipliers used in shaders, as noted.
+//
+// Each material also holds its marks: the brushwork paint.js draws on its texture (the wood's grain,
+// the batik's patches, the crimson cloth's creases...). Sizes are in texture pixels; opacities 0-1.
+// In marks a plain number is fixed and a pair [from, by] is random, from `from` up to `from + by`
+// (so [60, 160] is 60 to 220). Counts are per texture tile.
 
-// --- 1. Swatches ----------------------------------------------------------------------------------
+// --- 1. Swatches and marks ----------------------------------------------------------------------
+
+// The wood grain (paintPlanks), one tile = 2 m of board. Furniture and rails ("boards"):
+const BOARD_GRAIN = {
+  blots: { count: 34, length: [60, 160], width: [20, 50], opacity: [0.06, 0.08], warmShare: 0.5 }, // big soft patches of warmer or paler wood
+  streaks: { count: 70, width: [3, 16], opacity: [0.045, 0.08], waves: 3, sway: [2, 6], lightShare: 0.4 }, // broad soft bands along the board
+  lines: { count: 26, length: [120, 520], width: [0.8, 1.5], opacity: [0.07, 0.15], waves: 3, sway: [1, 4] }, // the fine grain strokes
+  knots: { count: 3, size: [8, 10], opacity: 0.35, rings: 3, ringOpacity: 0.22, ringWidth: 1.2 }, // the grain bends round them
+  sheen: { count: 30, length: [60, 200], dash: [6, 22], gap: [3, 10], thickness: 1.5, opacity: [0.18, 0.15] }, // broken dry-brush highlights
+};
 
 const WOOD = {
   walls: '#977462', // mid brown boards, a little grey, as in R2
@@ -37,8 +51,32 @@ const WOOD = {
     check: '#302016', // short cracks along the grain (weathered boards only)
     sheen: '#fffcf4', // dry-brush highlights
   },
+  grainMarks: {
+    boards: BOARD_GRAIN,
+    // The floor: weathered, with sun-bleached silver streaks and checks (short cracks along the grain).
+    floor: {
+      ...BOARD_GRAIN,
+      weathering: {
+        silver: { count: 40, length: [80, 300], width: [2, 6], opacity: [0.12, 0.16] },
+        checks: { count: 26, length: [30, 120], width: [1, 1.2], opacity: [0.35, 0.3] },
+      },
+    },
+    // The walls (R2): long soft brush streaks and only a few faint grain lines, no knots.
+    wall: {
+      ...BOARD_GRAIN,
+      streaks: { ...BOARD_GRAIN.streaks, count: 110, opacity: [0.07, 0.12] },
+      lines: { ...BOARD_GRAIN.lines, count: 9 },
+      knots: { ...BOARD_GRAIN.knots, count: 0 },
+    },
+  },
   // The carved lattice texture (paintLattice): dark carving behind light strips.
   lattice: { dark: '#3a2418', light: '#efe2c8', toneDark: '#785032', toneLight: '#fffaf0' },
+  latticeMarks: {
+    back: { strip: 26, node: 17, ring: 34 }, // the dark carving: strip width, small and ring node radius
+    front: { strip: 17, node: 12, ring: 29 }, // the light strips on top
+    hole: { radius: 18, edge: 4 }, // the hole through each ring node, and its dark edge
+    tone: { count: 400, length: [10, 30], width: [2, 3], opacity: [0.06, 0.08], darkShare: 0.5 }, // brush tone along the strips
+  },
 };
 
 const FABRIC = {
@@ -61,6 +99,28 @@ const FABRIC = {
   },
   sheerGround: '#efe6d6', // the pale sheer: the drape's pattern, very faint on cream
   curtainStreaks: ['#3c221a', '#fff4e2'], // brush streaks down every curtain: dark, light
+  // The batik's marks (paintCurtain), one tile = 0.5 m. Motif sizes are shares of the cell.
+  batikMarks: {
+    valance: {
+      dye: { count: 18, size: [20, 40], opacity: [0.12, 0.14], darkShare: 0.5 }, // uneven dye blots
+      motifs: { cell: 51.2, opacity: [0.78, 0.2], main: [0.44, 0.14], inner: [0.16, 0.08], beside: [0.14, 0.08] }, // five across the tile
+      streaks: { count: 22, width: [2, 9], darkOpacity: [0.05, 0.08], lightOpacity: [0.04, 0.07], darkShare: 0.5 },
+      hem: { fromBottom: 22, height: 7, opacity: 0.6 }, // the dark hem band
+    },
+    drape: {
+      dye: { count: 18, size: [20, 40], opacity: [0.12, 0.14], darkShare: 0.5 },
+      motifs: { cell: 64, opacity: [0.78, 0.2], main: [0.44, 0.14], inner: [0.16, 0.08], beside: [0.14, 0.08] }, // four across
+      streaks: { count: 22, width: [2, 9], darkOpacity: [0.05, 0.08], lightOpacity: [0.04, 0.07], darkShare: 0.5 },
+      hem: null,
+    },
+    // the sheer: the drape's pattern, very faint
+    pale: {
+      dye: { count: 18, size: [20, 40], opacity: [0.04, 0.05], darkShare: 0.5 },
+      motifs: { cell: 64, opacity: 0.08, main: [0.44, 0.14], inner: [0.16, 0.08], beside: [0.14, 0.08] },
+      streaks: { count: 22, width: [2, 9], darkOpacity: [0.02, 0.03], lightOpacity: [0.04, 0.07], darkShare: 0.5 },
+      hem: null,
+    },
+  },
   // The red cloth on the embroidery frame (paintCloth): deep crimson with creases and gold bands.
   crimson: {
     ground: '#b3242a',
@@ -71,15 +131,29 @@ const FABRIC = {
     gold: '#e2b860', // ruled lines
     goldLight: '#edc978', // diamonds and dots
   },
+  crimsonMarks: {
+    blots: { count: 22, length: [40, 90], width: [30, 60], opacity: [0.1, 0.12], darkShare: 0.55 },
+    // long soft diagonal creases, dark with a light edge; angle in radians, bend in px
+    creases: { count: 9, length: [80, 180], angle: [-0.5, 1.0], width: [2, 3], darkOpacity: [0.16, 0.12], edgeOpacity: [0.1, 0.1], edgeOffset: 3, bend: 24 },
+    weave: { spacing: 2, thread: 1, opacity: [0.03, 0.04] }, // fine horizontal threads
+    // the gold band across each end (R2)
+    band: {
+      inset: 34, width: 58, shadeMargin: 4, shadeOpacity: 0.35,
+      rules: [[0, 2.5], [5, 1.5], [53, 1.5], [58, 2.5]], ruleMargin: 10, // ruled lines: [x in the band, width]
+      rows: { from: 22, every: 20, endMargin: 14, diamond: 7, hole: 3, dots: [14, 42], dotDrop: 9, dot: 3 }, // diamonds with a hole, and dots
+    },
+  },
   // Woven mats on the wall (paintDecor): two colours of check each, a soft shadow on each strand.
   mats: [['#d8b77a', '#a8804a'], ['#7da35a', '#d9c690'], ['#8a5a8a', '#e0c890'], ['#c9a05a', '#5f8a6a'], ['#b04a3a', '#e8d4a8']],
   matShadow: '#28180c',
   matEdge: '#3a2418',
+  matMarks: { cells: 12, shadow: 2, shadowOpacity: 0.18, edge: 8 }, // checks across, strand shadow px, border px
 };
 
 const PAPER = {
   // Framed pictures (paintDecor): the painted ground and the flowers on it.
   pictures: [{ ground: '#efe6d0', flower: '#d8473a' }, { ground: '#d9e4e8', flower: '#3a6aa8' }, { ground: '#f2ead8', flower: '#e09a2a' }],
+  pictureMarks: { frame: 18, stems: 5, stemWidth: 3, flower: [7, 6] }, // frame width, stems per picture, flower radius (px)
 };
 
 const PLANT = {
@@ -119,17 +193,24 @@ export const INTERIOR_THEME = {
   wallTint: 0.45, // R2: neighbouring wall boards differ clearly in value
   partWarmth: 0.5, // each plank and part is also a little warmer or cooler: this share of its value variation
 
-  // The painted textures (paint.js), and which swatches each uses.
+  // The painted textures (paint.js): which colours and which marks each uses.
   textures: {
-    planks: WOOD.grain,
-    lattice: WOOD.lattice,
-    curtains: {
-      valance: { ...FABRIC.valance, streaks: FABRIC.curtainStreaks },
-      drape: { ...FABRIC.drape, streaks: FABRIC.curtainStreaks },
-      pale: { ...FABRIC.drape, ground: FABRIC.sheerGround, streaks: FABRIC.curtainStreaks },
+    planks: {
+      boards: { colours: WOOD.grain, pattern: WOOD.grainMarks.boards },
+      floor: { colours: WOOD.grain, pattern: WOOD.grainMarks.floor },
+      wall: { colours: WOOD.grain, pattern: WOOD.grainMarks.wall },
     },
-    cloth: FABRIC.crimson,
-    decor: { mats: FABRIC.mats, matShadow: FABRIC.matShadow, matEdge: FABRIC.matEdge, pictures: PAPER.pictures, frame: WOOD.pictureFrame, stem: PLANT.paintedStem },
+    lattice: { colours: WOOD.lattice, pattern: WOOD.latticeMarks },
+    curtains: {
+      valance: { colours: { ...FABRIC.valance, streaks: FABRIC.curtainStreaks }, pattern: FABRIC.batikMarks.valance },
+      drape: { colours: { ...FABRIC.drape, streaks: FABRIC.curtainStreaks }, pattern: FABRIC.batikMarks.drape },
+      pale: { colours: { ...FABRIC.drape, ground: FABRIC.sheerGround, streaks: FABRIC.curtainStreaks }, pattern: FABRIC.batikMarks.pale },
+    },
+    cloth: { colours: FABRIC.crimson, pattern: FABRIC.crimsonMarks },
+    decor: {
+      colours: { mats: FABRIC.mats, matShadow: FABRIC.matShadow, matEdge: FABRIC.matEdge, pictures: PAPER.pictures, frame: WOOD.pictureFrame, stem: PLANT.paintedStem },
+      pattern: { weave: FABRIC.matMarks, picture: PAPER.pictureMarks },
+    },
   },
 
   light: {

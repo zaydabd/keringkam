@@ -123,9 +123,9 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
   };
   const hazeStyle = new THREE.Color(haze).getStyle().slice(4, -1);
   const textures = {
-    sky: paintSoftSky(25 + seed, { colours: OUTSIDE_THEME.sky, haze: hazeStyle, vivid: OUTSIDE_THEME.sky.style === 'vivid' }),
-    mud: paintMud(31 + seed, { colours: OUTSIDE_THEME.textures.mud }),
-    turf: paintTurf(37 + seed, { colours: OUTSIDE_THEME.textures.turf }),
+    sky: paintSoftSky(25 + seed, { ...OUTSIDE_THEME.sky[OUTSIDE_THEME.sky.style], haze: hazeStyle }),
+    mud: paintMud(31 + seed, OUTSIDE_THEME.textures.mud),
+    turf: paintTurf(37 + seed, OUTSIDE_THEME.textures.turf),
   };
   disposables.push(...Object.values(textures));
   const toon = ({ map, side = THREE.FrontSide } = {}) => {
