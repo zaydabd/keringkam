@@ -288,12 +288,13 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
   const pigment = new ShaderPass(PIGMENT_SHADER);
   const finish = new ShaderPass(FINISH_SHADER);
   finish.material.toneMapped = false; // the shader tone-maps itself
-  const { detail: paintDetail, ...paintLook } = THEME.paint;
+  const { detail: paintDetail, strokes: brush, ...paintLook } = THEME.paint;
   setUniforms(pigment.uniforms, paintLook);
+  if (brush) pigment.uniforms.strokeContrast.value = brush.contrast;
   setUniforms(finish.uniforms, THEME.grade);
   const paintView = { 'paint-pigment': 1, 'paint-edge': 2, 'paint-bleed': 3 }[debug] ?? 0;
   pigment.uniforms.view.value = paintView;
-  const pigmentField = createPigmentField(renderer, { detail: paintDetail });
+  const pigmentField = createPigmentField(renderer, { detail: paintDetail, strokes: brush });
   pigment.uniforms.tField.value = pigmentField.texture;
   if (!off.has('pigment') && !clay) composer.addPass(pigment);
   finish.uniforms.view.value = off.has('grade') || paintView || clay ? 1 : 0; // 1: tone map and encode only, no grade

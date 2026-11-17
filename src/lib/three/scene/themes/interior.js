@@ -243,6 +243,11 @@ export const INTERIOR_THEME = {
     bleed: 0.45, // wet-in-wet: edges softened where the pigment is wet
     shadowTint: '#8c88a4', // R2's shadows lean lavender-grey
     shadowTintAmount: 0.1,
+    // Brush strokes over the whole screen (watercolour.js), or null for none. Each stroke is a
+    // little lighter or darker than its neighbours (no blur):
+    // { contrast, cell px (about one stroke per cell, two layers), length and width px
+    //   [from, by], turn rad (from the direction around it) }.
+    strokes: null,
   },
 
   // Final grade, after tone mapping (watercolour.js FINISH_SHADER).

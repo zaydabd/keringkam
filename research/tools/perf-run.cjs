@@ -1,7 +1,7 @@
 // Performance run for #/interior: the seat shot, the move to the window, the window shot
 // (src/lib/three/scene/perf.js does the measuring; this only drives a browser and prints it).
 // Needs Playwright (not a project dependency) and the dev server (npm run dev) or vite preview.
-//   node research/tools/perf-run.cjs [out.json] [--size=wide|phone|WxH] [--dpr=n] [--hold=s]
+//   node research/tools/perf-run.cjs [out.json] [--size=wide|phone|WxH] [--dpr=n] [--hold=s] [--theme=name]
 //        [--seed=n] [--url=http://localhost:5173] [--gl=swiftshader|default] [--shot=out.png]
 // --gl=swiftshader (default) is the software renderer: it always works headless, but its frame
 // times are CPU times, not a real GPU's. On a machine with a GPU, use --gl=default and compare.
@@ -15,7 +15,7 @@ const out = process.argv.slice(2).find((a) => !a.startsWith('--'));
 const [w, h] = SIZES[args.size ?? 'wide'] ?? (args.size ?? '').split('x').map(Number);
 const dpr = Number(args.dpr ?? 1);
 const url = args.url ?? 'http://localhost:5173';
-const query = new URLSearchParams({ perf: args.hold ?? '3', ...(args.seed ? { seed: args.seed } : {}) });
+const query = new URLSearchParams({ perf: args.hold ?? '3', ...(args.seed ? { seed: args.seed } : {}), ...(args.theme ? { theme: args.theme } : {}) });
 const glArgs = (args.gl ?? 'swiftshader') === 'swiftshader' ? ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : [];
 
 (async () => {
