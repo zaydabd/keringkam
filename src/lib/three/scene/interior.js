@@ -26,7 +26,7 @@
 //   t     = seconds (stops the clock of the view outside, so two captures match pixel for pixel)
 //   eye = x,y,z   yaw = deg   pitch = deg   fov = deg   (a free camera, for close-ups)
 //   perf  (or perf=n: n seconds per shot) a timed run from the seat to the window (perf.js)
-//   theme = original (default) | clay: the theme (themes/index.js). clay is the clay render, the
+//   theme = original (default) | detailed | clay: the theme (themes/index.js). clay is the clay render, the
 //           scene without its look (themes/clay.js); theme=off still means clay. The theme
 //           picker in Interior.svelte sets it.
 
@@ -288,11 +288,12 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
   const pigment = new ShaderPass(PIGMENT_SHADER);
   const finish = new ShaderPass(FINISH_SHADER);
   finish.material.toneMapped = false; // the shader tone-maps itself
-  setUniforms(pigment.uniforms, THEME.paint);
+  const { detail: paintDetail, ...paintLook } = THEME.paint;
+  setUniforms(pigment.uniforms, paintLook);
   setUniforms(finish.uniforms, THEME.grade);
   const paintView = { 'paint-pigment': 1, 'paint-edge': 2, 'paint-bleed': 3 }[debug] ?? 0;
   pigment.uniforms.view.value = paintView;
-  const pigmentField = createPigmentField(renderer);
+  const pigmentField = createPigmentField(renderer, { detail: paintDetail });
   pigment.uniforms.tField.value = pigmentField.texture;
   if (!off.has('pigment') && !clay) composer.addPass(pigment);
   finish.uniforms.view.value = off.has('grade') || paintView || clay ? 1 : 0; // 1: tone map and encode only, no grade

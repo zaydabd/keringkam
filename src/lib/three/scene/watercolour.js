@@ -105,16 +105,18 @@ export const PIGMENT_SHADER = {
 // value-noise lookups (56 sines) per pixel per frame. 8 bits per channel is enough: one step is
 // 0.4% of the field's range. ?debug=paint-pigment shows the field.
 const PIGMENT_FIELD_SHADER = {
-  uniforms: { scale: { value: 1 }, seed: { value: 0 } },
+  uniforms: { scale: { value: 1 }, seed: { value: 0 }, detail: { value: 1 } },
   vertexShader: VERTEX,
   fragmentShader: /* glsl */ `
-    uniform float scale, seed;
+    uniform float scale, seed, detail;
     ${NOISE}
     void main() {
       vec2 fc = gl_FragCoord.xy / scale + seed * vec2(613.0, 271.0);
-      // Pigment density: domain-warped, two bands (~180 px blotches, ~45 px mottle).
-      vec2 w = vec2(fbm(fc / 260.0), fbm(fc / 260.0 + 9.2)) - 0.5;
-      float pigment = fbm(fc / 180.0 + w * 1.6) * 0.7 + fbm(fc / 45.0 + w) * 0.3;
+      // Pigment density: domain-warped, two bands (~180 px blotches, ~45 px mottle at detail 1;
+      // detail 2 halves them, so twice as many across the screen).
+      vec2 d = fc * detail;
+      vec2 w = vec2(fbm(d / 260.0), fbm(d / 260.0 + 9.2)) - 0.5;
+      float pigment = fbm(d / 180.0 + w * 1.6) * 0.7 + fbm(d / 45.0 + w) * 0.3;
       // Paper tooth for the granulation.
       float tooth = noise(fc * 0.9) * 0.6 + noise(fc * 0.33 + 4.0) * 0.4;
       gl_FragColor = vec4(pigment, tooth, 0.0, 1.0);
@@ -123,12 +125,14 @@ const PIGMENT_FIELD_SHADER = {
 };
 
 /** The pigment pass's field texture. Call update() when the drawing buffer's size changes; seed
- * moves the field (?seed=n), for seed sweeps. */
-export function createPigmentField(renderer) {
+ * moves the field (?seed=n), for seed sweeps. detail scales how fine the wash blotches are (the
+ * theme's paint.detail: 1 as drawn, 2 twice as fine). */
+export function createPigmentField(renderer, { detail = 1 } = {}) {
   const target = new THREE.WebGLRenderTarget(1, 1, { type: THREE.UnsignedByteType, depthBuffer: false });
   target.texture.minFilter = target.texture.magFilter = THREE.NearestFilter;
   target.texture.generateMipmaps = false;
   const material = new THREE.ShaderMaterial({ ...PIGMENT_FIELD_SHADER, uniforms: THREE.UniformsUtils.clone(PIGMENT_FIELD_SHADER.uniforms) });
+  material.uniforms.detail.value = detail;
   const quad = new FullScreenQuad(material);
   return {
     texture: target.texture,

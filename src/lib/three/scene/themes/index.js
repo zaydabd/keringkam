@@ -5,6 +5,7 @@
 // to start from), and list it in THEMES.
 
 import { INTERIOR_THEME as ORIGINAL_INTERIOR } from './interior.js';
+import { INTERIOR_THEME as DETAILED_INTERIOR } from './interior-detailed.js';
 import { OUTSIDE_THEME as ORIGINAL_OUTSIDE } from './outside.js';
 import { CLAY } from './clay.js';
 
@@ -14,6 +15,7 @@ import { CLAY } from './clay.js';
  */
 export const THEMES = {
   original: { label: 'Original', interior: ORIGINAL_INTERIOR, outside: ORIGINAL_OUTSIDE, clay: null },
+  detailed: { label: 'Watercolour detail', interior: DETAILED_INTERIOR, outside: ORIGINAL_OUTSIDE, clay: null },
   clay: { label: 'Clay (blank)', interior: ORIGINAL_INTERIOR, outside: ORIGINAL_OUTSIDE, clay: CLAY },
 };
 

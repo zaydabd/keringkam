@@ -236,6 +236,7 @@ export const INTERIOR_THEME = {
 
   // Watercolour pigment pass (watercolour.js PIGMENT_SHADER). 0 switches an effect off.
   paint: {
+    detail: 1, // how fine the wash blotches are: 1 about 180 px blotches and 45 px mottle, 2 half that
     washVariation: 0.22, // large soft blotches of lighter and darker pigment
     granulation: 0.1, // pigment settling in the paper's tooth, more in dark washes
     edgeDarkening: 0.35, // pigment pooling where a wash meets a different value

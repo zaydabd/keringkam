@@ -311,7 +311,16 @@ OUTSIDE_SIGNOFF
   - **clay (blank):** the clay render, set in `themes/clay.js`. It is the scene with its look switched off: one grey and white light. It keeps the original's light levels and sun.
     - `?theme=off` still means clay. Both give pixel-identical captures with a fixed clock and sway.
     - The clay grey moved from `outside/index.js` into `themes/clay.js`.
-- **To add a theme:** copy `interior.js` and `outside.js` under new names, change the copies, and list them in `THEMES`.
+  - **detailed (Watercolour detail, branch `theme-detailed`):** `themes/interior-detailed.js`. It is the original with about twice the watercolour detail. Colours, light, ink and grade are unchanged.
+    - **Pigment field:** twice as fine, from the new theme value `paint.detail: 2`. Wash blotches are about 90 px and mottle about 22 px, instead of 180 and 45. The original sets `detail: 1`, and its render is pixel-identical (imgdiff max 0).
+    - **Granulation:** doubled, 0.1 → 0.2.
+    - **Brushwork:** fine marks are twice as dense: streaks, grain lines, sheen, weathering, dye and carving tone. Big soft patches (wood blots, lattice fade) and knots are kept, because they set each surface's tone, not its detail.
+    - **View outside:** keeps the original textures, but it gets the finer pigment field.
+    - **Measured** (`t=5&look=0,0`):
+      - same triangles (327,813) and draw calls (61)
+      - mean screen brightness 105.3 → 106.2 (0–255); the meter raises exposure 1.25 → 1.42 to make up for the extra dark marks
+      - mean neighbour-pixel difference 7.89 → 8.22, so the extra detail is fine-scale and subtle at this view, not twice the contrast
+- **To add a theme:** copy `interior.js` and `outside.js` under new names, change the copies, and list them in `THEMES`. A theme that only changes a few values can spread the original instead, as `interior-detailed.js` does.
 
 ## Open issues
 - [ ] R2 look: see "Known defects" in the sign-off record above.
