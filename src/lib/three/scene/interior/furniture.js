@@ -196,6 +196,25 @@ export function seatReach({ w, d, back, settee = false }) {
 }
 
 /**
+ * Where each piece's legs meet the floor, in world [x, z]: a seat's turned front legs and raked
+ * back feet (as buildSeat places them), a table's four legs (as buildTable). For the contact
+ * shadows under each foot (surfaces.js).
+ */
+export function seatFeet({ x, z, ry, w, d }) {
+  const hx = w / 2 - SEAT.inset;
+  const hz = d / 2 - SEAT.inset;
+  const [c, s] = [Math.cos(ry), Math.sin(ry)];
+  return [[hz, 1], [hz, -1], [-hz - SEAT.backLeg[2], 1], [-hz - SEAT.backLeg[2], -1]].map(([lz, side]) => {
+    const lx = side * hx;
+    return [x + lx * c + lz * s, z - lx * s + lz * c];
+  });
+}
+
+export function tableFeet({ x0, x1, z0, z1 }) {
+  return [x0 + 0.05, x1 - 0.05].flatMap((x) => [[x, z0 + 0.05], [x, z1 - 0.05]]);
+}
+
+/**
  * Floor footprints (x0, x1, z0, z1 in metres) of the seats (seatReach) and tables (their PLAN
  * box), turned by any angle: a seat's footprint is the box around its turned corners. Returns the
  * pairs that overlap, with the overlap in metres.

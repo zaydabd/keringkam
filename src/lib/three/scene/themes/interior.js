@@ -212,11 +212,12 @@ export const INTERIOR_THEME = {
     // Sun behind the window wall, high enough that the patches fall just inside the windows.
     sun: { color: '#ffe6c4', intensity: 3.2, shadowSoftness: 3 },
     // The sky through the back windows. `from` points at it from the room: low, a little to the left.
-    sky: { color: '#f6f0e4', intensity: 1.5, from: [-0.25, 0.62, -1], shadowSoftness: 6 },
+    sky: { color: '#f6f0e4', intensity: 1.9, from: [-0.25, 0.62, -1], shadowSoftness: 3 },
     // The sky through the side window: a lamp `outside` metres beyond the wall, reaching `reach` metres.
-    side: { color: '#fff4e4', intensity: 11, outside: 1.5, reach: 7, shadowSoftness: 6 },
-    bounce: { sky: '#fff2e4', ground: '#5a443a', intensity: 1.3 }, // warm bounce off the floor and walls, from all round
+    side: { color: '#fff4e4', intensity: 12, outside: 1.5, reach: 7, shadowSoftness: 6 },
+    bounce: { sky: '#fff2e4', ground: '#5a443a', intensity: 0.9 }, // warm bounce off the floor and walls, from all round
     // Ambient occlusion (ao.js, three.js GTAOPass): radius in metres; the rest are GTAOPass's own settings.
+    // intensity is a blend from none (0) to full (1): above 1 the result turns negative (a teal stain).
     ao: { intensity: 1, radius: 0.6, distanceExponent: 1, thickness: 1, scale: 1.3 },
     // Curtains lit from behind (emissive strength, times the level above).
     glow: { valance: 0.25, sheer: 0.12, white: 0.35 },
@@ -227,9 +228,10 @@ export const INTERIOR_THEME = {
       top: { strength: 1.5 },
     },
     // The soft shadows painted under the furniture: the patch, and a darker one right under each piece.
-    contactShadow: { color: '#24140e', opacity: 0.8, core: 0.65 },
+    // foot: the small patch right round each leg's foot, footSize across (metres).
+    contactShadow: { color: '#24140e', opacity: 0.9, core: 0.85, foot: 1, footSize: 0.18 },
     // The window wall is the one wall the windows cannot light: it keeps this much of its colour.
-    windowWallShade: 0.84,
+    windowWallShade: 0.64,
   },
 
   // Soft painted ramp (R2): lavender-grey shade, warm half-tones, cream light, blended not stepped.

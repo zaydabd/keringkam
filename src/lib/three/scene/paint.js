@@ -537,14 +537,19 @@ export function paintDecor(seed = 14, { colours: C, pattern: P }) {
   return texture(c, [1, 1], false);
 }
 
-/** Soft light (alpha in the red channel is not used: colour and alpha together), for glows and floor sheen. */
+/**
+ * Soft light (alpha in the red channel is not used: colour and alpha together), for glows and floor
+ * sheen. 'round' is a soft spot; 'contact' keeps a solid middle and fades only in its outer half
+ * (the dark spot right round a foot).
+ */
 export function paintGlow(kind = 'round') {
   const S = 128;
   const [c, g] = canvas(S, S);
-  if (kind === 'round') {
+  if (kind === 'round' || kind === 'contact') {
     const grad = g.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2);
     grad.addColorStop(0, 'rgba(255,255,255,1)');
-    grad.addColorStop(0.45, 'rgba(255,255,255,0.45)');
+    if (kind === 'contact') grad.addColorStop(0.35, 'rgba(255,255,255,0.95)');
+    grad.addColorStop(kind === 'contact' ? 0.6 : 0.45, 'rgba(255,255,255,0.45)');
     grad.addColorStop(1, 'rgba(255,255,255,0)');
     g.fillStyle = grad;
     g.fillRect(0, 0, S, S);

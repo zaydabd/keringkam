@@ -4,6 +4,7 @@
 import * as THREE from 'three';
 import { INTERIOR_THEME as THEME } from '../themes/index.js';
 import { PLAN } from './plan.js';
+import { seatFeet, tableFeet } from './furniture.js';
 
 const vec3 = (a) => `vec3(${a.map((n) => n.toFixed(2)).join(', ')})`; // a linear colour, written into GLSL
 
@@ -130,9 +131,11 @@ function furnitureBlockers() {
 /**
  * Soft shadows under the furniture (R2 paints one under every piece). The sun only reaches the
  * boards by the windows, so these are painted on: a dark, soft-edged patch on the floor under each
- * piece, pulled a little the way `light` travels (the sky's light from the windows behind).
+ * piece, pulled a little the way `light` travels (the sky's light from the windows behind), and a
+ * small dark one right round every foot, where the leg shuts out the light from all round. Without
+ * that, a leg meets bright floor and the piece seems to float.
  */
-export function buildContactShadows(texture, light) {
+export function buildContactShadows(texture, light, footTexture = texture) {
   const group = new THREE.Group();
   const shade = THEME.light.contactShadow;
   const mat = new THREE.MeshBasicMaterial({ map: texture, color: shade.color, transparent: true, opacity: shade.opacity, depthWrite: false, fog: false });
@@ -147,7 +150,7 @@ export function buildContactShadows(texture, light) {
   };
   // Each patch is pulled the way the light travels along the floor: the soft one further, the core a little.
   const along = new THREE.Vector2(light.x, light.z).normalize();
-  const [far, near] = [0.28, 0.09];
+  const [far, near] = [0.12, 0.03];
   for (const sItem of [PLAN.settee, ...PLAN.chairs]) {
     patch(sItem.x + along.x * far, sItem.z + along.y * far, sItem.w * 1.5, sItem.d * 2.1, sItem.ry);
     patch(sItem.x + along.x * near, sItem.z + along.y * near, sItem.w * 1.15, sItem.d * 1.3, sItem.ry, core);
@@ -157,5 +160,17 @@ export function buildContactShadows(texture, light) {
     patch(x + along.x * far, z + along.y * far, (t.x1 - t.x0) * 1.35, (t.z1 - t.z0) * 2.0);
     patch(x + along.x * near, z + along.y * near, (t.x1 - t.x0) * 1.12, (t.z1 - t.z0) * 1.35, 0, core);
   }
-  return { group, mat, core };
+  // One small patch per foot, all in one draw call.
+  const feet = [...[PLAN.settee, ...PLAN.chairs].flatMap(seatFeet), ...PLAN.tables.flatMap(tableFeet)];
+  const foot = mat.clone();
+  foot.map = footTexture;
+  foot.opacity = shade.foot;
+  const size = shade.footSize;
+  const dots = new THREE.InstancedMesh(new THREE.PlaneGeometry(size, size).rotateX(-Math.PI / 2), foot, feet.length);
+  const m = new THREE.Matrix4();
+  feet.forEach(([x, z], i) => dots.setMatrixAt(i, m.makeTranslation(x, 0.005, z)));
+  dots.computeBoundingSphere(); // round the instances, not the origin, or the camera culls them
+  dots.layers.set(1); // no ink outline
+  group.add(dots);
+  return { group, mat, core, foot };
 }

@@ -720,3 +720,37 @@ fore 0.368 → 0.369; under table 0.131 → 0.202; under chair 0.111 → 0.212. 
 furniture floats.
 
 **Left for later:** baking the shadows and AO; the AO band along the curtain edge.
+
+### Pass l2: legs that stand on the floor, stronger shadows (2026-11-17, branch `ground-legs`)
+
+**Why the chairs seemed to float.** The geometry touches the floor: every leg starts at y = 0,
+and the boards' top is y = 0 (`furniture.js`, `room.js`). The shading did not:
+- Each piece had one soft patch under its middle, and its texture fades out at the edges, where
+  the feet are. Pass l1 had also pulled the patch 28 cm towards the viewer.
+- All three shadow lights used `normalBias` 0.02. That offset opens a gap of about 2 cm between a
+  leg and its own shadow ("peter-panning").
+- The sky shadow map was 1024² over 6.8 m with a blur of 6 texels (about 4 cm), which smeared away
+  a 5 cm leg's shadow.
+
+**Fix:**
+- A dark patch under every foot (`buildContactShadows`). The positions come from `seatFeet` and
+  `tableFeet` in `furniture.js`, which use the same constants as the builders. The texture is
+  `paintGlow('contact')`: solid in the middle, fading in its outer half. All 24 feet are drawn in
+  one `InstancedMesh`; `computeBoundingSphere()` is needed after the instances are placed.
+- The soft patch moves back under the piece: pull 0.12 / 0.03 m, opacity 0.9, core 0.85.
+- `normalBias` is 0.004 on sun, sky and side. The sky map is now 2048² over ±2.4 m (about 2.3 mm a
+  texel) with a blur of 3. The clay render shows no acne.
+- Stronger shadows: bounce 1.3 → 0.9, sky 1.5 → 1.9, side 11 → 12. The toon gradient also lifts
+  faces turned away from a light, so the stronger sky light lit the window wall's inner face; it is
+  darkened more (`windowWallShade` 0.84 → 0.64).
+- AO intensity must stay ≤ 1: it is a blend, and 1.3 turned the floor under the chair teal.
+
+**Measured (seat view, l1 → l2):**
+- Floor 2–6 cm round the front chair's back-left foot, against the floor 30 cm in front of it
+  (`ring.py`): 0.394 / 0.358 (lighter than the floor in front of it: floating) → 0.237 / 0.282.
+- Under table 0.202 → 0.170; under chair 0.212 → 0.197; chair apron 0.226 → 0.192; whole frame
+  0.370 → 0.368.
+- Metered exposure: seat 1.285 → 1.269, near 1.571 → 1.492, window 1.85 → 1.848.
+
+**Cost (SwiftShader software GL, not a real GPU):** seat median 1063 → 1097 ms, window 672 → 733 ms;
+one more draw call.
