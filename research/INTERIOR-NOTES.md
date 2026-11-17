@@ -800,3 +800,35 @@ lining the frames up:
 **Cost (SwiftShader software GL, not a real GPU; `perf-run.cjs`):** seat median 1097 → 1170 ms,
 window 733 → 719 ms. SMAA is about 150 ms of that here (three small passes); the two field reads
 replace two texel fetches with filtered reads and a few trig calls.
+
+**Follow-up: shadows and AO.** The right wall and the floor still shimmered. Two more patterns
+inside the scene render were fixed to the screen:
+- Soft shadows: three r187's PCF turns its 5-tap Vogel disk per pixel by
+  `interleavedGradientNoise( gl_FragCoord.xy )` (`shadowmap_pars_fragment`). `stableShadows.js`
+  patches the chunk once to take that noise from the shadow-map texel
+  (`floor( shadowCoord.xy * shadowMapSize )`), which is fixed in the world.
+- AO: `GTAOPass` and its Poisson denoiser read their noise texture at `vUv * resolution`, tiled on
+  the screen. `ao.js` now reads it at the pixel's world direction (`viewField`), whole texels.
+- The earlier "room alone" baseline (`off=ink,pigment,aa`) still had both of these on, so it was
+  boiling too. The figures above that use it are too high.
+- The GTAO denoiser's noise is random per page load (`SimplexNoise` with `Math.random`), so
+  frames from separate loads differ even at one pose. The new measure turns the camera inside one
+  load (`window.__interior.draw()`); the same pose twice gives 0.0.
+
+**Measured (one load per variant, yaw steps of 0.181° = 4 px at the right wall, mean grey change
+per step after lining up):**
+
+| Region | main | live l3 | + shadows, AO | same, AO off | no ink, wash, AA |
+|---|---|---|---|---|---|
+| Right wall | 3.68 | 2.81 | 1.73 | 1.43 | 1.23 |
+| Floor middle | 2.86 | 2.34 | 1.82 | 1.78 | 1.35 |
+| Floor right | 2.20 | 1.67 | 1.59 | 1.70 | 1.54 |
+| Floor left | 2.13 | 1.59 | 1.55 | 1.59 | 0.90 |
+| Chair | 5.78 | 4.55 | 3.95 | 4.02 | 3.05 |
+
+- Right wall −38% against live l3 (−53% against main); floor middle −22%.
+- What is left is mostly sub-pixel resampling of fine texture and edges, plus the ink lines.
+  Only the right wall moves by whole pixels in this measure.
+- Still frame: lightness 0.480 → 0.481, saturation 0.517 → 0.517. A 3× crop of the window light
+  on the floor shows no blockiness from the texel-based turn.
+- Perf unchanged within noise (seat about 1110 ms a frame in software GL).

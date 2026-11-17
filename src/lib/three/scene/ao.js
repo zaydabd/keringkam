@@ -11,6 +11,7 @@
 
 import * as THREE from 'three';
 import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
+import { VIEW_FIELD, setViewField } from './toon.js';
 
 class StillAOPass extends GTAOPass {
   constructor(scene, camera, look) {
@@ -20,6 +21,23 @@ class StillAOPass extends GTAOPass {
     this.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 10, rings: 3, samples: 24 });
     this.blendIntensity = intensity;
     this.seen = { view: new THREE.Matrix4(), projection: new THREE.Matrix4(), fresh: false };
+    // Both the AO and its denoiser turn their samples by a small noise texture tiled over the
+    // screen, so the AO's dither stayed put while the room moved under it, and re-dithered on
+    // every turn. Here each pixel reads the noise at its direction in the world (toon.js
+    // VIEW_FIELD), at whole texels, so a point in the room keeps its dither as the view turns.
+    for (const material of [this.gtaoMaterial, this.pdMaterial]) {
+      const from = 'vec2 noiseUv = vUv * resolution / noiseResolution;';
+      if (!material.fragmentShader.includes(from)) {
+        console.warn('ao: the GTAO noise lookup has changed (three.js update?); the AO stays screen-dithered');
+        continue;
+      }
+      material.uniforms.viewRotation = { value: new THREE.Matrix3() };
+      material.uniforms.focal = { value: 1000 };
+      material.fragmentShader = material.fragmentShader
+        .replace('uniform vec2 resolution;', `uniform vec2 resolution;\nuniform mat3 viewRotation;\nuniform float focal;\n${VIEW_FIELD}`)
+        .replace(from, 'vec2 noiseUv = (floor(viewField(vUv * resolution, resolution, viewRotation, focal)) + 0.5) / noiseResolution;');
+      material.needsUpdate = true;
+    }
   }
 
   setSize(width, height) {
@@ -45,6 +63,9 @@ class StillAOPass extends GTAOPass {
       seen.view.copy(camera.matrixWorld);
       seen.projection.copy(camera.projectionMatrix);
       seen.fresh = true;
+      for (const material of [this.gtaoMaterial, this.pdMaterial]) {
+        if (material.uniforms.viewRotation) setViewField(material.uniforms, camera, material.uniforms.resolution.value.y);
+      }
       super.render(renderer, writeBuffer, readBuffer, deltaTime, maskActive);
       return;
     }

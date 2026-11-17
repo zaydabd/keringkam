@@ -36,6 +36,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
+import './stableShadows.js'; // soft shadow edges dithered on the world, not the screen
 import { toonGradient, createOutline } from './toon.js';
 import { paintPlanks, paintCarving, paintWindowLattice, paintCurtain, paintDecor, paintGlow } from './paint.js';
 import { createOutside, OBJECTS, MIRROR_LAYER } from './outside/index.js';
