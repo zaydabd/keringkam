@@ -1,7 +1,7 @@
 // The room shell: board walls with their window openings, floor, ceiling and window frames
 // (PLAN.room, backWindows, window, sideWindow, dado). Materials: floor, wall, ceiling, frame.
 
-import { INTERIOR_THEME as THEME } from '../themes/interior.js';
+import { INTERIOR_THEME as THEME } from '../themes/index.js';
 import { PLAN } from './plan.js';
 import { dice } from './builder.js';
 

@@ -26,9 +26,9 @@
 //   t     = seconds (stops the clock of the view outside, so two captures match pixel for pixel)
 //   eye = x,y,z   yaw = deg   pitch = deg   fov = deg   (a free camera, for close-ups)
 //   perf  (or perf=n: n seconds per shot) a timed run from the seat to the window (perf.js)
-//   theme = off: a clay render, the scene without its look (no colours, painted textures, toon
-//           bands, ink, watercolour, grade or painted fakes; white light, real shadows). The
-//           "Theme off" button in Interior.svelte sets it.
+//   theme = original (default) | clay: the theme (themes/index.js). clay is the clay render, the
+//           scene without its look (themes/clay.js); theme=off still means clay. The theme
+//           picker in Interior.svelte sets it.
 
 import * as THREE from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
@@ -36,12 +36,11 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { toonGradient, createOutline } from './toon.js';
 import { paintPlanks, paintCarving, paintWindowLattice, paintCurtain, paintDecor, paintGlow } from './paint.js';
-import { createOutside, OBJECTS, MIRROR_LAYER, CLAY } from './outside/index.js';
+import { createOutside, OBJECTS, MIRROR_LAYER } from './outside/index.js';
 import { PIGMENT_SHADER, FINISH_SHADER, createPigmentField } from './watercolour.js';
 import { createMeter } from './meter.js';
 import { createPerfRun } from './perf.js';
-import { INTERIOR_THEME } from './themes/interior.js';
-import { OUTSIDE_THEME } from './themes/outside.js';
+import { INTERIOR_THEME, OUTSIDE_THEME, CLAY_LOOK } from './themes/index.js';
 import { PLAN } from './interior/plan.js';
 import { V, Builder } from './interior/builder.js';
 import { buildRoom } from './interior/room.js';
@@ -105,7 +104,7 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
   const startedAt = performance.now();
   const params = new URLSearchParams(window.location.search);
   const debug = params.get('debug');
-  const clay = params.get('theme') === 'off';
+  const clay = CLAY_LOOK !== null; // the clay theme: the look switched off (themes/clay.js)
   const off = new Set((params.get('off') ?? '').split(',').filter(Boolean));
   const seed = Number(params.get('seed') ?? 0) || 0;
   const fixedLook = params.get('look')?.split(',').map(Number);
@@ -165,7 +164,7 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
   scene.add(sun, sun.target, hemi, fill);
   if (clay) {
     for (const c of [sun.color, hemi.color, hemi.groundColor, fill.color]) neutral(c);
-    scene.background = new THREE.Color(CLAY).multiplyScalar(LIGHT);
+    scene.background = new THREE.Color(CLAY_LOOK.colour).multiplyScalar(LIGHT);
   }
 
   const gradientMap = toonGradient(THEME.shading.bands, { smooth: THEME.shading.smooth });
@@ -210,7 +209,7 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
       // Plain grey, lit as it is; the lattice and carving keep their holes (their texture as a mask).
       const cut = key === 'lattice' || key === 'carve';
       if (cut) masks.push(maskOf(map));
-      materials[key] = new THREE.MeshStandardMaterial({ color: CLAY, roughness: 1, metalness: 0, fog: false, side: extra?.side ?? THREE.FrontSide, map: cut ? masks.at(-1) : null, alphaTest: cut ? 0.5 : 0 });
+      materials[key] = new THREE.MeshStandardMaterial({ color: CLAY_LOOK.colour, roughness: 1, metalness: 0, fog: false, side: extra?.side ?? THREE.FrontSide, map: cut ? masks.at(-1) : null, alphaTest: cut ? 0.5 : 0 });
       continue;
     }
     materials[key] = new THREE.MeshToonMaterial({ color, map, vertexColors: true, gradientMap, fog: false, ...extra });

@@ -4,7 +4,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
-import { INTERIOR_THEME as THEME } from '../themes/interior.js';
+import { INTERIOR_THEME as THEME } from '../themes/index.js';
 
 export const V = (x, y, z) => new THREE.Vector3(x, y, z);
 

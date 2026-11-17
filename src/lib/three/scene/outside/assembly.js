@@ -21,7 +21,7 @@
 // Colours follow the painting (R3): gold roof, cream columns, dark underside.
 
 import { createContract } from './contract.js';
-import { OUTSIDE_THEME } from '../themes/outside.js';
+import { OUTSIDE_THEME } from '../themes/index.js';
 
 export const ASSEMBLY = {
   height: 114, // sourced

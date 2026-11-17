@@ -23,7 +23,7 @@
 import * as THREE from 'three';
 import { createContract } from './contract.js';
 import { SITE, mulberry32, rgbTable } from './site.js';
-import { OUTSIDE_THEME } from '../themes/outside.js';
+import { OUTSIDE_THEME } from '../themes/index.js';
 
 const UP = new THREE.Vector3(0, 1, 0);
 const AXIS_X = new THREE.Vector3(1, 0, 0);

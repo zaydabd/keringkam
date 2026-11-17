@@ -302,6 +302,17 @@ OUTSIDE_SIGNOFF
 - **Shutters:** W1's carved shutters open outwards, against the outside wall (the curtains are inside), so from the seat they would not show. Not built.
 - **Next, from the user's references:** P1's seat cushions (not to be added until the user says so).
 
+## Themes (branch `theme-presets`)
+
+- **Picking a theme.** `?theme=<name>`, or the Theme picker on the page, which reloads the page because textures and materials are made once at load. The default is `original`.
+- **Registry.** `themes/index.js` lists the themes and exports the active one's `INTERIOR_THEME`, `OUTSIDE_THEME` and `CLAY_LOOK`. Every module imports its theme from there, never from a theme file.
+- **Current themes:**
+  - **original:** `themes/interior.js` and `themes/outside.js`, unchanged. The render is pixel-identical to before.
+  - **clay (blank):** the clay render, set in `themes/clay.js`. It is the scene with its look switched off: one grey and white light. It keeps the original's light levels and sun.
+    - `?theme=off` still means clay. Both give pixel-identical captures with a fixed clock and sway.
+    - The clay grey moved from `outside/index.js` into `themes/clay.js`.
+- **To add a theme:** copy `interior.js` and `outside.js` under new names, change the copies, and list them in `THEMES`.
+
 ## Open issues
 - [ ] R2 look: see "Known defects" in the sign-off record above.
 

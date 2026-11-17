@@ -31,7 +31,7 @@
 //       4 reflection alone, 5 body alone, 6 crest metric, 7 roughness lost to the filter.
 
 import * as THREE from 'three';
-import { OUTSIDE_THEME } from '../themes/outside.js';
+import { OUTSIDE_THEME } from '../themes/index.js';
 
 const G = 9.81;
 const N_AIR = 1.0;

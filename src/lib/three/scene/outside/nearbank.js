@@ -15,7 +15,7 @@
 import * as THREE from 'three';
 import { createContract } from './contract.js';
 import { SITE, sampleLine, mulberry32, rgbTable } from './site.js';
-import { OUTSIDE_THEME } from '../themes/outside.js';
+import { OUTSIDE_THEME } from '../themes/index.js';
 import { checkSweep } from './banks.js';
 
 const lerp = (a, b, t) => a + (b - a) * t;

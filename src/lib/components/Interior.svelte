@@ -2,19 +2,18 @@
   import { onMount } from 'svelte';
   import { fade } from 'svelte/transition';
   import { createInterior } from '../three/scene/interior.js';
+  import { THEMES, THEME_NAME, DEFAULT_THEME } from '../three/scene/themes/index.js';
 
   let canvas;
   let ready = $state(false);
   let shot = $state('seat');
   let scene;
-  // ?theme=off: the scene as a clay render, without its look (interior.js). Read once: the button
-  // reloads the page, since every texture and material is built at load.
-  const themeOff = new URLSearchParams(window.location.search).get('theme') === 'off';
-
-  function toggleTheme() {
+  // The theme (?theme=, themes/index.js) is picked when the page loads: choosing another reloads
+  // the page, since every texture and material is built at load.
+  function pickTheme(name) {
     const url = new URL(window.location.href);
-    if (themeOff) url.searchParams.delete('theme');
-    else url.searchParams.set('theme', 'off');
+    if (name === DEFAULT_THEME) url.searchParams.delete('theme');
+    else url.searchParams.set('theme', name);
     window.location.assign(url);
   }
 
@@ -36,9 +35,14 @@
     {shot === 'seat' ? 'Look out of the window' : 'Back to the seat'}
   </button>
 
-  <button class="shot theme" type="button" aria-pressed={themeOff} onclick={toggleTheme}>
-    {themeOff ? 'Theme on' : 'Theme off'}
-  </button>
+  <label class="shot theme">
+    Theme
+    <select value={THEME_NAME} onchange={(e) => pickTheme(e.currentTarget.value)}>
+      {#each Object.entries(THEMES) as [name, theme] (name)}
+        <option value={name}>{theme.label}</option>
+      {/each}
+    </select>
+  </label>
 
   <p class="credit">
     A hand-drawn style rendition of a sitting room in a Sarawak Malay house, after a reference photo, with the
@@ -110,6 +114,23 @@
   }
   .theme {
     bottom: 112px;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+  .theme select {
+    border: none;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+  }
+  .theme option {
+    color: #3a2418; /* the open list is drawn by the browser, on a light background */
+  }
+  .theme:focus-within {
+    outline: 2px solid #f6ead2;
+    outline-offset: 3px;
   }
   .shot:focus-visible {
     outline: 2px solid #f6ead2;

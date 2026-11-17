@@ -2,7 +2,7 @@
 // board gloss and the soft shadows under the furniture (after R2).
 
 import * as THREE from 'three';
-import { INTERIOR_THEME as THEME } from '../themes/interior.js';
+import { INTERIOR_THEME as THEME } from '../themes/index.js';
 import { PLAN } from './plan.js';
 
 const vec3 = (a) => `vec3(${a.map((n) => n.toFixed(2)).join(', ')})`; // a linear colour, written into GLSL

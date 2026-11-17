@@ -19,7 +19,7 @@
 
 import { createContract } from './contract.js';
 import { rgbTable } from './site.js';
-import { OUTSIDE_THEME } from '../themes/outside.js';
+import { OUTSIDE_THEME } from '../themes/index.js';
 
 export const PENAMBANG = {
   length: 6.2, // overall, stem to stern (B3: 892 px at ~143 px per metre)

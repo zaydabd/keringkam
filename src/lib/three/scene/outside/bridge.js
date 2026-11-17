@@ -10,7 +10,7 @@
 
 import * as THREE from 'three';
 import { createContract } from './contract.js';
-import { OUTSIDE_THEME } from '../themes/outside.js';
+import { OUTSIDE_THEME } from '../themes/index.js';
 
 export const BRIDGE = {
   deck: { width: 3.3, depth: 0.9, rail: 1.1, rise: 5, clearance: 10 }, // metres; clearance = deck soffit above water at the banks

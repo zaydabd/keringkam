@@ -9,7 +9,7 @@
 import * as THREE from 'three';
 import { createContract } from './contract.js';
 import { SITE, sampleLine, smooth, mulberry32, rgbTable } from './site.js';
-import { OUTSIDE_THEME } from '../themes/outside.js';
+import { OUTSIDE_THEME } from '../themes/index.js';
 
 const lerp = (a, b, t) => a + (b - a) * t;
 

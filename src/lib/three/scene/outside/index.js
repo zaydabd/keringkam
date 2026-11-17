@@ -24,7 +24,8 @@ import * as THREE from 'three';
 import { paintSoftSky, paintMud, paintTurf } from '../paint.js';
 import { SlotWriter, createContract } from './contract.js';
 import { SITE, mulberry32 } from './site.js';
-import { OUTSIDE_THEME } from '../themes/outside.js';
+import { OUTSIDE_THEME } from '../themes/index.js';
+import { CLAY } from '../themes/clay.js';
 import { buildFarBank } from './banks.js';
 import { buildNearBank } from './nearbank.js';
 import { buildTrees } from './trees.js';
@@ -44,15 +45,12 @@ export const OBJECTS = ['farbank', 'nearbank', 'trees', 'river', 'assembly', 'br
 const SKY_KEY = OUTSIDE_THEME.air.skyKey;
 const SKYLINE = OUTSIDE_THEME.skyline;
 
-/** The one grey of the clay render (?theme=off): every surface, inside and out. */
-export const CLAY = '#c8c8c8';
-
 /**
  * Builds the outside. `fog` is the scene's fog (the daylight haze: the sky's horizon and the
  * water use its colour too); `light` scales what gives off its own light, to match the scene's
  * lamps; `key` darkens the outdoor paint so it keeps its colour next to a room exposed for
  * shade; `mode` 'flat' or 'silhouette' are the checks the geometry skill asks for, 'clay' the
- * clay render of ?theme=off (plain grey, no painted textures, no water shader); `stage` lists
+ * clay render of the clay theme (plain grey, no painted textures, no water shader); `stage` lists
  * the objects to build (default: all); `tint` 'tree-level' or 'tree-kind' paints the trees'
  * growth diagnostics.
  */
@@ -138,7 +136,7 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
     else if (mode === 'flat') m = new THREE.MeshToonMaterial({ gradientMap, color: '#bdbdbd', side });
     else if (mode === 'clay') {
       // plain grey, lit as it is; keyed down like the paint so sunlit ground does not burn out
-      m = new THREE.MeshStandardMaterial({ color: CLAY, roughness: 1, metalness: 0, side });
+      m = new THREE.MeshStandardMaterial({ color: CLAY.colour, roughness: 1, metalness: 0, side });
       m.color.multiplyScalar(key);
     }
     else {
