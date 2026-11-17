@@ -6,3 +6,6 @@ dist/
 !.env.example
 public/basis/
 .dream-loop/
+
+# Personal Claude Code settings (not shared)
+.claude/settings.local.json
