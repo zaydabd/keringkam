@@ -34,6 +34,9 @@ export function glossBoards(material, { window, strength = 0.6, falloff = 0, lig
   const { z0 } = PLAN.room;
   const W = PLAN.window;
   const wins = PLAN.backWindows.map((w) => `refl += box(H.x, ${w.x0.toFixed(2)}, ${w.x1.toFixed(2)}, wx) * open;`).join('\n      ');
+  const blockers = furnitureBlockers()
+    .map(([x, z, ry, lo, hi, share]) => `seen -= ${share.toFixed(2)} * blocks(vGlossP, Rd, t, vec2(${x.toFixed(3)}, ${z.toFixed(3)}), ${ry.toFixed(4)}, vec3(${lo.map((v) => v.toFixed(3))}), vec3(${hi.map((v) => v.toFixed(3))}), wx);`)
+    .join('\n        ');
   material.onBeforeCompile = (shader) => {
     shader.vertexShader = shader.vertexShader
       .replace('#include <common>', '#include <common>\nvarying vec3 vGlossP;')
@@ -45,7 +48,22 @@ export function glossBoards(material, { window, strength = 0.6, falloff = 0, lig
     varying vec3 vGlossP;
     float box(float v, float a, float b, float w) { return smoothstep(a - w, a + w, v) * (1.0 - smoothstep(b - w, b + w, v)); }
     float gHash(float n) { return fract(sin(n * 127.1) * 43758.5453); }
-    float gNoise(float x) { float i = floor(x); float f = fract(x); f = f * f * (3.0 - 2.0 * f); return mix(gHash(i), gHash(i + 1.0), f); }`,
+    float gNoise(float x) { float i = floor(x); float f = fract(x); f = f * f * (3.0 - 2.0 * f); return mix(gHash(i), gHash(i + 1.0), f); }
+    // How much the box [lo, hi] (in the piece's own frame: centre c on the floor, turned ry about
+    // y) hides along the ray o + d t, before the window wall at tMax: 0 to 1, soft at its edges
+    // (a ray that only clips a corner hides little), as blurred as the mirrored window (w).
+    // A ray that starts inside the box (a table top's own boards) is not hidden by it.
+    float blocks(vec3 o, vec3 d, float tMax, vec2 c, float ry, vec3 lo, vec3 hi, float w) {
+      float ca = cos(ry), sa = sin(ry);
+      vec2 p = o.xz - c;
+      vec3 lo3 = vec3(p.x * ca - p.y * sa, o.y, p.x * sa + p.y * ca);
+      vec3 ld = vec3(d.x * ca - d.z * sa, d.y, d.x * sa + d.z * ca);
+      vec3 inv = 1.0 / (ld + vec3(1e-6));
+      vec3 t0 = (lo - lo3) * inv, t1 = (hi - lo3) * inv;
+      vec3 tn = min(t0, t1), tf = max(t0, t1);
+      float enter = max(max(tn.x, tn.y), tn.z), leave = min(min(tf.x, tf.y), tf.z);
+      return enter > 0.02 && enter < tMax ? smoothstep(0.0, 2.0 * w, leave - enter) : 0.0;
+    }`,
       )
       .replace(
         '#include <opaque_fragment>',
@@ -62,7 +80,11 @@ export function glossBoards(material, { window, strength = 0.6, falloff = 0, lig
         float wx = 0.05 + 0.03 * t; // blur grows with distance
         float wy = 0.18 + 0.14 * t; // and the image is stretched along the boards
         float open = box(H.y, ${W.lattice.toFixed(2)}, ${W.y1.toFixed(2)}, wy) + 0.35 * box(H.y, 0.0, ${W.lattice.toFixed(2)}, wy);
+        // The furniture stands between the boards and the windows: what it hides is not mirrored.
+        float seen = 1.0;
+        ${blockers}
         ${wins}
+        refl *= max(seen, 0.0);
       }
       // boards are not evenly polished: streaks along the grain, and each plank a little different
       // The fine streaks fade out once they are smaller than a pixel (no shimmer far away).
@@ -78,6 +100,20 @@ export function glossBoards(material, { window, strength = 0.6, falloff = 0, lig
     #include <opaque_fragment>`,
       );
   };
+}
+
+/**
+ * The furniture as a few boxes that hide the windows from the boards (glossBoards): each seat's
+ * slats and apron, its back (an open lattice, so it hides only part), and each table top.
+ * [x, z, ry, lo, hi, share]: lo and hi in the piece's own frame (front = +z), share 0-1.
+ */
+function furnitureBlockers() {
+  const seats = [PLAN.settee, ...PLAN.chairs].flatMap(({ x, z, ry, w, d, back }) => [
+    [x, z, ry, [-w / 2, 0.34, -d / 2], [w / 2, 0.44, d / 2], 1],
+    [x, z, ry, [-w / 2, 0.44, -d / 2 - 0.06], [w / 2, back, -d / 2 + 0.04], 0.6],
+  ]);
+  const tables = PLAN.tables.map(({ x0, x1, z0, z1, h }) => [(x0 + x1) / 2, (z0 + z1) / 2, 0, [(x0 - x1) / 2, h - 0.06, (z0 - z1) / 2], [(x1 - x0) / 2, h, (z1 - z0) / 2], 1]);
+  return [...seats, ...tables];
 }
 
 /**

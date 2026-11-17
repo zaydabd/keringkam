@@ -209,7 +209,9 @@ export const INTERIOR_THEME = {
     // Sun behind the window wall, high enough that the patches fall just inside the windows.
     sun: { color: '#ffe6c4', intensity: 3.2 },
     bounce: { sky: '#fff2e4', ground: '#5a443a', intensity: 2.2 }, // warm bounce off the floor and walls
-    fill: { color: '#ffd6ac', intensity: 0.55 }, // soft light from the room behind the camera
+    fill: { color: '#ffd6ac', intensity: 0.55, shadowSoftness: 4 }, // soft light from the room behind the camera; its shadow's blur (shadow-map texels)
+    // Ambient occlusion (ao.js, three.js GTAOPass): radius in metres; the rest are GTAOPass's own settings.
+    ao: { intensity: 1, radius: 1.5, distanceExponent: 1, thickness: 2, scale: 2 },
     // Curtains lit from behind (emissive strength, times the level above).
     glow: { valance: 0.25, sheer: 0.12, white: 0.35 },
     // Polished boards mirror the bright windows (glossBoards in interior/surfaces.js).

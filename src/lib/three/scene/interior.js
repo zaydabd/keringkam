@@ -50,6 +50,7 @@ import { buildSeat, furnitureOverlaps, buildTable } from './interior/furniture.j
 import { buildHangings } from './interior/hangings.js';
 import { buildVines } from './interior/vines.js';
 import { shadeWalls, glossBoards, buildContactShadows } from './interior/surfaces.js';
+import { createAO } from './ao.js';
 export { PLAN } from './interior/plan.js';
 export { furnitureOverlaps } from './interior/furniture.js';
 
@@ -161,6 +162,17 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
   const hemi = new THREE.HemisphereLight(L.bounce.sky, L.bounce.ground, L.bounce.intensity * LIGHT); // warm bounce off the floor and walls
   const fill = new THREE.DirectionalLight(L.fill.color, L.fill.intensity * LIGHT); // soft light from the room behind the camera
   fill.position.set(1.5, 2.5, 4);
+  // The fill's soft shadow: only the furniture casts it (FURNITURE_LAYER), so the room's own walls
+  // and ceiling, which stand between this light and everything, do not put the room in the dark.
+  // It shades the floor under the seats and the legs behind the seats' fronts.
+  const FURNITURE_LAYER = 4;
+  fill.castShadow = true;
+  fill.shadow.mapSize.set(1024, 1024);
+  Object.assign(fill.shadow.camera, { left: -6, right: 6, top: 6, bottom: -6, near: 0.1, far: 16 });
+  fill.shadow.camera.layers.set(FURNITURE_LAYER);
+  fill.shadow.radius = L.fill.shadowSoftness;
+  fill.shadow.bias = -0.0005;
+  fill.shadow.normalBias = 0.02;
   scene.add(sun, sun.target, hemi, fill);
   if (clay) {
     for (const c of [sun.color, hemi.color, hemi.groundColor, fill.color]) neutral(c);
@@ -251,6 +263,8 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
       if (mesh.name === 'lattice') mesh.layers.enable(3); // and masks the ink of the view behind it (toon.js)
     }
     if (['leaf', 'decor'].includes(mesh.name)) mesh.castShadow = mesh.name === 'leaf';
+    if (['wood', 'top', 'carve'].includes(mesh.name)) mesh.layers.enable(FURNITURE_LAYER);
+    if (['lattice', 'carve', 'sheer', 'white'].includes(mesh.name)) mesh.userData.noAO = true; // cut-outs and sheer cloth (ao.js)
   }
   scene.add(room);
   const contact = buildContactShadows(textures.blob);
@@ -267,6 +281,7 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
   landscape.group.visible = !off.has('outside');
   landscape.setWaterView({ 'water-normal': 1, 'water-fresnel': 2, 'water-filter': 3, 'water-reflection': 4, 'water-body': 5, 'water-crest': 6, 'water-lost': 7 }[debug] ?? 0);
   scene.traverse((o) => o.isLight && o.layers.enable(MIRROR_LAYER)); // the river's mirror is lit like the view itself
+  landscape.group.userData.noAO = true; // the view outside is too far for AO, and it moves
   scene.add(landscape.group);
   if (debug) {
     console.info('outside', JSON.stringify(landscape.stats));
@@ -282,6 +297,9 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
   setUniforms(outline.material.uniforms, inkLook);
   const composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
+  // Ambient occlusion (ao.js): darkens under the furniture and in the corners; before the ink.
+  const ao = off.has('ao') || stage ? null : createAO(scene, camera, L.ao, { view: debug === 'ao' });
+  if (ao) composer.addPass(ao);
   const inkPass = !off.has('ink') && !clay;
   if (inkPass) composer.addPass(new ShaderPass(outline.material));
   // Watercolour (watercolour.js): pigment in linear light, then the finish pass.
