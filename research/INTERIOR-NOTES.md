@@ -775,8 +775,17 @@ lining the frames up:
   now moves the noise exactly with the room, also at the frame's edges. A plain screen shift was
   tried first: right at the centre, but 3.5 px behind the room at the edges for a 0.021 rad turn.
   During a move between shots the camera also travels, so some parallax slide remains there.
-- The paper grain and the granulation tooth stay fixed to the screen: they are the paper.
-  Measured: they account for under 0.1 of the remaining change.
+- The paper grain and the granulation tooth were first left fixed to the screen ("the paper").
+  On the near floor, a broad smooth area, that read as the floor swimming: per step the floor
+  changed 1.56 with them, 1.06 without them, against 0.96 for the room alone. They are now tiles
+  too (256 px, the tooth's frequencies rounded to 0.875 / 0.203 / 0.0117 and 0.875 / 0.328
+  cycles a pixel so they repeat), read at the world direction but at the nearest whole texel: a
+  grain finer than a pixel, resampled between pixels, would blur and sharpen as the view turns.
+  Floor after: 1.24.
+- Check with turns that move a region by exactly 4 px (yaw 0.181° steps, so no sub-pixel
+  misalignment in the measure): near floor, right side 1.73 (screen-fixed grain) → 1.67, room
+  alone 1.70; right wall 2.89 → 2.80, room alone 2.37. What is left on the wall is mostly the
+  room's own fine texture and edges moving, plus the ink lines' stair-steps.
 - `SMAAPass` is the last pass, on the encoded image. `?off=aa` leaves it out.
 
 **Measured (seat view, look.x 0 → 0.35 in 8 steps of 3.1 px, neighbouring frames lined up):**

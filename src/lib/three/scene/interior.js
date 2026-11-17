@@ -343,6 +343,7 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
   const paintView = { 'paint-pigment': 1, 'paint-edge': 2, 'paint-bleed': 3 }[debug] ?? 0;
   pigment.uniforms.view.value = paintView;
   const pigmentField = createPigmentField(renderer, pigment.uniforms, { detail: paintDetail });
+  pigmentField.update(seed);
   if (!off.has('pigment') && !clay) composer.addPass(pigment);
   finish.uniforms.view.value = off.has('grade') || paintView || clay ? 1 : 0; // 1: tone map and encode only, no grade
   composer.addPass(finish);
@@ -376,7 +377,6 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
     pigment.uniforms.resolution.value.set(w * renderer.getPixelRatio(), h * renderer.getPixelRatio());
     pigment.uniforms.scale.value = renderer.getPixelRatio();
     finish.uniforms.texel.value.set(1 / w, 1 / h);
-    pigmentField.update(w * renderer.getPixelRatio(), h * renderer.getPixelRatio(), renderer.getPixelRatio(), seed);
     camera.aspect = w / h;
     // Keep R1's vertical view on wide screens; on narrow ones keep its horizontal view instead.
     if (move.t >= 1) {

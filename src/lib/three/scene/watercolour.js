@@ -9,9 +9,9 @@ import { VIEW_FIELD, setViewField } from './toon.js';
 //   2. finish: exposure, the one tone map, sRGB encoding, then the grade (lifted warm blacks,
 //      lower saturation, cream highlights).
 // Debug: ?debug=paint-pigment | paint-edge | paint-bleed shows a field in grey; ?off=pigment or
-// ?off=grade switches a stage off. The paper tooth is fixed to the screen (the "paper" is the screen,
-// as in a painting); the wash blotches are a repeating tile that moves with the camera's turn, so
-// they stay on the room instead of sliding over it.
+// ?off=grade switches a stage off. The wash blotches and the paper tooth are repeating tiles read at
+// each pixel's direction in the world, so they stay on the room when the view turns instead of the
+// room sliding under them.
 
 const NOISE = /* glsl */ `
   float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
@@ -33,6 +33,7 @@ const NOISE = /* glsl */ `
 // The wash tile, in field units (screen pixels / scale * detail): its bands (256, 192 and 48) fit
 // it a whole number of times (3, 4 and 16), so it repeats without a seam.
 const PIGMENT_TILE = 768;
+const TOOTH_TILE = 256;
 
 const VERTEX = /* glsl */ `
   varying vec2 vUv;
@@ -42,7 +43,7 @@ const VERTEX = /* glsl */ `
 export const PIGMENT_SHADER = {
   uniforms: {
     tDiffuse: { value: null },
-    tField: { value: null }, // the paper tooth, drawn once per screen size (createPigmentField)
+    tField: { value: null }, // the paper tooth, a tile drawn once (createPigmentField)
     tPigment: { value: null }, // the wash tile, drawn once (createPigmentField)
     viewRotation: { value: new THREE.Matrix3() }, // the camera's rotation and focal length (createPigmentField.setView):
     focal: { value: 1000 }, // the wash is read at each pixel's direction in the world (VIEW_FIELD)
@@ -74,11 +75,12 @@ export const PIGMENT_SHADER = {
 
     void main() {
       vec2 px = 1.0 / resolution;
-      // Field 1, pigment density (PIGMENT_TILE_SHADER, kept on the world as the view turns), and
-      // the paper tooth (PIGMENT_FIELD_SHADER, fixed to the screen).
+      // Field 1, pigment density (PIGMENT_TILE_SHADER), and the paper tooth (TOOTH_SHADER, read at
+      // the nearest whole texel so the fine grain does not blur and sharpen as it moves), both kept
+      // on the world as the view turns.
       vec2 at = viewField(gl_FragCoord.xy, resolution, viewRotation, focal);
       float pigment = texture2D(tPigment, (at / scale * detail + fieldShift) / ${PIGMENT_TILE}.0).r;
-      vec2 field = texelFetch(tField, ivec2(gl_FragCoord.xy), 0).rg;
+      vec2 field = vec2(0.0, texture2D(tField, (floor(at / scale) + 0.5) / ${TOOTH_TILE}.0).r);
 
       vec3 base = texture2D(tDiffuse, vUv).rgb;
       // Field 2, wet edge: how much the value changes across a few pixels (log luma, so dark
@@ -143,30 +145,28 @@ const PIGMENT_TILE_SHADER = {
     }
   `,
 };
-// The paper tooth for the granulation, at the screen's size and fixed to it.
-const PIGMENT_FIELD_SHADER = {
-  uniforms: { scale: { value: 1 }, seed: { value: 0 } },
+// The paper tooth for the granulation: a tile of TOOTH_TILE px (CSS), 0.875 cells a px (224 a
+// tile) and 0.328 (84).
+const TOOTH_SHADER = {
+  uniforms: {},
   vertexShader: VERTEX,
   fragmentShader: /* glsl */ `
-    uniform float scale, seed;
     ${NOISE}
     void main() {
-      vec2 fc = gl_FragCoord.xy / scale + seed * vec2(613.0, 271.0);
-      float tooth = noise(fc * 0.9) * 0.6 + noise(fc * 0.33 + 4.0) * 0.4;
-      gl_FragColor = vec4(0.0, tooth, 0.0, 1.0);
+      vec2 fc = gl_FragCoord.xy;
+      float tooth = noise(fc * 0.875, 224.0) * 0.6 + noise(fc * 0.328125 + 4.0, 84.0) * 0.4;
+      gl_FragColor = vec4(tooth, 0.0, 0.0, 1.0);
     }
   `,
 };
 
-/** The pigment pass's field textures, wired into its uniforms. Call update() when the drawing
- * buffer's size changes and setView() each frame; seed moves the field (?seed=n), for seed sweeps.
+/** The pigment pass's field textures, wired into its uniforms. Call setView() each frame; seed moves the field (?seed=n), for seed sweeps.
  * detail scales how fine the wash blotches are (the theme's paint.detail: 1 as drawn, 2 twice as fine). */
 export function createPigmentField(renderer, uniforms, { detail = 1 } = {}) {
-  const target = new THREE.WebGLRenderTarget(1, 1, { type: THREE.UnsignedByteType, depthBuffer: false });
-  target.texture.minFilter = target.texture.magFilter = THREE.NearestFilter;
-  target.texture.generateMipmaps = false;
-  const tile = new THREE.WebGLRenderTarget(PIGMENT_TILE, PIGMENT_TILE, { type: THREE.UnsignedByteType, format: THREE.RedFormat, depthBuffer: false, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, wrapS: THREE.RepeatWrapping, wrapT: THREE.RepeatWrapping, generateMipmaps: false });
-  const material = new THREE.ShaderMaterial({ ...PIGMENT_FIELD_SHADER, uniforms: THREE.UniformsUtils.clone(PIGMENT_FIELD_SHADER.uniforms) });
+  const options = { type: THREE.UnsignedByteType, format: THREE.RedFormat, depthBuffer: false, wrapS: THREE.RepeatWrapping, wrapT: THREE.RepeatWrapping, generateMipmaps: false };
+  const tile = new THREE.WebGLRenderTarget(PIGMENT_TILE, PIGMENT_TILE, { ...options, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter });
+  const tooth = new THREE.WebGLRenderTarget(TOOTH_TILE, TOOTH_TILE, { ...options, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter });
+  const material = new THREE.ShaderMaterial(TOOTH_SHADER);
   const tileMaterial = new THREE.ShaderMaterial(PIGMENT_TILE_SHADER);
   const quad = new FullScreenQuad(tileMaterial);
   const draw = (into) => {
@@ -177,24 +177,21 @@ export function createPigmentField(renderer, uniforms, { detail = 1 } = {}) {
   };
   draw(tile);
   quad.material = material;
-  uniforms.tField.value = target.texture;
+  draw(tooth);
+  uniforms.tField.value = tooth.texture;
   uniforms.tPigment.value = tile.texture;
   uniforms.detail.value = detail;
   return {
-    /** Size in drawing-buffer pixels (rounded up, so it covers the composer's buffers). */
-    update(width, height, scale, seed) {
-      target.setSize(Math.ceil(width), Math.ceil(height));
-      material.uniforms.scale.value = scale;
-      material.uniforms.seed.value = seed;
+    /** seed moves the wash within its tile (?seed=n). */
+    update(seed) {
       uniforms.fieldShift.value.set((613 * seed * detail) % PIGMENT_TILE, (271 * seed * detail) % PIGMENT_TILE);
-      draw(target);
     },
     /** Keeps the wash on the world: call each frame after the camera moves. */
     setView(camera) {
       setViewField(uniforms, camera, uniforms.resolution.value.y);
     },
     dispose() {
-      target.dispose();
+      tooth.dispose();
       tile.dispose();
       material.dispose();
       tileMaterial.dispose();
