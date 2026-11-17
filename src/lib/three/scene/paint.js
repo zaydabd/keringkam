@@ -258,7 +258,7 @@ export function paintLattice(seed = 11, { colours: C, pattern: P }) {
  * paired scroll rings and vase-shaped straps between them. The design is simplified, not traced.
  * One tile is one motif `unit` wide (metres, wraps left to right) and the whole panel `height`
  * tall (no vertical repeat), so the bands and the rings keep their size whatever the window.
- * The theme's strip widths and tone are shared with paintLattice (the same carving, 1280 px/m).
+ * 1280 px/m, as paintLattice. Strap widths, the red-brown fade and the tone are in the theme.
  */
 export function paintWindowLattice(seed, { colours: C, pattern: P }, { unit, height }) {
   const r = rng(seed);
@@ -269,15 +269,15 @@ export function paintWindowLattice(seed, { colours: C, pattern: P }, { unit, hei
   g.lineCap = g.lineJoin = 'round';
   const X = (x) => x * k; // metres from the tile's left edge
   const Y = (y) => (height - y) * k; // metres up from the panel's bottom
-  const rail = 0.022; // each rail's height
-  const band = 0.08; // the plaited band between two rails
+  const rail = 0.022; // each rail's height (W1: about 2.2 cm)
+  const band = 0.11; // the plaited band between two rails (W1: about 0.27 of a motif)
   const f0 = 2 * rail + band; // the field: between the bands
   const F = (height - 2 * f0) / 2; // half the field's height
   const ym = height / 2;
   const U = unit;
 
   // Every strap as a polyline [[x, y], ...] or a ring {x, y, r}, in metres. The field is mirrored
-  // top to bottom about ym, the motif left to right about its centre (0 and U/2 carry a diamond each).
+  // top to bottom about ym, the motif left to right about its centre (a vase at 0, rings at U/2).
   const lines = [];
   const rings = [];
   for (const bot of [rail / 2, height - rail / 2]) lines.push([[-U, bot], [2 * U, bot]]); // outer rails
@@ -293,29 +293,30 @@ export function paintWindowLattice(seed, { colours: C, pattern: P }, { unit, hei
     }
   }
   // W1's motif: a vase (diamond waist, straight sides, a neck ending in two scroll rings by the
-  // band) per unit, and between two vases a pair of rings with straps that step out to the rails.
-  const R = 0.05 * U; // scroll ring radius
+  // band) per unit, and between two vases a touching pair of rings with straps that step out to
+  // the rails. Spaced for W1's thick straps (P.face, about 8% of a motif): every hole stays open.
+  const R = 0.075 * U; // scroll ring radius (centre line)
   for (const cx of [0, U]) {
     const bx = cx + U / 2; // the boundary to the next unit
     for (const s of [1, -1]) {
       const y = (v) => ym + s * v * F; // v: 0 at the field's middle, 1 at its edge
       // the vase, half by half: waist diamond, side, shoulder, neck into a ring, ring up to the rail
-      lines.push([[cx - 0.13 * U, ym], [cx, y(0.16)], [cx + 0.13 * U, ym]]);
+      lines.push([[cx - 0.15 * U, ym], [cx, y(0.22)], [cx + 0.15 * U, ym]]);
       for (const t of [1, -1]) {
         const x = (a) => cx + t * a * U;
-        lines.push([[cx, y(0.16)], [x(0.2), y(0.36)], [x(0.2), y(0.64)], [x(0.07), y(0.8)], [x(0.07), y(0.86) - s * R]]);
-        rings.push({ x: x(0.07), y: y(0.86), r: R });
-        lines.push([[x(0.07), y(0.86) + s * R], [x(0.07), y(1.02)]]);
+        lines.push([[cx, y(0.22)], [x(0.22), y(0.4)], [x(0.22), y(0.6)], [x(0.075), y(0.72)], [x(0.075), y(0.84) - s * R]]);
+        rings.push({ x: x(0.075), y: y(0.84), r: R });
+        lines.push([[x(0.075), y(0.84) + s * R], [x(0.075), y(1.02)]]);
       }
       // between vases: from each ring of the pair, up, stepping out under the band
       for (const t of [1, -1]) {
         const x = (a) => bx + t * a * U;
-        lines.push([[x(0.05), ym + s * R], [x(0.05), y(0.5)], [x(0.16), y(0.68)], [x(0.16), y(1.02)]]);
+        lines.push([[x(0.075), ym + s * R], [x(0.075), y(0.45)], [x(0.17), y(0.65)], [x(0.17), y(1.02)]]);
       }
     }
     // the waist line through the diamond to the paired rings between vases
-    lines.push([[cx - U / 2 + 0.05 * U + R, ym], [cx - 0.13 * U, ym]], [[cx + 0.13 * U, ym], [bx - 0.05 * U - R, ym]]);
-    for (const t of [1, -1]) rings.push({ x: bx + t * 0.05 * U, y: ym, r: R }, { x: cx - U / 2 + t * 0.05 * U, y: ym, r: R }); // a touching pair
+    lines.push([[cx - U / 2 + 0.075 * U + R, ym], [cx - 0.15 * U, ym]], [[cx + 0.15 * U, ym], [bx - 0.075 * U - R, ym]]);
+    for (const t of [1, -1]) rings.push({ x: bx + t * 0.075 * U, y: ym, r: R }, { x: cx - U / 2 + t * 0.075 * U, y: ym, r: R }); // a touching pair
   }
 
   const stroke = (width, style, list) => {
@@ -340,18 +341,24 @@ export function paintWindowLattice(seed, { colours: C, pattern: P }, { unit, hei
       }
     });
   };
-  const { back: Bk, front: Fr, tone: To } = P;
-  // Dark carving behind, light strap on top: the field and rails, then each half of the plait.
-  stroke(Bk.strip, C.dark, lines);
-  loops(Bk.strip, C.dark);
-  stroke(Fr.strip, C.light, lines);
-  loops(Fr.strip, C.light);
+  const { face, edge, plait: Pl, fade: Fd, tone: To } = P;
+  // Dark carving behind, the strap's face on top: the field and rails, then each half of the plait.
+  stroke(edge, C.dark, lines);
+  loops(edge, C.dark);
+  stroke(face, C.light, lines);
+  loops(face, C.light);
   for (const half of [plait.up, plait.down]) {
-    stroke(Bk.strip, C.dark, half);
-    stroke(Fr.strip, C.light, half);
+    stroke(Pl.edge, C.dark, half);
+    stroke(Pl.face, C.light, half);
+  }
+  // The room's wood (the material colour), faded in soft patches to W1's red-brown; painted only
+  // where there is wood (source-atop), so the holes stay clear.
+  g.globalCompositeOperation = 'source-atop';
+  for (let i = 0; i < Fd.count; i++) {
+    const rx = vary(r, Fd.radius);
+    blot(g, W, r() * W, r() * H, rx, rx * (0.6 + r() * 0.8), css(C.fade), vary(r, Fd.opacity));
   }
   // brush tone along the straps
-  g.globalCompositeOperation = 'source-atop';
   for (let i = 0; i < To.count * ((W * H) / (512 * 512)); i++) {
     g.fillStyle = `rgba(${r() < To.darkShare ? css(C.toneDark) : css(C.toneLight)},${vary(r, To.opacity)})`;
     g.fillRect(r() * W, r() * H, vary(r, To.length), vary(r, To.width));

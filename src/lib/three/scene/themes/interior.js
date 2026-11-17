@@ -35,7 +35,6 @@ const WOOD = {
   floor: '#a06e50', // warm brown floor boards (R2)
   furniture: '#9c683e', // honey-brown furniture (R2 is browner than R1's gold)
   tableTop: '#c08a56', // table tops: brown and polished in R2 (they mirror the windows)
-  carving: '#d6bb98', // lighter carved panels, as in R2
   pictureFrame: '#6b4a2c',
   // The painted plank texture (paintPlanks), shared by every board in the room.
   grain: {
@@ -76,6 +75,17 @@ const WOOD = {
     front: { strip: 17, node: 12, ring: 29 }, // the light strips on top
     hole: { radius: 18, edge: 4 }, // the hole through each ring node, and its dark edge
     tone: { count: 400, length: [10, 30], width: [2, 3], opacity: [0.06, 0.08], darkShare: 0.5 }, // brush tone along the strips
+  },
+  // The window lattice (paintWindowLattice), after the user's photo W1. The texture multiplies the
+  // material colour (the room's furniture wood), so these are multipliers: light keeps the wood,
+  // fade turns it W1's red-brown (about #7a3a24 on screen), dark is the deep red-brown carved edge.
+  windowLattice: { dark: '#6a3c3c', light: '#fff6ee', fade: '#c88f94', toneDark: '#a07070', toneLight: '#fffaf0' },
+  windowLatticeMarks: {
+    face: 41, // the strap's face: 3.2 cm at 1280 px/m (W1: about 8% of a motif)
+    edge: 54, // with its dark carved edge
+    plait: { face: 22, edge: 32 }, // the bands' woven strands: about half a strap (W1)
+    fade: { count: 16, radius: [50, 70], opacity: [0.5, 0.35] }, // soft red-brown patches, per tile
+    tone: { count: 400, length: [10, 30], width: [2, 3], opacity: [0.06, 0.08], darkShare: 0.5 },
   },
 };
 
@@ -153,7 +163,7 @@ export const INTERIOR_THEME = {
     frame: WOOD.frames,
     wood: WOOD.furniture,
     top: WOOD.tableTop,
-    lattice: WOOD.carving,
+    lattice: WOOD.furniture, // the window lattice: the room's wood, faded red-brown by its texture
     carve: WOOD.furniture, // chair-back carving: the furniture's wood
     valance: FABRIC.undyed,
     sheer: FABRIC.undyed,
@@ -175,6 +185,7 @@ export const INTERIOR_THEME = {
       wall: { colours: WOOD.grain, pattern: WOOD.grainMarks.wall },
     },
     lattice: { colours: WOOD.lattice, pattern: WOOD.latticeMarks },
+    windowLattice: { colours: WOOD.windowLattice, pattern: WOOD.windowLatticeMarks },
     curtains: {
       valance: { colours: { ...FABRIC.valance, streaks: FABRIC.curtainStreaks }, pattern: FABRIC.batikMarks.valance },
       drape: { colours: { ...FABRIC.drape, streaks: FABRIC.curtainStreaks }, pattern: FABRIC.batikMarks.drape },

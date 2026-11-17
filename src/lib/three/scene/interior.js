@@ -174,7 +174,7 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
     planks: paintPlanks(1 + seed, T.planks.boards),
     floor: paintPlanks(9 + seed, T.planks.floor),
     wall: paintPlanks(5 + seed, T.planks.wall),
-    lattice: paintWindowLattice(11, T.lattice, LATTICE_TILE),
+    lattice: paintWindowLattice(11, T.windowLattice, LATTICE_TILE),
     carve: paintLattice(17, T.lattice),
     valance: paintCurtain(12 + seed, T.curtains.valance),
     sheer: paintCurtain(16 + seed, T.curtains.drape),
