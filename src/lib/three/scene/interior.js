@@ -35,7 +35,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { toonGradient, createOutline } from './toon.js';
-import { paintPlanks, paintLattice, paintCurtain, paintDecor, paintGlow } from './paint.js';
+import { paintPlanks, paintLattice, paintWindowLattice, paintCurtain, paintDecor, paintGlow } from './paint.js';
 import { createOutside, OBJECTS, MIRROR_LAYER, CLAY } from './outside/index.js';
 import { PIGMENT_SHADER, FINISH_SHADER, createPigmentField } from './watercolour.js';
 import { createMeter } from './meter.js';
@@ -45,7 +45,7 @@ import { OUTSIDE_THEME } from './themes/outside.js';
 import { PLAN } from './interior/plan.js';
 import { V, Builder } from './interior/builder.js';
 import { buildRoom } from './interior/room.js';
-import { buildLattice } from './interior/lattice.js';
+import { buildLattice, LATTICE_TILE } from './interior/lattice.js';
 import { buildCurtains } from './interior/curtains.js';
 import { buildSeat, furnitureOverlaps, buildTable } from './interior/furniture.js';
 import { buildHangings } from './interior/hangings.js';
@@ -174,7 +174,7 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
     planks: paintPlanks(1 + seed, T.planks.boards),
     floor: paintPlanks(9 + seed, T.planks.floor),
     wall: paintPlanks(5 + seed, T.planks.wall),
-    lattice: paintLattice(11, T.lattice),
+    lattice: paintWindowLattice(11, T.lattice, LATTICE_TILE),
     carve: paintLattice(17, T.lattice),
     valance: paintCurtain(12 + seed, T.curtains.valance),
     sheer: paintCurtain(16 + seed, T.curtains.drape),
@@ -182,7 +182,6 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
     decor: paintDecor(14, T.decor),
     blob: paintGlow('round'),
   };
-  textures.lattice.repeat.set(1.6, 1.6);
   textures.carve.repeat.set(3.4, 3.4); // finer: chair-back carving
   const aniso = Math.min(4, renderer.capabilities.getMaxAnisotropy());
   for (const t of Object.values(textures)) t.anisotropy = aniso;

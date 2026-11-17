@@ -290,7 +290,9 @@ OUTSIDE_SIGNOFF
   - **P1, seat cushions:** box cushions (seat and back) in black-and-white woven stripes on wooden armchairs. Source unknown.
 - **Chairs and settee rebuilt after C1** (`buildSeat`): turned front legs that run up into the arm posts; square back legs, raked back under the seat and leaning back above it; a slatted seat on four rails (slats front to back on a chair, along the settee); curved arms that dip and end in a scroll on the front post; a back of lower rail, pierced panel, middle rail, a row of short turned spindles and an arched crest rail (camel-backed on the settee) with a carved half-sunburst fan. No arm spindles or stretchers (C1 shows none). All sizes estimated from the photo.
 - **Cost** after the rebuild: 327,813 triangles, 61 draw calls (final view).
-- **Next, from the user's references:** W1's lattice and carved shutters for the windows; P1's seat cushions (not to be added until the user says so).
+- **Window lattice after W1** (`paintWindowLattice`, `interior/lattice.js`): a plaited band between rails at the top and bottom, and in between one vase per 0.4 m motif (diamond waist, straight sides, a neck ending in two scroll rings by the band), with a touching pair of rings and stepped straps between vases. Simplified, not traced. The tile is one motif wide and the whole panel tall (512 x 1293 px, 1280 px/m as before), and each window shows a whole number of motifs (3, 3, 1). Same mesh and draw calls (61) and triangles (327,813); the texture grows from 512 x 512 to 512 x 1293 (about +2 MB on the GPU with mipmaps, estimated from the size, not measured). Colours stay the theme's cream on dark carving (R3); W1's red-brown is not used.
+- **Shutters:** W1's carved shutters open outwards, against the outside wall (the curtains are inside), so from the seat they would not show. Not built.
+- **Next, from the user's references:** P1's seat cushions (not to be added until the user says so).
 
 ## Open issues
 - [ ] R2 look: see "Known defects" in the sign-off record above.

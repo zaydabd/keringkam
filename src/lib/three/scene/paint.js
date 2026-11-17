@@ -253,6 +253,116 @@ export function paintLattice(seed = 11, { colours: C, pattern: P }) {
 }
 
 /**
+ * The window lattice, after the user's photo W1 (research/INTERIOR-NOTES.md; not in the repo):
+ * a plaited band at the top and the bottom, between rails, and an interlaced field of diamonds,
+ * paired scroll rings and vase-shaped straps between them. The design is simplified, not traced.
+ * One tile is one motif `unit` wide (metres, wraps left to right) and the whole panel `height`
+ * tall (no vertical repeat), so the bands and the rings keep their size whatever the window.
+ * The theme's strip widths and tone are shared with paintLattice (the same carving, 1280 px/m).
+ */
+export function paintWindowLattice(seed, { colours: C, pattern: P }, { unit, height }) {
+  const r = rng(seed);
+  const k = 1280; // px per metre
+  const W = Math.round(unit * k);
+  const H = Math.round(height * k);
+  const [c, g] = canvas(W, H);
+  g.lineCap = g.lineJoin = 'round';
+  const X = (x) => x * k; // metres from the tile's left edge
+  const Y = (y) => (height - y) * k; // metres up from the panel's bottom
+  const rail = 0.022; // each rail's height
+  const band = 0.08; // the plaited band between two rails
+  const f0 = 2 * rail + band; // the field: between the bands
+  const F = (height - 2 * f0) / 2; // half the field's height
+  const ym = height / 2;
+  const U = unit;
+
+  // Every strap as a polyline [[x, y], ...] or a ring {x, y, r}, in metres. The field is mirrored
+  // top to bottom about ym, the motif left to right about its centre (0 and U/2 carry a diamond each).
+  const lines = [];
+  const rings = [];
+  for (const bot of [rail / 2, height - rail / 2]) lines.push([[-U, bot], [2 * U, bot]]); // outer rails
+  for (const y of [f0 - rail / 2, height - f0 + rail / 2]) lines.push([[-U, y], [2 * U, y]]); // inner rails
+  // The plait: two zigzag strands in opposite phase; "\" strokes are drawn last, so each strand
+  // goes over, then under, along its length.
+  const p = U / 4;
+  const plait = { up: [], down: [] };
+  for (const [y0, y1] of [[rail, rail + band], [height - f0 + rail, height - rail]]) {
+    for (let x = -U; x < 2 * U; x += p) {
+      plait.up.push([[x, y0], [x + p / 2, y1]], [[x + p / 2, y0], [x + p, y1]]);
+      plait.down.push([[x, y1], [x + p / 2, y0]], [[x + p / 2, y1], [x + p, y0]]);
+    }
+  }
+  // W1's motif: a vase (diamond waist, straight sides, a neck ending in two scroll rings by the
+  // band) per unit, and between two vases a pair of rings with straps that step out to the rails.
+  const R = 0.05 * U; // scroll ring radius
+  for (const cx of [0, U]) {
+    const bx = cx + U / 2; // the boundary to the next unit
+    for (const s of [1, -1]) {
+      const y = (v) => ym + s * v * F; // v: 0 at the field's middle, 1 at its edge
+      // the vase, half by half: waist diamond, side, shoulder, neck into a ring, ring up to the rail
+      lines.push([[cx - 0.13 * U, ym], [cx, y(0.16)], [cx + 0.13 * U, ym]]);
+      for (const t of [1, -1]) {
+        const x = (a) => cx + t * a * U;
+        lines.push([[cx, y(0.16)], [x(0.2), y(0.36)], [x(0.2), y(0.64)], [x(0.07), y(0.8)], [x(0.07), y(0.86) - s * R]]);
+        rings.push({ x: x(0.07), y: y(0.86), r: R });
+        lines.push([[x(0.07), y(0.86) + s * R], [x(0.07), y(1.02)]]);
+      }
+      // between vases: from each ring of the pair, up, stepping out under the band
+      for (const t of [1, -1]) {
+        const x = (a) => bx + t * a * U;
+        lines.push([[x(0.05), ym + s * R], [x(0.05), y(0.5)], [x(0.16), y(0.68)], [x(0.16), y(1.02)]]);
+      }
+    }
+    // the waist line through the diamond to the paired rings between vases
+    lines.push([[cx - U / 2 + 0.05 * U + R, ym], [cx - 0.13 * U, ym]], [[cx + 0.13 * U, ym], [bx - 0.05 * U - R, ym]]);
+    for (const t of [1, -1]) rings.push({ x: bx + t * 0.05 * U, y: ym, r: R }, { x: cx - U / 2 + t * 0.05 * U, y: ym, r: R }); // a touching pair
+  }
+
+  const stroke = (width, style, list) => {
+    g.strokeStyle = style;
+    g.lineWidth = width;
+    wrapX(W, (dx) => {
+      for (const l of list) {
+        g.beginPath();
+        l.forEach(([x, y], i) => (i ? g.lineTo(X(x) + dx, Y(y)) : g.moveTo(X(x) + dx, Y(y))));
+        g.stroke();
+      }
+    });
+  };
+  const loops = (width, style) => {
+    g.strokeStyle = style;
+    g.lineWidth = width;
+    wrapX(W, (dx) => {
+      for (const o of rings) {
+        g.beginPath();
+        g.arc(X(o.x) + dx, Y(o.y), o.r * k, 0, Math.PI * 2);
+        g.stroke();
+      }
+    });
+  };
+  const { back: Bk, front: Fr, tone: To } = P;
+  // Dark carving behind, light strap on top: the field and rails, then each half of the plait.
+  stroke(Bk.strip, C.dark, lines);
+  loops(Bk.strip, C.dark);
+  stroke(Fr.strip, C.light, lines);
+  loops(Fr.strip, C.light);
+  for (const half of [plait.up, plait.down]) {
+    stroke(Bk.strip, C.dark, half);
+    stroke(Fr.strip, C.light, half);
+  }
+  // brush tone along the straps
+  g.globalCompositeOperation = 'source-atop';
+  for (let i = 0; i < To.count * ((W * H) / (512 * 512)); i++) {
+    g.fillStyle = `rgba(${r() < To.darkShare ? css(C.toneDark) : css(C.toneLight)},${vary(r, To.opacity)})`;
+    g.fillRect(r() * W, r() * H, vary(r, To.length), vary(r, To.width));
+  }
+  g.globalCompositeOperation = 'source-over';
+  const t = texture(c);
+  t.wrapT = THREE.ClampToEdgeWrapping; // one panel tall
+  return t;
+}
+
+/**
  * Curtain prints. 'valance': red-orange with yellow and green sprigs, as on the window valances in
  * the reference. 'sheer': pale peach with sparse orange sprigs, for the tied-back panels. One tile
  * is 0.5 m square (repeat 2).
