@@ -170,6 +170,11 @@ export const FINISH_SHADER = {
     saturation: { value: 1 },
     contrast: { value: 1 },
     midLift: { value: 1 }, // gamma: under 1 lifts the mid tones
+    // Clarity (local contrast, the HDR-photo look): each pixel's value is pushed away from the
+    // average around it, so detail shows in the darks and the lights alike. 0 is off.
+    clarity: { value: 0 },
+    clarityRadius: { value: 14 }, // px (CSS): the size of the neighbourhood
+    texel: { value: new THREE.Vector2(1, 1) }, // one CSS pixel in uv, set on resize
     view: { value: 0 },
   },
   vertexShader: VERTEX,
@@ -177,12 +182,29 @@ export const FINISH_SHADER = {
     #include <tonemapping_pars_fragment>
     uniform sampler2D tDiffuse;
     uniform vec3 blackLift, paper;
-    uniform float saturation, contrast, midLift, view;
+    uniform float saturation, contrast, midLift, view, clarity, clarityRadius;
+    uniform vec2 texel;
     varying vec2 vUv;
+    // Tone map (multiplies by toneMappingExposure) and encode one linear sample.
+    vec3 encoded(vec2 uv) {
+      vec3 c = NeutralToneMapping(texture2D(tDiffuse, uv).rgb);
+      return sRGBTransferOETF(vec4(clamp(c, 0.0, 1.0), 1.0)).rgb;
+    }
+    float luma(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }
     void main() {
-      vec3 c = NeutralToneMapping(texture2D(tDiffuse, vUv).rgb); // multiplies by toneMappingExposure
-      c = sRGBTransferOETF(vec4(clamp(c, 0.0, 1.0), 1.0)).rgb;
+      vec3 c = encoded(vUv);
       if (view < 0.5) {
+        if (clarity > 0.0) {
+          // The average value around the pixel: 8 samples on each of two rings (r and r / 2),
+          // the inner ring weighted twice, which keeps halos round the ink lines soft.
+          float around = 0.0;
+          for (int k = 0; k < 8; k++) {
+            float a = float(k) * 0.785398 + 0.39;
+            vec2 d = vec2(cos(a), sin(a)) * texel * clarityRadius;
+            around += luma(encoded(vUv + d)) + 2.0 * luma(encoded(vUv + 0.5 * d));
+          }
+          c = clamp(c + clarity * (luma(c) - around / 24.0), 0.0, 1.0);
+        }
         float l = dot(c, vec3(0.299, 0.587, 0.114));
         c = mix(vec3(l), c, saturation);
         c = pow(max(c, 0.0), vec3(midLift));

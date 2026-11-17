@@ -253,5 +253,7 @@ export const INTERIOR_THEME = {
     saturation: 0.62,
     contrast: 1.08,
     midLift: 0.86, // gamma under 1 lifts the mid tones: R2 keeps dark wood readable
+    clarity: 0, // local contrast (the HDR-photo look); 0 is off
+    clarityRadius: 14, // px: the neighbourhood clarity compares against
   },
 };

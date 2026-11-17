@@ -322,6 +322,7 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
     outline.setSize(w, h, renderer.getPixelRatio());
     pigment.uniforms.resolution.value.set(w * renderer.getPixelRatio(), h * renderer.getPixelRatio());
     pigment.uniforms.scale.value = renderer.getPixelRatio();
+    finish.uniforms.texel.value.set(1 / w, 1 / h);
     pigmentField.update(w * renderer.getPixelRatio(), h * renderer.getPixelRatio(), renderer.getPixelRatio(), seed);
     camera.aspect = w / h;
     // Keep R1's vertical view on wide screens; on narrow ones keep its horizontal view instead.

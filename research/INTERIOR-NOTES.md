@@ -319,6 +319,16 @@ OUTSIDE_SIGNOFF
       - They stay inside each object and move with it.
     - **First try, dropped:** strokes painted over the screen (`theme-detailed-strong`). The user saw them run across from one object to the next and look blurry, so they were taken out of the pigment pass.
     - **No blur:** `bleed` (wet-in-wet softening) is 0 in this theme; the original keeps it.
+    - **HDR-photo grade** (branch `theme-detailed-contrast`; the user found the theme too bland and asked for an HDR look, then slightly less contrast):
+      - Saturation 0.62 → 1.0, contrast 1.08 → 1.06, blackLift `#2e2420` → `#221812`, midLift 0.86 → 0.84.
+      - **Clarity 0.7:** a new grade step in `FINISH_SHADER` (`clarity`, `clarityRadius` 14 px). It pushes each pixel's value away from the average around it, taken from 16 samples on two rings. It is 0 in the original.
+      - A first try raised global contrast to 1.3 instead. It crushed the darks (darkest 5% at 17 of 255, against 40), so local contrast was used for the HDR look.
+      - **Measured** (`t=5&look=0,0`, mean over RGB):
+        - mean 100.2 → 99.4
+        - standard deviation 45.5 → 57.2
+        - darkest/brightest 5%: 40/203 → 18/206
+        - mean saturation 0.51 → 0.66
+        - neighbour-pixel difference 7.57 → 15.43
     - **Pigment field:** twice as fine (`paint.detail: 2`). Wash blotches are about 90 px instead of 180.
     - **Texture brushwork:** fine marks at 3× the count, 0.6× the width and 1.5× the opacity. These are streaks, grain lines, sheen, weathering, dye and carving tone. Wood blots, the lattice fade and knots are kept.
     - **Tried and dropped** (user: not what they wanted): heavy granulation, paper grain, tide lines, darker pooled edges.
