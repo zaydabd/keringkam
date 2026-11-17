@@ -15,7 +15,8 @@
 // Each material also holds its marks: the brushwork paint.js draws on its texture (the wood's grain,
 // the batik's patches, the curtains' streaks...). Sizes are in texture pixels; opacities 0-1.
 // In marks a plain number is fixed and a pair [from, by] is random, from `from` up to `from + by`
-// (so [60, 160] is 60 to 220). Counts are per texture tile.
+// (so [60, 160] is 60 to 220). Counts are per texture tile. Planks and curtains can also take
+// `dabs` (paint.js brushDabs: short brush strokes over the whole tile); the original has none.
 
 // --- 1. Swatches and marks ----------------------------------------------------------------------
 
@@ -243,11 +244,6 @@ export const INTERIOR_THEME = {
     bleed: 0.45, // wet-in-wet: edges softened where the pigment is wet
     shadowTint: '#8c88a4', // R2's shadows lean lavender-grey
     shadowTintAmount: 0.1,
-    // Brush strokes over the whole screen (watercolour.js), or null for none. Each stroke is a
-    // little lighter or darker than its neighbours (no blur):
-    // { contrast, cell px (about one stroke per cell, two layers), length and width px
-    //   [from, by], turn rad (from the direction around it) }.
-    strokes: null,
   },
 
   // Final grade, after tone mapping (watercolour.js FINISH_SHADER).

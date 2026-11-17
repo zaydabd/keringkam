@@ -312,23 +312,22 @@ OUTSIDE_SIGNOFF
     - `?theme=off` still means clay. Both give pixel-identical captures with a fixed clock and sway.
     - The clay grey moved from `outside/index.js` into `themes/clay.js`.
   - **detailed (Watercolour detail, branches `theme-detailed`, `theme-detailed-strong`):** `themes/interior-detailed.js`. The original painted with many more brush strokes. Colours, light, ink and grade are unchanged.
-    - **Brush strokes over the whole screen** (`paint.strokes`, null in the original):
-      - Two overlapping layers of short tapered strokes, one per 12 px cell each, about 15,000 on a 1240 × 900 screen.
-      - Each stroke is 18–34 px long and 5–9 px wide. It runs within ±0.35 rad of a slowly turning direction (45°–135°), and is up to ±20% lighter or darker than its neighbours.
-      - The strokes are drawn into the pigment field's blue channel, once per screen size. Each frame costs one multiply per pixel.
-    - **No blur.** The user asked for the blur to go:
-      - A first version dragged the colour along each stroke. It smeared the ink lines into ghost doubles, so it was removed.
-      - `bleed` (wet-in-wet softening) is 0 in this theme.
-      - The original keeps its bleed.
+    - **Brush dabs on the surfaces** (branch `theme-detailed-surface`, `paint.js` brushDabs, the theme's `dabs` marks; the original has none):
+      - Short tapered strokes painted into the wood (planks: walls, floor, ceiling, furniture, frames, table tops) and curtain textures, each a little lighter or darker than the paint under it.
+      - Planks: 1,600 per 1024 × 256 tile, along the grain. Curtains: 400 per 256 px tile, down the cloth.
+      - Size: 40–80 px long, 4–8 px wide, about 8–16 cm by 1–1.5 cm on the surface.
+      - They stay inside each object and move with it.
+    - **First try, dropped:** strokes painted over the screen (`theme-detailed-strong`). The user saw them run across from one object to the next and look blurry, so they were taken out of the pigment pass.
+    - **No blur:** `bleed` (wet-in-wet softening) is 0 in this theme; the original keeps it.
     - **Pigment field:** twice as fine (`paint.detail: 2`). Wash blotches are about 90 px instead of 180.
     - **Texture brushwork:** fine marks at 3× the count, 0.6× the width and 1.5× the opacity. These are streaks, grain lines, sheen, weathering, dye and carving tone. Wood blots, the lattice fade and knots are kept.
     - **Tried and dropped** (user: not what they wanted): heavy granulation, paper grain, tide lines, darker pooled edges.
-    - **View outside:** keeps the original textures, but it gets the screen strokes.
+    - **View outside:** keeps the original textures.
     - **Measured** (`t=5&look=0,0`):
       - Original stays pixel-identical (imgdiff max 0).
       - Triangles (327,813) and draw calls (61) are the same.
-      - Mean screen brightness is 105.3 in both.
-      - Mean neighbour-pixel difference goes from 7.89 to 10.88 (+38%).
+      - Mean screen brightness is 105.3 → 106.2.
+      - Mean neighbour-pixel difference goes from 7.89 to 10.09 (+28%).
 - **To add a theme:** copy `interior.js` and `outside.js` under new names, change the copies, and list them in `THEMES`. A theme that only changes a few values can spread the original instead, as `interior-detailed.js` does.
 
 ## Open issues

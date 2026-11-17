@@ -1,10 +1,11 @@
 // The detailed theme: the original look (themes/interior.js) painted with many more brush strokes.
 // Same colours, light, ink and grade; only these change:
-//   - brush strokes over the whole screen (STROKES): two overlapping layers of short tapered
-//     strokes, about one per 12 px cell in each (roughly 15,000 on a 1240 x 900 screen). Each one
-//     is a little lighter or darker than its neighbours, so every surface, the furniture and the
-//     view outside included, reads as painted stroke by stroke. Nothing is blurred: bleed (the
-//     wet-in-wet softening) is off too, so the image stays sharp;
+//   - brush dabs (DABS) on every wooden surface and every curtain: short tapered strokes, a
+//     little lighter or darker than the paint under them, about two layers deep over each texture
+//     tile (paint.js brushDabs). They are painted on the surfaces' own textures, so each stroke
+//     stays inside its object and moves with it (an earlier try painted them on the screen, where
+//     they ran across from one object to the next);
+//   - nothing is blurred: bleed (the wet-in-wet softening) is off;
 //   - the pigment field is twice as fine (detail 2): wash blotches about 90 px instead of 180;
 //   - the fine brushwork in the painted textures (FINE_MARKS: streaks, grain lines, dry-brush
 //     sheen, weathering, dye blots, brush tone along carved straps) is three times as dense, with
@@ -14,7 +15,13 @@
 
 import { INTERIOR_THEME as ORIGINAL } from './interior.js';
 
-const STROKES = { contrast: 0.2, cell: 12, length: [18, 16], width: [5, 4], turn: 0.35 };
+// Brush dabs per tile (paint.js brushDabs). Both tiles are about 512 px per metre, so a dab is
+// about 8-16 cm long and 1-1.5 cm wide on the surface.
+const DAB = { length: [40, 40], width: [4, 4], opacity: [0.08, 0.1], turn: 0.12, darkShare: 0.5 };
+const DABS = {
+  planks: { ...DAB, count: 1600, angle: 0 }, // 1024 x 256 tile (2 x 0.5 m), along the grain
+  curtains: { ...DAB, count: 400, angle: Math.PI / 2 }, // 256 px tile (0.5 m), down the cloth
+};
 
 /** The marks that are brushwork detail, and how they change: more, thinner, stronger strokes. */
 const FINE_MARKS = new Set(['streaks', 'lines', 'sheen', 'silver', 'checks', 'dye', 'tone']);
@@ -40,8 +47,13 @@ function moreBrushwork(value, key = '') {
   return copy;
 }
 
+/** Each texture's pattern with its brush dabs added. */
+const withDabs = (group, dabs) => Object.fromEntries(Object.entries(group).map(([k, t]) => [k, { ...t, pattern: { ...t.pattern, dabs } }]));
+
+const textures = moreBrushwork(ORIGINAL.textures);
+
 export const INTERIOR_THEME = {
   ...ORIGINAL,
-  textures: moreBrushwork(ORIGINAL.textures),
-  paint: { ...ORIGINAL.paint, detail: 2, bleed: 0, strokes: STROKES },
+  textures: { ...textures, planks: withDabs(textures.planks, DABS.planks), curtains: withDabs(textures.curtains, DABS.curtains) },
+  paint: { ...ORIGINAL.paint, detail: 2, bleed: 0 },
 };

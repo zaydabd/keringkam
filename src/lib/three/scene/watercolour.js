@@ -38,9 +38,6 @@ export const PIGMENT_SHADER = {
     bleed: { value: 0 }, // wet-in-wet: edges softened where the pigment is wet
     shadowTint: { value: new THREE.Color('#ffffff') }, // the hue shadows lean towards
     shadowTintAmount: { value: 0 },
-    // Brush strokes (the field's blue, see PIGMENT_FIELD_SHADER), off by default: how much lighter
-    // or darker each stroke is than its neighbours.
-    strokeContrast: { value: 0 },
     exposure: { value: 1.85 }, // set from the meter: tone thresholds are judged on exposed values
     view: { value: 0 }, // 0 final, 1 pigment field, 2 edge field, 3 bleed field
   },
@@ -49,7 +46,6 @@ export const PIGMENT_SHADER = {
     uniform sampler2D tDiffuse, tField;
     uniform vec2 resolution;
     uniform float scale, washVariation, granulation, edgeDarkening, bleed, shadowTintAmount, view, exposure;
-    uniform float strokeContrast;
     uniform vec3 shadowTint;
     varying vec2 vUv;
     // Luminance as it will be shown, relative to the exposure the thresholds were tuned at (1.85).
@@ -58,7 +54,7 @@ export const PIGMENT_SHADER = {
     void main() {
       vec2 px = 1.0 / resolution;
       // Field 1, pigment density, and the paper tooth: precomputed (PIGMENT_FIELD_SHADER).
-      vec4 field = texelFetch(tField, ivec2(gl_FragCoord.xy), 0);
+      vec2 field = texelFetch(tField, ivec2(gl_FragCoord.xy), 0).rg;
       float pigment = field.x;
 
       vec3 base = texture2D(tDiffuse, vUv).rgb;
@@ -85,9 +81,6 @@ export const PIGMENT_SHADER = {
         }
         col = mix(base, soft / 8.0, bleed * wet);
       }
-      // Brush strokes: each is a little lighter or darker than the next (field.b, 0.5 = none).
-      // No blur: the image stays sharp, only its value changes stroke by stroke.
-      col *= 1.0 + strokeContrast * (field.b - 0.5) * 2.0;
 
       float lum = luma(col);
       // Shadows lean lavender-grey; lights keep their warm colour.
@@ -112,55 +105,11 @@ export const PIGMENT_SHADER = {
 // value-noise lookups (56 sines) per pixel per frame. 8 bits per channel is enough: one step is
 // 0.4% of the field's range. ?debug=paint-pigment shows the field.
 const PIGMENT_FIELD_SHADER = {
-  uniforms: {
-    scale: { value: 1 },
-    seed: { value: 0 },
-    detail: { value: 1 },
-    // Brush strokes (createPigmentField's strokes): 0 cell draws none.
-    strokeCell: { value: 0 }, // px: about one stroke per cell, per layer
-    strokeLength: { value: new THREE.Vector2(24, 12) }, // px, [from, by]
-    strokeWidth: { value: new THREE.Vector2(5, 3) }, // px, [from, by]
-    strokeTurn: { value: 0.5 }, // rad: how far a stroke turns from the direction around it
-  },
+  uniforms: { scale: { value: 1 }, seed: { value: 0 }, detail: { value: 1 } },
   vertexShader: VERTEX,
   fragmentShader: /* glsl */ `
-    uniform float scale, seed, detail, strokeCell, strokeTurn;
-    uniform vec2 strokeLength, strokeWidth;
+    uniform float scale, seed, detail;
     ${NOISE}
-    // The direction strokes run in around p: slowly changing, between 45 and 135 degrees.
-    float flowAngle(vec2 p) { return 3.14159265 * (0.25 + 0.5 * fbm(p / 350.0 + 21.0)); }
-
-    // One layer of strokes: on a grid of cells, each cell holds one stroke (a capsule) with its own
-    // centre, length, width, turn and value; where they overlap, the one with the higher rank lies
-    // on top. Returns (value -1..1, cover).
-    vec2 strokeLayer(vec2 p, float layer) {
-      vec2 cell = floor(p / strokeCell);
-      vec2 top = vec2(0.0);
-      float rank = -1.0;
-      for (int j = -2; j <= 2; j++) {
-        for (int i = -2; i <= 2; i++) {
-          vec2 c = cell + vec2(i, j) + layer * 101.0;
-          vec2 centre = (cell + vec2(i, j) + vec2(hash(c), hash(c + 3.1))) * strokeCell;
-          float a = flowAngle(centre) + (hash(c + 5.3) - 0.5) * 2.0 * strokeTurn;
-          vec2 q = p - centre;
-          vec2 local = vec2(dot(q, vec2(cos(a), sin(a))), dot(q, vec2(-sin(a), cos(a))));
-          float halfLength = 0.5 * (strokeLength.x + hash(c + 8.7) * strokeLength.y);
-          float halfWidth = 0.5 * (strokeWidth.x + hash(c + 2.9) * strokeWidth.y);
-          // Capsule, slightly tapered towards its tail.
-          float taper = mix(1.0, 0.55, smoothstep(-halfLength, halfLength, -local.x));
-          float d = length(vec2(max(abs(local.x) - halfLength, 0.0), local.y / taper));
-          float cover = 1.0 - smoothstep(halfWidth - 1.0, halfWidth, d);
-          float r = hash(c + 11.9);
-          if (cover > 0.0 && r > rank) {
-            rank = r;
-            float v = hash(c + 7.7);
-            top = vec2((v < 0.5 ? -1.0 : 1.0) * (0.4 + 0.6 * fract(v * 2.0)) * cover, cover);
-          }
-        }
-      }
-      return top;
-    }
-
     void main() {
       vec2 fc = gl_FragCoord.xy / scale + seed * vec2(613.0, 271.0);
       // Pigment density: domain-warped, two bands (~180 px blotches, ~45 px mottle at detail 1;
@@ -170,35 +119,20 @@ const PIGMENT_FIELD_SHADER = {
       float pigment = fbm(d / 180.0 + w * 1.6) * 0.7 + fbm(d / 45.0 + w) * 0.3;
       // Paper tooth for the granulation.
       float tooth = noise(fc * 0.9) * 0.6 + noise(fc * 0.33 + 4.0) * 0.4;
-      // Brush strokes: two offset layers, the upper one wins where they overlap.
-      float stroke = 0.5; // the stroke's value, 0.5 = none
-      if (strokeCell > 0.0) {
-        vec2 under = strokeLayer(fc, 0.0);
-        vec2 over = strokeLayer(fc + strokeCell * 0.5, 1.0);
-        stroke = 0.5 + 0.5 * (over.y > 0.0 ? over.x : under.x);
-      }
-      gl_FragColor = vec4(pigment, tooth, stroke, 1.0);
+      gl_FragColor = vec4(pigment, tooth, 0.0, 1.0);
     }
   `,
 };
 
 /** The pigment pass's field texture. Call update() when the drawing buffer's size changes; seed
  * moves the field (?seed=n), for seed sweeps. detail scales how fine the wash blotches are (the
- * theme's paint.detail: 1 as drawn, 2 twice as fine); strokes (the theme's paint.strokes, or null
- * for none) lays brush strokes into the field's blue. */
-export function createPigmentField(renderer, { detail = 1, strokes = null } = {}) {
+ * theme's paint.detail: 1 as drawn, 2 twice as fine). */
+export function createPigmentField(renderer, { detail = 1 } = {}) {
   const target = new THREE.WebGLRenderTarget(1, 1, { type: THREE.UnsignedByteType, depthBuffer: false });
   target.texture.minFilter = target.texture.magFilter = THREE.NearestFilter;
   target.texture.generateMipmaps = false;
   const material = new THREE.ShaderMaterial({ ...PIGMENT_FIELD_SHADER, uniforms: THREE.UniformsUtils.clone(PIGMENT_FIELD_SHADER.uniforms) });
   material.uniforms.detail.value = detail;
-  if (strokes) {
-    const u = material.uniforms;
-    u.strokeCell.value = strokes.cell;
-    u.strokeLength.value.fromArray(strokes.length);
-    u.strokeWidth.value.fromArray(strokes.width);
-    u.strokeTurn.value = strokes.turn;
-  }
   const quad = new FullScreenQuad(material);
   return {
     texture: target.texture,

@@ -66,6 +66,41 @@ function blot(g, W, x, y, rx, ry, rgb, a) {
 }
 
 /**
+ * Brush dabs: short tapered strokes laid side by side over a tile, each a little lighter or darker
+ * than the paint under it, so the surface reads as painted stroke by stroke. They are painted on
+ * the surface's own texture, so they stay inside each object and move with it. Drawn wrapped
+ * across every edge of the tile. D (a theme's `dabs` marks): count, length and width (px), opacity,
+ * angle (rad, 0 = along the tile's x), turn (rad, how far each one turns from it), darkShare.
+ * colours: [dark, light] (hex).
+ */
+function brushDabs(g, W, H, r, D, [dark, light]) {
+  for (let i = 0; i < D.count; i++) {
+    const x = r() * W;
+    const y = r() * H;
+    const length = vary(r, D.length);
+    const half = vary(r, D.width) / 2;
+    const angle = D.angle + (r() - 0.5) * 2 * D.turn;
+    g.fillStyle = `rgba(${css(r() < D.darkShare ? dark : light)},${vary(r, D.opacity)})`;
+    for (const dy of [-H, 0, H]) {
+      wrapX(W, (dx) => {
+        g.save();
+        g.translate(x + dx, y + dy);
+        g.rotate(angle);
+        // A loaded brush: a round head that thins to a dry tail.
+        g.beginPath();
+        g.moveTo(-length / 2, 0);
+        g.quadraticCurveTo(-length / 4, -half * 0.5, length / 4, -half);
+        g.quadraticCurveTo(length / 2, -half, length / 2, 0);
+        g.quadraticCurveTo(length / 2, half, length / 4, half);
+        g.quadraticCurveTo(-length / 4, half * 0.5, -length / 2, 0);
+        g.fill();
+        g.restore();
+      });
+    }
+  }
+}
+
+/**
  * Wood planks. One tile is 2 m along the grain (canvas x) by 0.5 m across (canvas y), so with
  * UVs in metres the texture repeat is (0.5, 2). The pattern (themes/interior.js WOOD.grainMarks)
  * sets how many marks of each kind and how big and strong they are; a pattern with `weathering`
@@ -185,6 +220,7 @@ export function paintPlanks(seed = 1, { colours: C, pattern: P }) {
       x += w + Sh.gap[0] + r() * Sh.gap[1];
     }
   }
+  if (P.dabs) brushDabs(g, W, H, r, P.dabs, [C.streakDark, C.streakLight]);
   return texture(c, [0.5, 2]);
 }
 
@@ -440,6 +476,7 @@ export function paintCurtain(seed = 12, { colours: C, pattern: P }) {
     g.fillStyle = r() < St.darkShare ? `rgba(${css(C.streaks[0])},${vary(r, St.darkOpacity)})` : `rgba(${css(C.streaks[1])},${vary(r, St.lightOpacity)})`;
     g.fillRect(r() * S, 0, vary(r, St.width), S);
   }
+  if (P.dabs) brushDabs(g, S, S, r, P.dabs, C.streaks);
   if (P.hem) {
     g.fillStyle = `rgba(${css(C.hem)},${P.hem.opacity})`;
     g.fillRect(0, S - P.hem.fromBottom, S, P.hem.height);
