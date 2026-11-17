@@ -30,7 +30,6 @@
 
   <header>
     <a class="mark" href="#/">Keringkam</a>
-    <nav><a href="#/">Gallery</a><a href="#/veranda">Veranda</a></nav>
   </header>
 
   <button class="shot" type="button" onclick={() => scene?.setShot(shot === 'seat' ? 'window' : 'seat')}>
@@ -91,19 +90,6 @@
   .mark {
     font-family: var(--serif);
     font-size: 26px;
-  }
-  nav {
-    display: flex;
-    gap: 28px;
-    font-size: 13px;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-  }
-  nav a {
-    opacity: 0.75;
-  }
-  nav a:hover {
-    opacity: 1;
   }
   .shot {
     position: absolute;
