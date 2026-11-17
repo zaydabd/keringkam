@@ -206,22 +206,30 @@ export const INTERIOR_THEME = {
     // the meter sat on its upper limit (1.85) in every view.
     level: 1.75,
     exposureEV: 0, // stops of compensation on top of the metered exposure
+    // The room's only openings are the back windows and the side window: each light stands for
+    // one of them, or for what bounces round the room (interior.js). Shadow softness is the blur
+    // of a shadow's edge, in shadow-map texels.
     // Sun behind the window wall, high enough that the patches fall just inside the windows.
-    sun: { color: '#ffe6c4', intensity: 3.2 },
-    bounce: { sky: '#fff2e4', ground: '#5a443a', intensity: 2.2 }, // warm bounce off the floor and walls
-    fill: { color: '#ffd6ac', intensity: 0.55, shadowSoftness: 4 }, // soft light from the room behind the camera; its shadow's blur (shadow-map texels)
+    sun: { color: '#ffe6c4', intensity: 3.2, shadowSoftness: 3 },
+    // The sky through the back windows. `from` points at it from the room: low, a little to the left.
+    sky: { color: '#f6f0e4', intensity: 1.5, from: [-0.25, 0.62, -1], shadowSoftness: 6 },
+    // The sky through the side window: a lamp `outside` metres beyond the wall, reaching `reach` metres.
+    side: { color: '#fff4e4', intensity: 11, outside: 1.5, reach: 7, shadowSoftness: 6 },
+    bounce: { sky: '#fff2e4', ground: '#5a443a', intensity: 1.3 }, // warm bounce off the floor and walls, from all round
     // Ambient occlusion (ao.js, three.js GTAOPass): radius in metres; the rest are GTAOPass's own settings.
-    ao: { intensity: 1, radius: 1.5, distanceExponent: 1, thickness: 2, scale: 2 },
+    ao: { intensity: 1, radius: 0.6, distanceExponent: 1, thickness: 1, scale: 1.3 },
     // Curtains lit from behind (emissive strength, times the level above).
     glow: { valance: 0.25, sheer: 0.12, white: 0.35 },
     // Polished boards mirror the bright windows (glossBoards in interior/surfaces.js).
     gloss: {
       window: [1.0, 0.74, 0.46], // the windows' colour in the boards (linear)
-      floor: { strength: 1.45, falloff: 0.62 },
+      floor: { strength: 1.45, falloff: 0.62, plankVariation: 3 }, // plankVariation: how much one board's polish differs from the next
       top: { strength: 1.5 },
     },
     // The soft shadows painted under the furniture: the patch, and a darker one right under each piece.
-    contactShadow: { color: '#24140e', opacity: 0.9, core: 0.75 },
+    contactShadow: { color: '#24140e', opacity: 0.8, core: 0.65 },
+    // The window wall is the one wall the windows cannot light: it keeps this much of its colour.
+    windowWallShade: 0.84,
   },
 
   // Soft painted ramp (R2): lavender-grey shade, warm half-tones, cream light, blended not stepped.

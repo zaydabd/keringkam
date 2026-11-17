@@ -19,7 +19,8 @@
 //   debug = nopost | flat | silhouette | paint-pigment | paint-edge | paint-bleed | gloss | meter
 //           | water-normal | water-fresnel | water-filter | water-reflection | water-body
 //           | water-crest | water-lost | tree-level | tree-kind
-//   off   = ink, pigment, grade, outside (comma-separated: switches those off)
+//   off   = ink, pigment, grade, outside, ao, contact, gloss (comma-separated: switches those off),
+//           the lights: sun, sky, side, bounce, and skyshadow (the sky light casts no shadow)
 //   cam   = design (default) | near | far      look = x,y (fixes the pointer sway, -1..1)
 //   view  = seat (default) | window (start in that camera shot; SHOTS below)
 //   seed  = n (moves the pigment field and the painted textures)
@@ -150,32 +151,58 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
   const C = PLAN.camera;
   const camera = new THREE.PerspectiveCamera(C.fov, C.aspect, 0.2, 1600); // at 0.05 the big ground plane outside drew over the near floor on tall screens
 
-  // Light: sun behind the window wall, high enough that the patches fall just inside the windows.
+  // Light. The room's only openings are the three back windows and the side window, so every
+  // light stands for one of them or for what bounces round the room (themes/interior.js light):
+  //   sun    through the back windows: hard patches on the boards just inside them
+  //   sky    through the back windows: soft, low light towards the viewer, so the room is backlit
+  //   side   sky through the side window: a pool of soft light across the foreground
+  //   bounce what the boards and walls give back, from all round (no shadow; the AO pass stands in)
   const sun = new THREE.DirectionalLight(L.sun.color, L.sun.intensity * LIGHT);
   sun.target.position.set(-1, 0, -4);
   sun.position.set(-4, 11, -14);
   sun.castShadow = true;
   sun.shadow.mapSize.set(2048, 2048);
   Object.assign(sun.shadow.camera, { left: -7, right: 7, top: 7, bottom: -7, near: 1, far: 40 });
+  sun.shadow.radius = L.sun.shadowSoftness;
   sun.shadow.bias = -0.0005;
   sun.shadow.normalBias = 0.02;
-  const hemi = new THREE.HemisphereLight(L.bounce.sky, L.bounce.ground, L.bounce.intensity * LIGHT); // warm bounce off the floor and walls
-  const fill = new THREE.DirectionalLight(L.fill.color, L.fill.intensity * LIGHT); // soft light from the room behind the camera
-  fill.position.set(1.5, 2.5, 4);
-  // The fill's soft shadow: only the furniture casts it (FURNITURE_LAYER), so the room's own walls
-  // and ceiling, which stand between this light and everything, do not put the room in the dark.
-  // It shades the floor under the seats and the legs behind the seats' fronts.
+  const hemi = new THREE.HemisphereLight(L.bounce.sky, L.bounce.ground, L.bounce.intensity * LIGHT);
+  // The sky: one direction stands for the three windows. Only the furniture casts its shadow
+  // (FURNITURE_LAYER): the window wall would otherwise shut it out, as one direction cannot go
+  // round the wall the way the whole sky does. Its shadows fall towards the viewer.
   const FURNITURE_LAYER = 4;
-  fill.castShadow = true;
-  fill.shadow.mapSize.set(1024, 1024);
-  Object.assign(fill.shadow.camera, { left: -6, right: 6, top: 6, bottom: -6, near: 0.1, far: 16 });
-  fill.shadow.camera.layers.set(FURNITURE_LAYER);
-  fill.shadow.radius = L.fill.shadowSoftness;
-  fill.shadow.bias = -0.0005;
-  fill.shadow.normalBias = 0.02;
-  scene.add(sun, sun.target, hemi, fill);
+  const sky = new THREE.DirectionalLight(L.sky.color, L.sky.intensity * LIGHT);
+  sky.target.position.set(-0.7, 0.4, -3.4); // the middle of the furniture
+  sky.position.copy(sky.target.position).addScaledVector(V(...L.sky.from).normalize(), 8);
+  sky.castShadow = !off.has('skyshadow');
+  sky.shadow.mapSize.set(1024, 1024);
+  Object.assign(sky.shadow.camera, { left: -3.4, right: 3.4, top: 3.4, bottom: -3.4, near: 0.5, far: 16 });
+  sky.shadow.camera.layers.set(FURNITURE_LAYER);
+  sky.shadow.radius = L.sky.shadowSoftness;
+  sky.shadow.bias = -0.0005;
+  sky.shadow.normalBias = 0.02;
+  // The side window: a lamp outside it, shining in. The wall casts its shadow (SIDE_LAYER: walls,
+  // frames and furniture, not the curtain that hangs in the opening), so the light keeps the
+  // window's shape, widens across the room and fades with distance.
+  const SIDE_LAYER = 5;
+  const sw = PLAN.sideWindow;
+  const side = new THREE.SpotLight(L.side.color, L.side.intensity * LIGHT, L.side.reach, 0.62, 0.5, 2);
+  side.position.set(PLAN.room.x1 + L.side.outside, 1.7, (sw.z0 + sw.z1) / 2);
+  side.target.position.set(PLAN.room.x1 - 2.2, 0.2, (sw.z0 + sw.z1) / 2 - 0.25);
+  side.castShadow = true;
+  side.shadow.mapSize.set(1024, 1024);
+  side.shadow.camera.near = 0.5;
+  side.shadow.camera.far = L.side.reach;
+  side.shadow.camera.layers.set(SIDE_LAYER);
+  side.shadow.radius = L.side.shadowSoftness;
+  side.shadow.bias = -0.0008;
+  side.shadow.normalBias = 0.02;
+  const lights = { sun, sky, side, bounce: hemi };
+  scene.add(sun, sun.target, sky, sky.target, side, side.target, hemi);
+  // ?off=sun,sky,side,bounce switches lights off, to see what each one does (one alone: the others off).
+  for (const [name, light] of Object.entries(lights)) if (off.has(name)) light.intensity = 0;
   if (clay) {
-    for (const c of [sun.color, hemi.color, hemi.groundColor, fill.color]) neutral(c);
+    for (const c of [sun.color, sky.color, side.color, hemi.color, hemi.groundColor]) neutral(c);
     scene.background = new THREE.Color(CLAY_LOOK.colour).multiplyScalar(LIGHT);
   }
 
@@ -232,8 +259,8 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
     }
   }
 
-  if (!clay) {
-    shadeWalls(materials.wall, PLAN.room.top);
+  if (!clay) shadeWalls(materials.wall, PLAN.room.top, L.windowWallShade);
+  if (!clay && !off.has('gloss')) {
     const { window: windowGloss } = L.gloss;
     glossBoards(materials.floor, { window: windowGloss, ...L.gloss.floor, light: LIGHT, view: debug === 'gloss' });
     glossBoards(materials.top, { window: windowGloss, ...L.gloss.top, light: LIGHT, view: debug === 'gloss' });
@@ -264,12 +291,14 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
     }
     if (['leaf', 'decor'].includes(mesh.name)) mesh.castShadow = mesh.name === 'leaf';
     if (['wood', 'top', 'carve'].includes(mesh.name)) mesh.layers.enable(FURNITURE_LAYER);
+    if (['wood', 'top', 'carve', 'wall', 'frame'].includes(mesh.name)) mesh.layers.enable(SIDE_LAYER);
     if (['lattice', 'carve', 'sheer', 'white'].includes(mesh.name)) mesh.userData.noAO = true; // cut-outs and sheer cloth (ao.js)
   }
   scene.add(room);
-  const contact = buildContactShadows(textures.blob);
+  const contact = buildContactShadows(textures.blob, sky.target.position.clone().sub(sky.position)); // they fall the way the sky's light travels
   scene.add(contact.group);
   room.visible = contact.group.visible = !stage;
+  if (off.has('contact')) contact.group.visible = false;
   if (clay) contact.group.visible = false; // painted shadows: the clay render shows only the sun's
 
   // Outside: the Sarawak River at Kuching (outside/index.js). ?off=outside hides it (the windows

@@ -681,3 +681,42 @@ builds the far bank only. Reference: R3's foreground (mud flat, bush mass on the
 Seeds 0, 1 and 2 pass every check. Frame time was not measured (software renderer).
 Remaining divergences from R3: the bush mass is smaller and sits further left; R3's mud is a
 warmer, darker brown in its shadowed parts; the seat view does not show the near bank.
+
+### Pass l1: light and shadows that follow the room (2026-11-17, branch `light-audit`)
+
+**The rig.** The room's only openings are the three back windows (z = -5.5) and the side window
+(right wall, z -2.45 to -1.45). Every light now stands for one of them, or for the bounce
+(`themes/interior.js` `light`, `interior.js`):
+
+| Light | Stands for | Shadow |
+|---|---|---|
+| sun | sun through the back windows, 46.5° high | all geometry, edge blur 3 texels |
+| sky (new) | sky through the back windows, low, towards the viewer: the room is backlit | furniture only (layer 4), blur 6 |
+| side (new) | sky through the side window (spot light) | furniture, walls, frames (layer 5), blur 6 |
+| bounce | hemisphere light, what the boards and walls give back | none (AO stands in) |
+
+Removed: the fill light. It stood behind the camera, where the wall is solid, and threw the
+furniture's shadows towards the windows, the opposite way to the painted contact shadows.
+The window wall keeps 0.84 of its colour (`windowWallShade`): no window can light it.
+Audit switch: `?off=sun,sky,side,bounce,skyshadow,ao,contact,gloss`.
+
+**Other changes.** Contact shadows are pulled along the sky light's direction on the floor
+(computed from the light), opacity 0.9 → 0.8, core 0.75 → 0.65. AO radius 1.5 → 0.6, thickness
+2 → 1, scale 2 → 1.3 (the first retune was too wide).
+
+**Square patches on the floor.** They came from the floor's painted window reflection
+(`glossBoards`): the furniture that hides the reflection was a set of boxes with hard edges, and
+each board's polish varied ×6. Now each blocker is a soft sheet whose edge widens with distance
+and along the ray, and the board variation is ×3.
+
+**Measured (seat view, mean HLS lightness by region, `lastats.py`, before → after):** whole
+0.350 → 0.370; back wall 0.248 → 0.269; right wall 0.273 → 0.317; floor mid 0.487 → 0.454; floor
+fore 0.368 → 0.369; under table 0.131 → 0.202; under chair 0.111 → 0.212. Metered exposure
+1.292 → 1.285 (seat), 1.85 unchanged (window). The view outside moved less than 1.5/255.
+
+**Cost (SwiftShader software GL, not a real GPU; `perf-run.cjs`):** seat view median frame
+856 → 1063 ms, scene pass 535 → 717 ms; window view 609 → 672 ms. The sky shadow alone is about
+10% of the frame here (`off=skyshadow`: 1062 vs 1187 ms); kept, because without it the
+furniture floats.
+
+**Left for later:** baking the shadows and AO; the AO band along the curtain edge.
