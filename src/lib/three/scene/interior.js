@@ -2,8 +2,7 @@
 // reference photo the user supplied (R1, research/INTERIOR-NOTES.md): the sitting room of a
 // Sarawak Malay house, looking at the window wall. Dark red-brown board walls, full-height windows
 // with lattice panels at the bottom, pleated floral valances and tied-back sheer curtains, golden
-// wood settee, armchairs and tables, woven hangings on the side wall, and a red cloth stretched on
-// an embroidery frame in the foreground (plain cloth: no keringkam motif yet).
+// wood settee, armchairs and tables, and woven hangings on the side wall.
 // It is a rendition, not a copy. Sizes are estimated from the photo (see PLAN).
 //
 // Structure (after .claude/skills/threejs-procedural-architecture): PLAN holds every size in
@@ -36,7 +35,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { toonGradient, createOutline } from './toon.js';
-import { paintPlanks, paintLattice, paintCurtain, paintCloth, paintDecor, paintGlow } from './paint.js';
+import { paintPlanks, paintLattice, paintCurtain, paintDecor, paintGlow } from './paint.js';
 import { createOutside, OBJECTS, MIRROR_LAYER, CLAY } from './outside/index.js';
 import { PIGMENT_SHADER, FINISH_SHADER, createPigmentField } from './watercolour.js';
 import { createMeter } from './meter.js';
@@ -49,7 +48,6 @@ import { buildRoom } from './interior/room.js';
 import { buildLattice } from './interior/lattice.js';
 import { buildCurtains } from './interior/curtains.js';
 import { buildSeat, furnitureOverlaps, buildTable } from './interior/furniture.js';
-import { buildEmbroideryFrame } from './interior/frame.js';
 import { buildHangings } from './interior/hangings.js';
 import { buildVines } from './interior/vines.js';
 import { shadeWalls, glossBoards, buildContactShadows } from './interior/surfaces.js';
@@ -180,7 +178,6 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
     carve: paintLattice(17, T.lattice),
     valance: paintCurtain(12 + seed, T.curtains.valance),
     sheer: paintCurtain(16 + seed, T.curtains.drape),
-    cloth: paintCloth(13 + seed, T.cloth),
     pale: paintCurtain(31 + seed, T.curtains.pale),
     decor: paintDecor(14, T.decor),
     blob: paintGlow('round'),
@@ -206,12 +203,9 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
     ['valance', M.valance, textures.valance, { side: D, emissive: G.valance, emissiveMap: textures.valance, emissiveIntensity: L.glow.valance }], // lit from behind
     ['sheer', M.sheer, textures.sheer, { side: D, emissive: G.sheer, emissiveMap: textures.sheer, emissiveIntensity: L.glow.sheer }],
     ['white', M.white, textures.pale, { side: D, emissive: G.white, emissiveMap: textures.pale, emissiveIntensity: L.glow.white }],
-    ['cloth', M.cloth, textures.cloth, { side: D, emissive: G.cloth, emissiveMap: textures.cloth, emissiveIntensity: L.glow.cloth }],
     ['decor', M.decor, textures.decor, { side: D }],
     ['plate', M.plate, null],
     ['leaf', M.leaf, null, { side: D }],
-    ['tape', M.tape, null],
-    ['bag', M.bag, null],
   ]) {
     if (clay) {
       // Plain grey, lit as it is; the lattice and carving keep their holes (their texture as a mask).
@@ -230,9 +224,9 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
 
   if (!clay) {
     shadeWalls(materials.wall, PLAN.room.top);
-    const { window: windowGloss, clothTint } = L.gloss;
-    glossBoards(materials.floor, { window: windowGloss, clothTint, ...L.gloss.floor, light: LIGHT, view: debug === 'gloss' });
-    glossBoards(materials.top, { window: windowGloss, clothTint, ...L.gloss.top, light: LIGHT, view: debug === 'gloss' });
+    const { window: windowGloss } = L.gloss;
+    glossBoards(materials.floor, { window: windowGloss, ...L.gloss.floor, light: LIGHT, view: debug === 'gloss' });
+    glossBoards(materials.top, { window: windowGloss, ...L.gloss.top, light: LIGHT, view: debug === 'gloss' });
   }
   const b = new Builder();
   // Each object rolls its own dice (interior/builder.js), so this order does not change the look.
@@ -244,7 +238,6 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
   for (const t of PLAN.tables) buildTable(b, t);
   const overlaps = furnitureOverlaps();
   if (overlaps.length) console.warn('furniture overlaps:', overlaps.join('; '));
-  buildEmbroideryFrame(b.as('frame'));
   buildHangings(b.as('hangings'));
   buildVines(b.as('vines'));
   const room = new THREE.Group();
@@ -259,7 +252,7 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
       mesh.layers.set(1);
       if (mesh.name === 'lattice') mesh.layers.enable(3); // and masks the ink of the view behind it (toon.js)
     }
-    if (['leaf', 'cloth', 'decor'].includes(mesh.name)) mesh.castShadow = mesh.name === 'leaf';
+    if (['leaf', 'decor'].includes(mesh.name)) mesh.castShadow = mesh.name === 'leaf';
   }
   scene.add(room);
   const contact = buildContactShadows(textures.blob);

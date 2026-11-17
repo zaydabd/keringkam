@@ -163,7 +163,6 @@ Every signal has one producer; every pass has a way to switch it off.
   - The pigment field is fixed to the screen (see Fields).
   - Foreground floor lighter and middle floor darker than R2.
   - Wall boards vary less than R2's.
-  - The bag on the frame is a plain dark ball (seen in `cam=far`). It is an R1 item with no counterpart in R2.
   - On phones the exposure sits at its limit.
 
 ## Outside the windows (branch `window-view`)
@@ -280,15 +279,20 @@ Two photos supplied by the user: P1 a front view from the river, P2 a raised vie
 
 OUTSIDE_SIGNOFF
 
+## Model polish (branch `polish-reshape`)
+
+- **Embroidery frame removed** (user's choice), with its bag, red cloth, the cloth's mirror image in the floor and its painted shadow. A third armchair stands in its place (PLAN.chairs, foreground right, turned like the right chair).
+- **Rounded edges:** every furniture box part is a rounded box (`roundedBoxWithGrainUVs` in `interior/builder.js`, after three.js's RoundedBoxGeometry, one segment), radius 6 mm or a quarter of the part's thinnest side. Same wood-grain UVs, same materials, so no extra draw calls.
+- **Cost** (final view, all passes): 288k → 310k triangles; 67 → 61 draw calls (three materials fewer).
+
 ## Open issues
 - [ ] R2 look: see "Known defects" in the sign-off record above.
 
 - [ ] The floor sheen is still weaker than in R1, where the reflections dominate the left half of the floor.
 - [ ] The wall hangings are a neat diamond grid. In R1 they are a looser cluster, with greenery tucked in.
-- [ ] R1's left armchair has a solid curved back. Ours are the same as the right chair.
+- [x] R1's left armchair has a solid curved back; the user chose to keep all armchairs the same (branch `polish-reshape`).
 - [ ] No tested phone view yet. The resize logic keeps the horizontal FOV on narrow screens.
 - [ ] Source and licence of R1, for credit.
-- [ ] No keringkam on the cloth yet (on purpose).
 
 
 # Archive: the longhouse veranda (replaced 2026-11-10)

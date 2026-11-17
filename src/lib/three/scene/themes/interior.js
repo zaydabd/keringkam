@@ -13,7 +13,7 @@
 // the hue. Arrays of three numbers are linear multipliers used in shaders, as noted.
 //
 // Each material also holds its marks: the brushwork paint.js draws on its texture (the wood's grain,
-// the batik's patches, the crimson cloth's creases...). Sizes are in texture pixels; opacities 0-1.
+// the batik's patches, the curtains' streaks...). Sizes are in texture pixels; opacities 0-1.
 // In marks a plain number is fixed and a pair [from, by] is random, from `from` up to `from + by`
 // (so [60, 160] is 60 to 220). Counts are per texture tile.
 
@@ -83,8 +83,6 @@ const FABRIC = {
   undyed: '#ffffff', // cloth whose colour is all in its painted texture (no tint)
   white: '#fffaf2', // pale curtains
   whiteGlow: '#fff4e4', // and the light through them
-  tape: '#2f5f6a', // lacing tapes on the embroidery frame
-  bag: '#2c2420', // the cloth bag by the frame
   // Curtain batik (paintCurtain), after R2: hand-painted patches on a dyed ground.
   valance: {
     ground: '#94412a', // rust
@@ -121,28 +119,7 @@ const FABRIC = {
       hem: null,
     },
   },
-  // The red cloth on the embroidery frame (paintCloth): deep crimson with creases and gold bands.
-  crimson: {
-    ground: '#b3242a',
-    blots: ['#820e18', '#ec544a'], // darker, lighter
-    creases: ['#6e0a14', '#ff826e'], // dark crease, its light edge
-    weave: '#5a0010', // fine horizontal threads
-    bandShade: '#781014', // the band sits on slightly darker cloth
-    gold: '#e2b860', // ruled lines
-    goldLight: '#edc978', // diamonds and dots
-  },
-  crimsonMarks: {
-    blots: { count: 22, length: [40, 90], width: [30, 60], opacity: [0.1, 0.12], darkShare: 0.55 },
-    // long soft diagonal creases, dark with a light edge; angle in radians, bend in px
-    creases: { count: 9, length: [80, 180], angle: [-0.5, 1.0], width: [2, 3], darkOpacity: [0.16, 0.12], edgeOpacity: [0.1, 0.1], edgeOffset: 3, bend: 24 },
-    weave: { spacing: 2, thread: 1, opacity: [0.03, 0.04] }, // fine horizontal threads
-    // the gold band across each end (R2)
-    band: {
-      inset: 34, width: 58, shadeMargin: 4, shadeOpacity: 0.35,
-      rules: [[0, 2.5], [5, 1.5], [53, 1.5], [58, 2.5]], ruleMargin: 10, // ruled lines: [x in the band, width]
-      rows: { from: 22, every: 20, endMargin: 14, diamond: 7, hole: 3, dots: [14, 42], dotDrop: 9, dot: 3 }, // diamonds with a hole, and dots
-    },
-  },
+
   // Woven mats on the wall (paintDecor): two colours of check each, a soft shadow on each strand.
   mats: [['#d8b77a', '#a8804a'], ['#7da35a', '#d9c690'], ['#8a5a8a', '#e0c890'], ['#c9a05a', '#5f8a6a'], ['#b04a3a', '#e8d4a8']],
   matShadow: '#28180c',
@@ -181,15 +158,12 @@ export const INTERIOR_THEME = {
     valance: FABRIC.undyed,
     sheer: FABRIC.undyed,
     white: FABRIC.white,
-    cloth: FABRIC.undyed,
     decor: FABRIC.undyed, // mats and pictures: all colour is in the texture
     plate: CERAMIC.plate,
     leaf: PLANT.leaf,
-    tape: FABRIC.tape,
-    bag: FABRIC.bag,
   },
-  // The colour of the light through the curtains and cloth (emissive; strengths are in light.glow).
-  glow: { valance: FABRIC.undyed, sheer: FABRIC.undyed, white: FABRIC.whiteGlow, cloth: FABRIC.undyed },
+  // The colour of the light through the curtains (emissive; strengths are in light.glow).
+  glow: { valance: FABRIC.undyed, sheer: FABRIC.undyed, white: FABRIC.whiteGlow },
   wallTint: 0.45, // R2: neighbouring wall boards differ clearly in value
   partWarmth: 0.5, // each plank and part is also a little warmer or cooler: this share of its value variation
 
@@ -206,7 +180,6 @@ export const INTERIOR_THEME = {
       drape: { colours: { ...FABRIC.drape, streaks: FABRIC.curtainStreaks }, pattern: FABRIC.batikMarks.drape },
       pale: { colours: { ...FABRIC.drape, ground: FABRIC.sheerGround, streaks: FABRIC.curtainStreaks }, pattern: FABRIC.batikMarks.pale },
     },
-    cloth: { colours: FABRIC.crimson, pattern: FABRIC.crimsonMarks },
     decor: {
       colours: { mats: FABRIC.mats, matShadow: FABRIC.matShadow, matEdge: FABRIC.matEdge, pictures: PAPER.pictures, frame: WOOD.pictureFrame, stem: PLANT.paintedStem },
       pattern: { weave: FABRIC.matMarks, picture: PAPER.pictureMarks },
@@ -214,7 +187,7 @@ export const INTERIOR_THEME = {
   },
 
   light: {
-    // One level for everything that gives off light (lamps, daylight, glowing cloth, painted
+    // One level for everything that gives off light (lamps, daylight, glowing curtains, painted
     // reflections). It is set so the metered exposure comes out near 1 in the design view; at 1
     // the meter sat on its upper limit (1.85) in every view.
     level: 1.75,
@@ -223,13 +196,12 @@ export const INTERIOR_THEME = {
     sun: { color: '#ffe6c4', intensity: 3.2 },
     bounce: { sky: '#fff2e4', ground: '#5a443a', intensity: 2.2 }, // warm bounce off the floor and walls
     fill: { color: '#ffd6ac', intensity: 0.55 }, // soft light from the room behind the camera
-    // Curtains and cloth lit from behind (emissive strength, times the level above).
-    glow: { valance: 0.25, sheer: 0.12, white: 0.35, cloth: 0.12 },
-    // Polished boards mirror the bright windows and the red cloth (glossBoards in interior/surfaces.js).
+    // Curtains lit from behind (emissive strength, times the level above).
+    glow: { valance: 0.25, sheer: 0.12, white: 0.35 },
+    // Polished boards mirror the bright windows (glossBoards in interior/surfaces.js).
     gloss: {
       window: [1.0, 0.74, 0.46], // the windows' colour in the boards (linear)
-      clothTint: { multiply: [1.7, 0.6, 0.45], add: [0.05, 0.0, 0.0] }, // the red cloth's tint on the boards (linear)
-      floor: { strength: 1.45, cloth: 0.55, falloff: 0.62 },
+      floor: { strength: 1.45, falloff: 0.62 },
       top: { strength: 1.5 },
     },
     // The soft shadows painted under the furniture: the patch, and a darker one right under each piece.

@@ -3,7 +3,10 @@
 
 import * as THREE from 'three';
 import { PLAN } from './plan.js';
-import { V, Q, ONE, M, boxWithGrainUVs } from './builder.js';
+import { V, Q, ONE, M, roundedBoxWithGrainUVs } from './builder.js';
+
+/** A sanded furniture part: a box with edges rounded by up to 6 mm (a quarter of its thinnest side). */
+const part = (w, h, d) => roundedBoxWithGrainUVs(w, h, d, Math.min(0.006, Math.min(w, h, d) / 4));
 
 /** A turned leg, as a lathe: radius r, height h, standing on y = 0. UVs in metres. */
 function turnedLeg(r, h) {
@@ -21,7 +24,7 @@ function turnedLeg(r, h) {
  */
 export function buildSeat(b, { x, z, ry, w, d, back }) {
   const F = new THREE.Matrix4().compose(V(x, 0, z), Q(0, ry, 0), ONE);
-  const box = (w2, h, d2, lx, ly, lz, rx = 0, rz = 0) => b.place('wood', boxWithGrainUVs(w2, h, d2), M(lx, ly, lz, rx, 0, rz).premultiply(F));
+  const box = (w2, h, d2, lx, ly, lz, rx = 0, rz = 0) => b.place('wood', part(w2, h, d2), M(lx, ly, lz, rx, 0, rz).premultiply(F));
   const leg = (lx, lz, h, r = 0.025) => b.place('wood', turnedLeg(r, h), M(lx, 0, lz).premultiply(F));
   const seat = 0.44;
   const arm = 0.66;
@@ -98,14 +101,14 @@ export function buildTable(b, { x0, x1, z0, z1, h, stretcher }) {
   const cz = (z0 + z1) / 2;
   const w = x1 - x0;
   const d = z1 - z0;
-  b.box('top', w, 0.035, d, cx, h - 0.0175, cz);
-  b.box('wood', w - 0.08, 0.07, 0.025, cx, h - 0.07, z1 - 0.05);
-  b.box('wood', w - 0.08, 0.07, 0.025, cx, h - 0.07, z0 + 0.05);
-  b.box('wood', 0.025, 0.07, d - 0.1, x0 + 0.05, h - 0.07, cz);
-  b.box('wood', 0.025, 0.07, d - 0.1, x1 - 0.05, h - 0.07, cz);
+  b.place('top', part(w, 0.035, d), M(cx, h - 0.0175, cz));
+  b.place('wood', part(w - 0.08, 0.07, 0.025), M(cx, h - 0.07, z1 - 0.05));
+  b.place('wood', part(w - 0.08, 0.07, 0.025), M(cx, h - 0.07, z0 + 0.05));
+  b.place('wood', part(0.025, 0.07, d - 0.1), M(x0 + 0.05, h - 0.07, cz));
+  b.place('wood', part(0.025, 0.07, d - 0.1), M(x1 - 0.05, h - 0.07, cz));
   for (const x of [x0 + 0.05, x1 - 0.05]) for (const z of [z0 + 0.05, z1 - 0.05]) b.place('wood', turnedLeg(0.028, h - 0.035), M(x, 0, z));
   if (stretcher) {
-    for (const x of [x0 + 0.05, x1 - 0.05]) b.box('wood', 0.03, 0.03, d - 0.1, x, 0.1, cz);
-    b.box('wood', w - 0.1, 0.03, 0.03, cx, 0.1, cz);
+    for (const x of [x0 + 0.05, x1 - 0.05]) b.place('wood', part(0.03, 0.03, d - 0.1), M(x, 0.1, cz));
+    b.place('wood', part(w - 0.1, 0.03, 0.03), M(cx, 0.1, cz));
   }
 }

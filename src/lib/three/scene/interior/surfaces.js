@@ -23,17 +23,16 @@ export function shadeWalls(material, top) {
 }
 
 /**
- * Polished boards (R2): the floor and the table tops mirror the bright windows, and the floor
- * mirrors the red cloth. Done in the material: each fragment's view ray is reflected off the
- * (level) surface and followed to the window wall or to the cloth; where it lands in an opening
+ * Polished boards (R2): the floor and the table tops mirror the bright windows. Done in the
+ * material: each fragment's view ray is reflected off the (level) surface and followed to the
+ * window wall; where it lands in an opening
  * the board is painted lighter. The mirror image is blurred more the further the ray travels, and
  * stretched along the boards, as a real polished floor does. `falloff` darkens the boards away
  * from the windows (R2's foreground floor is in shade). `view` shows the mask alone.
  */
-export function glossBoards(material, { window, clothTint, strength = 0.6, cloth = 0, falloff = 0, light = 1, view = false }) {
+export function glossBoards(material, { window, strength = 0.6, falloff = 0, light = 1, view = false }) {
   const { z0 } = PLAN.room;
   const W = PLAN.window;
-  const F = PLAN.frame;
   const wins = PLAN.backWindows.map((w) => `refl += box(H.x, ${w.x0.toFixed(2)}, ${w.x1.toFixed(2)}, wx) * open;`).join('\n      ');
   material.onBeforeCompile = (shader) => {
     shader.vertexShader = shader.vertexShader
@@ -74,20 +73,7 @@ export function glossBoards(material, { window, clothTint, strength = 0.6, cloth
       float plank = clamp(0.8 + (vColor.r - 1.0) * 6.0, 0.45, 1.15);
       float fres = 0.3 + 0.7 * pow(1.0 - abs(Vd.y), 2.0); // stronger at a glancing angle
       float gloss = min(0.85, clamp(refl, 0.0, 1.0) * streak * plank * fres * ${strength.toFixed(2)} * (1.0 - ${falloff > 0 ? '0.85' : '0.0'} * towards));
-      // the red cloth, mirrored in the floor
-      float red = 0.0;
-      if (${cloth.toFixed(2)} > 0.0) {
-        float tc = (${((F.front + F.back) / 2).toFixed(2)} - vGlossP.y) / Rd.y;
-        vec3 Hc = vGlossP + Rd * tc - vec3(${F.x.toFixed(2)}, 0.0, ${F.z.toFixed(2)});
-        float cs = ${Math.cos(F.ry).toFixed(4)}, sn = ${Math.sin(F.ry).toFixed(4)};
-        vec2 L = vec2(cs * Hc.x - sn * Hc.z, sn * Hc.x + cs * Hc.z); // into the frame's own axes
-        red = box(L.x, ${(-F.w / 2).toFixed(2)}, ${(F.w / 2).toFixed(2)}, 0.5) * box(L.y, ${(-F.d / 2).toFixed(2)}, ${(F.d / 2).toFixed(2)}, 0.5);
-        // R2 also lets the red spill onto the open floor beside the frame (towards the room)
-        vec2 spill = (vGlossP.xz - vec2(${(F.x - 0.95).toFixed(2)}, ${(F.z + 0.1).toFixed(2)})) / vec2(0.42, 0.3);
-        red = max(red, 0.8 * exp(-dot(spill, spill)));
-        red *= (0.5 + 0.5 * streak) * ${cloth.toFixed(2)};
-      }
-      ${view ? 'outgoingLight = vec3(gloss) + vec3(red, 0.0, 0.0);' : `outgoingLight = mix(outgoingLight, ${vec3(window)} * ${light.toFixed(2)}, gloss); outgoingLight = mix(outgoingLight, outgoingLight * ${vec3(clothTint.multiply)} + ${vec3(clothTint.add)} * ${light.toFixed(2)}, red);`} // the red is a tint: the boards keep their value
+      ${view ? 'outgoingLight = vec3(gloss);' : `outgoingLight = mix(outgoingLight, ${vec3(window)} * ${light.toFixed(2)}, gloss);`}
     }
     #include <opaque_fragment>`,
       );
@@ -121,8 +107,5 @@ export function buildContactShadows(texture) {
     patch((t.x0 + t.x1) / 2, (t.z0 + t.z1) / 2 + pull, (t.x1 - t.x0) * 1.35, (t.z1 - t.z0) * 2.0);
     patch((t.x0 + t.x1) / 2, (t.z0 + t.z1) / 2 + 0.1, (t.x1 - t.x0) * 1.12, (t.z1 - t.z0) * 1.35, 0, core);
   }
-  const F = PLAN.frame;
-  patch(F.x, F.z + pull, F.w * 2.6, F.d * 3.0, F.ry);
-  patch(F.x, F.z + 0.1, F.w * 1.9, F.d * 1.7, F.ry, core);
   return { group, mat, core };
 }

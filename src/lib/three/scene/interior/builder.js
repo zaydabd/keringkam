@@ -1,9 +1,9 @@
-// Geometry helpers for the room: the shared seeded random stream, and the Builder that collects
-// parts per material and merges them into one mesh each. `rand` is one stream for the whole room:
-// the build order in createInterior decides every value, so keep that order.
+// Geometry helpers for the room: the seeded dice (one random stream per piece), and the Builder
+// that collects parts per material and merges them into one mesh each.
 
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { INTERIOR_THEME as THEME } from '../themes/interior.js';
 
 export const V = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -126,6 +126,28 @@ export class Builder {
     }
     return meshes;
   }
+}
+
+/**
+ * boxWithGrainUVs with rounded edges of radius r (one segment: a 45° strip with smooth normals),
+ * for furniture seen up close: real sawn and sanded wood never has a razor edge, and the strip
+ * catches a thin highlight. Indexed, like BoxGeometry, so it merges with the other parts.
+ */
+export function roundedBoxWithGrainUVs(w, h, d, r) {
+  const g = new RoundedBoxGeometry(w, h, d, 1, r);
+  const pos = g.attributes.position;
+  const uv = g.attributes.uv;
+  const size = [w, h, d];
+  const perSide = pos.count / 6; // BoxGeometry's side order: +x, -x, +y, -y, +z, -z
+  for (let i = 0; i < pos.count; i++) {
+    const axis = Math.floor(i / perSide) >> 1;
+    const [a, b] = [0, 1, 2].filter((k) => k !== axis);
+    const [long, short] = size[a] >= size[b] ? [a, b] : [b, a];
+    const p = [pos.getX(i), pos.getY(i), pos.getZ(i)];
+    uv.setXY(i, p[long], p[short]);
+  }
+  g.setIndex([...Array(pos.count).keys()]);
+  return g;
 }
 
 /** A box whose UVs are in metres and run along the box's longest side on each face, like wood grain. */

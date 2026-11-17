@@ -329,68 +329,6 @@ export function paintCurtain(seed = 12, { colours: C, pattern: P }) {
 }
 
 /**
- * The red cloth on the embroidery frame, after R2: deep crimson with painted creases and a gold
- * border band. Still plain in the middle (no keringkam motif yet).
- */
-export function paintCloth(seed = 13, { colours: C, pattern: P }) {
-  const r = rng(seed);
-  const W = 512;
-  const H = 256;
-  const [c, g] = canvas(W, H);
-  g.fillStyle = C.ground;
-  g.fillRect(0, 0, W, H);
-  const Bl = P.blots;
-  for (let i = 0; i < Bl.count; i++) blot(g, W, r() * W, r() * H, vary(r, Bl.length), vary(r, Bl.width), r() < Bl.darkShare ? css(C.blots[0]) : css(C.blots[1]), vary(r, Bl.opacity));
-  // creases: long soft diagonal strokes, dark with a light edge
-  const Cr = P.creases;
-  for (let i = 0; i < Cr.count; i++) {
-    const x = r() * W;
-    const y = r() * H;
-    const len = vary(r, Cr.length);
-    const a = vary(r, Cr.angle);
-    for (const [off, col] of [[0, `rgba(${css(C.creases[0])},${vary(r, Cr.darkOpacity)})`], [Cr.edgeOffset, `rgba(${css(C.creases[1])},${vary(r, Cr.edgeOpacity)})`]]) {
-      g.strokeStyle = col;
-      g.lineWidth = vary(r, Cr.width);
-      g.lineCap = 'round';
-      g.beginPath();
-      g.moveTo(x, y + off);
-      g.quadraticCurveTo(x + (Math.cos(a) * len) / 2, y + off + (Math.sin(a) * len) / 2 + (r() - 0.5) * Cr.bend, x + Math.cos(a) * len, y + off + Math.sin(a) * len);
-      g.stroke();
-    }
-  }
-  const Wv = P.weave;
-  for (let y = 0; y < H; y += Wv.spacing) {
-    g.fillStyle = `rgba(${css(C.weave)},${vary(r, Wv.opacity)})`;
-    g.fillRect(0, y, W, Wv.thread);
-  }
-  // gold bands across the two ends (R2): ruled lines with a row of diamonds and dots between them
-  const diamond = (x, y, k) => {
-    g.beginPath();
-    g.moveTo(x, y - k);
-    g.lineTo(x + k, y);
-    g.lineTo(x, y + k);
-    g.lineTo(x - k, y);
-    g.fill();
-  };
-  const Bd = P.band;
-  const Rw = Bd.rows;
-  for (const x0 of [Bd.inset, W - Bd.inset - Bd.width]) {
-    g.fillStyle = `rgba(${css(C.bandShade)},${Bd.shadeOpacity})`; // the band sits on slightly darker cloth
-    g.fillRect(x0 - Bd.shadeMargin, 0, Bd.width + 2 * Bd.shadeMargin, H);
-    g.fillStyle = C.gold;
-    for (const [dx, w] of Bd.rules) g.fillRect(x0 + dx, Bd.ruleMargin, w, H - 2 * Bd.ruleMargin);
-    g.fillStyle = C.goldLight;
-    for (let y = Rw.from; y < H - Rw.endMargin; y += Rw.every) {
-      diamond(x0 + Bd.width / 2, y, Rw.diamond);
-      for (const dx of Rw.dots) g.fillRect(x0 + dx, y + Rw.dotDrop, Rw.dot, Rw.dot);
-    }
-    g.fillStyle = C.ground;
-    for (let y = Rw.from; y < H - Rw.endMargin; y += Rw.every) diamond(x0 + Bd.width / 2, y, Rw.hole);
-  }
-  return texture(c, [1, 1], false);
-}
-
-/**
  * Wall hangings atlas, 4 x 2 tiles: woven mats in tan, green and violet checks, and framed pictures
  * with a painted spray of flowers. Each item's face takes one tile by its UVs.
  */
