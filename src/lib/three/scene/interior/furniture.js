@@ -179,7 +179,7 @@ export function buildSeat(b, { x, z, ry, w, d, back }) {
 export function furnitureOverlaps(plan = PLAN) {
   const seat = ({ x, z, ry, w }) => {
     const half = w / 2 + 0.04; // hx + arm half-width
-    const c = Math.round(Math.cos(ry)), s = Math.round(Math.sin(ry)); // seats are turned by 0 or ±90°
+    const c = Math.cos(ry), s = Math.sin(ry); // any angle: the footprint is the box around the turned corners
     const corners = [[-half, -0.32], [half, -0.32], [-half, 0.325], [half, 0.325]].map(([lx, lz]) => [x + lx * c + lz * s, z - lx * s + lz * c]);
     const xs = corners.map((p) => p[0]), zs = corners.map((p) => p[1]);
     return { x0: Math.min(...xs), x1: Math.max(...xs), z0: Math.min(...zs), z1: Math.max(...zs) };
