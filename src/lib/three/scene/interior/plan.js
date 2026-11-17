@@ -15,14 +15,14 @@ export const PLAN = {
   dado: 0.85,
   hangings: { z: -3.2, y: 1.52, size: 0.27 },
   plate: { x: 0.38, y: 1.78, r: 0.15 },
-  settee: { x: -0.8, z: -5.08, ry: 0, w: 1.45, d: 0.55, back: 1.0 },
+  settee: { x: -0.8, z: -5.08, ry: 0, w: 1.45, d: 0.55, back: 1.0, settee: true },
   chairs: [
     { x: -1.85, z: -4.0, ry: Math.PI / 2, w: 0.6, d: 0.55, back: 0.98 },
     { x: 0.15, z: -4.0, ry: -Math.PI / 2, w: 0.6, d: 0.55, back: 0.98 },
     { x: 0.5, z: -1.78, ry: -0.35, w: 0.6, d: 0.55, back: 0.98 }, // foreground right, where the embroidery frame stood; faces the viewer, turned 20° towards the room
   ],
-  // The tables start 7.5 cm clear of the left armchair's arms (its front is at x = -1.525);
-  // furnitureOverlaps() checks every pair.
+  // The tables start about 10 cm clear of the left armchair's arm scrolls (its front is at
+  // x = -1.548, from seatReach() in furniture.js); furnitureOverlaps() checks every pair.
   tables: [
     { x0: -1.45, x1: -0.36, z0: -4.5, z1: -4.1, h: 0.46 },
     { x0: -1.45, x1: -0.45, z0: -3.8, z1: -3.0, h: 0.45, stretcher: true },

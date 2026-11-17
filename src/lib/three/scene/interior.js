@@ -35,7 +35,7 @@ import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { toonGradient, createOutline } from './toon.js';
-import { paintPlanks, paintLattice, paintWindowLattice, paintCurtain, paintDecor, paintGlow } from './paint.js';
+import { paintPlanks, paintCarving, paintWindowLattice, paintCurtain, paintDecor, paintGlow } from './paint.js';
 import { createOutside, OBJECTS, MIRROR_LAYER, CLAY } from './outside/index.js';
 import { PIGMENT_SHADER, FINISH_SHADER, createPigmentField } from './watercolour.js';
 import { createMeter } from './meter.js';
@@ -175,7 +175,7 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
     floor: paintPlanks(9 + seed, T.planks.floor),
     wall: paintPlanks(5 + seed, T.planks.wall),
     lattice: paintWindowLattice(11, T.windowLattice, LATTICE_TILE),
-    carve: paintLattice(17, T.lattice),
+    carve: paintCarving(17, T.carving),
     valance: paintCurtain(12 + seed, T.curtains.valance),
     sheer: paintCurtain(16 + seed, T.curtains.drape),
     pale: paintCurtain(31 + seed, T.curtains.pale),

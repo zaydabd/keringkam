@@ -146,7 +146,16 @@ export function roundedBoxWithGrainUVs(w, h, d, r) {
     const p = [pos.getX(i), pos.getY(i), pos.getZ(i)];
     uv.setXY(i, p[long], p[short]);
   }
-  g.setIndex([...Array(pos.count).keys()]);
+  return indexed(g);
+}
+
+/**
+ * Geometry without an index (extrusions, RoundedBoxGeometry) given one, and its material groups
+ * cleared: mergeGeometries needs all parts indexed alike, and the Builder merges per material.
+ */
+export function indexed(g) {
+  if (!g.index) g.setIndex([...Array(g.attributes.position.count).keys()]);
+  g.clearGroups();
   return g;
 }
 

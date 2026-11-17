@@ -7,8 +7,16 @@ import { M } from './builder.js';
 
 const BOTTOM = 0.09; // the panel starts above the bottom rail (room.js)
 
-/** The size of the painted tile: one motif wide, the whole panel tall (metres). */
-export const LATTICE_TILE = { unit: 0.4, height: PLAN.window.lattice - BOTTOM };
+/**
+ * The painted tile (paintWindowLattice), in metres: one motif wide, the whole panel tall, and the
+ * heights of its rails and plaited bands, measured on W1 (research/INTERIOR-NOTES.md).
+ */
+export const LATTICE_TILE = {
+  unit: 0.4, // one motif; each window shows a whole number of them
+  height: PLAN.window.lattice - BOTTOM,
+  rail: 0.022, // each rail (W1: about 3 px of a 55 px motif)
+  band: 0.11, // each plaited band between two rails (W1: about 0.27 of a motif)
+};
 
 /**
  * Lattice panels in the lower part of each window: alpha-cut planes (own mesh, see createInterior).

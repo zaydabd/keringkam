@@ -3,7 +3,25 @@
 
 import * as THREE from 'three';
 import { PLAN } from './plan.js';
-import { V, Q, ONE, M, roundedBoxWithGrainUVs } from './builder.js';
+import { V, Q, ONE, M, roundedBoxWithGrainUVs, indexed } from './builder.js';
+
+/**
+ * The seats' proportions after C1 (estimated from the photo), in metres. buildSeat builds from
+ * them and seatReach() measures the footprint from them, so the overlap check follows the model.
+ */
+const SEAT = {
+  height: 0.44, // top of the seat slats
+  armTop: 0.64, // top of the turned front post: the arm's scroll ends on it
+  armJoin: 0.7, // where the arm meets the back post
+  inset: 0.03, // the legs and posts stand this far in from the seat's edges
+  lean: 0.1, // the back leans back by this much (radians) above the seat
+  frontLeg: 0.026, // turned front leg's largest radius
+  backPost: [0.045, 0.038], // square back post above the seat: width, depth
+  backLeg: [0.045, 0.04, 0.045], // raked back leg: width, depth, and how far back its foot sits
+  arm: [0.016, 0.022, 0.006], // arm section: half-thickness, half-width, corner cut
+  scroll: 0.035, // the arm's scroll reaches this far past the front post
+  crest: { below: 0.13, peak: 0.14, setteePeak: 0.15, overhang: 0.0225, bevel: 0.004 }, // the crest rail: bottom below `back`, arch height, past the posts, edge bevel
+};
 
 /** A sanded furniture part: a box with edges rounded by up to 6 mm (a quarter of its thinnest side). */
 const part = (w, h, d) => roundedBoxWithGrainUVs(w, h, d, Math.min(0.006, Math.min(w, h, d) / 4));
@@ -15,13 +33,6 @@ function turnedLeg(r, h) {
   const pos = g.attributes.position;
   const uv = g.attributes.uv;
   for (let i = 0; i < uv.count; i++) uv.setXY(i, pos.getY(i), uv.getX(i) * Math.PI * 2 * r);
-  return g;
-}
-
-/** Non-indexed geometry (extrusions) made indexed, so it merges with the other parts. */
-function indexed(g) {
-  if (!g.index) g.setIndex([...Array(g.attributes.position.count).keys()]);
-  g.clearGroups();
   return g;
 }
 
@@ -50,7 +61,7 @@ function crestRail(width, ends, peak, settee) {
   else s.bezierCurveTo(-h * 0.35, peak, -h * 0.5, ends, -h, ends);
   s.closePath();
   const t = 0.024;
-  const bevel = 0.004;
+  const bevel = SEAT.crest.bevel;
   const board = new THREE.ExtrudeGeometry(s, { depth: t, bevelEnabled: true, bevelThickness: bevel, bevelSize: bevel, bevelSegments: 1, curveSegments: 12 });
   board.translate(0, 0, -t / 2);
   // The fan: rays between 15° and 165°, from a small boss to radius r, raised 5 mm.
@@ -83,7 +94,7 @@ function crestRail(width, ends, peak, settee) {
 function curvedArm(points) {
   const curve = new THREE.CatmullRomCurve3(points.map(([y, z]) => V(0, y, z)));
   const section = new THREE.Shape();
-  const [hw, hh, c] = [0.016, 0.022, 0.006]; // half-height (along the curve's normal), half-width, corner cut
+  const [hw, hh, c] = SEAT.arm; // half-thickness (along the curve's normal), half-width, corner cut
   section.moveTo(-hw + c, -hh);
   section.lineTo(hw - c, -hh);
   section.lineTo(hw, -hh + c);
@@ -104,7 +115,7 @@ function curvedArm(points) {
  * curved scroll arms, and a back of a lower rail, a pierced panel, a row of short spindles and an
  * arched crest rail with a carved fan. Sizes estimated from the photo.
  */
-export function buildSeat(b, { x, z, ry, w, d, back }) {
+export function buildSeat(b, { x, z, ry, w, d, back, settee = false }) {
   const F = new THREE.Matrix4().compose(V(x, 0, z), Q(0, ry, 0), ONE);
   const put = (key, g, m) => b.place(key, g, m.premultiply(F));
   const box = (w2, h, d2, lx, ly, lz, rx = 0) => put('wood', part(w2, h, d2), M(lx, ly, lz, rx));
@@ -114,18 +125,15 @@ export function buildSeat(b, { x, z, ry, w, d, back }) {
     const tilt = Math.atan2(zc - za, yc - ya); // from vertical, towards +z
     put('wood', part(sw, len, sd), M(sx, (ya + yc) / 2, (za + zc) / 2, tilt));
   };
-  const settee = w > 1;
-  const seat = 0.44;
-  const armTop = 0.64; // top of the turned front post: the arm's scroll ends on it
-  const hx = w / 2 - 0.03;
-  const hz = d / 2 - 0.03;
-  const lean = 0.1; // the back leans back by this much (radians) above the seat
+  const { height: seat, armTop, armJoin: yJoin, lean, scroll } = SEAT;
+  const hx = w / 2 - SEAT.inset;
+  const hz = d / 2 - SEAT.inset;
   const pz = (y) => -hz - Math.tan(lean) * (y - seat); // the back posts' z at height y
   // Legs: turned at the front (up into the arm posts), square and raked at the back.
   for (const s of [-1, 1]) {
-    put('wood', turnedLeg(0.026, armTop), M(s * hx, 0, hz));
-    member(s * hx, [0, -hz - 0.045], [seat - 0.03, -hz], 0.045, 0.04);
-    member(s * hx, [seat - 0.06, pz(seat - 0.06)], [back, pz(back)], 0.045, 0.038);
+    put('wood', turnedLeg(SEAT.frontLeg, armTop), M(s * hx, 0, hz));
+    member(s * hx, [0, -hz - SEAT.backLeg[2]], [seat - 0.03, -hz], SEAT.backLeg[0], SEAT.backLeg[1]);
+    member(s * hx, [seat - 0.06, pz(seat - 0.06)], [back, pz(back)], ...SEAT.backPost);
   }
   // Seat: four rails, and slats on top (front to back on a chair, along the settee).
   box(w - 0.06, 0.07, 0.024, 0, seat - 0.055, hz);
@@ -141,16 +149,15 @@ export function buildSeat(b, { x, z, ry, w, d, back }) {
     const sw = (w - 0.02 - (n - 1) * gap) / n;
     for (let k = 0; k < n; k++) box(sw, 0.02, d, -w / 2 + 0.01 + sw / 2 + k * (sw + gap), seat - 0.01, 0);
   }
-  // Arms: from the back post at 0.70 m, dipping, out over the front post and curling down onto it.
-  const yJoin = 0.7;
+  // Arms: from the back post, dipping, out over the front post and curling down onto it.
   for (const s of [-1, 1]) {
-    const arm = curvedArm([[yJoin, pz(yJoin) + 0.01], [0.675, -hz + 0.13], [0.66, hz - 0.1], [0.67, hz], [0.66, hz + 0.035], [armTop + 0.012, hz + 0.012]]);
+    const arm = curvedArm([[yJoin, pz(yJoin) + 0.01], [0.675, -hz + 0.13], [0.66, hz - 0.1], [0.67, hz], [0.66, hz + scroll], [armTop + 0.012, hz + 0.012]]);
     put('wood', arm, M(s * hx, 0, 0));
   }
   // Back, from the seat up: lower rail, pierced panel, middle rail, spindles, crest rail.
-  const span = 2 * hx - 0.045;
+  const span = 2 * hx - SEAT.backPost[0];
   const rail = (y, h) => box(span, h, 0.022, 0, y, pz(y), -lean);
-  const yCrest = back - 0.13; // bottom of the crest rail
+  const yCrest = back - SEAT.crest.below; // bottom of the crest rail
   const yMid = yCrest - (settee ? 0.11 : 0.12);
   rail(seat + 0.1, 0.04);
   rail(yMid, 0.03);
@@ -168,19 +175,37 @@ export function buildSeat(b, { x, z, ry, w, d, back }) {
     const sx = -span / 2 + (span * k) / n;
     put('wood', turnedLeg(0.0095, hs), M(sx, ys, pz(ys + hs / 2) + Math.tan(lean) * (hs / 2), -lean));
   }
-  for (const g of crestRail(2 * hx + 0.045, 0.07, settee ? 0.15 : 0.14, settee)) put('wood', g, M(0, yCrest, pz(yCrest), -lean));
+  const peak = settee ? SEAT.crest.setteePeak : SEAT.crest.peak;
+  for (const g of crestRail(2 * (hx + SEAT.crest.overhang), 0.07, peak, settee)) put('wood', g, M(0, yCrest, pz(yCrest), -lean));
 }
 
 /**
- * Floor footprints (x0, x1, z0, z1 in metres) of the seats and tables, from the same sizes the
- * builders use: a seat reaches w/2 + 0.04 m to each side, 0.32 m behind its centre (the leaning back
- * posts and crest) and 0.325 m in front (the arm scrolls reach d/2 + 0.01) (buildSeat). Returns the pairs that overlap, with the overlap in metres.
+ * How far a seat reaches from its centre, in its own frame (front = +z), from the SEAT sizes:
+ * to each side (the crest rail, or a leg), behind (the leaning crest at the top of the back, or a
+ * raked foot) and in front (the arm scroll).
+ */
+export function seatReach({ w, d, back, settee = false }) {
+  const hx = w / 2 - SEAT.inset;
+  const hz = d / 2 - SEAT.inset;
+  const { lean, height: seat, crest, backPost, backLeg, arm, scroll } = SEAT;
+  return {
+    side: hx + Math.max(crest.overhang + crest.bevel, SEAT.frontLeg, arm[0], backPost[0] / 2),
+    behind: Math.max(hz + Math.tan(lean) * (back - crest.below + (settee ? crest.setteePeak : crest.peak) - seat) + backPost[1] / 2, hz + backLeg[2] + backLeg[1] / 2),
+    front: hz + scroll + Math.max(arm[0], arm[1]),
+  };
+}
+
+/**
+ * Floor footprints (x0, x1, z0, z1 in metres) of the seats (seatReach) and tables (their PLAN
+ * box), turned by any angle: a seat's footprint is the box around its turned corners. Returns the
+ * pairs that overlap, with the overlap in metres.
  */
 export function furnitureOverlaps(plan = PLAN) {
-  const seat = ({ x, z, ry, w }) => {
-    const half = w / 2 + 0.04; // hx + arm half-width
-    const c = Math.cos(ry), s = Math.sin(ry); // any angle: the footprint is the box around the turned corners
-    const corners = [[-half, -0.32], [half, -0.32], [-half, 0.325], [half, 0.325]].map(([lx, lz]) => [x + lx * c + lz * s, z - lx * s + lz * c]);
+  const seat = (p) => {
+    const { x, z, ry } = p;
+    const { side, behind, front } = seatReach(p);
+    const c = Math.cos(ry), s = Math.sin(ry);
+    const corners = [[-side, -behind], [side, -behind], [-side, front], [side, front]].map(([lx, lz]) => [x + lx * c + lz * s, z - lx * s + lz * c]);
     const xs = corners.map((p) => p[0]), zs = corners.map((p) => p[1]);
     return { x0: Math.min(...xs), x1: Math.max(...xs), z0: Math.min(...zs), z1: Math.max(...zs) };
   };

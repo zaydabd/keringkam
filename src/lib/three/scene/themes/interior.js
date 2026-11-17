@@ -28,6 +28,9 @@ const BOARD_GRAIN = {
   sheen: { count: 30, length: [60, 200], dash: [6, 22], gap: [3, 10], thickness: 1.5, opacity: [0.18, 0.15] }, // broken dry-brush highlights
 };
 
+// Brush tone along carved straps (paintCarving, paintWindowLattice), per 512 px square.
+const CARVING_TONE = { count: 400, length: [10, 30], width: [2, 3], opacity: [0.06, 0.08], darkShare: 0.5 };
+
 const WOOD = {
   walls: '#977462', // mid brown boards, a little grey, as in R2
   ceiling: '#6e5646', // grey-brown boards, as R2's ceiling (seen on tall screens)
@@ -68,13 +71,13 @@ const WOOD = {
       knots: { ...BOARD_GRAIN.knots, count: 0 },
     },
   },
-  // The carved lattice texture (paintLattice): dark carving behind light strips.
-  lattice: { dark: '#3a2418', light: '#efe2c8', toneDark: '#785032', toneLight: '#fffaf0' },
-  latticeMarks: {
+  // The carving in the chair and settee backs (paintCarving): dark carving behind light strips.
+  carving: { dark: '#3a2418', light: '#efe2c8', toneDark: '#785032', toneLight: '#fffaf0' },
+  carvingMarks: {
     back: { strip: 26, node: 17, ring: 34 }, // the dark carving: strip width, small and ring node radius
     front: { strip: 17, node: 12, ring: 29 }, // the light strips on top
     hole: { radius: 18, edge: 4 }, // the hole through each ring node, and its dark edge
-    tone: { count: 400, length: [10, 30], width: [2, 3], opacity: [0.06, 0.08], darkShare: 0.5 }, // brush tone along the strips
+    tone: CARVING_TONE,
   },
   // The window lattice (paintWindowLattice), after the user's photo W1. The texture multiplies the
   // material colour (the room's furniture wood), so these are multipliers: light keeps the wood,
@@ -85,7 +88,7 @@ const WOOD = {
     edge: 54, // with its dark carved edge
     plait: { face: 22, edge: 32 }, // the bands' woven strands: about half a strap (W1)
     fade: { count: 16, radius: [50, 70], opacity: [0.5, 0.35] }, // soft red-brown patches, per tile
-    tone: { count: 400, length: [10, 30], width: [2, 3], opacity: [0.06, 0.08], darkShare: 0.5 },
+    tone: CARVING_TONE,
   },
 };
 
@@ -129,7 +132,6 @@ const FABRIC = {
       hem: null,
     },
   },
-
   // Woven mats on the wall (paintDecor): two colours of check each, a soft shadow on each strand.
   mats: [['#d8b77a', '#a8804a'], ['#7da35a', '#d9c690'], ['#8a5a8a', '#e0c890'], ['#c9a05a', '#5f8a6a'], ['#b04a3a', '#e8d4a8']],
   matShadow: '#28180c',
@@ -184,7 +186,7 @@ export const INTERIOR_THEME = {
       floor: { colours: WOOD.grain, pattern: WOOD.grainMarks.floor },
       wall: { colours: WOOD.grain, pattern: WOOD.grainMarks.wall },
     },
-    lattice: { colours: WOOD.lattice, pattern: WOOD.latticeMarks },
+    carving: { colours: WOOD.carving, pattern: WOOD.carvingMarks },
     windowLattice: { colours: WOOD.windowLattice, pattern: WOOD.windowLatticeMarks },
     curtains: {
       valance: { colours: { ...FABRIC.valance, streaks: FABRIC.curtainStreaks }, pattern: FABRIC.batikMarks.valance },

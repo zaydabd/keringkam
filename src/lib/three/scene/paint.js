@@ -188,16 +188,19 @@ export function paintPlanks(seed = 1, { colours: C, pattern: P }) {
   return texture(c, [0.5, 2]);
 }
 
+/** Carved lattice textures are drawn at this many pixels per metre (strap widths in the theme). */
+const CARVING_PX_PER_M = 1280;
+
 /**
- * Window lattice (alpha): our own pattern, not a copy of a specific house. Diagonal strips cross in
- * a diamond grid, with a ring at every other crossing and a small rosette at the rest. One tile is
- * 0.4 m square, so with UVs in metres the repeat is 2.5. Inked edges, cream face: the material
- * colour sets the wood tone.
+ * The pierced carving in the chair and settee backs (alpha): our own pattern, not a copy of a
+ * specific chair. Diagonal strips cross in a diamond grid, with a ring at every other crossing and
+ * a small rosette at the rest. One tile is 0.4 m square, so with UVs in metres the repeat is 2.5.
+ * Inked edges, light face: the material colour sets the wood tone.
  */
-export function paintLattice(seed = 11, { colours: C, pattern: P }) {
+export function paintCarving(seed = 17, { colours: C, pattern: P }) {
   const r = rng(seed);
   const S = 512;
-  const pitch = 128; // crossing pitch: 10 cm
+  const pitch = 0.1 * CARVING_PX_PER_M; // crossing pitch: 10 cm
   const [c, g] = canvas(S, S);
   g.lineCap = 'round';
   const strips = (width, style) => {
@@ -258,19 +261,18 @@ export function paintLattice(seed = 11, { colours: C, pattern: P }) {
  * paired scroll rings and vase-shaped straps between them. The design is simplified, not traced.
  * One tile is one motif `unit` wide (metres, wraps left to right) and the whole panel `height`
  * tall (no vertical repeat), so the bands and the rings keep their size whatever the window.
- * 1280 px/m, as paintLattice. Strap widths, the red-brown fade and the tone are in the theme.
+ * Sizes in metres (the tile, its rails and bands) come from LATTICE_TILE (interior/lattice.js);
+ * strap widths, the red-brown fade and the tone from the theme.
  */
-export function paintWindowLattice(seed, { colours: C, pattern: P }, { unit, height }) {
+export function paintWindowLattice(seed, { colours: C, pattern: P }, { unit, height, rail, band }) {
   const r = rng(seed);
-  const k = 1280; // px per metre
+  const k = CARVING_PX_PER_M;
   const W = Math.round(unit * k);
   const H = Math.round(height * k);
   const [c, g] = canvas(W, H);
   g.lineCap = g.lineJoin = 'round';
   const X = (x) => x * k; // metres from the tile's left edge
   const Y = (y) => (height - y) * k; // metres up from the panel's bottom
-  const rail = 0.022; // each rail's height (W1: about 2.2 cm)
-  const band = 0.11; // the plaited band between two rails (W1: about 0.27 of a motif)
   const f0 = 2 * rail + band; // the field: between the bands
   const F = (height - 2 * f0) / 2; // half the field's height
   const ym = height / 2;
@@ -284,7 +286,7 @@ export function paintWindowLattice(seed, { colours: C, pattern: P }, { unit, hei
   for (const y of [f0 - rail / 2, height - f0 + rail / 2]) lines.push([[-U, y], [2 * U, y]]); // inner rails
   // The plait: two zigzag strands in opposite phase; "\" strokes are drawn last, so each strand
   // goes over, then under, along its length.
-  const p = U / 4;
+  const p = U / 4; // W1: the weave crosses about twice per quarter motif
   const plait = { up: [], down: [] };
   for (const [y0, y1] of [[rail, rail + band], [height - f0 + rail, height - rail]]) {
     for (let x = -U; x < 2 * U; x += p) {
@@ -358,7 +360,7 @@ export function paintWindowLattice(seed, { colours: C, pattern: P }, { unit, hei
     const rx = vary(r, Fd.radius);
     blot(g, W, r() * W, r() * H, rx, rx * (0.6 + r() * 0.8), css(C.fade), vary(r, Fd.opacity));
   }
-  // brush tone along the straps
+  // brush tone along the straps: the theme's count is per 512 px square, as on paintCarving's tile
   for (let i = 0; i < To.count * ((W * H) / (512 * 512)); i++) {
     g.fillStyle = `rgba(${r() < To.darkShare ? css(C.toneDark) : css(C.toneLight)},${vary(r, To.opacity)})`;
     g.fillRect(r() * W, r() * H, vary(r, To.length), vary(r, To.width));
