@@ -284,6 +284,13 @@ OUTSIDE_SIGNOFF
 - **Embroidery frame removed** (user's choice), with its bag, red cloth, the cloth's mirror image in the floor and its painted shadow. A third armchair stands in its place (PLAN.chairs, foreground right, turned like the right chair).
 - **Rounded edges:** every furniture box part is a rounded box (`roundedBoxWithGrainUVs` in `interior/builder.js`, after three.js's RoundedBoxGeometry, one segment), radius 6 mm or a quarter of the part's thinnest side. Same wood-grain UVs, same materials, so no extra draw calls.
 - **Cost** (final view, all passes): 288k → 310k triangles; 67 → 61 draw calls (three materials fewer).
+- **References supplied by the user (2026-11-17), not in the repo** (two carry copyright watermarks, one has no known source):
+  - **C1, chairs:** a Malay house sitting room with a settee, armchairs and tables. Watermark "© Alfred Molon, www.molon.de".
+  - **W1, window:** carved shutters and an interlaced wooden lattice below the window. Watermark "saito ichiban photoworks".
+  - **P1, seat cushions:** box cushions (seat and back) in black-and-white woven stripes on wooden armchairs. Source unknown.
+- **Chairs and settee rebuilt after C1** (`buildSeat`): turned front legs that run up into the arm posts; square back legs, raked back under the seat and leaning back above it; a slatted seat on four rails (slats front to back on a chair, along the settee); curved arms that dip and end in a scroll on the front post; a back of lower rail, pierced panel, middle rail, a row of short turned spindles and an arched crest rail (camel-backed on the settee) with a carved half-sunburst fan. No arm spindles or stretchers (C1 shows none). All sizes estimated from the photo.
+- **Cost** after the rebuild: 327,813 triangles, 61 draw calls (final view).
+- **Next, from the user's references:** W1's lattice and carved shutters for the windows; P1's seat cushions (not to be added until the user says so).
 
 ## Open issues
 - [ ] R2 look: see "Known defects" in the sign-off record above.
