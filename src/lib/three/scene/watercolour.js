@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
+import { VIEW_FIELD, setViewField } from './toon.js';
 
 // Watercolour look, after R2 (a painting of the room supplied by the user; not in the repo).
 // Two passes, kept apart as the image-pipeline / colour-grading skills ask:
@@ -8,7 +9,9 @@ import { FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
 //   2. finish: exposure, the one tone map, sRGB encoding, then the grade (lifted warm blacks,
 //      lower saturation, cream highlights).
 // Debug: ?debug=paint-pigment | paint-edge | paint-bleed shows a field in grey; ?off=pigment or
-// ?off=grade switches a stage off. Coordinates are screen pixels: the "paper" is the screen, as in a painting.
+// ?off=grade switches a stage off. The paper tooth is fixed to the screen (the "paper" is the screen,
+// as in a painting); the wash blotches are a repeating tile that moves with the camera's turn, so
+// they stay on the room instead of sliding over it.
 
 const NOISE = /* glsl */ `
   float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
@@ -17,8 +20,19 @@ const NOISE = /* glsl */ `
     f = f * f * (3.0 - 2.0 * f);
     return mix(mix(hash(i), hash(i + vec2(1, 0)), f.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.x), f.y);
   }
-  float fbm(vec2 p) { return noise(p) * 0.55 + noise(p * 2.03 + 7.1) * 0.3 + noise(p * 4.1 + 3.7) * 0.15; }
+  // The same noise, repeating every n cells, and an fbm of it that repeats every n.
+  float noise(vec2 p, float n) {
+    vec2 i = floor(p), f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    vec2 a = mod(i, n), b = mod(i + 1.0, n);
+    return mix(mix(hash(a), hash(vec2(b.x, a.y)), f.x), mix(hash(vec2(a.x, b.y)), hash(b), f.x), f.y);
+  }
+  float fbm(vec2 p, float n) { return noise(p, n) * 0.55 + noise(p * 2.0 + 7.1, n * 2.0) * 0.3 + noise(p * 4.0 + 3.7, n * 4.0) * 0.15; }
 `;
+
+// The wash tile, in field units (screen pixels / scale * detail): its bands (256, 192 and 48) fit
+// it a whole number of times (3, 4 and 16), so it repeats without a seam.
+const PIGMENT_TILE = 768;
 
 const VERTEX = /* glsl */ `
   varying vec2 vUv;
@@ -28,7 +42,12 @@ const VERTEX = /* glsl */ `
 export const PIGMENT_SHADER = {
   uniforms: {
     tDiffuse: { value: null },
-    tField: { value: null }, // the pigment field and the paper tooth, drawn once per screen size (createPigmentField)
+    tField: { value: null }, // the paper tooth, drawn once per screen size (createPigmentField)
+    tPigment: { value: null }, // the wash tile, drawn once (createPigmentField)
+    viewRotation: { value: new THREE.Matrix3() }, // the camera's rotation and focal length (createPigmentField.setView):
+    focal: { value: 1000 }, // the wash is read at each pixel's direction in the world (VIEW_FIELD)
+    fieldShift: { value: new THREE.Vector2() }, // ?seed: where in the tile the screen starts, in field units
+    detail: { value: 1 }, // field units per screen pixel / scale (the theme's paint.detail)
     resolution: { value: new THREE.Vector2(1, 1) },
     scale: { value: 1 }, // device pixel ratio: keeps the field the same size on screen
     // Perceptual controls, off by default (0); the room sets them from its theme (themes/interior.js paint).
@@ -43,19 +62,23 @@ export const PIGMENT_SHADER = {
   },
   vertexShader: VERTEX,
   fragmentShader: /* glsl */ `
-    uniform sampler2D tDiffuse, tField;
-    uniform vec2 resolution;
-    uniform float scale, washVariation, granulation, edgeDarkening, bleed, shadowTintAmount, view, exposure;
+    uniform sampler2D tDiffuse, tField, tPigment;
+    uniform vec2 resolution, fieldShift;
+    uniform mat3 viewRotation;
+    uniform float focal, detail, scale, washVariation, granulation, edgeDarkening, bleed, shadowTintAmount, view, exposure;
     uniform vec3 shadowTint;
     varying vec2 vUv;
     // Luminance as it will be shown, relative to the exposure the thresholds were tuned at (1.85).
     float luma(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)) * exposure / 1.85; }
+    ${VIEW_FIELD}
 
     void main() {
       vec2 px = 1.0 / resolution;
-      // Field 1, pigment density, and the paper tooth: precomputed (PIGMENT_FIELD_SHADER).
+      // Field 1, pigment density (PIGMENT_TILE_SHADER, kept on the world as the view turns), and
+      // the paper tooth (PIGMENT_FIELD_SHADER, fixed to the screen).
+      vec2 at = viewField(gl_FragCoord.xy, resolution, viewRotation, focal);
+      float pigment = texture2D(tPigment, (at / scale * detail + fieldShift) / ${PIGMENT_TILE}.0).r;
       vec2 field = texelFetch(tField, ivec2(gl_FragCoord.xy), 0).rg;
-      float pigment = field.x;
 
       vec3 base = texture2D(tDiffuse, vUv).rgb;
       // Field 2, wet edge: how much the value changes across a few pixels (log luma, so dark
@@ -100,55 +123,81 @@ export const PIGMENT_SHADER = {
   `,
 };
 
-// The pigment field and the paper tooth depend on the pixel's position (and the seed) only, never
-// on the image, so they are drawn once per screen size instead of every frame: this saves 14
-// value-noise lookups (56 sines) per pixel per frame. 8 bits per channel is enough: one step is
-// 0.4% of the field's range. ?debug=paint-pigment shows the field.
-const PIGMENT_FIELD_SHADER = {
-  uniforms: { scale: { value: 1 }, seed: { value: 0 }, detail: { value: 1 } },
+// The pigment field and the paper tooth depend on position (and the seed) only, never on the
+// image, so they are drawn once instead of every frame: this saves 14 value-noise lookups (56
+// sines) per pixel per frame. 8 bits per channel is enough: one step is 0.4% of the field's
+// range. ?debug=paint-pigment shows the field.
+// The wash: one tile of PIGMENT_TILE field units, drawn once, read through the camera's turn.
+const PIGMENT_TILE_SHADER = {
+  uniforms: {},
   vertexShader: VERTEX,
   fragmentShader: /* glsl */ `
-    uniform float scale, seed, detail;
+    ${NOISE}
+    void main() {
+      // Pigment density: domain-warped, two bands (~192 px blotches, ~48 px mottle at detail 1;
+      // detail 2 halves them, so twice as many across the screen). The counts a tile: 3, 4, 16.
+      vec2 d = gl_FragCoord.xy;
+      vec2 w = vec2(fbm(d / 256.0, 3.0), fbm(d / 256.0 + 9.2, 3.0)) - 0.5;
+      float pigment = fbm(d / 192.0 + w * 1.6, 4.0) * 0.7 + fbm(d / 48.0 + w, 16.0) * 0.3;
+      gl_FragColor = vec4(pigment, 0.0, 0.0, 1.0);
+    }
+  `,
+};
+// The paper tooth for the granulation, at the screen's size and fixed to it.
+const PIGMENT_FIELD_SHADER = {
+  uniforms: { scale: { value: 1 }, seed: { value: 0 } },
+  vertexShader: VERTEX,
+  fragmentShader: /* glsl */ `
+    uniform float scale, seed;
     ${NOISE}
     void main() {
       vec2 fc = gl_FragCoord.xy / scale + seed * vec2(613.0, 271.0);
-      // Pigment density: domain-warped, two bands (~180 px blotches, ~45 px mottle at detail 1;
-      // detail 2 halves them, so twice as many across the screen).
-      vec2 d = fc * detail;
-      vec2 w = vec2(fbm(d / 260.0), fbm(d / 260.0 + 9.2)) - 0.5;
-      float pigment = fbm(d / 180.0 + w * 1.6) * 0.7 + fbm(d / 45.0 + w) * 0.3;
-      // Paper tooth for the granulation.
       float tooth = noise(fc * 0.9) * 0.6 + noise(fc * 0.33 + 4.0) * 0.4;
-      gl_FragColor = vec4(pigment, tooth, 0.0, 1.0);
+      gl_FragColor = vec4(0.0, tooth, 0.0, 1.0);
     }
   `,
 };
 
-/** The pigment pass's field texture. Call update() when the drawing buffer's size changes; seed
- * moves the field (?seed=n), for seed sweeps. detail scales how fine the wash blotches are (the
- * theme's paint.detail: 1 as drawn, 2 twice as fine). */
-export function createPigmentField(renderer, { detail = 1 } = {}) {
+/** The pigment pass's field textures, wired into its uniforms. Call update() when the drawing
+ * buffer's size changes and setView() each frame; seed moves the field (?seed=n), for seed sweeps.
+ * detail scales how fine the wash blotches are (the theme's paint.detail: 1 as drawn, 2 twice as fine). */
+export function createPigmentField(renderer, uniforms, { detail = 1 } = {}) {
   const target = new THREE.WebGLRenderTarget(1, 1, { type: THREE.UnsignedByteType, depthBuffer: false });
   target.texture.minFilter = target.texture.magFilter = THREE.NearestFilter;
   target.texture.generateMipmaps = false;
+  const tile = new THREE.WebGLRenderTarget(PIGMENT_TILE, PIGMENT_TILE, { type: THREE.UnsignedByteType, format: THREE.RedFormat, depthBuffer: false, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, wrapS: THREE.RepeatWrapping, wrapT: THREE.RepeatWrapping, generateMipmaps: false });
   const material = new THREE.ShaderMaterial({ ...PIGMENT_FIELD_SHADER, uniforms: THREE.UniformsUtils.clone(PIGMENT_FIELD_SHADER.uniforms) });
-  material.uniforms.detail.value = detail;
-  const quad = new FullScreenQuad(material);
+  const tileMaterial = new THREE.ShaderMaterial(PIGMENT_TILE_SHADER);
+  const quad = new FullScreenQuad(tileMaterial);
+  const draw = (into) => {
+    const previous = renderer.getRenderTarget();
+    renderer.setRenderTarget(into);
+    quad.render(renderer);
+    renderer.setRenderTarget(previous);
+  };
+  draw(tile);
+  quad.material = material;
+  uniforms.tField.value = target.texture;
+  uniforms.tPigment.value = tile.texture;
+  uniforms.detail.value = detail;
   return {
-    texture: target.texture,
     /** Size in drawing-buffer pixels (rounded up, so it covers the composer's buffers). */
     update(width, height, scale, seed) {
       target.setSize(Math.ceil(width), Math.ceil(height));
       material.uniforms.scale.value = scale;
       material.uniforms.seed.value = seed;
-      const previous = renderer.getRenderTarget();
-      renderer.setRenderTarget(target);
-      quad.render(renderer);
-      renderer.setRenderTarget(previous);
+      uniforms.fieldShift.value.set((613 * seed * detail) % PIGMENT_TILE, (271 * seed * detail) % PIGMENT_TILE);
+      draw(target);
+    },
+    /** Keeps the wash on the world: call each frame after the camera moves. */
+    setView(camera) {
+      setViewField(uniforms, camera, uniforms.resolution.value.y);
     },
     dispose() {
       target.dispose();
+      tile.dispose();
       material.dispose();
+      tileMaterial.dispose();
       quad.dispose();
     },
   };

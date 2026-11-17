@@ -14,12 +14,12 @@
 //
 // Pass graph (each has one owner and a way to switch it off; see research/INTERIOR-NOTES.md):
 //   scene (linear HDR) -> ink (toon.js) -> pigment (watercolour.js) -> finish (exposure from
-//   meter.js, the one tone map, sRGB, grade).
+//   meter.js, the one tone map, sRGB, grade) -> anti-aliasing (SMAA).
 // Inspection, all as URL parameters before the #:
 //   debug = nopost | flat | silhouette | paint-pigment | paint-edge | paint-bleed | gloss | meter
 //           | water-normal | water-fresnel | water-filter | water-reflection | water-body
 //           | water-crest | water-lost | tree-level | tree-kind
-//   off   = ink, pigment, grade, outside, ao, contact, gloss (comma-separated: switches those off),
+//   off   = ink, pigment, grade, aa, outside, ao, contact, gloss (comma-separated: switches those off),
 //           the lights: sun, sky, side, bounce, and skyshadow (the sky light casts no shadow)
 //   cam   = design (default) | near | far      look = x,y (fixes the pointer sway, -1..1)
 //   view  = seat (default) | window (start in that camera shot; SHOTS below)
@@ -35,6 +35,7 @@ import * as THREE from 'three';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
 import { toonGradient, createOutline } from './toon.js';
 import { paintPlanks, paintCarving, paintWindowLattice, paintCurtain, paintDecor, paintGlow } from './paint.js';
 import { createOutside, OBJECTS, MIRROR_LAYER } from './outside/index.js';
@@ -341,11 +342,15 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
   setUniforms(finish.uniforms, THEME.grade);
   const paintView = { 'paint-pigment': 1, 'paint-edge': 2, 'paint-bleed': 3 }[debug] ?? 0;
   pigment.uniforms.view.value = paintView;
-  const pigmentField = createPigmentField(renderer, { detail: paintDetail });
-  pigment.uniforms.tField.value = pigmentField.texture;
+  const pigmentField = createPigmentField(renderer, pigment.uniforms, { detail: paintDetail });
   if (!off.has('pigment') && !clay) composer.addPass(pigment);
   finish.uniforms.view.value = off.has('grade') || paintView || clay ? 1 : 0; // 1: tone map and encode only, no grade
   composer.addPass(finish);
+  // Anti-aliasing (SMAA) on the finished, encoded image, where its edge thresholds were set: it
+  // smooths the 1 px ink lines and geometry edges, which otherwise crawl as the view turns.
+  // ?off=aa leaves it out.
+  const smaa = off.has('aa') ? null : new SMAAPass();
+  if (smaa) composer.addPass(smaa);
   const meter = createMeter(renderer);
   let metered = false;
   let meterToken = 0;
@@ -500,6 +505,10 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
       if (Math.abs(exposure - exposureTarget) < 0.002 || fixedLook) exposure = exposureTarget;
     }
     if (exposure !== null) applyExposure(exposure);
+    // The ink's hand and the wash stay on the room when the view turns (toon.js VIEW_FIELD).
+    camera.updateMatrixWorld();
+    outline.setView();
+    pigmentField.setView(camera);
     perf?.section('mirror');
     landscape.renderMirror(renderer, scene, camera);
     perf?.section(debug === 'nopost' ? 'scene' : 'ink-prep');
@@ -546,7 +555,7 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
   if (perf) {
     setShot('seat', true);
     // Time each composer pass on its own (scene, ink, pigment, finish).
-    for (const pass of composer.passes) perf.wrap(pass, pass === pigment ? 'pigment' : pass === finish ? 'finish' : pass instanceof RenderPass ? 'scene' : 'ink');
+    for (const pass of composer.passes) perf.wrap(pass, pass === pigment ? 'pigment' : pass === finish ? 'finish' : pass === smaa ? 'aa' : pass instanceof RenderPass ? 'scene' : 'ink');
   }
   // Inspection handle for profiling scripts (?perf or ?debug only): stop the loop, draw one frame.
   if (perf || debug) {
@@ -554,6 +563,9 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
       renderer, scene, camera, composer, outline, landscape, setShot,
       stop: () => cancelAnimationFrame(frame),
       draw() {
+        camera.updateMatrixWorld();
+        outline.setView();
+        pigmentField.setView(camera);
         landscape.renderMirror(renderer, scene, camera);
         if (inkPass) outline.render();
         composer.render(0);
@@ -588,6 +600,7 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
       pigment.dispose();
       pigmentField.dispose();
       finish.dispose();
+      smaa?.dispose();
       meter.dispose();
       composer.dispose();
       renderer.dispose();

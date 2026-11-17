@@ -754,3 +754,40 @@ and the boards' top is y = 0 (`furniture.js`, `room.js`). The shading did not:
 
 **Cost (SwiftShader software GL, not a real GPU):** seat median 1063 → 1097 ms, window 672 → 733 ms;
 one more draw call.
+
+### Pass l3: ink lines that hold still when the view turns (2026-11-17, branch `steady-lines`)
+
+**Why the lines moved.** Two causes, found by turning the seat view a few pixels at a time and
+lining the frames up:
+- The ink's hand (wobble, thickness, breaks) and the wash blotches were noise fields fixed to the
+  screen. When the view turned, the room slid under them, so every line changed its wiggles, gaps
+  and thickness from frame to frame ("boiling", the shower-door effect).
+- No anti-aliasing: the 1 px ink lines and the geometry edges were stair-steps that crawl as
+  edges move across the pixel grid.
+
+**Fix:**
+- The hand field (`toon.js`) and the wash field (`watercolour.js`) are now tiles drawn once and
+  repeating without a seam (the noise lattice wraps at each band's cell count). Scales rounded to
+  fit: ink cells 9 → 8 px, thickness 0.35 → 0.375, pressure 2.3 → 2.25; washes 260/180/45 →
+  256/192/48 px, fbm octaves 2.03/4.1 → 2/4.
+- Each pixel reads them at its own direction in the world (`VIEW_FIELD`: the pixel's ray turned
+  by the camera's rotation, as azimuth and elevation times the focal length). A turn of the view
+  now moves the noise exactly with the room, also at the frame's edges. A plain screen shift was
+  tried first: right at the centre, but 3.5 px behind the room at the edges for a 0.021 rad turn.
+  During a move between shots the camera also travels, so some parallax slide remains there.
+- The paper grain and the granulation tooth stay fixed to the screen: they are the paper.
+  Measured: they account for under 0.1 of the remaining change.
+- `SMAAPass` is the last pass, on the encoded image. `?off=aa` leaves it out.
+
+**Measured (seat view, look.x 0 → 0.35 in 8 steps of 3.1 px, neighbouring frames lined up):**
+- Mean grey change near ink lines: 9.8 → 6.2. Whole crop: 4.9 → 3.65. With no ink and no wash at
+  all (`off=ink,pigment,aa`) the whole crop changes 2.96 (the room's own sub-pixel motion), so
+  the part the drawn fields add fell from 1.94 to 0.69 (−64%).
+- Thresholded line mask changing per step: 41% → 30%. This measure punishes soft (anti-aliased)
+  line edges; without SMAA it was 27%.
+- Still frame: lightness 0.369 → 0.370, saturation 0.423 → 0.420 (seat); 0.585 → 0.584 and
+  0.364 → 0.363 (window).
+
+**Cost (SwiftShader software GL, not a real GPU; `perf-run.cjs`):** seat median 1097 → 1170 ms,
+window 733 → 719 ms. SMAA is about 150 ms of that here (three small passes); the two field reads
+replace two texel fetches with filtered reads and a few trig calls.

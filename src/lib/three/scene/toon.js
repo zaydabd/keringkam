@@ -47,6 +47,25 @@ const EDGE_FRAGMENT = /* glsl */ `
   }
 `;
 
+const INK_TILE = 256; // px: the ink's hand field repeats this often (INK_FIELD_FRAGMENT)
+
+/** GLSL: where a pixel reads a field that stays on the world when the camera turns: the pixel's
+ * ray turned into the world (rotation = the camera's world rotation), as azimuth and elevation
+ * times the focal length (in pixels). At the frame's centre one pixel is one field unit; towards
+ * the edges the field is stretched a little (16% at the edge of a 47° view), the same on every
+ * frame. The camera's position is not used: during a move between shots the field still slides
+ * by the parallax. */
+export const VIEW_FIELD = /* glsl */ `
+  vec2 viewField(vec2 frag, vec2 resolution, mat3 rotation, float focal) {
+    vec3 r = rotation * vec3((frag - 0.5 * resolution) / focal, -1.0);
+    return focal * vec2(atan(r.x, -r.z), asin(clamp(r.y / length(r), -1.0, 1.0)));
+  }
+`;
+/** Sets a pass's viewRotation and focal uniforms from the camera (focal: drawing-buffer pixels). */
+export function setViewField(uniforms, camera, bufferHeight) {
+  uniforms.viewRotation.value.setFromMatrix4(camera.matrixWorld);
+  uniforms.focal.value = bufferHeight / 2 / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+}
 const OUTLINE_SHADER = {
   uniforms: {
     tDiffuse: { value: null },
@@ -67,6 +86,10 @@ const OUTLINE_SHADER = {
     fade: { value: new THREE.Vector2(7, 26) },
     farInk: { value: 0.7 }, // ink on the view outside, relative to the room's
     farDepth: { value: new THREE.Vector2(0.02, 0.07) },
+    // Where the hand field is read: each pixel's direction in the world (setView), so the wobble,
+    // thickness and breaks stay on the room when the view turns instead of on the screen (no "boiling").
+    viewRotation: { value: new THREE.Matrix3() },
+    focal: { value: 1000 },
   },
   vertexShader: /* glsl */ `
     varying vec2 vUv;
@@ -76,6 +99,9 @@ const OUTLINE_SHADER = {
     #include <packing>
     uniform sampler2D tDiffuse, tEdge, tDepth, tWobble, tGrain;
     uniform vec2 resolution, fade, farDepth;
+    uniform mat3 viewRotation;
+    uniform float focal;
+    ${VIEW_FIELD}
     uniform float cameraNear, cameraFar, strength, thickness, split, seams, exposure, farInk;
     uniform vec3 ink, splitTint;
     varying vec2 vUv;
@@ -94,9 +120,10 @@ const OUTLINE_SHADER = {
       vec3 cool = mix(base.rgb, vec3(lum) * splitTint, 0.45); // half-way to a blue-grey of the same value
       base.rgb = mix(base.rgb, cool, sh * split);
       // Hand wobble: nudge where we look for edges by a slow noise, so lines waver like ink.
-      // The noise (wobble x, y, thickness, pressure) is precomputed: INK_FIELD_FRAGMENT.
+      // The noise (wobble x, y, thickness, pressure) is precomputed: INK_FIELD_FRAGMENT, a tile
+      // that repeats every ${INK_TILE} px, read at the pixel's direction in the world (VIEW_FIELD).
       vec2 px = 1.0 / resolution;
-      vec4 hand = texelFetch(tWobble, ivec2(gl_FragCoord.xy), 0);
+      vec4 hand = texture2D(tWobble, viewField(gl_FragCoord.xy, resolution, viewRotation, focal) / ${INK_TILE}.0);
       vec2 wob = (hand.xy - 0.5) * 2.2 * px;
       float t = thickness * (0.75 + 0.5 * hand.z);
       vec2 uv = vUv + wob;
@@ -152,13 +179,14 @@ const OUTLINE_SHADER = {
   `,
 };
 
-// The ink pass's noise depends on the pixel's position only, never on the image, so it is drawn
-// once per screen size instead of every frame (7 value-noise lookups, 28 sines, per pixel per
-// frame saved). part 0: wobble x, wobble y, thickness, pressure (RGBA, 8 bits: a wobble step is
-// 0.01 px); part 1: the paper grain (one channel). size = the buffer's size in pixels; resolution
-// = the ink pass's resolution uniform, which can be a fraction of a pixel larger (dpr 1.5).
+// The ink pass's noise depends on position only, never on the image, so it is drawn once instead
+// of every frame (7 value-noise lookups, 28 sines, per pixel per frame saved).
+// part 0, the hand: wobble x, wobble y, thickness, pressure (RGBA, 8 bits: a wobble step is
+// 0.01 px). It is a tile of INK_TILE px that repeats seamlessly: 8 px noise cells (32 a tile),
+// thickness 8 / 0.375 px (12 a tile), pressure 8 / 2.25 px (72 a tile); the lattice hash wraps at
+// each band's count. The ink pass reads it at each pixel's direction in the world (VIEW_FIELD).
+// part 1: the paper grain (one channel), at the screen's size and fixed to it: it is the paper.
 const INK_FIELD_FRAGMENT = /* glsl */ `
-  uniform vec2 resolution, size;
   uniform float part;
   float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
   float noise(vec2 p) {
@@ -166,10 +194,17 @@ const INK_FIELD_FRAGMENT = /* glsl */ `
     f = f * f * (3.0 - 2.0 * f);
     return mix(mix(hash(i), hash(i + vec2(1, 0)), f.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.x), f.y);
   }
+  // The same noise, repeating every n cells.
+  float noise(vec2 p, float n) {
+    vec2 i = floor(p), f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    vec2 a = mod(i, n), b = mod(i + 1.0, n);
+    return mix(mix(hash(a), hash(vec2(b.x, a.y)), f.x), mix(hash(vec2(a.x, b.y)), hash(b), f.x), f.y);
+  }
   void main() {
     if (part < 0.5) {
-      vec2 q = gl_FragCoord.xy / size * resolution / 9.0; // vUv * resolution / 9 in the ink pass
-      gl_FragColor = vec4(noise(q), noise(q + 17.3), noise(q * 0.35 + 5.0), noise(q * 2.3));
+      vec2 q = gl_FragCoord.xy / 8.0;
+      gl_FragColor = vec4(noise(q, 32.0), noise(q + 17.3, 32.0), noise(q * 0.375 + 5.0, 12.0), noise(q * 2.25, 72.0));
     } else {
       vec2 fc = gl_FragCoord.xy;
       float tooth = noise(fc * 0.85) * 0.6 + noise(fc * 0.21 + 3.0) * 0.4;
@@ -217,16 +252,24 @@ export function createOutline(renderer, scene, camera, { layer = 0, ink = '#0000
   material.uniforms.ink.value.set(ink);
   const clear = new THREE.Color();
   const fieldOptions = { type: THREE.UnsignedByteType, depthBuffer: false, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, generateMipmaps: false };
-  const wobble = new THREE.WebGLRenderTarget(1, 1, fieldOptions);
+  const wobble = new THREE.WebGLRenderTarget(INK_TILE, INK_TILE, { ...fieldOptions, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, wrapS: THREE.RepeatWrapping, wrapT: THREE.RepeatWrapping });
   const grain = new THREE.WebGLRenderTarget(1, 1, { ...fieldOptions, format: THREE.RedFormat });
   const fieldMaterial = new THREE.ShaderMaterial({
-    uniforms: { resolution: { value: new THREE.Vector2() }, size: { value: new THREE.Vector2() }, part: { value: 0 } },
+    uniforms: { part: { value: 0 } },
     vertexShader: 'void main() { gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
     fragmentShader: INK_FIELD_FRAGMENT,
   });
   const fieldQuad = new FullScreenQuad(fieldMaterial);
   material.uniforms.tWobble.value = wobble.texture;
   material.uniforms.tGrain.value = grain.texture;
+  const drawField = (part, field) => {
+    const previous = renderer.getRenderTarget();
+    fieldMaterial.uniforms.part.value = part;
+    renderer.setRenderTarget(field);
+    fieldQuad.render(renderer);
+    renderer.setRenderTarget(previous);
+  };
+  drawField(0, wobble); // the hand tile: once
 
   return {
     material,
@@ -234,17 +277,13 @@ export function createOutline(renderer, scene, camera, { layer = 0, ink = '#0000
       target.setSize(Math.round(w * pixelRatio), Math.round(h * pixelRatio));
       material.uniforms.resolution.value.set(w * pixelRatio, h * pixelRatio);
       material.uniforms.thickness.value = Math.max(0.75, pixelRatio * 0.7) * lineWidth;
-      // The fields, at the size of the composer's buffers (WebGL truncates w * pixelRatio).
-      const size = fieldMaterial.uniforms.size.value.set(Math.floor(w * pixelRatio), Math.floor(h * pixelRatio));
-      fieldMaterial.uniforms.resolution.value.copy(material.uniforms.resolution.value);
-      const previous = renderer.getRenderTarget();
-      for (const [part, field] of [wobble, grain].entries()) {
-        field.setSize(size.x, size.y);
-        fieldMaterial.uniforms.part.value = part;
-        renderer.setRenderTarget(field);
-        fieldQuad.render(renderer);
-      }
-      renderer.setRenderTarget(previous);
+      // The paper grain, at the size of the composer's buffers (WebGL truncates w * pixelRatio).
+      grain.setSize(Math.floor(w * pixelRatio), Math.floor(h * pixelRatio));
+      drawField(1, grain);
+    },
+    /** Keeps the hand field on the world: call each frame after the camera moves. */
+    setView() {
+      setViewField(material.uniforms, camera, material.uniforms.resolution.value.y);
     },
     render() {
       const background = scene.background;
