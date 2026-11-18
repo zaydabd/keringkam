@@ -1014,11 +1014,12 @@ The user: the fabrics get too many effects; they should look close to their text
 RGB; the mask from `fabric-<place>-mask` captures, eroded 3 px, the cloth nearest the frame
 centre):
 
-| Cloth | Photo mean | Before (f2) | After (f3) |
-|---|---|---|---|
-| Settee | 131, 101, 74 | 108, 79, 46 (42.4) | 110, 89, 73 (24.2) |
-| Right chair (plum) | 115, 85, 83 | 113, 70, 60 (27.5) | 112, 79, 92 (11.2) |
-| Window | 132, 99, 70 | 118, 85, 48 (29.6) | 116, 91, 74 (18.3) |
+| Cloth | Photo mean | f2 | f3, mask only | f3, final |
+|---|---|---|---|---|
+| Settee | 131, 101, 74 | 96, 74, 51 (49.8) | 108, 79, 46 (42.4) | 110, 89, 73 (24.2) |
+| Right chair (plum) | 115, 85, 83 | 105, 75, 64 (23.7) | 113, 70, 60 (27.5) | 112, 79, 92 (11.2) |
+| Window | 132, 99, 70 | 111, 85, 59 (27.5) | 118, 85, 48 (29.6) | 116, 91, 74 (18.3) |
 
-"Before" here is the first f3 render (mask only); the f2 numbers came out the same or worse.
+The mask alone moved the cloths little: without the grade's desaturation the warm light's yellow
+showed more. The white balance did most of the work.
 Saturation (mean max-min) now follows the photo, where before the yellow shift raised it.
