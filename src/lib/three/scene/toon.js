@@ -119,6 +119,9 @@ const OUTLINE_SHADER = {
     seams: { value: 0.5 }, // ink between touching parts (planks), relative to silhouettes
     thickness: { value: 1 },
     wobble: { value: 2.2 }, // px (CSS): how far the hand moves where a line is looked for
+    lines: { value: 1 }, // 0: no lines at all (the split tone and the paper grain stay); setLines
+    creases: { value: 1 }, // lines where the surface turns (from the normals), relative to silhouettes
+    pressure: { value: 1 }, // how much the uneven pressure thins and breaks the lines (0 = even lines)
     fade: { value: new THREE.Vector2(7, 26) },
     farInk: { value: 0.7 }, // ink on the view outside, relative to the room's
     fabricKeep: { value: 0 }, // on the fabrics (alpha 0): how much of the scene colour is kept unpainted
@@ -141,7 +144,7 @@ const OUTLINE_SHADER = {
     uniform float focal, pixelRatio;
     ${VIEW_FIELD}
     ${FIELD_NOISE}
-    uniform float cameraNear, cameraFar, strength, thickness, split, seams, exposure, farInk, fabricKeep, fabricInk, wobble;
+    uniform float cameraNear, cameraFar, strength, thickness, split, seams, exposure, farInk, fabricKeep, fabricInk, wobble, lines, creases, pressure;
     uniform vec3 ink, splitTint;
     varying vec2 vUv;
 
@@ -170,14 +173,17 @@ const OUTLINE_SHADER = {
       vec2 wob = (hand.xy - 0.5) * wobble * pixelRatio * px;
       float t = thickness * (0.75 + 0.5 * hand.z);
       vec2 uv = vUv + wob;
-
+      vec3 col = base.rgb;
+      float edge = 0.0, seam = 0.0, dc = cameraFar;
+      bool cm = false;
+      if (lines > 0.0) {
       // A cut-out panel (the window lattice) is drawn into the edge buffer as "nothing" (alpha 0)
       // at its own depth. It counts as open air, and what lies beyond it makes no edge with it:
       // no ink from the view outside lands on the lattice.
       float dT = depthAt(uv);
       vec4 ec = edgeAt(uv);
-      bool cm = ec.a == 0.0 && dT < cameraFar * 0.99;
-      float dc = cm ? cameraFar : dT;
+      cm = ec.a == 0.0 && dT < cameraFar * 0.99;
+      dc = cm ? cameraFar : dT;
       float depthEdge = 0.0, normalEdge = 0.0, idEdge = 0.0, nearest = dT, pairs = 1.0;
       for (int k = 0; k < 4; k++) {
         vec2 o = k == 0 ? vec2(1, 0) : k == 1 ? vec2(-1, 0) : k == 2 ? vec2(0, 1) : vec2(0, -1);
@@ -193,9 +199,9 @@ const OUTLINE_SHADER = {
         normalEdge += pair * distance(e.rgb, ec.rgb);
         idEdge += pair * step(0.002, abs(e.a - ec.a));
       }
-      float creases = smoothstep(0.35, 0.7, normalEdge);
-      float edge = max(smoothstep(0.06, 0.16, depthEdge), creases);
-      float seam = min(idEdge, 1.0) * seams; // seams between parts (planks): lighter than silhouettes and creases
+      float creaseLine = smoothstep(0.35, 0.7, normalEdge) * creases;
+      edge = max(smoothstep(0.06, 0.16, depthEdge), creaseLine);
+      seam = min(idEdge, 1.0) * seams; // seams between parts (planks): lighter than silhouettes and creases
       edge = max(edge, seam * 0.5);
       // Thinner and fainter with distance (the room is within fade.x metres).
       edge *= 1.0 - smoothstep(fade.x, fade.y, min(dc, cm ? cameraFar : depthAt(uv + vec2(px.x * t, 0.0))));
@@ -209,12 +215,14 @@ const OUTLINE_SHADER = {
       float lap = abs(1.0 / depthAt(c0 + vec2(1, 0) / size) + 1.0 / depthAt(c0 - vec2(1, 0) / size) - 2.0 * i0)
                 + abs(1.0 / depthAt(c0 + vec2(0, 1) / size) + 1.0 / depthAt(c0 - vec2(0, 1) / size) - 2.0 * i0);
       float outside = smoothstep(fade.x, fade.y, nearest) * pairs * (cm ? 0.0 : 1.0);
-      float farEdge = max(max(smoothstep(farDepth.x, farDepth.y, lap / i0), creases), seam * 0.6);
+      float farEdge = max(max(smoothstep(farDepth.x, farDepth.y, lap / i0), creaseLine), seam * 0.6);
       farEdge *= farInk * mix(1.0, 0.5, smoothstep(80.0, 800.0, nearest)); // fainter in the haze
       edge = max(edge, farEdge * outside);
-      edge *= 0.5 + 0.5 * hand.w; // uneven pressure: the line thins and breaks
-      vec3 col = mix(base.rgb, ink, edge * strength);
-      col *= 1.0 - seam * 0.55 * (1.0 - smoothstep(fade.x, fade.y, dc)) * (cm ? 0.0 : 1.0); // seams darken whatever they cross, so they show on dark wood too
+      edge *= 1.0 - pressure * 0.5 * (1.0 - hand.w); // uneven pressure: the line thins and breaks
+      edge *= lines;
+      col = mix(base.rgb, ink, edge * strength);
+      col *= 1.0 - lines * seam * 0.55 * (1.0 - smoothstep(fade.x, fade.y, dc)) * (cm ? 0.0 : 1.0); // seams darken whatever they cross, so they show on dark wood too
+      }
       // Paper grain: fine tooth plus a faint larger mottling, like watercolour paper. It stays on
       // the room too, read at whole drawing-buffer pixels: a fine grain resampled between pixels
       // would blur and sharpen as the view turns, so it moves in whole-pixel steps instead.
@@ -269,10 +277,23 @@ export function createOutline(renderer, scene, camera, { layer = 0, ink = '#0000
   const clear = new THREE.Color();
   material.uniforms.tNoise.value = fieldNoiseTexture();
 
+  let lines = true;
+  let size = [1, 1];
   return {
     material,
+    /** The lines on or off. Off: the edge buffer is not drawn (render() does nothing) and shrinks to 1x1. */
+    setLines(on) {
+      lines = !!on;
+      material.uniforms.lines.value = lines ? 1 : 0;
+      if (lines) target.setSize(...size);
+      else target.setSize(1, 1);
+    },
+    get lines() {
+      return lines;
+    },
     setSize(w, h, pixelRatio) {
-      target.setSize(Math.round(w * pixelRatio), Math.round(h * pixelRatio));
+      size = [Math.round(w * pixelRatio), Math.round(h * pixelRatio)];
+      if (lines) target.setSize(...size);
       material.uniforms.resolution.value.set(w * pixelRatio, h * pixelRatio);
       material.uniforms.thickness.value = Math.max(0.75, pixelRatio * 0.7) * lineWidth;
       material.uniforms.pixelRatio.value = pixelRatio;
@@ -282,6 +303,7 @@ export function createOutline(renderer, scene, camera, { layer = 0, ink = '#0000
       setViewField(material.uniforms, camera, material.uniforms.resolution.value.y);
     },
     render() {
+      if (!lines) return;
       const background = scene.background;
       const override = scene.overrideMaterial;
       const layers = camera.layers.mask;
