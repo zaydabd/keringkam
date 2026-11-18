@@ -1299,3 +1299,125 @@ Results:
   at 1240×894). The seat frame is about 19% faster.
 - Light draws the same passes as Full. The passes it does not change (the scene) vary by about as
   much between runs, so no speed difference is claimed for it.
+
+### Pass p2: AO Auto, SMAA memory, where the scene pass goes (2026-11-18, branch `perf-ao-smaa-scene`)
+
+**What the user asked:** "do 1 and 2 on a new branch and let ao be a setting, and 3 too": the AO at
+half size while the view moves and full when it holds still, SMAA's buffers freed when it is off,
+and the scene pass measured, then made cheaper only if the picture stays the same.
+
+**Warning:** every time below is from SwiftShader (software GL in headless Chromium), not a real
+GPU. Read them as shares of the frame, not as frame rates.
+
+#### 1. AO Auto
+
+`quality.js` AO: `auto` is full size when the view holds still and half a side on frames where it
+moves (`AO.moving`). It is the High preset's AO (Medium stays half, Low off). `ao.js` StillAOPass
+resizes its buffers to the moving size when the camera changes, and back to full on the first
+still frame, where it works the AO out once more; after that it blends the AO it has, as before.
+
+**The view never held still.** The pointer smoothing (`look.lerp(pointer, 1 - exp(-2 dt))`) only
+ever approaches the pointer: the camera kept turning by fractions of a pixel for about 17 s after
+each move (simulated with the tick's own formula, at 10, 60 and 120 fps), and the AO was worked out
+again on every one of those frames. The tick now takes the last step once both axes are within
+0.05 CSS px of turn.
+
+| settle after one mouse move (`settle.cjs`, 400×300) | frames moving | AO worked out |
+| --- | --- | --- |
+| before | 186 (67 s at SwiftShader's pace) | every frame |
+| after | 32 (8.4 s) | 32 |
+
+At 60 fps (simulated): before about 17 s whatever the move's size; after 3.5 s at the seat and
+4.3 s at the window. The last half pixel of visible turn ends at 2.4 s and 3.2 s, as before: the
+snap only cuts the invisible tail.
+
+**Cost** (`perf-run.cjs` at 1240×894, ratio 1, High otherwise; GPU timer, median ms a frame; Full
+2 runs, Auto 4 runs):
+
+| AO | AO pass, view moving | whole frame (GPU), view moving | AO pass, still |
+| --- | --- | --- | --- |
+| Full | 921 / 984 | 1,889 / 2,092 | 24 / 25 |
+| Auto | 243 – 252 | 1,239 – 1,371 | 22 – 23 |
+
+The AO pass is about 74% cheaper while the view moves, the moving frame about 35%. Still frames
+are the same (both only blend the AO they have).
+
+**Picture** (1920×1080, 1x, `?t=5`, full fabric photos):
+
+| compared | mean diff | pixels > 8 of 255 | max |
+| --- | --- | --- | --- |
+| old Full vs old Full (two loads: the noise floor) | 0.48 | 0.43% | 84 |
+| old Full vs new Auto, seat, still | 0.49 / 0.50 | 0.43% / 0.45% | 85 / 78 |
+| old Full vs new Auto, window, still | 0.06 | 0.03% | 28 |
+| still frame vs moving frame, same pose (new Auto) | 1.19 | 2.79% | 136 |
+
+The still picture is Full's. The last row is the change seen when the view stops: the full-size AO
+comes back, mostly as the darker AO on the hanging cloth behind the table.
+
+**A false lead:** some captures of the new build came out 0.17 of 255 brighter. The room is metered
+again once the fabric photos are in; in SwiftShader that second reading comes at about 130 s and
+moves the exposure from 1.114 to 1.198. Captured after it, two loads of the old and new builds are
+identical (0 pixels differ).
+
+#### 2. SMAA memory
+
+SMAA kept two buffers (edges and blend weights, 8.46 MB each at 1240×894, estimated) whatever its
+setting. Now a switched-off SMAA sizes them to 1×1, and `resize()` sets `enabled` before it sizes
+the passes.
+
+| | old | new |
+| --- | --- | --- |
+| AA off from page load | not on the GPU | not on the GPU |
+| AA on, then Off in the panel | 2 × 1240×894 stay on the GPU | 1×1, freed (textures 46 → 44) |
+| then On again | 2 × 1240×894 | 2 × 1240×894 |
+
+three.js puts a render target on the GPU at its first use, so with AA off from the start nothing was
+held before either: `perf-run.cjs --memory` gives 141.8 MB of render targets for both builds. The
+saving is when SMAA is switched off while the page runs (the panel, or auto at a ratio of 2 or
+more after a resize). The raw scene (`?debug=nopost`) and the picture without AO and SMAA
+(`?off=ao,aa`) are pixel-identical between the builds; with SMAA on, the full picture is within the
+noise floor above.
+
+`perf-run.cjs` now takes `LS='{"ao":"full"}'`: graphics settings stored before the page loads.
+
+#### 3. Where the scene pass goes
+
+The overdraw probe (`ao/overdraw.cjs`) is fixed: additive blending scaled each count by its alpha
+(1/255), so every count rounded to 0; it now writes alpha 1. Fragments per pixel, all meshes drawn
+opaque, at half the buffer's size:
+
+| view | shaded, as drawn (depth test) | all fragments (no depth test) | pixels with no geometry |
+| --- | --- | --- | --- |
+| seat | 1.66 | 3.90 | 3.4% |
+| window | 1.17 | 1.99 | 20.6% |
+
+**The scene render's GPU time** (`scene.cjs`, the seat at 1240×894, ratio 1, median of 5, one page
+load; the two "as drawn" timings bracket the others):
+
+| scene pass | ms | |
+| --- | --- | --- |
+| as drawn | 767 / 718 | |
+| one plain unlit material | 79 | geometry and raster: about 10% |
+| depth only | 69 | |
+| no shadow lookups | 488 | the lookups: 27–34% (two loads) |
+| without the room group (floor, walls, ceiling, lattice, wood, carving and the rest) | 361 | about half |
+| without the view outside | 524 | about 29% |
+| without the fabrics | 618 | about 17% |
+| without the light quads | 746 | within the noise |
+
+Nine tenths of the pass is shading the pixels, and a third of that is the shadow lookups. At the
+window the pass is smaller (274–315 ms, shadow lookups 16–27%).
+
+**Tried, not kept:**
+- **A depth pre-pass** (depth of the opaque meshes first, then the scene, so each pixel is shaded
+  once; `prepass.cjs`). The picture is identical, but the frame is slower: seat 1,660 – 1,723 ms
+  against 1,420 – 1,515 ms as drawn, window 291 – 299 against 283 – 285. Only 14 of the 40 meshes
+  can take it (19 are drawn transparent, 4 have their own vertex shader, 2 an alpha test), and the
+  pre-pass costs more than the overdraw it saves.
+- **Drawing transparent meshes opaque** (`transp.cjs`): 18 of the 19 change the picture: the light
+  quads (opacity 0.85–0.9), the 24 alpha-mapped quads, and the fabrics, whose custom blending writes the
+  fabric mask. The one that does not (the window's fabric) made no difference in time.
+
+No change to the scene pass was kept. What would make it cheaper changes the picture or is a larger
+job: baking the still shadows, fewer shadow samples, or the view outside at a lower resolution.
+These are listed for the user to choose from.
