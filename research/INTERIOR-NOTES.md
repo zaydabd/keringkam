@@ -1118,3 +1118,92 @@ as in pass l4, mean grey change per step that is not the camera's move):
 | SMAA off (s1 at 2x) | 0.26 | 0.98 | 3.39 | 2.50 | 1.57 |
 
 At most 7% more crawl (window), within what pass l4 called steady.
+
+### Pass p1: performance audit and graphics settings (2026-11-18, branches `perf-audit`, `graphics-settings`)
+
+**What the user asked:** "optimize performance and find the cause regarding the performance",
+then "treat everything as 1x and their laptops are 1920 by 1080, like what games would do", then
+"make a graphical settings".
+
+**Warning:** every time below is from SwiftShader (software GL in headless Chromium), not a real
+GPU. Read them as shares of the frame, not as frame rates.
+
+**Where the frame goes** (`perf-run.cjs --size=1920x1080`, pixel ratio 1, per pass, GPU timer
+queries, ms a frame, median):
+
+| pass | view still | view moving |
+| --- | --- | --- |
+| AO (GTAO + denoise) | 46 | **1,909** |
+| scene | 998 | 795 |
+| SMAA | 313 | 323 |
+| pigment | 299 | 307 |
+| ink | 209 | 212 |
+| ink pre-pass | 130 | 131 |
+| finish | 100 | 117 |
+| river mirror | 68 | 70 |
+| total | 2,194 | 3,925 |
+
+The AO is worked out again whenever the camera moves, and on a desktop the pointer moves it all the
+time, so the moving column is the one a user sees. Load at 1080p: build 645 ms, first frame 980 ms,
+fabrics ready 8,841 ms, page ready 12.5 s.
+
+**Memory, estimated** (`perf-run.cjs --memory`: bytes worked out from each target's size and type,
+counting only what three.js has put on the GPU; not read from the driver): scene textures 44 MB,
+render targets 234 MB. Of the targets: two shadow maps about 32 MB each, the composer 2 × 23.7 MB,
+the AO 23.7 + 15.8 + 15.8 MB, SMAA 2 × 15.8 MB.
+
+**AO options at 1920×1080** (in-page bench, the AO pass alone, smallest of 3 frames; pixel diff
+against full resolution with 24 samples, the seat at `?t=5`):
+
+| AO | ms (SwiftShader) | mean diff | pixels > 8 of 255 | max |
+| --- | --- | --- | --- | --- |
+| full, 24 samples (as designed) | 1,689 | — | — | — |
+| full, 24 samples, second run | 1,701 | 0.00 | 0.00% | 0 |
+| **half, 24 samples** | **493** (-71%) | 0.91 | 1.66% | 116 |
+| full, 16 samples | 1,339 (-21%) | 1.08 | 2.50% | 114 |
+| full, 12 samples | 1,154 (-32%) | 1.84 | 5.47% | 120 |
+
+Half resolution is both cheaper and closer to the design than fewer samples, so it is the Medium
+setting; High keeps the AO as designed.
+
+**Tried, not used:** the overdraw probe (`ao/overdraw.cjs`, fragments per pixel in the scene pass)
+counted 0 everywhere, so the probe itself is broken; there is no overdraw number.
+
+**The graphics settings** (`quality.js`, the Graphics button on the interior page). Every number
+that trades picture for speed is now in that one file; the debug query switches still win.
+
+| setting | Low | Medium | High (default) | applies |
+| --- | --- | --- | --- | --- |
+| resolution (most pixels drawn) | 720p | 1080p | 1080p | at once |
+| ambient occlusion | off | half | full | at once |
+| shadows (sun / sky / side map) | 1024 / 1024 / 512 | 2048 / 2048 / 1024 | 2048 / 2048 / 1024 | at once |
+| anti-aliasing | auto | auto | auto | at once |
+| texture detail | low (fabric previews, no 2x paint) | high | high | reloads the page |
+
+Resolution works like a game's render resolution: a screen with fewer pixels than the setting is
+drawn at its own pixels; one with more (a 2x laptop, a 1440p or 4K monitor) at about that many,
+stretched to fill it. Ratio = sqrt(budget / CSS pixels), between 0.5 and 3. Native draws every
+device pixel. This is the "smaller back buffer, and upscaling the result" of MDN's WebGL best
+practices (developer.mozilla.org/en-US/docs/Web/API/WebGL_API/WebGL_best_practices).
+Anti-aliasing auto: SMAA below a ratio of 2, off at 2 or more (pass s1). The settings are kept in
+this browser (`localStorage`, `keringkam.graphics`).
+
+**Checks** (the seat at 1920×1080, pixel ratio 1, `?t=5`, full fabric photos loaded; the old
+code served from a worktree of `perf-audit` e3ebf43 on a second port):
+
+| compared | mean diff | pixels > 8 of 255 | max |
+| --- | --- | --- | --- |
+| old vs old (two loads: the noise floor) | 0.47 | 0.40% | 84 |
+| new vs new (two loads) | 0.46 | 0.39% | 87 |
+| old vs new, High | 0.47 | 0.40% | 84 |
+| High vs Medium | 0.87 | 1.57% | 91 |
+| High vs Low | 10.38 | 34.87% | 182 |
+
+High is the old picture: it differs from it no more than two loads of the same code differ from
+each other. Medium is the half-resolution AO (as in the bench above). Low is a different picture on
+purpose: 1280×720 stretched, no AO, smaller shadow maps.
+
+The panel, driven in the page (Playwright): Medium → buffer 1920×1080, AO 960×540; Low → the page
+reloads, buffer 1280×720 (ratio 0.667), AO off, shadow maps 1024/1024/512; AO set to full on top
+of Low → preset shows Custom, AO 1280×720; each choice saved to `localStorage`; Escape closes the
+panel. No page errors.
