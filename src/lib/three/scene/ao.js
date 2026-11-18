@@ -13,13 +13,15 @@ import * as THREE from 'three';
 import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { VIEW_FIELD, setViewField } from './toon.js';
 
+const PD_RADIUS = 10; // the denoise radius, in drawing-buffer pixels
+
 class StillAOPass extends GTAOPass {
-  constructor(scene, camera, look, bufferScale) {
+  constructor(scene, camera, look, { bufferScale, samples = 24 } = {}) {
     super(scene, camera, 1, 1);
     this.bufferScale = bufferScale; // () => the AO buffer's size relative to the drawing buffer
     const { intensity, radius, distanceExponent, thickness, scale } = look;
-    this.updateGtaoMaterial({ radius, distanceExponent, thickness, scale, samples: 24 });
-    this.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 10, rings: 3, samples: 24 });
+    this.updateGtaoMaterial({ radius, distanceExponent, thickness, scale, samples });
+    this.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: PD_RADIUS, rings: 3, samples });
     this.blendIntensity = intensity;
     this.seen = { view: new THREE.Matrix4(), projection: new THREE.Matrix4(), fresh: false };
     // Both the AO and its denoiser turn their samples by a small noise texture tiled over the
@@ -46,6 +48,8 @@ class StillAOPass extends GTAOPass {
     // screen, as drawn on the design view at 1x) and the blend reads it back filtered.
     const k = this.bufferScale?.() ?? 1;
     super.setSize(Math.max(1, Math.round(width * k)), Math.max(1, Math.round(height * k)));
+    // The denoiser's radius is in its own buffer's pixels: scaled so it covers the same part of the screen.
+    this.pdMaterial.uniforms.radius.value = PD_RADIUS * k;
     this.seen.fresh = false;
   }
 
@@ -85,8 +89,8 @@ class StillAOPass extends GTAOPass {
 }
 
 /** The AO pass for the room, with the theme's look (themes/interior.js light.ao). view 'ao' shows the AO alone. */
-export function createAO(scene, camera, look, { view = false, bufferScale } = {}) {
-  const pass = new StillAOPass(scene, camera, look, bufferScale);
+export function createAO(scene, camera, look, { view = false, bufferScale, samples } = {}) {
+  const pass = new StillAOPass(scene, camera, look, { bufferScale, samples });
   if (view) pass.output = GTAOPass.OUTPUT.Denoise;
   return pass;
 }
