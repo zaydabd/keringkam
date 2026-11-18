@@ -516,7 +516,13 @@ export function createInterior(canvas, { onReady, onShot, onResolution, quality 
   // of the sharpness (34% of the fine detail) at 2x, measured (research/INTERIOR-NOTES.md,
   // "Sharpness"). ?aa=1 keeps it at any ratio.
   const smaa = off.has('aa') ? null : new SMAAPass();
-  if (smaa) composer.addPass(smaa);
+  if (smaa) {
+    // Switched off, it keeps its two buffers (edges and blend weights) at one pixel instead of a
+    // full screen each; resize() sets enabled before it sizes the passes.
+    const setSize = smaa.setSize.bind(smaa);
+    smaa.setSize = (w, h) => (smaa.enabled ? setSize(w, h) : setSize(1, 1));
+    composer.addPass(smaa);
+  }
   const meter = createMeter(renderer);
   let metered = false;
   let meterToken = 0;
@@ -543,12 +549,12 @@ export function createInterior(canvas, { onReady, onShot, onResolution, quality 
     }
     metrics.pixelRatio = ratio;
     renderer.setSize(w, h, false);
+    if (smaa) smaa.enabled = params.get('aa') === '1' || Q.aa === 'on' || (Q.aa === 'auto' && renderer.getPixelRatio() < 2);
     composer.setSize(w, h);
     outline.setSize(w, h, renderer.getPixelRatio());
     pigment.uniforms.resolution.value.set(w * renderer.getPixelRatio(), h * renderer.getPixelRatio());
     pigment.uniforms.scale.value = renderer.getPixelRatio();
     finish.uniforms.texel.value.set(1 / w, 1 / h);
-    if (smaa) smaa.enabled = params.get('aa') === '1' || Q.aa === 'on' || (Q.aa === 'auto' && renderer.getPixelRatio() < 2);
     camera.aspect = w / h;
     // Keep R1's vertical view on wide screens; on narrow ones keep its horizontal view instead.
     if (move.t >= 1) {
