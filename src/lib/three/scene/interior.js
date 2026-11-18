@@ -444,7 +444,9 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
   const composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
   // Ambient occlusion (ao.js): darkens under the furniture and in the corners; before the ink.
-  const ao = off.has('ao') || stage ? null : createAO(scene, camera, L.ao, { view: debug === 'ao' });
+  // ?aofull keeps the AO at the drawing buffer's resolution (research/INTERIOR-NOTES.md, pass p1).
+  const aoScale = params.has('aofull') ? undefined : () => Math.min(1, 1 / renderer.getPixelRatio());
+  const ao = off.has('ao') || stage ? null : createAO(scene, camera, L.ao, { view: debug === 'ao', bufferScale: aoScale });
   if (ao) composer.addPass(ao);
   const inkPass = !off.has('ink') && !clay;
   if (inkPass) composer.addPass(new ShaderPass(outline.material));

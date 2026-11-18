@@ -14,8 +14,9 @@ import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { VIEW_FIELD, setViewField } from './toon.js';
 
 class StillAOPass extends GTAOPass {
-  constructor(scene, camera, look) {
+  constructor(scene, camera, look, bufferScale) {
     super(scene, camera, 1, 1);
+    this.bufferScale = bufferScale; // () => the AO buffer's size relative to the drawing buffer
     const { intensity, radius, distanceExponent, thickness, scale } = look;
     this.updateGtaoMaterial({ radius, distanceExponent, thickness, scale, samples: 24 });
     this.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: 10, rings: 3, samples: 24 });
@@ -41,7 +42,10 @@ class StillAOPass extends GTAOPass {
   }
 
   setSize(width, height) {
-    super.setSize(width, height);
+    // The AO is soft shading: it is worked out at CSS-pixel resolution (half the buffer on a 2x
+    // screen, as drawn on the design view at 1x) and the blend reads it back filtered.
+    const k = this.bufferScale?.() ?? 1;
+    super.setSize(Math.max(1, Math.round(width * k)), Math.max(1, Math.round(height * k)));
     this.seen.fresh = false;
   }
 
@@ -81,8 +85,8 @@ class StillAOPass extends GTAOPass {
 }
 
 /** The AO pass for the room, with the theme's look (themes/interior.js light.ao). view 'ao' shows the AO alone. */
-export function createAO(scene, camera, look, { view = false } = {}) {
-  const pass = new StillAOPass(scene, camera, look);
+export function createAO(scene, camera, look, { view = false, bufferScale } = {}) {
+  const pass = new StillAOPass(scene, camera, look, bufferScale);
   if (view) pass.output = GTAOPass.OUTPUT.Denoise;
   return pass;
 }

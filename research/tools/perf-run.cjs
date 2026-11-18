@@ -34,7 +34,7 @@ const glArgs = (args.gl ?? 'swiftshader') === 'swiftshader' ? ['--use-gl=angle',
     process.exit(1);
   }
   const r = await page.evaluate(() => window.__perf);
-  if (args.memory)
+  if ('memory' in args)
     r.gpuMemory = await page.evaluate(() => {
       const { scene, composer, outline, landscape } = window.__interior;
       // Estimates: compressed textures by their data; the rest as RGBA8 (4 B a pixel), with mips 4/3;
