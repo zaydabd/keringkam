@@ -4,7 +4,8 @@
 //
 // The room never moves, so the AO of one view stays right until the camera moves or the screen
 // changes size: between those it only blends the AO it already has (two full-screen draws instead
-// of a second scene render, the AO and the denoise). This is the step before baking it.
+// of a second scene render, the AO and the denoise). This is the step before baking it. The AO
+// setting auto works it out at a smaller size while the view moves (quality.js AO.moving).
 //
 // Meshes with userData.noAO are left out of the AO's own depth and normal render: cut-outs
 // (the lattice, the carving) and sheer cloth would read as solid panels there.
@@ -20,7 +21,10 @@ class StillAOPass extends GTAOPass {
   constructor(scene, camera, look, { bufferScale, samples } = {}) {
     super(scene, camera, 1, 1);
     samples ||= AO.samples; // also when the caller passes null (no ?aosamples)
-    this.bufferScale = bufferScale; // () => the AO buffer's size relative to the drawing buffer
+    this.bufferScale = bufferScale; // (moving) => the AO buffer's size relative to the drawing buffer, while the view moves or holds still
+    this.size = [1, 1]; // the drawing buffer's
+    this.scale = null; // the AO buffer's, now
+    this.computes = 0; // times the AO was worked out (for tests)
     const { intensity, radius, distanceExponent, thickness, scale } = look;
     this.updateGtaoMaterial({ radius, distanceExponent, thickness, scale, samples });
     this.updatePdMaterial({ lumaPhi: 10, depthPhi: 2, normalPhi: 3, radius: PD_RADIUS, rings: 3, samples });
@@ -46,9 +50,16 @@ class StillAOPass extends GTAOPass {
   }
 
   setSize(width, height) {
+    this.size = [width, height];
+    this._scaleTo(this.bufferScale?.(false) ?? 1);
+  }
+
+  /** Sizes the AO buffers at k times the drawing buffer; the AO is worked out again on the next frame. */
+  _scaleTo(k) {
     // The AO is soft shading: it is worked out at CSS-pixel resolution (half the buffer on a 2x
     // screen, as drawn on the design view at 1x) and the blend reads it back filtered.
-    const k = this.bufferScale?.() ?? 1;
+    this.scale = k;
+    const [width, height] = this.size;
     super.setSize(Math.max(1, Math.round(width * k)), Math.max(1, Math.round(height * k)));
     // The denoiser's radius is in its own buffer's pixels: scaled so it covers the same part of the screen.
     this.pdMaterial.uniforms.radius.value = PD_RADIUS * k;
@@ -68,11 +79,16 @@ class StillAOPass extends GTAOPass {
   render(renderer, writeBuffer, readBuffer, deltaTime, maskActive) {
     const { seen, camera } = this;
     camera.updateMatrixWorld();
-    const still = seen.fresh && seen.view.equals(camera.matrixWorld) && seen.projection.equals(camera.projectionMatrix);
-    if (!still || this.output !== GTAOPass.OUTPUT.Default) {
+    const moved = !seen.view.equals(camera.matrixWorld) || !seen.projection.equals(camera.projectionMatrix);
+    // The AO setting auto (quality.js AO): smaller buffers on frames where the view moves, the full
+    // ones from the first frame it holds still (worked out once more there, then blended).
+    const k = this.bufferScale?.(moved) ?? 1;
+    if (k !== this.scale) this._scaleTo(k);
+    if (moved || !seen.fresh || this.output !== GTAOPass.OUTPUT.Default) {
       seen.view.copy(camera.matrixWorld);
       seen.projection.copy(camera.projectionMatrix);
       seen.fresh = true;
+      this.computes++;
       for (const material of [this.gtaoMaterial, this.pdMaterial]) {
         if (material.uniforms.viewRotation) setViewField(material.uniforms, camera, material.uniforms.resolution.value.y);
       }

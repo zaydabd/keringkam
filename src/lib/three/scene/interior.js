@@ -466,10 +466,11 @@ export function createInterior(canvas, { onReady, onShot, onResolution, quality 
   composer.addPass(new RenderPass(scene, camera));
   // Ambient occlusion (ao.js): darkens under the furniture and in the corners; before the ink.
   // The AO setting (quality.js AO): full is at most one AO pixel a CSS pixel, half is half that a
-  // side, off skips the pass. ?aores=k: the AO buffer at k times the drawing buffer; ?aosamples=n
-  // (debug, research/INTERIOR-NOTES.md, pass p1).
+  // side, auto is half while the view moves and full when it holds still, off skips the pass.
+  // ?aores=k: the AO buffer at k times the drawing buffer; ?aosamples=n (debug,
+  // research/INTERIOR-NOTES.md, passes p1 and p2).
   const aoRes = num('aores');
-  const aoScale = () => aoRes ?? AO.scale[Q.ao] * Math.min(1, 1 / renderer.getPixelRatio());
+  const aoScale = (moving = false) => aoRes ?? (moving ? (AO.moving[Q.ao] ?? AO.scale[Q.ao]) : AO.scale[Q.ao]) * Math.min(1, 1 / renderer.getPixelRatio());
   const ao = off.has('ao') || stage ? null : createAO(scene, camera, L.ao, { view: debug === 'ao', bufferScale: aoScale, samples: num('aosamples') });
   if (ao) composer.addPass(ao);
   if (ao) ao.enabled = Q.ao !== 'off' || aoRes !== null;
@@ -681,7 +682,15 @@ export function createInterior(canvas, { onReady, onShot, onResolution, quality 
     landscape.update(clockParam ?? timer.getElapsed());
     const dt = Math.min(timer.getDelta(), 0.1);
     if (fixedLook) look.copy(pointer);
-    else look.lerp(pointer, 1 - Math.exp(-dt * 2)); // smooths the input, not the camera
+    else {
+      look.lerp(pointer, 1 - Math.exp(-dt * 2)); // smooths the input, not the camera
+      // The smoothing only ever approaches the pointer: the view kept turning by fractions of a
+      // pixel for about 17 s after each move (and the AO was worked out again every frame). Within
+      // a twentieth of a pixel it takes the last step, and the view holds still.
+      const f = (height || 1) / 2 / Math.tan(THREE.MathUtils.degToRad(camera.fov / 2)); // CSS px a radian
+      const [lx, ly] = SHOTS[shot].look;
+      if (Math.abs(pointer.x - look.x) * lx * f < 0.05 && Math.abs(pointer.y - look.y) * ly * f < 0.05) look.copy(pointer);
+    }
     poseOf(shot, poseCam);
     if (move.t < 1) {
       // A move between shots is one interpolation and nothing else: no second smoother on top.
@@ -765,6 +774,7 @@ export function createInterior(canvas, { onReady, onShot, onResolution, quality 
   if (perf || debug) {
     window.__interior = {
       renderer, scene, camera, composer, outline, landscape, setShot,
+      get aoComputes() { return ao?.computes ?? null; }, // frames the AO was worked out (ao.js)
       stop: () => cancelAnimationFrame(frame),
       draw() {
         camera.updateMatrixWorld();

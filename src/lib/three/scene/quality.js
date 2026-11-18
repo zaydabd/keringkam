@@ -28,8 +28,13 @@ export const MIN_PIXEL_RATIO = 0.5;
  */
 export const PACE = { steps: [2], frames: 60, slowMs: 24, hiddenMs: 1000 };
 
-/** Ambient occlusion (ao.js): the AO buffer's size against the drawing buffer, at most one AO pixel a CSS pixel. */
-export const AO = { scale: { off: 0, half: 0.5, full: 1 }, samples: 24, denoiseRadius: 10 };
+/**
+ * Ambient occlusion (ao.js): the AO buffer's size against the drawing buffer, at most one AO pixel
+ * a CSS pixel. The AO is worked out again only on frames where the view moves; `moving` is the
+ * size on those frames where it differs: auto works it out at half a side while the view moves
+ * and at full size on the first frame it holds still, so the still picture is full's.
+ */
+export const AO = { scale: { off: 0, half: 0.5, full: 1, auto: 1 }, moving: { auto: 0.5 }, samples: 24, denoiseRadius: 10 };
 
 /** Shadow map sizes per light (texels a side). At high, the sky's map is about 2.3 mm a texel over the furniture. */
 export const SHADOWS = {
@@ -65,7 +70,7 @@ export const OUTLINES = {
 /** The settings the panel shows, in order, with their choices. */
 export const OPTIONS = {
   resolution: { label: 'Resolution', values: Object.fromEntries(Object.entries(RESOLUTIONS).map(([k, v]) => [k, v.label])) },
-  ao: { label: 'Ambient occlusion', values: { off: 'Off', half: 'Half', full: 'Full' } },
+  ao: { label: 'Ambient occlusion', values: { off: 'Off', half: 'Half', auto: 'Auto', full: 'Full' } },
   shadows: { label: 'Shadows', values: { low: 'Low', high: 'High' } },
   outlines: { label: 'Outlines', values: { off: 'Off', light: 'Light', full: 'Full' } },
   aa: { label: 'Anti-aliasing', values: { off: 'Off', auto: 'Auto', on: 'SMAA' } },
@@ -73,7 +78,8 @@ export const OPTIONS = {
 };
 
 /**
- * The presets. High is the picture as designed, at up to 1080p, with the lighter outlines. Low has
+ * The presets. High is the picture as designed, at up to 1080p, with the lighter outlines and the
+ * AO at auto (full when the view holds still, half while it moves). Low has
  * no outlines (the edge buffer is skipped). anti-aliasing auto: SMAA below 2
  * device pixels a CSS pixel, off at 2 or more (the lines are 2 pixels wide there, and SMAA took 8%
  * of the sharpness at 2x, measured).
@@ -81,7 +87,7 @@ export const OPTIONS = {
 export const PRESETS = {
   low: { label: 'Low', resolution: '720p', ao: 'off', shadows: 'low', outlines: 'off', aa: 'auto', textures: 'low' },
   medium: { label: 'Medium', resolution: '1080p', ao: 'half', shadows: 'high', outlines: 'light', aa: 'auto', textures: 'high' },
-  high: { label: 'High', resolution: '1080p', ao: 'full', shadows: 'high', outlines: 'light', aa: 'auto', textures: 'high' },
+  high: { label: 'High', resolution: '1080p', ao: 'auto', shadows: 'high', outlines: 'light', aa: 'auto', textures: 'high' },
 };
 export const DEFAULT_PRESET = 'high';
 

@@ -5,6 +5,8 @@
 //        [--seed=n] [--url=http://localhost:5173] [--gl=swiftshader|default] [--shot=out.png]
 //        [--q=a=1&b=2] (more query parameters, e.g. --q=paint=1)
 //        [--memory] estimated GPU memory: the scene's textures and the render targets, by size
+//   LS='{"ao":"full"}' node research/tools/perf-run.cjs ...: graphics settings (quality.js), stored
+//        in the page's localStorage before it loads; settings not given come from their preset
 // --gl=swiftshader (default) is the software renderer: it always works headless, but its frame
 // times are CPU times, not a real GPU's. On a machine with a GPU, use --gl=default and compare.
 // Numbers from a real device: open /?perf#/interior there; the result shows in a panel.
@@ -26,6 +28,7 @@ const glArgs = (args.gl ?? 'swiftshader') === 'swiftshader' ? ['--use-gl=angle',
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
+  if (process.env.LS) await page.addInitScript((v) => localStorage.setItem('keringkam.graphics', v), process.env.LS);
   await page.goto(`${url}/?${query}#/interior`, { waitUntil: 'domcontentloaded' });
   const ok = await page.waitForFunction(() => window.__perf?.done, null, { timeout: 900000, polling: 500 }).then(() => true, () => false);
   if (!ok) {
