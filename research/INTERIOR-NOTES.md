@@ -1207,3 +1207,95 @@ The panel, driven in the page (Playwright): Medium → buffer 1920×1080, AO 960
 reloads, buffer 1280×720 (ratio 0.667), AO off, shadow maps 1024/1024/512; AO set to full on top
 of Low → preset shows Custom, AO 1280×720; each choice saved to `localStorage`; Escape closes the
 panel. No page errors.
+
+### Pass o1: fewer outlines, and an Outlines setting (2026-11-18, branch `fewer-outlines`)
+
+**What the user asked:** "get rid a bit of the outlines, they seem to be the cause of a lot of
+wobbling and issues with graphics; make the outlines a setting too".
+
+**Method.** One page load per variant, the seat at 1240×894, device scale 2 (High: 1080p budget),
+`?t=5`, full fabric photos. The camera is moved in place with `window.__interior.draw()`, eight
+steps each way:
+- **turn:** yaw steps of 0.03°;
+- **move:** sideways steps of 2 mm (parallax).
+
+For each region the score is the change between neighbouring frames that is not the camera's own
+move: the sub-pixel shift is found by phase correlation and undone with a Fourier shift, then the
+mean grey difference is taken (`shimmer.py`, as in pass l4). The median of the 8 steps is reported,
+because a mean let one failed shift estimate (3.06 and 3.94 on single steps) dominate. A second
+load of the same code differed by at most 0.03. The components were switched off with `?set=ink.*`.
+`creases` and `pressure` are new weights in `toon.js`; at 1 they draw exactly what was drawn before.
+
+**What makes the lines move** (median change per step; lower is steadier):
+
+| turn | floor near | chair | right wall | table cloth | window | back wall |
+| --- | --- | --- | --- | --- | --- | --- |
+| all lines (before) | 1.29 | 1.15 | 3.06 | 2.27 | 2.33 | 2.20 |
+| no plank seams | 1.20 | 1.11 | 3.69 | 2.28 | 2.31 | 2.06 |
+| no hand wobble | 1.10 | 1.11 | 2.94 | 2.27 | 2.47 | 2.30 |
+| even pressure | 1.26 | 1.12 | 3.06 | 2.22 | 2.77 | 2.15 |
+| no creases | 1.04 | 1.09 | 2.82 | 2.19 | 2.12 | 2.24 |
+| no lines outside | 1.23 | 1.16 | 3.07 | 2.29 | **1.71** | 2.21 |
+| **Light** (no lines outside, creases ½) | 1.09 | 1.13 | 2.90 | 2.27 | 1.59 | 2.22 |
+| no lines at all (Off) | 0.87 | 1.08 | 2.83 | 2.25 | 1.35 | 1.97 |
+
+| move | floor near | chair | right wall | table cloth | window | back wall |
+| --- | --- | --- | --- | --- | --- | --- |
+| all lines (before) | 1.67 | 1.64 | 4.33 | 1.35 | 2.19 | 3.19 |
+| no creases | 1.55 | 1.63 | 3.79 | 1.34 | 1.97 | 3.29 |
+| no lines outside | 1.67 | 1.63 | 4.37 | 1.34 | 2.13 | 3.19 |
+| **Light** | 1.58 | 1.62 | 3.75 | 1.34 | 1.96 | 3.24 |
+| Off | 1.45 | 1.54 | 3.56 | 1.33 | 1.57 | 2.98 |
+
+Results:
+- **Two kinds of line made most of the movement:**
+  - the lines on the view outside, the window's movement;
+  - the creases (lines where a surface turns), the near floor's movement.
+- **Crops:**
+  - the outside lines drew dark, jagged edges along the Ferris wheel's spokes;
+  - the creases drew a second, thick line along the plank edges of the floor, beside the seam.
+- **Not causes:** the seams, the hand's wobble and its pressure. Taking any of them away made some
+  regions worse:
+  - no seams: right wall +21%;
+  - no wobble: window +6%;
+  - even pressure: window +19%.
+
+**The setting** (`quality.js` OUTLINES: factors on the theme's ink; the Graphics panel):
+
+| level | lines outside | creases | seams, wobble, pressure | edge buffer | presets |
+| --- | --- | --- | --- | --- | --- |
+| Full | as designed | 1 | 1 | drawn | none (custom) |
+| Light | none | ½ | 1 | drawn | High, Medium |
+| Off | none | none | none | skipped (1×1) | Low |
+
+- Light against Full: turning, window −32%, near floor −16%, right wall −5%. Moving, right wall −13%, window −11%.
+- Off keeps the cool shadows and the paper grain, which are in the same pass.
+- Settings saved before this change keep their preset. A missing key comes from the preset the
+  other keys match, so a saved Low gets Off.
+
+**Checks:**
+- **Full is the old picture.** The seat at 1920×1080, 1x: Full against the previous build's High
+  differs in 0.39% of pixels by more than 8 of 255; two loads of the same code differ in 0.39%. At
+  the turn test's pose: 0.08%.
+- **Light and Off at that pose** differ from Full in 4.8% and 12.8% of pixels.
+- **The panel** (Playwright):
+  - it opens on Light, under the High preset;
+  - Off sets the lines uniform to 0 and stops drawing the edge buffer;
+  - Full sets outside 0.7 and creases 1, and the preset shows Custom; Light shows High again;
+  - each choice is saved to `localStorage`, with no reloads;
+  - Escape closes the panel;
+  - no page errors.
+
+**Cost (SwiftShader software GL: CPU times, not a real GPU's).** `perf-run.cjs` at 1240×894, ratio
+1, two runs each, frame medians:
+
+| | seat | move | window | ink pre-pass | ink pass |
+| --- | --- | --- | --- | --- | --- |
+| Full | 1368 / 1468 ms | 2198 / 1996 | 993 / 955 | 89 / 97 | 125 / 126 |
+| Light | 1242 / 1256 | 2007 / 1904 | 914 / 935 | 86 / 87 | 113 / 110 |
+| Off | 1164 / 1127 | 2116 / 1923 | 827 / 919 | 0 | 83 / 80 |
+
+- Off saves the edge buffer's draw, about a third of the ink pass, and the buffer's memory (12.7 MB
+  at 1240×894). The seat frame is about 19% faster.
+- Light draws the same passes as Full. The passes it does not change (the scene) vary by about as
+  much between runs, so no speed difference is claimed for it.
