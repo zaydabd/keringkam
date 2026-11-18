@@ -43,7 +43,7 @@ import { paintPlanks, paintCarving, paintWindowLattice, paintCurtain, paintDecor
 import { createOutside, OBJECTS, MIRROR_LAYER } from './outside/index.js';
 import { PIGMENT_SHADER, FINISH_SHADER, createPigmentField } from './watercolour.js';
 import { createMeter } from './meter.js';
-import { RESOLUTIONS, MAX_PIXEL_RATIO, MIN_PIXEL_RATIO, PACE, AO, SHADOWS, TEXTURES, normalise } from './quality.js';
+import { RESOLUTIONS, MAX_PIXEL_RATIO, MIN_PIXEL_RATIO, PACE, AO, SHADOWS, TEXTURES, OUTLINES, normalise } from './quality.js';
 import { createPerfRun } from './perf.js';
 import { INTERIOR_THEME, OUTSIDE_THEME, CLAY_LOOK } from './themes/index.js';
 import { PLAN } from './interior/plan.js';
@@ -460,6 +460,8 @@ export function createInterior(canvas, { onReady, onShot, onResolution, quality 
   const { color: ink, lineWidth, ...inkLook } = THEME.ink;
   const outline = createOutline(renderer, scene, camera, { ink, lineWidth, mask: { layer: 3, map: textures.lattice } });
   setUniforms(outline.material.uniforms, inkLook);
+  // The theme's ink, which the outlines setting (quality.js OUTLINES) scales.
+  const inkBase = Object.fromEntries(Object.keys(OUTLINES.full).map((k) => [k, outline.material.uniforms[k].value]));
   const composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
   // Ambient occlusion (ao.js): darkens under the furniture and in the corners; before the ink.
@@ -491,12 +493,21 @@ export function createInterior(canvas, { onReady, onShot, onResolution, quality 
   outline.material.uniforms.fabricInk.value = THEME.fabric.ink;
   composer.addPass(finish);
   // ?set=pass.uniform:value,... (debug): overrides a post uniform, e.g. set=pigment.bleed:0 or set=ink.wobble:0.
+  const overrides = [];
   for (const kv of (params.get('set') ?? '').split(',').filter(Boolean)) {
     const [path, v] = kv.split(':');
     const [pass, name] = path.split('.');
     const u = { ink: outline.material.uniforms, pigment: pigment.uniforms, finish: finish.uniforms }[pass]?.[name];
-    if (u && typeof u.value === 'number') u.value = Number(v);
+    if (u && typeof u.value === 'number') overrides.push([u, Number(v)]);
   }
+  /** The outlines setting, then the ?set overrides over it. Off also skips the edge buffer (a second draw of the room). */
+  function applyOutlines() {
+    const f = OUTLINES[Q.outlines];
+    outline.setLines(inkPass && !!f);
+    if (f) for (const k in f) outline.material.uniforms[k].value = inkBase[k] * f[k];
+    for (const [u, v] of overrides) u.value = v;
+  }
+  applyOutlines();
   // Anti-aliasing (SMAA) on the finished, encoded image, where its edge thresholds were set: it
   // smooths the 1 px ink lines and geometry edges, which otherwise crawl as the view turns.
   // ?off=aa leaves it out. The anti-aliasing setting (quality.js): on, off, or auto: skipped at a
@@ -735,7 +746,7 @@ export function createInterior(canvas, { onReady, onShot, onResolution, quality 
         metrics.textures = renderer.info.memory.textures;
         metrics.geometries = renderer.info.memory.geometries;
         const S = shadowSize();
-        metrics.targets = `composer 2 x ${Math.round(width * px)}x${Math.round(height * px)} half-float; ink 1 x same + depth; shadows sun ${S.sun}, sky ${S.sky}, side ${S.side}; meter 64x36 half-float + 64x36 bytes`;
+        metrics.targets = `composer 2 x ${Math.round(width * px)}x${Math.round(height * px)} half-float; ${outline.lines ? 'ink 1 x same + depth' : 'ink lines off'}; shadows sun ${S.sun}, sky ${S.sky}, side ${S.side}; meter 64x36 half-float + 64x36 bytes`;
         metrics.done = true;
         console.info('metrics', JSON.stringify(metrics));
       }
@@ -779,6 +790,7 @@ export function createInterior(canvas, { onReady, onShot, onResolution, quality 
       const reload = n.textures !== Q.textures;
       const shadowsChanged = n.shadows !== Q.shadows;
       Object.assign(Q, n);
+      applyOutlines();
       if (ao) ao.enabled = Q.ao !== 'off' || aoRes !== null;
       if (shadowsChanged) {
         const S = shadowSize();

@@ -80,7 +80,7 @@
       {#if drawn}
         <p class="note">Drawing {drawn.width} × {drawn.height} for a {drawn.cssWidth} × {drawn.cssHeight} window.</p>
       {/if}
-      <p class="note">Resolution: the most pixels drawn; a bigger screen is stretched. Anti-aliasing auto: off at 2× and above. Texture detail reloads the page.</p>
+      <p class="note">Resolution: the most pixels drawn; a bigger screen is stretched. Outlines Light: no lines on the view outside, lighter creases. Anti-aliasing auto: off at 2× and above. Texture detail reloads the page.</p>
     </section>
   {/if}
 

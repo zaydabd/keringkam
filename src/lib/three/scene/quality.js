@@ -47,24 +47,41 @@ export const TEXTURES = {
   high: { paintDetailFrom: 1.5, anisotropy: 4, fabrics: 'full' },
 };
 
+/**
+ * Outlines (the ink pass, toon.js): factors on the theme's ink (themes/interior.js ink). Full is
+ * the drawing as designed. Light draws no lines on the view outside and the creases (lines where a
+ * surface turns) at half strength: those two made most of the lines' movement as the view turns
+ * (window -32%, near floor -25%, measured, research/INTERIOR-NOTES.md pass o1); the silhouettes,
+ * plank seams, the hand's wobble and pressure stay (taking those away did not make the lines
+ * steadier). Off draws no lines and skips the edge buffer, a second draw of the room; the paper
+ * grain and the cool shadows stay.
+ */
+export const OUTLINES = {
+  off: null,
+  light: { farInk: 0, creases: 0.5, seams: 1, wobble: 1, pressure: 1 },
+  full: { farInk: 1, creases: 1, seams: 1, wobble: 1, pressure: 1 },
+};
+
 /** The settings the panel shows, in order, with their choices. */
 export const OPTIONS = {
   resolution: { label: 'Resolution', values: Object.fromEntries(Object.entries(RESOLUTIONS).map(([k, v]) => [k, v.label])) },
   ao: { label: 'Ambient occlusion', values: { off: 'Off', half: 'Half', full: 'Full' } },
   shadows: { label: 'Shadows', values: { low: 'Low', high: 'High' } },
+  outlines: { label: 'Outlines', values: { off: 'Off', light: 'Light', full: 'Full' } },
   aa: { label: 'Anti-aliasing', values: { off: 'Off', auto: 'Auto', on: 'SMAA' } },
   textures: { label: 'Texture detail', values: { low: 'Low', high: 'High' }, reload: true },
 };
 
 /**
- * The presets. High is the picture as designed, at up to 1080p. anti-aliasing auto: SMAA below 2
+ * The presets. High is the picture as designed, at up to 1080p, with the lighter outlines. Low has
+ * no outlines (the edge buffer is skipped). anti-aliasing auto: SMAA below 2
  * device pixels a CSS pixel, off at 2 or more (the lines are 2 pixels wide there, and SMAA took 8%
  * of the sharpness at 2x, measured).
  */
 export const PRESETS = {
-  low: { label: 'Low', resolution: '720p', ao: 'off', shadows: 'low', aa: 'auto', textures: 'low' },
-  medium: { label: 'Medium', resolution: '1080p', ao: 'half', shadows: 'high', aa: 'auto', textures: 'high' },
-  high: { label: 'High', resolution: '1080p', ao: 'full', shadows: 'high', aa: 'auto', textures: 'high' },
+  low: { label: 'Low', resolution: '720p', ao: 'off', shadows: 'low', outlines: 'off', aa: 'auto', textures: 'low' },
+  medium: { label: 'Medium', resolution: '1080p', ao: 'half', shadows: 'high', outlines: 'light', aa: 'auto', textures: 'high' },
+  high: { label: 'High', resolution: '1080p', ao: 'full', shadows: 'high', outlines: 'light', aa: 'auto', textures: 'high' },
 };
 export const DEFAULT_PRESET = 'high';
 
@@ -82,10 +99,16 @@ export function presetSettings(name) {
   return Object.fromEntries(KEYS.map((k) => [k, p[k]]));
 }
 
-/** Fills in and checks settings: unknown keys are dropped and bad values fall back to the default preset. */
+/**
+ * Fills in and checks settings: unknown keys are dropped. A missing or bad value comes from the
+ * preset the other settings match (so settings saved before a setting was added keep their
+ * preset), else from the default preset.
+ */
 export function normalise(settings = {}) {
-  const base = presetSettings(DEFAULT_PRESET);
-  for (const k of KEYS) if (settings[k] in OPTIONS[k].values) base[k] = settings[k];
+  const given = KEYS.filter((k) => settings[k] in OPTIONS[k].values);
+  const order = [DEFAULT_PRESET, ...Object.keys(PRESETS).filter((p) => p !== DEFAULT_PRESET)];
+  const base = presetSettings(order.find((p) => given.every((k) => PRESETS[p][k] === settings[k])) ?? DEFAULT_PRESET);
+  for (const k of given) base[k] = settings[k];
   return base;
 }
 
