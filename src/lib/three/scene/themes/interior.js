@@ -263,10 +263,9 @@ export const INTERIOR_THEME = {
   // ink they still get on their own pixels (their outline is drawn on what is beside them).
   // balance: a white balance for the warm room light (the sun is #ffe6c4), a linear multiplier on
   // the photo. Measured: photo / render per channel on the settee, window and right-chair cloths
-  // came to about 1 : 1.1 : 1.33 in sRGB (1 : 1.23 : 1.87 linear). Balanced alone, the cloths
-  // were still 20-25% darker than their photos (sRGB): this is also 1.3 times brighter (linear),
-  // part of the way, so they still sit in the room's light.
-  fabric: { keep: 0.85, ink: 0, balance: [1.07, 1.3, 2.0] },
+  // came to about 1 : 1.1 : 1.33 in sRGB. [1.07, 1.3, 2.0] (also brighter) overshot the sunlit
+  // table cloth into sky blue; this milder one matches every photo's hue better (INTERIOR-NOTES f3).
+  fabric: { keep: 0.85, ink: 0, balance: [1.0, 1.15, 1.6] },
 
   // Final grade, after tone mapping (watercolour.js FINISH_SHADER).
   grade: {

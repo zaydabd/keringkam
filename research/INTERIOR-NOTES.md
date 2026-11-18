@@ -1006,9 +1006,14 @@ The user: the fabrics get too many effects; they should look close to their text
   - Checked: white on every cloth only, also after the AO pass, whose blend multiplies alpha by 1.
 - **Ramp:** the light ramp in grey for the fabrics, and no part tint (`vertexColors` off).
   - Measured: almost no change on its own.
-- **White balance** `fabric.balance` = [1.07, 1.3, 2.0] (linear): photo / render per channel
-  (settee, window, right chair) was about 1 : 1.1 : 1.33 in sRGB. It is also 1.3 times brighter, part of the
-  remaining 20-25% gap, so the cloth still sits in the room's light.
+- **White balance** `fabric.balance` = [1.0, 1.15, 1.6] (linear): photo / render per channel
+  (settee, window, right chair) was about 1 : 1.1 : 1.33 in sRGB. A first try, [1.07, 1.3, 2.0]
+  (also 1.3 times brighter), was closer in mean colour on the shaded cloths but turned the sunlit
+  table cloth sky blue (112, 151, 181 against the photo's 85, 114, 122). The milder one matches
+  every photo's hue (channels relative to green) better: table 0.77 : 1 : 1.14 against
+  0.75 : 1 : 1.07, settee 1.28 : 1 : 0.76 against 1.30 : 1 : 0.73, window 1.30 : 1 : 0.74
+  against 1.33 : 1 : 0.71. What is left is brightness: the shaded cloths are darker than their
+  photos and the sunlit table cloth brighter, which is the room's light.
 
 **Measured:** the cloth region's mean colour against its photo's mean (sRGB, 0-255, distance in
 RGB; the mask from `fabric-<place>-mask` captures, eroded 3 px, the cloth nearest the frame
@@ -1016,10 +1021,14 @@ centre):
 
 | Cloth | Photo mean | f2 | f3, mask only | f3, final |
 |---|---|---|---|---|
-| Settee | 131, 101, 74 | 96, 74, 51 (49.8) | 108, 79, 46 (42.4) | 110, 89, 73 (24.2) |
-| Right chair (plum) | 115, 85, 83 | 105, 75, 64 (23.7) | 113, 70, 60 (27.5) | 112, 79, 92 (11.2) |
-| Window | 132, 99, 70 | 111, 85, 59 (27.5) | 118, 85, 48 (29.6) | 116, 91, 74 (18.3) |
+| Settee | 131, 101, 74 | 96, 74, 51 (49.8) | 108, 79, 46 (42.4) | 106, 83, 63 (32.7) |
+| Low table | 85, 114, 122 | 124, 132, 115 (43.5) | 114, 140, 137 (41.7) | 111, 145, 166 (59.8) |
+| Right chair (plum) | 115, 85, 83 | 105, 75, 64 (23.7) | 113, 70, 60 (27.5) | 109, 74, 81 (12.7) |
+| Window | 132, 99, 70 | 111, 85, 59 (27.5) | 118, 85, 48 (29.6) | 114, 88, 65 (21.7) |
 
+The table's larger distance is brightness (it is in the sun), not hue; see above. The armchair and
+left-chair measurements are left out: the black cloth is mostly the light, and the left-chair
+view's centre cloth is partly the window's.
 The mask alone moved the cloths little: without the grade's desaturation the warm light's yellow
 showed more. The white balance did most of the work.
 Saturation (mean max-min) now follows the photo, where before the yellow shift raised it.
