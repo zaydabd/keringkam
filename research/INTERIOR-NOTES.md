@@ -910,12 +910,12 @@ photo's proportions):
 
 | Place | Fabric | Size (estimated) | How it lies |
 |---|---|---|---|
-| Front armchair (chair 2) | black-goldflower-scarf-22 | 0.8 × 1.6 m, folded in half (0.8 × 0.8) | over the top of the back, down the front, ends on the seat |
+| Front armchair (chair 2) | black-goldflower-scarf-22 | 0.8 × 1.6 m, folded in half (0.8 × 0.8); in f2 also folded across | over the top of the back, down the front, ends on the seat |
 | Settee | maroon-gold-songket-12 | 1.05 × 1.7 m, folded in half | the same |
 | Nearer low table (table 1) | teal-songket-28 | 1.0 × 1.2 m | a cover, over every side |
-| Left chair (chair 0) | plum-embroidered-scarf-01 | 0.9 × 1.23 m, folded in half | over the back, down to the seat |
-| Right chair (chair 1) | maroon-white-songket-32 | 1.1 × 0.95 m, folded in half across | over the back, ends on the seat |
-| Back window 0, lattice rail | lilac-beaded-scarf-18 | 0.8 × 1.33 m | folded over the rail, the longer side in the room |
+| Left chair (chair 0) | plum-embroidered-scarf-01 (f2: maroon-white-songket-32) | 0.9 × 1.23 m, folded in half | over the back, down to the seat |
+| Right chair (chair 1) | maroon-white-songket-32 (f2: plum-embroidered-scarf-01) | 1.1 × 0.95 m, folded in half across | over the back, ends on the seat |
+| Back window 0, lattice rail | lilac-beaded-scarf-18 (f2: maroon-gold-songket-14) | 0.8 × 1.33 m | folded over the rail, the longer side in the room |
 
 - On the seats, the user's rule: over the back, showing at the front, and at most reaching the
   seat; a fabric too long (or wide) for that is folded (`fold` along the length, `foldAcross`
@@ -971,3 +971,17 @@ caption names it.
   JS heap 69 → 73 MB.
 - Seat view against the base: mean difference 3.4 of 255, 3.6% of pixels over 20 (the fabrics in
   view and the exposure).
+
+### Pass f2: fabric fixes (2026-11-18, branch `fabric-fixes`)
+
+The user's feedback on f1, and what changed (`PLAN.fabrics` only):
+
+| Place | Before (f1) | Now |
+|---|---|---|
+| Front armchair (chair 2) | black-goldflower-scarf-22, 0.8 m wide, hung outside the right arm | the same scarf, also folded across: 0.4 × 0.8 m. It settles at x −0.20..0.20 m in the chair's frame, inside the arms (at ±0.27, inside edge about ±0.25) |
+| Left chair (chair 0) | plum-embroidered-scarf-01 (f2: maroon-white-songket-32) | maroon-white-songket-32 (swapped), unchanged settings: 1.1 × 0.95 m, folded across |
+| Right chair (chair 1) | maroon-white-songket-32 (f2: plum-embroidered-scarf-01) | plum-embroidered-scarf-01 (swapped), now also folded across (0.45 × 0.62 m). Unfolded across, it reached ±0.40 m, past the arms |
+| Back window 0, lattice rail | lilac-beaded-scarf-18 (read grey-blue) | maroon-gold-songket-14, 0.8 × 1.33 m (estimated; the photo is 1400 × 2367 px, the same ratio as the lilac one) |
+
+The lilac group is no longer shown in the room. `drape-check.mjs`: all six pass, 970 ms in total
+in Node.

@@ -37,17 +37,17 @@ export const PLAN = {
   fabrics: [
     // Each seat's fabric hangs a little behind the top of its back, falls down the front and
     // ends on the seat, never past it. One too long for that is folded in half (fold: 1), the fold
-    // lying on the seat.
-    { name: 'armchair', label: 'The front armchair', on: 'chair 2', fabric: 'black-goldflower-scarf-22', size: [0.8, 1.6], fold: 1, plane: 'yz', path: [[-0.34, 0.95], [-0.33, 1.015], [-0.27, 1.015], [-0.222, 0.48], [0.27, 0.462]] },
+    // lying on the seat; one wider than the gap between the arms is folded across (foldAcross: 1).
+    { name: 'armchair', label: 'The front armchair', on: 'chair 2', fabric: 'black-goldflower-scarf-22', size: [0.8, 1.6], fold: 1, foldAcross: 1, plane: 'yz', path: [[-0.34, 0.95], [-0.33, 1.015], [-0.27, 1.015], [-0.222, 0.48], [0.27, 0.462]] },
     // Flipped, so the songket's woven band is the part on top.
     { name: 'settee', label: 'The settee', on: 'settee', fabric: 'maroon-gold-songket-12', size: [1.05, 1.7], fold: 1, plane: 'yz', flip: true, path: [[-0.34, 0.98], [-0.33, 1.045], [-0.27, 1.045], [-0.222, 0.47], [0.28, 0.462]] },
     // A cover over the nearer low table (the one with the stretcher), hanging a little over every side.
     { name: 'table', label: 'The low table', on: 'table 1', fabric: 'teal-songket-28', size: [1.0, 1.2], plane: 'xy', path: [[-0.6, 0.475], [0.6, 0.475]] },
-    { name: 'left-chair', label: 'The left chair', on: 'chair 0', fabric: 'plum-embroidered-scarf-01', size: [0.9, 1.23], fold: 1, plane: 'yz', path: [[-0.33, 1.015], [-0.27, 1.015], [-0.222, 0.48], [0.27, 0.462]] },
     // Wider than the chair: folded in half across its width.
-    { name: 'right-chair', label: 'The right chair', on: 'chair 1', fabric: 'maroon-white-songket-32', size: [1.1, 0.95], foldAcross: 1, plane: 'yz', path: [[-0.34, 0.95], [-0.33, 1.015], [-0.27, 1.015], [-0.222, 0.48], [0.27, 0.462]] },
+    { name: 'left-chair', label: 'The left chair', on: 'chair 0', fabric: 'maroon-white-songket-32', size: [1.1, 0.95], foldAcross: 1, plane: 'yz', path: [[-0.34, 0.95], [-0.33, 1.015], [-0.27, 1.015], [-0.222, 0.48], [0.27, 0.462]] },
+    { name: 'right-chair', label: 'The right chair', on: 'chair 1', fabric: 'plum-embroidered-scarf-01', size: [0.9, 1.23], fold: 1, foldAcross: 1, plane: 'yz', path: [[-0.33, 1.015], [-0.27, 1.015], [-0.222, 0.48], [0.27, 0.462]] },
     // Folded over the lattice rail of the left back window (the settee stands in front of the
     // middle one), the longer side in the room.
-    { name: 'window', label: 'The window rail', on: 'window 0', fabric: 'lilac-beaded-scarf-18', size: [0.8, 1.33], plane: 'yz', path: [[-0.12, 0.7], [-0.065, 1.19], [0.025, 1.19], [0.05, 0.3]] },
+    { name: 'window', label: 'The window rail', on: 'window 0', fabric: 'maroon-gold-songket-14', size: [0.8, 1.33], plane: 'yz', path: [[-0.12, 0.7], [-0.065, 1.19], [0.025, 1.19], [0.05, 0.3]] },
   ],
 };
