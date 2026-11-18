@@ -51,7 +51,7 @@ export const TEXTURES = {
  * Outlines (the ink pass, toon.js): factors on the theme's ink (themes/interior.js ink). Full is
  * the drawing as designed. Light draws no lines on the view outside and the creases (lines where a
  * surface turns) at half strength: those two made most of the lines' movement as the view turns
- * (window -32%, near floor -25%, measured, research/INTERIOR-NOTES.md pass o1); the silhouettes,
+ * (window -32%, near floor -16%, measured, research/INTERIOR-NOTES.md pass o1); the silhouettes,
  * plank seams, the hand's wobble and pressure stay (taking those away did not make the lines
  * steadier). Off draws no lines and skips the edge buffer, a second draw of the room; the paper
  * grain and the cool shadows stay.
