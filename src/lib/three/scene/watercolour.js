@@ -32,6 +32,8 @@ export const PIGMENT_SHADER = {
     granulation: { value: 0 }, // pigment settling in the paper's tooth, more in dark washes
     edgeDarkening: { value: 0 }, // pigment pooling where a wash meets a different value
     bleed: { value: 0 }, // wet-in-wet: edges softened where the pigment is wet
+    bleedRadius: { value: 3 }, // px (CSS): the ring the bleed reads from
+    edgeRadius: { value: 2.5 }, // px (CSS): how far apart the wet edge compares the value
     shadowTint: { value: new THREE.Color('#ffffff') }, // the hue shadows lean towards
     shadowTintAmount: { value: 0 },
     exposure: { value: 1.85 }, // set from the meter: tone thresholds are judged on exposed values
@@ -43,7 +45,7 @@ export const PIGMENT_SHADER = {
     uniform sampler2D tDiffuse;
     uniform vec2 resolution, fieldShift;
     uniform mat3 viewRotation;
-    uniform float focal, detail, scale, washVariation, granulation, edgeDarkening, bleed, shadowTintAmount, view, exposure, fabricKeep;
+    uniform float focal, detail, scale, washVariation, granulation, edgeDarkening, bleed, bleedRadius, edgeRadius, shadowTintAmount, view, exposure, fabricKeep;
     uniform vec3 shadowTint;
     varying vec2 vUv;
     // Luminance as it will be shown, relative to the exposure the thresholds were tuned at (1.85).
@@ -70,7 +72,7 @@ export const PIGMENT_SHADER = {
       vec3 base = scene.rgb;
       // Field 2, wet edge: how much the value changes across a few pixels (log luma, so dark
       // and light areas are treated alike).
-      vec2 r = px * 2.5 * scale;
+      vec2 r = px * edgeRadius * scale;
       float l0 = log2(luma(base) + 0.02);
       float lx = log2(luma(texture2D(tDiffuse, vUv + vec2(r.x, 0.0)).rgb) + 0.02) - log2(luma(texture2D(tDiffuse, vUv - vec2(r.x, 0.0)).rgb) + 0.02);
       float ly = log2(luma(texture2D(tDiffuse, vUv + vec2(0.0, r.y)).rgb) + 0.02) - log2(luma(texture2D(tDiffuse, vUv - vec2(0.0, r.y)).rgb) + 0.02);
@@ -82,7 +84,7 @@ export const PIGMENT_SHADER = {
       if (wet > 0.0) { // dry paper (about half the screen) keeps the base: skip the 8 samples
         // 8 samples on a ring, starting at angle pigment * 3 and stepping 0.785 rad: one sin and
         // cos, then a fixed rotation per step.
-        vec2 dir = vec2(cos(pigment * 3.0), sin(pigment * 3.0)) * px * 3.0 * scale;
+        vec2 dir = vec2(cos(pigment * 3.0), sin(pigment * 3.0)) * px * bleedRadius * scale;
         const mat2 STEP = mat2(0.7073882691671998, 0.706825181105366, -0.706825181105366, 0.7073882691671998); // rotate by 0.785 rad
         vec3 soft = vec3(0.0);
         for (int k = 0; k < 8; k++) {

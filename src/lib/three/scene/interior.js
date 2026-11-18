@@ -39,7 +39,7 @@ import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
 import './stableShadows.js'; // soft shadow edges dithered on the world, not the screen
 import { toonGradient, createOutline } from './toon.js';
-import { paintPlanks, paintCarving, paintWindowLattice, paintCurtain, paintDecor, paintGlow } from './paint.js';
+import { paintPlanks, paintCarving, paintWindowLattice, paintCurtain, paintDecor, paintGlow, setPaintDetail } from './paint.js';
 import { createOutside, OBJECTS, MIRROR_LAYER } from './outside/index.js';
 import { PIGMENT_SHADER, FINISH_SHADER, createPigmentField } from './watercolour.js';
 import { createMeter } from './meter.js';
@@ -235,6 +235,10 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
 
   const gradientMap = toonGradient(THEME.shading.bands, { smooth: THEME.shading.smooth });
   const T = THEME.textures;
+  // The room's painted textures at twice their size on a screen of ratio 1.5 or more: seen from
+  // the seat, a plank texel covered about 1.3-2.7 screen pixels at 2x (512 texels a metre), so the
+  // grain was magnified into blur. ?paint=1 keeps the designed size.
+  const paintWas = setPaintDetail(num('paint') ?? (renderer.getPixelRatio() >= 1.5 ? 2 : 1));
   const textures = {
     planks: paintPlanks(1 + seed, T.planks.boards),
     floor: paintPlanks(9 + seed, T.planks.floor),
@@ -248,6 +252,7 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
     blob: paintGlow('round'),
     footBlob: paintGlow('contact'),
   };
+  setPaintDetail(paintWas);
   textures.carve.repeat.set(3.4, 3.4); // finer: chair-back carving
   const aniso = Math.min(4, renderer.capabilities.getMaxAnisotropy());
   for (const t of Object.values(textures)) t.anisotropy = aniso;
@@ -355,7 +360,7 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
           ? new THREE.MeshStandardMaterial({ color: CLAY_LOOK.colour, roughness: 1, metalness: 0, fog: false, side: D })
           : new THREE.MeshToonMaterial({
               map: flat ? null : maps[k], color: flat ? new THREE.Color('#bdbdbd') : new THREE.Color(...THEME.fabric.balance), gradientMap: fabricGradient, fog: false, side: D,
-              transparent: true, opacity: 0.95, depthWrite: true, // 95% opaque: thin cloth lets a little through
+              transparent: true, opacity: 1, depthWrite: true, // opaque, as in the photos: at 0.95 the chair showed through the black scarf (5% of a lit chair is half the cloth's own value)
               // The photo's own colours (no part tint; the ink still reads the part id from the
               // colour attribute). Alpha 0 in the scene buffer marks the cloth, so the ink, the
               // pigment and the grade leave it close to its photo (THEME.fabric).
@@ -387,17 +392,24 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
       if (perf) Object.assign(perfLoad, { fabricsMs: metrics.fabrics.readyMs });
       if (debug) console.info('fabrics', JSON.stringify(metrics.fabrics));
       if (SHOTS[shot].fabric) showFull(SHOTS[shot].fabric);
+      // Then every fabric's full photo, one after another, so the room views show them sharp too
+      // (the 512 px previews blur at a laptop's 2x). ?fabrics=preview keeps the previews.
+      if (params.get('fabrics') !== 'preview')
+        (async () => {
+          for (const name of fabricMeshes.keys()) if (!destroyed) await showFull(name);
+          metrics.fabricsFull = true;
+        })();
     })
     .catch((e) => {
       console.error('fabrics', e);
       fabricsPending = false;
     });
-  /** Swaps a fabric's 512 px photo for its 2048 px one (once loaded). */
+  /** Swaps a fabric's 512 px photo for its full one (once loaded); resolves when it is shown. */
   function showFull(name) {
     const mesh = fabricMeshes.get(name);
-    if (!fabricStore || !mesh || debug === 'flat') return;
+    if (!fabricStore || !mesh || debug === 'flat') return Promise.resolve();
     const place = PLAN.fabrics.find((f) => f.name === name);
-    fabricStore.get(fabricIndex(place.fabric), 'full').then((t) => {
+    return fabricStore.get(fabricIndex(place.fabric), 'full').then((t) => {
       if (!t || destroyed) return;
       mesh.material.map = t;
       mesh.material.needsUpdate = true;
@@ -453,9 +465,18 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
   outline.material.uniforms.fabricKeep.value = pigment.uniforms.fabricKeep.value = finish.uniforms.fabricKeep.value = THEME.fabric.keep;
   outline.material.uniforms.fabricInk.value = THEME.fabric.ink;
   composer.addPass(finish);
+  // ?set=pass.uniform:value,... (debug): overrides a post uniform, e.g. set=pigment.bleed:0 or set=ink.wobble:0.
+  for (const kv of (params.get('set') ?? '').split(',').filter(Boolean)) {
+    const [path, v] = kv.split(':');
+    const [pass, name] = path.split('.');
+    const u = { ink: outline.material.uniforms, pigment: pigment.uniforms, finish: finish.uniforms }[pass]?.[name];
+    if (u && typeof u.value === 'number') u.value = Number(v);
+  }
   // Anti-aliasing (SMAA) on the finished, encoded image, where its edge thresholds were set: it
   // smooths the 1 px ink lines and geometry edges, which otherwise crawl as the view turns.
-  // ?off=aa leaves it out.
+  // ?off=aa leaves it out. At a pixel ratio of 2 or more it is skipped (resize): the lines are 2
+  // device pixels wide there, and SMAA took 8% of the sharpness (34% of the fine detail) at 2x,
+  // measured (research/INTERIOR-NOTES.md, "Sharpness"). ?aa=1 keeps it at any ratio.
   const smaa = off.has('aa') ? null : new SMAAPass();
   if (smaa) composer.addPass(smaa);
   const meter = createMeter(renderer);
@@ -483,6 +504,7 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
     pigment.uniforms.resolution.value.set(w * renderer.getPixelRatio(), h * renderer.getPixelRatio());
     pigment.uniforms.scale.value = renderer.getPixelRatio();
     finish.uniforms.texel.value.set(1 / w, 1 / h);
+    if (smaa) smaa.enabled = params.get('aa') === '1' || renderer.getPixelRatio() < 2;
     camera.aspect = w / h;
     // Keep R1's vertical view on wide screens; on narrow ones keep its horizontal view instead.
     if (move.t >= 1) {
@@ -508,7 +530,9 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
   // view moved (the AO is worked out again then: the dearest frames), after the first frame is
   // ready: 60 such frames with a median interval over 24 ms (under about 40 a second) step down
   // once, then it measures again. ?dpr=n fixes the ratio; a timed ?perf run keeps it too.
-  const pace = { steps: dprParam || params.has('perf') ? [] : [2, 1.5].filter((r) => r < renderer.getPixelRatio()), last: 0, samples: [], seen: new THREE.Matrix4() };
+  // It never goes below 2: a 3x phone may step to 2, a 2x laptop keeps 2 (at 1.5 the picture lost
+  // a quarter of its sharpness, measured; the user asked not to lower the resolution).
+  const pace = { steps: dprParam || params.has('perf') ? [] : [2].filter((r) => r < renderer.getPixelRatio()), last: 0, samples: [], seen: new THREE.Matrix4() };
   metrics.pixelRatio = renderer.getPixelRatio();
   function paceResolution(now) {
     const moved = !pace.seen.equals(camera.matrixWorld);

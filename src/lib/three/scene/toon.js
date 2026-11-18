@@ -118,6 +118,7 @@ const OUTLINE_SHADER = {
     exposure: { value: 1 }, // the scene's exposure, if it is not 1: the tone thresholds below are in exposed values
     seams: { value: 0.5 }, // ink between touching parts (planks), relative to silhouettes
     thickness: { value: 1 },
+    wobble: { value: 2.2 }, // px (CSS): how far the hand moves where a line is looked for
     fade: { value: new THREE.Vector2(7, 26) },
     farInk: { value: 0.7 }, // ink on the view outside, relative to the room's
     fabricKeep: { value: 0 }, // on the fabrics (alpha 0): how much of the scene colour is kept unpainted
@@ -140,7 +141,7 @@ const OUTLINE_SHADER = {
     uniform float focal, pixelRatio;
     ${VIEW_FIELD}
     ${FIELD_NOISE}
-    uniform float cameraNear, cameraFar, strength, thickness, split, seams, exposure, farInk, fabricKeep, fabricInk;
+    uniform float cameraNear, cameraFar, strength, thickness, split, seams, exposure, farInk, fabricKeep, fabricInk, wobble;
     uniform vec3 ink, splitTint;
     varying vec2 vUv;
 
@@ -166,7 +167,7 @@ const OUTLINE_SHADER = {
       vec2 atBuffer = viewField(gl_FragCoord.xy, resolution, viewRotation, focal);
       vec2 q = atBuffer / pixelRatio / 8.0;
       vec4 hand = vec4(noise4(q).xy, noise4(q * 0.375 + 5.3).z, noise4(q * 2.25 + 11.7).w);
-      vec2 wob = (hand.xy - 0.5) * 2.2 * pixelRatio * px;
+      vec2 wob = (hand.xy - 0.5) * wobble * pixelRatio * px;
       float t = thickness * (0.75 + 0.5 * hand.z);
       vec2 uv = vUv + wob;
 

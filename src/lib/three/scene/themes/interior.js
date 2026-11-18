@@ -254,6 +254,10 @@ export const INTERIOR_THEME = {
     granulation: 0.1, // pigment settling in the paper's tooth, more in dark washes
     edgeDarkening: 0.35, // pigment pooling where a wash meets a different value
     bleed: 0.45, // wet-in-wet: edges softened where the pigment is wet
+    // The bleed's ring and the wet edge's reach, CSS px. At 3 and 2.5 they drew ghost copies of
+    // every thin line 5-6 device px to each side on a 2x screen (measured, INTERIOR-NOTES "Sharpness").
+    bleedRadius: 1.5,
+    edgeRadius: 1,
     shadowTint: '#8c88a4', // R2's shadows lean lavender-grey
     shadowTintAmount: 0.1,
   },

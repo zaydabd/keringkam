@@ -15,15 +15,27 @@ function rng(seed) {
   };
 }
 
+// How many canvas pixels each painted pixel gets (setPaintDetail). The strokes are the same: only
+// the canvas is finer, so a texture seen close on a 2x screen is not magnified into blur.
+let detail = 1;
+/** Paints the next textures at k times the resolution (1 as designed); returns the previous k. */
+export function setPaintDetail(k) {
+  const was = detail;
+  detail = k;
+  return was;
+}
+
 function canvas(w, h) {
   const c = document.createElement('canvas');
-  c.width = w;
-  c.height = h;
+  c.width = Math.round(w * detail);
+  c.height = Math.round(h * detail);
   // willReadFrequently keeps the canvas on the CPU. These textures are thousands of small strokes,
   // drawn once and then uploaded: on a GPU-backed canvas every one of them is a GPU command that
   // must finish before the upload (2.1 s for the turf alone under software WebGL), on the CPU the
   // same strokes take 20-100 ms. Measured: research/INTERIOR-NOTES.md, "Performance pass".
-  return [c, c.getContext('2d', { willReadFrequently: true })];
+  const g = c.getContext('2d', { willReadFrequently: true });
+  g.scale(c.width / w, c.height / h); // everything below draws in the design's pixels
+  return [c, g];
 }
 
 function texture(c, repeat = [1, 1], wrap = true) {
@@ -691,7 +703,7 @@ function softSpot(g, at) {
 }
 
 function grain(g, S, r, amount) {
-  const im = g.getImageData(0, 0, S, S);
+  const im = g.getImageData(0, 0, g.canvas.width, g.canvas.height); // every canvas pixel (setPaintDetail)
   for (let p = 0; p < im.data.length; p += 4) {
     const n = (r() - 0.5) * amount;
     im.data[p] += n;

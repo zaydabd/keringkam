@@ -3,6 +3,7 @@
 // Needs Playwright (not a project dependency) and the dev server (npm run dev) or vite preview.
 //   node research/tools/perf-run.cjs [out.json] [--size=wide|phone|WxH] [--dpr=n] [--hold=s] [--theme=name]
 //        [--seed=n] [--url=http://localhost:5173] [--gl=swiftshader|default] [--shot=out.png]
+//        [--q=a=1&b=2] (more query parameters, e.g. --q=paint=1)
 // --gl=swiftshader (default) is the software renderer: it always works headless, but its frame
 // times are CPU times, not a real GPU's. On a machine with a GPU, use --gl=default and compare.
 // Numbers from a real device: open /?perf#/interior there; the result shows in a panel.
@@ -10,12 +11,12 @@ const { chromium } = require('playwright');
 const fs = require('fs');
 
 const SIZES = { wide: [1240, 894], phone: [437, 946] };
-const args = Object.fromEntries(process.argv.slice(2).filter((a) => a.startsWith('--')).map((a) => a.slice(2).split('=')));
+const args = Object.fromEntries(process.argv.slice(2).filter((a) => a.startsWith('--')).map((a) => { const i = a.indexOf('='); return i < 0 ? [a.slice(2), ''] : [a.slice(2, i), a.slice(i + 1)]; }));
 const out = process.argv.slice(2).find((a) => !a.startsWith('--'));
 const [w, h] = SIZES[args.size ?? 'wide'] ?? (args.size ?? '').split('x').map(Number);
 const dpr = Number(args.dpr ?? 1);
 const url = args.url ?? 'http://localhost:5173';
-const query = new URLSearchParams({ perf: args.hold ?? '3', ...(args.seed ? { seed: args.seed } : {}), ...(args.theme ? { theme: args.theme } : {}) });
+const query = new URLSearchParams({ perf: args.hold ?? '3', ...(args.seed ? { seed: args.seed } : {}), ...(args.theme ? { theme: args.theme } : {}), ...Object.fromEntries(new URLSearchParams(args.q ?? '')) });
 const glArgs = (args.gl ?? 'swiftshader') === 'swiftshader' ? ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] : [];
 
 (async () => {
