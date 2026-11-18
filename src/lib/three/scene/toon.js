@@ -120,6 +120,8 @@ const OUTLINE_SHADER = {
     thickness: { value: 1 },
     fade: { value: new THREE.Vector2(7, 26) },
     farInk: { value: 0.7 }, // ink on the view outside, relative to the room's
+    fabricKeep: { value: 0 }, // on the fabrics (alpha 0): how much of the scene colour is kept unpainted
+    fabricInk: { value: 0 }, // and how much ink they still get
     farDepth: { value: new THREE.Vector2(0.02, 0.07) },
     // Where the hand field is read: each pixel's direction in the world (setView), so the wobble,
     // thickness and breaks stay on the room when the view turns instead of on the screen (no "boiling").
@@ -138,7 +140,7 @@ const OUTLINE_SHADER = {
     uniform float focal, pixelRatio;
     ${VIEW_FIELD}
     ${FIELD_NOISE}
-    uniform float cameraNear, cameraFar, strength, thickness, split, seams, exposure, farInk;
+    uniform float cameraNear, cameraFar, strength, thickness, split, seams, exposure, farInk, fabricKeep, fabricInk;
     uniform vec3 ink, splitTint;
     varying vec2 vUv;
 
@@ -150,6 +152,7 @@ const OUTLINE_SHADER = {
 
     void main() {
       vec4 base = texture2D(tDiffuse, vUv);
+      vec3 photo = base.rgb; // the scene's colour before any ink: the fabrics keep most of it
       // Painted shadows: darker tones lean blue-violet (split toning) instead of going grey-brown.
       float lum = dot(base.rgb, vec3(0.299, 0.587, 0.114));
       float sh = 1.0 - smoothstep(0.03, 0.22, lum * exposure); // linear values: this is before the output pass
@@ -219,6 +222,9 @@ const OUTLINE_SHADER = {
       float tooth = noise4(g * 0.875).x * 0.6 + noise4(g * 0.203125 + 3.1).y * 0.4;
       float mottle = noise4(g * 0.01171875 + 11.3).z;
       col *= 0.955 + 0.07 * tooth + 0.04 * (mottle - 0.5);
+      // The fabrics (alpha 0 in the scene buffer): no split tone, crease lines or paper grain on
+      // the photo; only fabricInk of the ink. Their outline is still drawn on what is beside them.
+      col = mix(col, mix(photo, ink, edge * strength * fabricInk), (1.0 - base.a) * fabricKeep);
       gl_FragColor = vec4(col, base.a);
     }
   `,

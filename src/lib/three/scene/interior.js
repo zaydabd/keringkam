@@ -16,7 +16,7 @@
 //   scene (linear HDR) -> ink (toon.js) -> pigment (watercolour.js) -> finish (exposure from
 //   meter.js, the one tone map, sRGB, grade) -> anti-aliasing (SMAA).
 // Inspection, all as URL parameters before the #:
-//   debug = nopost | flat | silhouette | paint-pigment | paint-edge | paint-bleed | gloss | meter
+//   debug = nopost | flat | silhouette | paint-pigment | paint-edge | paint-bleed | gloss | meter | fabric-mask
 //           | water-normal | water-fresnel | water-filter | water-reflection | water-body
 //           | water-crest | water-lost | tree-level | tree-kind
 //   off   = ink, pigment, grade, aa, outside, ao, contact, gloss (comma-separated: switches those off),
@@ -350,7 +350,15 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
         const flat = debug === 'flat';
         const material = clay
           ? new THREE.MeshStandardMaterial({ color: CLAY_LOOK.colour, roughness: 1, metalness: 0, fog: false, side: D })
-          : new THREE.MeshToonMaterial({ map: flat ? null : maps[k], color: flat ? '#bdbdbd' : '#ffffff', vertexColors: true, gradientMap, fog: false, side: D, transparent: true, opacity: 0.95, depthWrite: true }); // 95% opaque: thin cloth lets a little through
+          : new THREE.MeshToonMaterial({
+              map: flat ? null : maps[k], color: flat ? '#bdbdbd' : '#ffffff', gradientMap, fog: false, side: D,
+              transparent: true, opacity: 0.95, depthWrite: true, // 95% opaque: thin cloth lets a little through
+              // The photo's own colours (no part tint; the ink still reads the part id from the
+              // colour attribute). Alpha 0 in the scene buffer marks the cloth, so the ink, the
+              // pigment and the grade leave it close to its photo (THEME.fabric).
+              blending: THREE.CustomBlending, blendSrc: THREE.SrcAlphaFactor, blendDst: THREE.OneMinusSrcAlphaFactor,
+              blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.ZeroFactor,
+            });
         const mesh = new THREE.Mesh(g, material);
         mesh.name = `fabric-${f.name}`;
         mesh.castShadow = mesh.receiveShadow = true;
@@ -437,7 +445,10 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
   const pigmentField = createPigmentField(renderer, pigment.uniforms, { detail: paintDetail });
   pigmentField.update(seed);
   if (!off.has('pigment') && !clay) composer.addPass(pigment);
-  finish.uniforms.view.value = off.has('grade') || paintView || clay ? 1 : 0; // 1: tone map and encode only, no grade
+  finish.uniforms.view.value = debug === 'fabric-mask' ? 2 : off.has('grade') || paintView || clay ? 1 : 0; // 1: tone map and encode only, no grade; 2: the fabric mask
+  // The fabrics keep most of their photo (THEME.fabric; their material marks them with alpha 0).
+  outline.material.uniforms.fabricKeep.value = pigment.uniforms.fabricKeep.value = finish.uniforms.fabricKeep.value = THEME.fabric.keep;
+  outline.material.uniforms.fabricInk.value = THEME.fabric.ink;
   composer.addPass(finish);
   // Anti-aliasing (SMAA) on the finished, encoded image, where its edge thresholds were set: it
   // smooths the 1 px ink lines and geometry edges, which otherwise crawl as the view turns.

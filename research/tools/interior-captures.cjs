@@ -10,6 +10,7 @@ const PHONE = { width: 437, height: 946 };
 const VIEWS = {
   final: ['', WIDE],
   nopost: ['debug=nopost', WIDE],
+  'fabric-mask': ['debug=fabric-mask', WIDE], // the seat view's fabric mask
   'off-ink': ['off=ink', WIDE],
   'off-pigment': ['off=pigment', WIDE],
   'off-grade': ['off=grade', WIDE],
@@ -51,12 +52,13 @@ for (const f of ['armchair', 'settee', 'table', 'left-chair', 'right-chair', 'wi
   VIEWS[`fabric-${f}`] = [`view=fabric-${f}&look=0,0`, WIDE];
   VIEWS[`fabric-${f}-phone`] = [`view=fabric-${f}&look=0,0`, PHONE];
   VIEWS[`fabric-${f}-clay`] = [`view=fabric-${f}&look=0,0&theme=clay`, WIDE];
+  VIEWS[`fabric-${f}-mask`] = [`view=fabric-${f}&look=0,0&debug=fabric-mask`, WIDE]; // white where the fabric is spared the paint (THEME.fabric)
 }
 const QUICK = ['final', 'nopost', 'phone'];
 
 (async () => {
   const [out, set = 'all'] = process.argv.slice(2);
-  const names = set === 'all' ? Object.keys(VIEWS) : set === 'quick' ? QUICK : set === 'fabrics' ? Object.keys(VIEWS).filter((n) => /^fabric-[a-z-]+$/.test(n) && !/-(phone|clay)$/.test(n)) : set.split(',');
+  const names = set === 'all' ? Object.keys(VIEWS) : set === 'quick' ? QUICK : set === 'fabrics' ? Object.keys(VIEWS).filter((n) => /^fabric-[a-z-]+$/.test(n) && !/-(phone|clay|mask)$/.test(n)) : set.split(',');
   const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   for (const name of names) {
     const [query, viewport] = VIEWS[name];

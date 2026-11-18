@@ -258,6 +258,11 @@ export const INTERIOR_THEME = {
     shadowTintAmount: 0.1,
   },
 
+  // The fabric photos (interior/fabrics.js): kept close to the photo. keep = the share of the ink
+  // pass's paper and split tone, the pigment pass and the grade they are spared; ink = how much
+  // ink they still get on their own pixels (their outline is drawn on what is beside them).
+  fabric: { keep: 0.85, ink: 0 },
+
   // Final grade, after tone mapping (watercolour.js FINISH_SHADER).
   grade: {
     blackLift: '#2e2420', // R2's darkest darks are warm brown, not black

@@ -35,6 +35,7 @@ export const PIGMENT_SHADER = {
     shadowTint: { value: new THREE.Color('#ffffff') }, // the hue shadows lean towards
     shadowTintAmount: { value: 0 },
     exposure: { value: 1.85 }, // set from the meter: tone thresholds are judged on exposed values
+    fabricKeep: { value: 0 }, // on the fabrics (alpha 0): how much of the colour is kept unpainted
     view: { value: 0 }, // 0 final, 1 pigment field, 2 edge field, 3 bleed field
   },
   vertexShader: VERTEX,
@@ -42,7 +43,7 @@ export const PIGMENT_SHADER = {
     uniform sampler2D tDiffuse;
     uniform vec2 resolution, fieldShift;
     uniform mat3 viewRotation;
-    uniform float focal, detail, scale, washVariation, granulation, edgeDarkening, bleed, shadowTintAmount, view, exposure;
+    uniform float focal, detail, scale, washVariation, granulation, edgeDarkening, bleed, shadowTintAmount, view, exposure, fabricKeep;
     uniform vec3 shadowTint;
     varying vec2 vUv;
     // Luminance as it will be shown, relative to the exposure the thresholds were tuned at (1.85).
@@ -65,7 +66,8 @@ export const PIGMENT_SHADER = {
       vec2 g = (floor(at) + 0.5) / scale;
       vec2 field = vec2(0.0, noise4(g * 0.875).z * 0.6 + noise4(g * 0.328125 + 4.3).w * 0.4);
 
-      vec3 base = texture2D(tDiffuse, vUv).rgb;
+      vec4 scene = texture2D(tDiffuse, vUv);
+      vec3 base = scene.rgb;
       // Field 2, wet edge: how much the value changes across a few pixels (log luma, so dark
       // and light areas are treated alike).
       vec2 r = px * 2.5 * scale;
@@ -102,8 +104,11 @@ export const PIGMENT_SHADER = {
       float tooth = field.y;
       col *= 1.0 + granulation * (tooth - 0.5) * (0.4 + pigment) * (1.0 - smoothstep(0.1, 0.8, lum) * 0.6);
 
+      // The fabrics (alpha 0, set by their material) keep most of their photo: no wash on them.
+      col = mix(col, base, (1.0 - scene.a) * fabricKeep);
+
       if (view > 0.5) col = vec3(view < 1.5 ? pigment : view < 2.5 ? wetEdge : wet) * 0.6;
-      gl_FragColor = vec4(col, 1.0);
+      gl_FragColor = vec4(col, scene.a); // the fabric mask goes on to the finish
     }
   `,
 };
@@ -148,6 +153,7 @@ export const FINISH_SHADER = {
     clarity: { value: 0 },
     clarityRadius: { value: 14 }, // px (CSS): the size of the neighbourhood
     texel: { value: new THREE.Vector2(1, 1) }, // one CSS pixel in uv, set on resize
+    fabricKeep: { value: 0 }, // on the fabrics (alpha 0): how much of the plain colour is kept, ungraded
     view: { value: 0 },
   },
   vertexShader: VERTEX,
@@ -155,7 +161,7 @@ export const FINISH_SHADER = {
     #include <tonemapping_pars_fragment>
     uniform sampler2D tDiffuse;
     uniform vec3 blackLift, paper;
-    uniform float saturation, contrast, midLift, view, clarity, clarityRadius;
+    uniform float saturation, contrast, midLift, view, clarity, clarityRadius, fabricKeep;
     uniform vec2 texel;
     varying vec2 vUv;
     // Tone map (multiplies by toneMappingExposure) and encode one linear sample.
@@ -166,6 +172,8 @@ export const FINISH_SHADER = {
     float luma(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)); }
     void main() {
       vec3 c = encoded(vUv);
+      vec3 plain = c; // tone mapped and encoded, not graded
+      float fabric = 1.0 - texture2D(tDiffuse, vUv).a; // 1 on the fabrics (their material writes alpha 0)
       if (view < 0.5) {
         if (clarity > 0.0) {
           // The average value around the pixel: 8 samples on each of two rings (r and r / 2),
@@ -183,7 +191,9 @@ export const FINISH_SHADER = {
         c = pow(max(c, 0.0), vec3(midLift));
         c = (c - 0.5) * contrast + 0.5;
         c = mix(blackLift, paper, clamp(c, 0.0, 1.0)); // maps 0 → blackLift, 1 → paper
+        c = mix(c, plain, fabric * fabricKeep); // the fabrics keep most of their photo's colour
       }
+      if (view > 1.5) c = vec3(fabric); // ?debug=fabric-mask
       gl_FragColor = vec4(c, 1.0);
     }
   `,
