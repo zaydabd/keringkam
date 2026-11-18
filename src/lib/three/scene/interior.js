@@ -344,6 +344,9 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
       const maps = clay ? [] : await Promise.all(PLAN.fabrics.map((f) => fabricStore.get(fabricIndex(f.fabric), 'preview')));
       if (destroyed) return;
       const staged = new THREE.Group();
+      // The room's light ramp, in grey: its bands are tinted (warm lights, rosy darks), which
+      // turned a lilac photo yellow-green. The cloth keeps the photo's own hues.
+      const fabricGradient = toonGradient(THEME.shading.bands.map((b) => Array(3).fill((b[0] + b[1] + b[2]) / 3)), { smooth: THEME.shading.smooth });
       PLAN.fabrics.forEach((f, k) => {
         const g = fabricGeometry(results[k], FABRIC_PHOTOS[fabricIndex(f.fabric)].crop, f);
         partColour(g, k);
@@ -351,7 +354,7 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
         const material = clay
           ? new THREE.MeshStandardMaterial({ color: CLAY_LOOK.colour, roughness: 1, metalness: 0, fog: false, side: D })
           : new THREE.MeshToonMaterial({
-              map: flat ? null : maps[k], color: flat ? '#bdbdbd' : '#ffffff', gradientMap, fog: false, side: D,
+              map: flat ? null : maps[k], color: flat ? new THREE.Color('#bdbdbd') : new THREE.Color(...THEME.fabric.balance), gradientMap: fabricGradient, fog: false, side: D,
               transparent: true, opacity: 0.95, depthWrite: true, // 95% opaque: thin cloth lets a little through
               // The photo's own colours (no part tint; the ink still reads the part id from the
               // colour attribute). Alpha 0 in the scene buffer marks the cloth, so the ink, the
@@ -721,7 +724,7 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
         if (o.geometry) o.geometry.dispose();
       });
       for (const m of Object.values(materials)) m.dispose();
-      for (const m of fabricMeshes.values()) m.material.dispose();
+      for (const m of fabricMeshes.values()) { m.material.gradientMap?.dispose(); m.material.dispose(); }
       fabricStore?.dispose();
       for (const t of Object.values(textures)) t.dispose();
       for (const t of masks) t.dispose();

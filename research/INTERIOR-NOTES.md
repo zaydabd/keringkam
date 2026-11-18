@@ -985,3 +985,40 @@ The user's feedback on f1, and what changed (`PLAN.fabrics` only):
 
 The plum and maroon-white photos first swapped chairs; then, at the user's request, the lilac scarf replaced the songket on the left chair, so the maroon-white group is no longer shown in the room. `drape-check.mjs`: all six pass, 970 ms in total
 in Node.
+
+### Pass f3: the fabrics close to their photos (2026-11-18, branch `fabric-look`)
+
+The user: the fabrics get too many effects; they should look close to their texture.
+
+**What each effect did to a cloth:**
+- **Toon light ramp:** its bands are tinted (warm lights, rosy darks).
+- **Ink pass:** split tone, crease lines on every fold, paper grain.
+- **Pigment pass:** wash blotches, granulation, edge darkening, bleed, lavender shadow tint.
+- **Grade:** saturation 0.62, contrast, mid lift, the black-to-paper remap.
+- **Room light:** warm everywhere (the sun is #ffe6c4).
+
+**What changed:**
+- **Mask:** the fabric material writes alpha 0 into the scene buffer (custom blending: normal
+  colour, alpha factors zero). The ink, pigment and finish passes read that alpha and keep
+  `THEME.fabric.keep` = 85% of the cloth's plain colour. The ink pass's own pixels on the cloth
+  get `fabric.ink` = 0. The outline is still drawn on what is beside the cloth. The cloth keeps the
+  room's light, its shadows, AO, exposure and tone map. `?debug=fabric-mask` shows the mask.
+  - Checked: white on every cloth only, also after the AO pass, whose blend multiplies alpha by 1.
+- **Ramp:** the light ramp in grey for the fabrics, and no part tint (`vertexColors` off).
+  - Measured: almost no change on its own.
+- **White balance** `fabric.balance` = [1.07, 1.3, 2.0] (linear): photo / render per channel
+  (settee, window, right chair) was about 1 : 1.1 : 1.33 in sRGB. It is also 1.3 times brighter, part of the
+  remaining 20-25% gap, so the cloth still sits in the room's light.
+
+**Measured:** the cloth region's mean colour against its photo's mean (sRGB, 0-255, distance in
+RGB; the mask from `fabric-<place>-mask` captures, eroded 3 px, the cloth nearest the frame
+centre):
+
+| Cloth | Photo mean | Before (f2) | After (f3) |
+|---|---|---|---|
+| Settee | 131, 101, 74 | 108, 79, 46 (42.4) | 110, 89, 73 (24.2) |
+| Right chair (plum) | 115, 85, 83 | 113, 70, 60 (27.5) | 112, 79, 92 (11.2) |
+| Window | 132, 99, 70 | 118, 85, 48 (29.6) | 116, 91, 74 (18.3) |
+
+"Before" here is the first f3 render (mask only); the f2 numbers came out the same or worse.
+Saturation (mean max-min) now follows the photo, where before the yellow shift raised it.

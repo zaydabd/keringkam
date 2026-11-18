@@ -261,7 +261,12 @@ export const INTERIOR_THEME = {
   // The fabric photos (interior/fabrics.js): kept close to the photo. keep = the share of the ink
   // pass's paper and split tone, the pigment pass and the grade they are spared; ink = how much
   // ink they still get on their own pixels (their outline is drawn on what is beside them).
-  fabric: { keep: 0.85, ink: 0 },
+  // balance: a white balance for the warm room light (the sun is #ffe6c4), a linear multiplier on
+  // the photo. Measured: photo / render per channel on the settee, window and right-chair cloths
+  // came to about 1 : 1.1 : 1.33 in sRGB (1 : 1.23 : 1.87 linear). Balanced alone, the cloths
+  // were still 20-25% darker than their photos (sRGB): this is also 1.3 times brighter (linear),
+  // part of the way, so they still sit in the room's light.
+  fabric: { keep: 0.85, ink: 0, balance: [1.07, 1.3, 2.0] },
 
   // Final grade, after tone mapping (watercolour.js FINISH_SHADER).
   grade: {
