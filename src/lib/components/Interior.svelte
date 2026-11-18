@@ -3,12 +3,26 @@
   import { fade } from 'svelte/transition';
   import { createInterior, FABRIC_VIEWS } from '../three/scene/interior.js';
   import { THEMES, THEME_NAME, DEFAULT_THEME } from '../three/scene/themes/index.js';
+  import { OPTIONS, PRESETS, loadQuality, saveQuality, presetOf, presetSettings } from '../three/scene/quality.js';
 
   let canvas;
   let ready = $state(false);
   let shot = $state('seat');
   let scene;
   const fabricView = $derived(FABRIC_VIEWS.find((v) => v.shot === shot));
+  // Graphics settings (quality.js), kept in this browser. Texture detail is made at load, so
+  // changing it reloads the page; the rest apply at once.
+  let quality = $state(loadQuality());
+  let settingsOpen = $state(false);
+  let drawn = $state(null);
+  const preset = $derived(presetOf(quality));
+  function applyQuality(next) {
+    const reload = next.textures !== quality.textures;
+    quality = next;
+    saveQuality(next);
+    if (reload) window.location.reload();
+    else scene?.setQuality(next);
+  }
   // The theme (?theme=, themes/index.js) is picked when the page loads: choosing another reloads
   // the page, since every texture and material is built at load.
   function pickTheme(name) {
@@ -19,18 +33,56 @@
   }
 
   onMount(() => {
-    scene = createInterior(canvas, { onReady: () => (ready = true), onShot: (name) => (shot = name) });
+    scene = createInterior(canvas, {
+      quality: $state.snapshot(quality),
+      onReady: () => (ready = true),
+      onShot: (name) => (shot = name),
+      onResolution: (r) => (drawn = r),
+    });
     shot = scene.getShot();
     return () => scene.destroy();
   });
 </script>
+
+<svelte:window onkeydown={(e) => e.key === 'Escape' && (settingsOpen = false)} />
 
 <div class="interior">
   <canvas bind:this={canvas}></canvas>
 
   <header>
     <a class="mark" href="#/">Keringkam</a>
+    <button class="settings-toggle" type="button" aria-expanded={settingsOpen} aria-controls="graphics" onclick={() => (settingsOpen = !settingsOpen)}>
+      Graphics
+    </button>
   </header>
+
+  {#if settingsOpen}
+    <section id="graphics" class="settings" aria-label="Graphics settings" transition:fade={{ duration: 150 }}>
+      <label>
+        Preset
+        <select value={preset} onchange={(e) => applyQuality(presetSettings(e.currentTarget.value))}>
+          {#each Object.entries(PRESETS) as [name, p] (name)}
+            <option value={name}>{p.label}</option>
+          {/each}
+          {#if preset === 'custom'}<option value="custom" disabled>Custom</option>{/if}
+        </select>
+      </label>
+      {#each Object.entries(OPTIONS) as [key, o] (key)}
+        <label>
+          {o.label}
+          <select value={quality[key]} onchange={(e) => applyQuality({ ...quality, [key]: e.currentTarget.value })}>
+            {#each Object.entries(o.values) as [value, text] (value)}
+              <option {value}>{text}</option>
+            {/each}
+          </select>
+        </label>
+      {/each}
+      {#if drawn}
+        <p class="note">Drawing {drawn.width} × {drawn.height} for a {drawn.cssWidth} × {drawn.cssHeight} window.</p>
+      {/if}
+      <p class="note">Resolution: the most pixels drawn; a bigger screen is stretched. Anti-aliasing auto: off at 2× and above. Texture detail reloads the page.</p>
+    </section>
+  {/if}
 
   <button class="shot" type="button" onclick={() => scene?.setShot(shot === 'seat' ? 'window' : 'seat')}>
     {shot === 'seat' ? 'Look out of the window' : 'Back to the seat'}
@@ -149,6 +201,69 @@
   .fabrics select {
     max-width: 16em;
   }
+  .settings-toggle {
+    padding: 6px 14px;
+    border: 1px solid rgba(246, 234, 210, 0.7);
+    border-radius: 999px;
+    background: rgba(58, 36, 24, 0.55);
+    color: inherit;
+    font: inherit;
+    font-size: 13px;
+    letter-spacing: 0.04em;
+    text-shadow: none;
+    cursor: pointer;
+  }
+  .settings-toggle:hover,
+  .settings-toggle[aria-expanded='true'] {
+    background: rgba(58, 36, 24, 0.8);
+  }
+  .settings-toggle:focus-visible {
+    outline: 2px solid #f6ead2;
+    outline-offset: 3px;
+  }
+  .settings {
+    position: absolute;
+    top: 72px;
+    right: 32px;
+    width: 280px;
+    display: grid;
+    gap: 10px;
+    padding: 16px 18px;
+    border: 1px solid rgba(246, 234, 210, 0.5);
+    border-radius: 14px;
+    background: rgba(58, 36, 24, 0.88);
+    color: #f6ead2;
+    font-size: 13px;
+  }
+  .settings label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+  }
+  .settings select {
+    min-width: 7.5em;
+    padding: 4px 6px;
+    border: 1px solid rgba(246, 234, 210, 0.5);
+    border-radius: 6px;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+  }
+  .settings select:focus-visible {
+    outline: 2px solid #f6ead2;
+    outline-offset: 2px;
+  }
+  .settings option {
+    color: #3a2418;
+  }
+  .settings .note {
+    margin: 0;
+    font-size: 11px;
+    line-height: 1.4;
+    opacity: 0.85;
+  }
   .theme select,
   .fabrics select {
     border: none;
@@ -214,6 +329,12 @@
   @media (max-width: 700px) {
     header {
       padding: 18px 20px;
+    }
+    .settings {
+      top: 64px;
+      left: 20px;
+      right: 20px;
+      width: auto;
     }
     .credit {
       left: 20px;

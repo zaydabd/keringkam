@@ -43,6 +43,7 @@ import { paintPlanks, paintCarving, paintWindowLattice, paintCurtain, paintDecor
 import { createOutside, OBJECTS, MIRROR_LAYER } from './outside/index.js';
 import { PIGMENT_SHADER, FINISH_SHADER, createPigmentField } from './watercolour.js';
 import { createMeter } from './meter.js';
+import { RESOLUTIONS, MAX_PIXEL_RATIO, MIN_PIXEL_RATIO, PACE, AO, SHADOWS, TEXTURES, normalise } from './quality.js';
 import { createPerfRun } from './perf.js';
 import { INTERIOR_THEME, OUTSIDE_THEME, CLAY_LOOK } from './themes/index.js';
 import { PLAN } from './interior/plan.js';
@@ -125,7 +126,10 @@ export const FABRIC_VIEWS = PLAN.fabrics.map((f) => {
 });
 const SHOT_MOVE_SECONDS = 2.2;
 
-export function createInterior(canvas, { onReady, onShot } = {}) {
+export function createInterior(canvas, { onReady, onShot, onResolution, quality } = {}) {
+  // The graphics settings (quality.js): the resolution, AO, shadows, anti-aliasing and texture
+  // detail. setQuality changes them while the page runs.
+  const Q = normalise(quality);
   const startedAt = performance.now();
   const params = new URLSearchParams(window.location.search);
   const debug = params.get('debug');
@@ -154,10 +158,22 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
   // would smooth nothing and still cost its memory and resolve. ?debug=nopost draws straight to
   // the screen and keeps it.
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: debug === 'nopost' });
-  // The device's own resolution (up to 3): drawn smaller and stretched, every edge and fine
-  // texture moves in steps of 2 screen pixels and crawls as the view turns. If the device cannot
-  // keep up while the view moves, paceResolution steps it down (3, 2, 1.5), never back up.
-  renderer.setPixelRatio(dprParam || Math.min(window.devicePixelRatio, 3));
+  // The resolution (quality.js RESOLUTIONS): the device's own pixels up to the setting's pixel
+  // count, like a game's render resolution. A 1080p screen is drawn at its own pixels at the
+  // 1080p setting; a 2x laptop or a 4K monitor at about 1920 x 1080 pixels, stretched to fill it
+  // (the user's choice, 2026-11-18): MDN's "rendering to a smaller back buffer, and upscaling the
+  // result" (WebGL best practices). Pixels go with the ratio squared, so the ratio is
+  // sqrt(budget / CSS pixels). ?maxpx=n sets the budget
+  // (0: none), ?dpr=n fixes the ratio. If the device cannot keep up while the view moves,
+  // paceResolution steps the device ratio down (PACE), never back up.
+  let deviceRatio = Math.min(window.devicePixelRatio, MAX_PIXEL_RATIO);
+  const budget = () => (params.has('maxpx') ? num('maxpx') : RESOLUTIONS[Q.resolution].pixels);
+  const ratioFor = (w, h) => {
+    const max = budget();
+    if (dprParam) return dprParam;
+    return !max || !w || !h ? deviceRatio : Math.max(MIN_PIXEL_RATIO, Math.min(deviceRatio, Math.sqrt(max / (w * h))));
+  };
+  renderer.setPixelRatio(ratioFor(canvas.clientWidth, canvas.clientHeight));
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.shadowMap.autoUpdate = false; // the sun and the room don't move: draw the shadows once
@@ -188,7 +204,8 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
   sun.target.position.set(-1, 0, -4);
   sun.position.set(-4, 11, -14);
   sun.castShadow = true;
-  sun.shadow.mapSize.set(2048, 2048);
+  const shadowSize = () => SHADOWS[Q.shadows]; // quality.js
+  sun.shadow.mapSize.setScalar(shadowSize().sun);
   Object.assign(sun.shadow.camera, { left: -7, right: 7, top: 7, bottom: -7, near: 1, far: 40 });
   sun.shadow.radius = L.sun.shadowSoftness;
   sun.shadow.bias = -0.0005;
@@ -202,7 +219,7 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
   sky.target.position.set(-0.7, 0.4, -3.4); // the middle of the furniture
   sky.position.copy(sky.target.position).addScaledVector(V(...L.sky.from).normalize(), 8);
   sky.castShadow = !off.has('skyshadow');
-  sky.shadow.mapSize.set(2048, 2048); // about 2.3 mm a texel over the furniture, so thin legs keep their shadow
+  sky.shadow.mapSize.setScalar(shadowSize().sky); // at 2048, about 2.3 mm a texel over the furniture, so thin legs keep their shadow
   Object.assign(sky.shadow.camera, { left: -2.4, right: 2.4, top: 2.4, bottom: -2.4, near: 0.5, far: 16 });
   sky.shadow.camera.layers.set(FURNITURE_LAYER);
   sky.shadow.radius = L.sky.shadowSoftness;
@@ -217,7 +234,7 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
   side.position.set(PLAN.room.x1 + L.side.outside, 1.7, (sw.z0 + sw.z1) / 2);
   side.target.position.set(PLAN.room.x1 - 2.2, 0.2, (sw.z0 + sw.z1) / 2 - 0.25);
   side.castShadow = true;
-  side.shadow.mapSize.set(1024, 1024);
+  side.shadow.mapSize.setScalar(shadowSize().side);
   side.shadow.camera.near = 0.5;
   side.shadow.camera.far = L.side.reach;
   side.shadow.camera.layers.set(SIDE_LAYER);
@@ -235,10 +252,12 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
 
   const gradientMap = toonGradient(THEME.shading.bands, { smooth: THEME.shading.smooth });
   const T = THEME.textures;
-  // The room's painted textures at twice their size on a screen of ratio 1.5 or more: seen from
-  // the seat, a plank texel covered about 1.3-2.7 screen pixels at 2x (512 texels a metre), so the
-  // grain was magnified into blur. ?paint=1 keeps the designed size.
-  const paintWas = setPaintDetail(num('paint') ?? (renderer.getPixelRatio() >= 1.5 ? 2 : 1));
+  // The room's painted textures at twice their size on a drawing buffer of ratio 1.5 or more (the
+  // texture detail setting, quality.js TEXTURES): seen from the seat, a plank texel covered about
+  // 1.3-2.7 screen pixels at 2x (512 texels a metre), so the grain was magnified into blur.
+  // ?paint=1 keeps the designed size. Made at load: changing the setting reloads the page.
+  const TX = TEXTURES[Q.textures];
+  const paintWas = setPaintDetail(num('paint') ?? (renderer.getPixelRatio() >= TX.paintDetailFrom ? 2 : 1));
   const textures = {
     planks: paintPlanks(1 + seed, T.planks.boards),
     floor: paintPlanks(9 + seed, T.planks.floor),
@@ -254,7 +273,7 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
   };
   setPaintDetail(paintWas);
   textures.carve.repeat.set(3.4, 3.4); // finer: chair-back carving
-  const aniso = Math.min(4, renderer.capabilities.getMaxAnisotropy());
+  const aniso = Math.min(TX.anisotropy, renderer.capabilities.getMaxAnisotropy());
   for (const t of Object.values(textures)) t.anisotropy = aniso;
   const D = THREE.DoubleSide;
   const M = THEME.materials;
@@ -393,8 +412,8 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
       if (debug) console.info('fabrics', JSON.stringify(metrics.fabrics));
       if (SHOTS[shot].fabric) showFull(SHOTS[shot].fabric);
       // Then every fabric's full photo, one after another, so the room views show them sharp too
-      // (the 512 px previews blur at a laptop's 2x). ?fabrics=preview keeps the previews.
-      if (params.get('fabrics') !== 'preview')
+      // (the 512 px previews blur at a laptop's 2x). Low texture detail or ?fabrics=preview keeps the previews.
+      if ((params.get('fabrics') ?? TX.fabrics) !== 'preview')
         (async () => {
           for (const name of fabricMeshes.keys()) if (!destroyed) await showFull(name);
           metrics.fabricsFull = true;
@@ -444,11 +463,14 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
   const composer = new EffectComposer(renderer);
   composer.addPass(new RenderPass(scene, camera));
   // Ambient occlusion (ao.js): darkens under the furniture and in the corners; before the ink.
-  // ?aores=k: the AO buffer at k times the drawing buffer (default: CSS pixels); ?aosamples=n (debug, research/INTERIOR-NOTES.md, pass p1).
+  // The AO setting (quality.js AO): full is at most one AO pixel a CSS pixel, half is half that a
+  // side, off skips the pass. ?aores=k: the AO buffer at k times the drawing buffer; ?aosamples=n
+  // (debug, research/INTERIOR-NOTES.md, pass p1).
   const aoRes = num('aores');
-  const aoScale = () => aoRes ?? Math.min(1, 1 / renderer.getPixelRatio());
+  const aoScale = () => aoRes ?? AO.scale[Q.ao] * Math.min(1, 1 / renderer.getPixelRatio());
   const ao = off.has('ao') || stage ? null : createAO(scene, camera, L.ao, { view: debug === 'ao', bufferScale: aoScale, samples: num('aosamples') });
   if (ao) composer.addPass(ao);
+  if (ao) ao.enabled = Q.ao !== 'off' || aoRes !== null;
   const inkPass = !off.has('ink') && !clay;
   if (inkPass) composer.addPass(new ShaderPass(outline.material));
   // Watercolour (watercolour.js): pigment in linear light, then the finish pass.
@@ -477,9 +499,10 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
   }
   // Anti-aliasing (SMAA) on the finished, encoded image, where its edge thresholds were set: it
   // smooths the 1 px ink lines and geometry edges, which otherwise crawl as the view turns.
-  // ?off=aa leaves it out. At a pixel ratio of 2 or more it is skipped (resize): the lines are 2
-  // device pixels wide there, and SMAA took 8% of the sharpness (34% of the fine detail) at 2x,
-  // measured (research/INTERIOR-NOTES.md, "Sharpness"). ?aa=1 keeps it at any ratio.
+  // ?off=aa leaves it out. The anti-aliasing setting (quality.js): on, off, or auto: skipped at a
+  // pixel ratio of 2 or more (resize), where the lines are 2 device pixels wide and SMAA took 8%
+  // of the sharpness (34% of the fine detail) at 2x, measured (research/INTERIOR-NOTES.md,
+  // "Sharpness"). ?aa=1 keeps it at any ratio.
   const smaa = off.has('aa') ? null : new SMAAPass();
   if (smaa) composer.addPass(smaa);
   const meter = createMeter(renderer);
@@ -501,13 +524,19 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
     if (!w || !h || (w === width && h === height)) return;
     width = w;
     height = h;
+    const ratio = ratioFor(w, h);
+    if (ratio !== renderer.getPixelRatio()) {
+      renderer.setPixelRatio(ratio);
+      composer.setPixelRatio(ratio);
+    }
+    metrics.pixelRatio = ratio;
     renderer.setSize(w, h, false);
     composer.setSize(w, h);
     outline.setSize(w, h, renderer.getPixelRatio());
     pigment.uniforms.resolution.value.set(w * renderer.getPixelRatio(), h * renderer.getPixelRatio());
     pigment.uniforms.scale.value = renderer.getPixelRatio();
     finish.uniforms.texel.value.set(1 / w, 1 / h);
-    if (smaa) smaa.enabled = params.get('aa') === '1' || renderer.getPixelRatio() < 2;
+    if (smaa) smaa.enabled = params.get('aa') === '1' || Q.aa === 'on' || (Q.aa === 'auto' && renderer.getPixelRatio() < 2);
     camera.aspect = w / h;
     // Keep R1's vertical view on wide screens; on narrow ones keep its horizontal view instead.
     if (move.t >= 1) {
@@ -515,6 +544,8 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
       camera.updateProjectionMatrix();
     }
     metered = false; // a new framing shows a different share of window and wall
+    const buffer = renderer.getDrawingBufferSize(new THREE.Vector2());
+    onResolution?.({ width: buffer.x, height: buffer.y, cssWidth: w, cssHeight: h, pixelRatio: +ratio.toFixed(3) });
   }
   /** The lens of a shot for the current screen shape (vertical degrees). */
   function shotFov(name) {
@@ -531,30 +562,27 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
 
   // Steps the resolution down while frames come too slowly. Measured only on frames where the
   // view moved (the AO is worked out again then: the dearest frames), after the first frame is
-  // ready: 60 such frames with a median interval over 24 ms (under about 40 a second) step down
-  // once, then it measures again. ?dpr=n fixes the ratio; a timed ?perf run keeps it too.
-  // It never goes below 2: a 3x phone may step to 2, a 2x laptop keeps 2 (at 1.5 the picture lost
-  // a quarter of its sharpness, measured; the user asked not to lower the resolution).
-  const pace = { steps: dprParam || params.has('perf') ? [] : [2].filter((r) => r < renderer.getPixelRatio()), last: 0, samples: [], seen: new THREE.Matrix4() };
-  metrics.pixelRatio = renderer.getPixelRatio();
+  // ready: PACE.frames such frames with a median interval over PACE.slowMs (24 ms: under about 40
+  // a second) step the device ratio down once, then it measures again. ?dpr=n fixes the ratio; a
+  // timed ?perf run keeps it too. It never goes below 2: a 3x phone may step to 2, a 2x laptop
+  // keeps 2 (at 1.5 the picture lost a quarter of its sharpness, measured; the user asked not to
+  // lower the resolution). The resolution setting still caps the pixels drawn (ratioFor).
+  const pace = { steps: dprParam || params.has('perf') ? [] : PACE.steps.filter((r) => r < deviceRatio), last: 0, samples: [], seen: new THREE.Matrix4() };
   function paceResolution(now) {
     const moved = !pace.seen.equals(camera.matrixWorld);
     pace.seen.copy(camera.matrixWorld);
     const interval = now - pace.last;
     pace.last = now;
-    if (!readyCalled || !pace.steps.length || !moved || interval > 1000) return; // over 1 s: a hidden tab, not a pace
+    if (!readyCalled || !pace.steps.length || !moved || interval > PACE.hiddenMs) return; // a hidden tab, not a pace
     pace.samples.push(interval);
-    if (pace.samples.length < 60) return;
-    const median = pace.samples.sort((a, b) => a - b)[30];
+    if (pace.samples.length < PACE.frames) return;
+    const median = pace.samples.sort((a, b) => a - b)[PACE.frames >> 1];
     pace.samples = [];
-    if (median <= 24) return;
-    const ratio = pace.steps.shift();
-    renderer.setPixelRatio(ratio);
-    composer.setPixelRatio(ratio);
+    if (median <= PACE.slowMs) return;
+    deviceRatio = pace.steps.shift();
     width = 0; // resize() sizes every pass again at the new ratio
     resize();
-    metrics.pixelRatio = ratio;
-    console.info(`interior: frames took ${median.toFixed(1)} ms while moving; drawing at pixel ratio ${ratio}`);
+    console.info(`interior: frames took ${median.toFixed(1)} ms while moving; drawing at pixel ratio ${metrics.pixelRatio}`);
   }
 
   const pointer = new THREE.Vector2();
@@ -706,7 +734,8 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
         metrics.calls = renderer.info.render.calls;
         metrics.textures = renderer.info.memory.textures;
         metrics.geometries = renderer.info.memory.geometries;
-        metrics.targets = `composer 2 x ${Math.round(width * px)}x${Math.round(height * px)} half-float; ink 1 x same + depth; shadow 2048x2048; meter 64x36 half-float + 64x36 bytes`;
+        const S = shadowSize();
+        metrics.targets = `composer 2 x ${Math.round(width * px)}x${Math.round(height * px)} half-float; ink 1 x same + depth; shadows sun ${S.sun}, sky ${S.sky}, side ${S.side}; meter 64x36 half-float + 64x36 bytes`;
         metrics.done = true;
         console.info('metrics', JSON.stringify(metrics));
       }
@@ -741,6 +770,27 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
   return {
     setShot,
     getShot: () => shot,
+    /**
+     * Changes the graphics settings while the page runs (quality.js). Returns whether the page must
+     * reload for them: the texture detail is made at load.
+     */
+    setQuality(next) {
+      const n = normalise(next);
+      const reload = n.textures !== Q.textures;
+      const shadowsChanged = n.shadows !== Q.shadows;
+      Object.assign(Q, n);
+      if (ao) ao.enabled = Q.ao !== 'off' || aoRes !== null;
+      if (shadowsChanged) {
+        const S = shadowSize();
+        sun.shadow.mapSize.setScalar(S.sun);
+        sky.shadow.mapSize.setScalar(S.sky);
+        side.shadow.mapSize.setScalar(S.side);
+        renderer.shadowMap.needsUpdate = true; // three.js resizes each map on its next draw (WebGLShadowMap)
+      }
+      width = 0; // resize() sizes every pass again: resolution, AO buffer, anti-aliasing
+      resize();
+      return { reload };
+    },
     destroy() {
       destroyed = true;
       cancelAnimationFrame(frame);

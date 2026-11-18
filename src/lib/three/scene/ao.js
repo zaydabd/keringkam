@@ -10,15 +10,16 @@
 // (the lattice, the carving) and sheer cloth would read as solid panels there.
 
 import * as THREE from 'three';
+import { AO } from './quality.js';
 import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
 import { VIEW_FIELD, setViewField } from './toon.js';
 
-const PD_RADIUS = 10; // the denoise radius, in drawing-buffer pixels
+const PD_RADIUS = AO.denoiseRadius; // in drawing-buffer pixels
 
 class StillAOPass extends GTAOPass {
   constructor(scene, camera, look, { bufferScale, samples } = {}) {
     super(scene, camera, 1, 1);
-    samples ||= 24; // also when the caller passes null (no ?aosamples)
+    samples ||= AO.samples; // also when the caller passes null (no ?aosamples)
     this.bufferScale = bufferScale; // () => the AO buffer's size relative to the drawing buffer
     const { intensity, radius, distanceExponent, thickness, scale } = look;
     this.updateGtaoMaterial({ radius, distanceExponent, thickness, scale, samples });
