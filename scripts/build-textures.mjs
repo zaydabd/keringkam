@@ -5,7 +5,8 @@
 //   <name>.preview.ktx2  long edge 512px  (loads first, ~tens of KB)
 //   <name>.ktx2          long edge 2048px (full quality, swapped in after)
 //   <name>.thumb.webp    long edge 360px (thumbnail for the index view)
-// plus manifest.json with each image's group and pixel size.
+// plus manifest.json with each image's group, pixel size, detail areas and crop box (the opaque
+// rectangle inside the cut-out, for cloth that must not show the transparent margin).
 //
 // Run: npm run textures            (skips outputs newer than their PNG)
 //      npm run textures -- --force (re-encodes everything)
@@ -79,7 +80,7 @@ async function main() {
       const name = file.replace(/\.png$/, '');
       const outBase = path.join(OUT_DIR, group, name);
       const { width, height } = await sharp(src).metadata();
-      manifest.push({ group, name, width, height, details: await findDetails(sharp, src) });
+      manifest.push({ group, name, width, height, details: await findDetails(sharp, src), crop: await findCrop(sharp, src) });
 
       // A small WebP thumbnail for the index view.
       const thumb = `${outBase}.thumb.webp`;
@@ -120,6 +121,29 @@ async function main() {
       next();
     })),
   );
+}
+
+/**
+ * The opaque rectangle inside a cut-out: starting from the whole image, each side moves in while
+ * its edge line is under 95% opaque. Returns { u0, u1, v0, v1 } in texture coordinates (v = 0 at
+ * the bottom, as in three.js).
+ */
+async function findCrop(sharp, src) {
+  const { data, info } = await sharp(src).resize(512, 512, { fit: 'inside' }).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  const { width: w, height: h } = info;
+  const solid = (x, y) => data[(y * w + x) * 4 + 3] > 127;
+  let [x0, x1, y0, y1] = [0, w - 1, 0, h - 1];
+  const row = (y) => { let n = 0; for (let x = x0; x <= x1; x++) n += solid(x, y); return n / (x1 - x0 + 1); };
+  const col = (x) => { let n = 0; for (let y = y0; y <= y1; y++) n += solid(x, y); return n / (y1 - y0 + 1); };
+  for (let moved = true; moved && x1 - x0 > 8 && y1 - y0 > 8; ) {
+    moved = false;
+    if (row(y0) < 0.95) { y0++; moved = true; }
+    if (row(y1) < 0.95) { y1--; moved = true; }
+    if (col(x0) < 0.95) { x0++; moved = true; }
+    if (col(x1) < 0.95) { x1--; moved = true; }
+  }
+  const round = (n) => Math.round(n * 1000) / 1000;
+  return { u0: round(x0 / w), u1: round((x1 + 1) / w), v0: round(1 - (y1 + 1) / h), v1: round(1 - y0 / h) };
 }
 
 /**

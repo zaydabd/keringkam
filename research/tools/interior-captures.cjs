@@ -1,7 +1,7 @@
 // Validation captures for #/interior (after .claude/skills/threejs-visual-validation).
 // Needs Playwright (not a project dependency) and the dev server on :5173.
 //   node research/tools/interior-captures.cjs <outdir> [set]
-// set = all (default) | quick (final, nopost, phone) | one view name.
+// set = all (default) | quick (final, nopost, phone) | fabrics (the six fabric views, wide) | view names.
 // Each view is a fixed camera, seed and pointer position, so two runs give the same image.
 const { chromium } = require('playwright');
 
@@ -46,11 +46,17 @@ const VIEWS = {
   'water-fresnel': ['view=window&look=0,0&debug=water-fresnel&off=ink,pigment,grade', WIDE],
   'water-filter': ['view=window&look=0,0&debug=water-filter&off=ink,pigment,grade', WIDE],
 };
+// the fabric views (PLAN.fabrics): each wide and on a phone, and in the clay render
+for (const f of ['armchair', 'settee', 'table', 'left-chair', 'right-chair', 'window']) {
+  VIEWS[`fabric-${f}`] = [`view=fabric-${f}&look=0,0`, WIDE];
+  VIEWS[`fabric-${f}-phone`] = [`view=fabric-${f}&look=0,0`, PHONE];
+  VIEWS[`fabric-${f}-clay`] = [`view=fabric-${f}&look=0,0&theme=clay`, WIDE];
+}
 const QUICK = ['final', 'nopost', 'phone'];
 
 (async () => {
   const [out, set = 'all'] = process.argv.slice(2);
-  const names = set === 'all' ? Object.keys(VIEWS) : set === 'quick' ? QUICK : set.split(',');
+  const names = set === 'all' ? Object.keys(VIEWS) : set === 'quick' ? QUICK : set === 'fabrics' ? Object.keys(VIEWS).filter((n) => /^fabric-[a-z-]+$/.test(n) && !/-(phone|clay)$/.test(n)) : set.split(',');
   const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   for (const name of names) {
     const [query, viewport] = VIEWS[name];
@@ -65,7 +71,7 @@ const QUICK = ['final', 'nopost', 'phone'];
     await page.goto(`http://localhost:5173/?${query || 'debug=final'}${clock}#/interior`, { waitUntil: 'domcontentloaded' });
     // the scene reports metrics after 45 frames; that is also "warm and steady"
     await page.waitForFunction(() => window.__interiorMetrics?.done, null, { timeout: 150000 }).catch(() => log.push('no metrics after 150 s'));
-    await page.evaluate(() => document.querySelectorAll('header,.credit,.shot,.veil').forEach((e) => (e.style.display = 'none')));
+    await page.evaluate(() => document.querySelectorAll('header,.credit,.shot,.veil,.caption').forEach((e) => (e.style.display = 'none')));
     await page.screenshot({ path: `${out}/v-${name}.png` });
     console.log(`${name}: ${[...new Set(log)].join(' | ')}`);
     await page.close();

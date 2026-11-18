@@ -147,3 +147,9 @@ Used only to read shapes, proportions and colours for `boats.js`. Nothing is cop
 | B2 | [Kuching river taxi 01.JPG](https://commons.wikimedia.org/wiki/File:Kuching_river_taxi_01.JPG) | Ilya Plekhanov | Green scheme |
 | B3 | [Kuching river taxi 02.JPG](https://commons.wikimedia.org/wiki/File:Kuching_river_taxi_02.JPG) | Ilya Plekhanov | Broadside view: main measurements; orange scheme; gate pass 1 |
 | B4 | [Kuching river taxi boatman (28759462792).jpg](https://commons.wikimedia.org/wiki/File:Kuching_river_taxi_boatman_(28759462792).jpg) | Thomas Quine | Boatman's stance and size (scale) |
+
+# Interior: fabric photos (2026-11-18)
+
+| Used for | Photos | Author | Licence |
+|---|---|---|---|
+| The six fabrics on the furniture (`PLAN.fabrics`): black-goldflower-scarf-22, maroon-gold-songket-12, teal-songket-28, plum-embroidered-scarf-01, maroon-white-songket-32, lilac-beaded-scarf-18 | The project's own photos, `src/assets/textures/fabrics-ktx2/` | Not recorded in the repo | Not recorded in the repo |

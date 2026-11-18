@@ -22,7 +22,7 @@
 //   off   = ink, pigment, grade, aa, outside, ao, contact, gloss (comma-separated: switches those off),
 //           the lights: sun, sky, side, bounce, and skyshadow (the sky light casts no shadow)
 //   cam   = design (default) | near | far      look = x,y (fixes the pointer sway, -1..1)
-//   view  = seat (default) | window (start in that camera shot; SHOTS below)
+//   view  = seat (default) | window | fabric-<name> (start in that camera shot; SHOTS below)
 //   seed  = n (moves the pigment field and the painted textures)
 //   t     = seconds (stops the clock of the view outside, so two captures match pixel for pixel)
 //   eye = x,y,z   yaw = deg   pitch = deg   fov = deg   (a free camera, for close-ups)
@@ -54,6 +54,8 @@ import { buildSeat, furnitureOverlaps, buildTable } from './interior/furniture.j
 import { buildHangings } from './interior/hangings.js';
 import { buildVines } from './interior/vines.js';
 import { shadeWalls, glossBoards, buildContactShadows } from './interior/surfaces.js';
+import { drapeAll, fabricGeometry, partColour, fabricIndex } from './interior/fabrics.js';
+import { createTextureStore, fabrics as FABRIC_PHOTOS } from '../common.js';
 import { createAO } from './ao.js';
 export { PLAN } from './interior/plan.js';
 export { furnitureOverlaps } from './interior/furniture.js';
@@ -103,6 +105,24 @@ export const SHOTS = {
   seat: { look: [0.06, 0.03], ev: 0 }, // eye, pitch and lens come from PLAN.camera
   window: { eye: [-0.475, 1.5, -4.62], pitch: 4.3, fov: 54, look: [0.36, 0.1], ev: 1.3 }, // +1.3 stops: outdoors is meant to read as full daylight
 };
+// One shot per fabric (PLAN.fabrics), 'fabric-<name>': standing or sitting where a person would
+// look at it, aimed at it (`at`), the cloth filling about half the frame.
+const FABRIC_SHOTS = {
+  armchair: { eye: [0.0, 1.1, -0.55], at: [0.45, 0.6, -1.62] },
+  settee: { eye: [-0.7, 1.45, -3.7], at: [-0.8, 0.8, -4.9], fov: 45 },
+  table: { eye: [-0.3, 1.45, -2.1], at: [-0.95, 0.35, -3.4] },
+  'left-chair': { eye: [-0.55, 1.1, -3.35], at: [-1.6, 0.6, -4.0] },
+  'right-chair': { eye: [-1.25, 1.1, -3.35], at: [-0.1, 0.6, -4.0] },
+  window: { eye: [-2.47, 1.3, -4.3], at: [-2.47, 0.85, -5.5] },
+};
+for (const f of PLAN.fabrics) SHOTS[`fabric-${f.name}`] = { fov: 50, look: [0.12, 0.06], ev: 0, ...FABRIC_SHOTS[f.name], fabric: f.name };
+
+/** The fabric views for the menu: shot name, place, and the photo's real name (from its file name). */
+export const FABRIC_VIEWS = PLAN.fabrics.map((f) => {
+  const photo = FABRIC_PHOTOS[fabricIndex(f.fabric)];
+  const words = photo.group.split('-').join(' ');
+  return { shot: `fabric-${f.name}`, label: f.label, fabric: `${words.replace(/^./, (c) => c.toUpperCase())}, no. ${Number(photo.name.split('-').pop())}` };
+});
 const SHOT_MOVE_SECONDS = 2.2;
 
 export function createInterior(canvas, { onReady, onShot } = {}) {
@@ -306,6 +326,72 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
   const contact = buildContactShadows(textures.blob, sky.target.position.clone().sub(sky.position), textures.footBlob); // they fall the way the sky's light travels
   scene.add(contact.group);
   room.visible = contact.group.visible = !stage;
+
+  // The fabrics (interior/fabrics.js): settled in Workers while the rest loads, then placed with
+  // their 512 px photos. A fabric's 2048 px photo loads when its view is chosen (showFull). The
+  // first frame waits for them (see tick), so they do not pop in.
+  const fabricGroup = new THREE.Group();
+  fabricGroup.visible = !stage;
+  scene.add(fabricGroup);
+  const fabricStore = clay ? null : createTextureStore(renderer);
+  const fabricMeshes = new Map();
+  let fabricsPending = true;
+  const fabricsAt = performance.now();
+  drapeAll()
+    .then(async (results) => {
+      if (destroyed) return;
+      const settledMs = performance.now() - fabricsAt;
+      const maps = clay ? [] : await Promise.all(PLAN.fabrics.map((f) => fabricStore.get(fabricIndex(f.fabric), 'preview')));
+      if (destroyed) return;
+      const staged = new THREE.Group();
+      PLAN.fabrics.forEach((f, k) => {
+        const g = fabricGeometry(results[k], FABRIC_PHOTOS[fabricIndex(f.fabric)].crop, f);
+        partColour(g, k);
+        const flat = debug === 'flat';
+        const material = clay
+          ? new THREE.MeshStandardMaterial({ color: CLAY_LOOK.colour, roughness: 1, metalness: 0, fog: false, side: D })
+          : new THREE.MeshToonMaterial({ map: flat ? null : maps[k], color: flat ? '#bdbdbd' : '#ffffff', vertexColors: true, gradientMap, fog: false, side: D, transparent: true, opacity: 0.95, depthWrite: true }); // 95% opaque: thin cloth lets a little through
+        const mesh = new THREE.Mesh(g, material);
+        mesh.name = `fabric-${f.name}`;
+        mesh.castShadow = mesh.receiveShadow = true;
+        mesh.layers.enable(FURNITURE_LAYER); // casts the sky's and the side window's shadows, like the furniture
+        mesh.layers.enable(SIDE_LAYER);
+        staged.add(mesh);
+        fabricMeshes.set(f.name, mesh);
+      });
+      // Their shaders are compiled off the frame (in parallel where the driver can) before they
+      // join the room: compiled inside a frame, they held the first exposure reading back.
+      const compileAt = performance.now();
+      await renderer.compileAsync(staged, camera, scene).catch(() => {});
+      if (destroyed) return;
+      const compileMs = performance.now() - compileAt;
+      fabricGroup.add(...staged.children);
+      renderer.shadowMap.needsUpdate = true; // the shadows are drawn once: again, with the fabrics
+      // They change what the camera sees: metered again. The page does not wait for that reading:
+      // it comes back behind the frames already queued (a few ms on a GPU, but up to a minute in
+      // software GL), and the exposure adapts to it as on a change of view.
+      metered = false;
+      fabricsPending = false;
+      metrics.fabrics = { settledMs: Math.round(settledMs), compileMs: Math.round(compileMs), readyMs: Math.round(performance.now() - fabricsAt), steps: results.map((r) => r.steps), simMs: results.map((r) => Math.round(r.ms)) };
+      if (perf) Object.assign(perfLoad, { fabricsMs: metrics.fabrics.readyMs });
+      if (debug) console.info('fabrics', JSON.stringify(metrics.fabrics));
+      if (SHOTS[shot].fabric) showFull(SHOTS[shot].fabric);
+    })
+    .catch((e) => {
+      console.error('fabrics', e);
+      fabricsPending = false;
+    });
+  /** Swaps a fabric's 512 px photo for its 2048 px one (once loaded). */
+  function showFull(name) {
+    const mesh = fabricMeshes.get(name);
+    if (!fabricStore || !mesh || debug === 'flat') return;
+    const place = PLAN.fabrics.find((f) => f.name === name);
+    fabricStore.get(fabricIndex(place.fabric), 'full').then((t) => {
+      if (!t || destroyed) return;
+      mesh.material.map = t;
+      mesh.material.needsUpdate = true;
+    });
+  }
   if (off.has('contact')) contact.group.visible = false;
   if (clay) contact.group.visible = false; // painted shadows: the clay render shows only the sun's
 
@@ -451,8 +537,10 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
     const seat = name === 'seat';
     const free = seat || !!stage; // the inspection camera's parameters apply
     const at = seat || (stage && eyeGiven) ? eye : V(...sh.eye);
-    const yaw = (free ? yawParam : 0) - look.x * sh.look[0];
-    const pitch = THREE.MathUtils.degToRad(seat ? C.pitch : sh.pitch) + (free ? pitchParam : 0) - look.y * sh.look[1];
+    // A shot aims either by its pitch (and faces -z) or at a point (`at`).
+    const aim = sh.at ? [Math.atan2(sh.at[0] - at.x, at.z - sh.at[2]), Math.atan2(sh.at[1] - at.y, Math.hypot(sh.at[0] - at.x, sh.at[2] - at.z))] : [0, THREE.MathUtils.degToRad(seat ? C.pitch : sh.pitch)];
+    const yaw = aim[0] + (free ? yawParam : 0) - look.x * sh.look[0];
+    const pitch = aim[1] + (free ? pitchParam : 0) - look.y * sh.look[1];
     into.position.copy(at);
     target.set(at.x + Math.sin(yaw) * Math.cos(pitch), at.y + Math.sin(pitch), at.z - Math.cos(yaw) * Math.cos(pitch));
     into.lookAt(target);
@@ -496,6 +584,7 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
     move.from.fov = camera.fov;
     shot = name;
     move.t = immediate ? 1 : 0;
+    if (SHOTS[name].fabric) showFull(SHOTS[name].fabric);
     if (width) meterFor(name); // start adapting now, so the light changes during the move, not after it
     onShot?.(name);
   }
@@ -552,16 +641,17 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
     }
     perf?.end(now, performance.now() - t0);
     if (perf && perfLoad.firstFrameMs == null) Object.assign(perfLoad, { firstFrameMs: +(performance.now() - t0).toFixed(1), firstFrameAtMs: Math.round(performance.now()) });
-    if (!readyCalled && exposure !== null) {
-      // Ready once a frame has been drawn at the metered exposure.
+    if (!readyCalled && exposure !== null && (!fabricsPending || performance.now() - startedAt > 12000)) {
+      // Ready once a frame has been drawn at the metered exposure, with the fabrics in place (or
+      // after 12 s without them).
       readyCalled = true;
       if (perf) perfLoad.readyAtMs = Math.round(performance.now());
       if (debug) console.info('triangles', renderer.info.render.triangles, 'calls', renderer.info.render.calls);
       onReady?.();
     }
-    // Inspection metrics: after 15 warm-up frames, average 30 frames. cpuMs is the time spent in
+    // Inspection metrics, from the first ready frame: after 15 warm-up frames, average 30 frames. cpuMs is the time spent in
     // this function (it does not include the GPU's own work); frameMs is the time between frames.
-    if (debug || params.has('cam') || params.has('off') || params.has('seed') || params.has('theme') || fixedLook || params.has('shot')) {
+    if (readyCalled && (debug || params.has('cam') || params.has('off') || params.has('seed') || params.has('theme') || fixedLook || params.has('shot'))) {
       window.__interiorMetrics = metrics; // inspection scripts wait on .frames and .done
       metrics.frames++;
       metrics.eye = camera.position.toArray().map((v) => +v.toFixed(3));
@@ -620,6 +710,8 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
         if (o.geometry) o.geometry.dispose();
       });
       for (const m of Object.values(materials)) m.dispose();
+      for (const m of fabricMeshes.values()) m.material.dispose();
+      fabricStore?.dispose();
       for (const t of Object.values(textures)) t.dispose();
       for (const t of masks) t.dispose();
       latticeDepth.dispose();

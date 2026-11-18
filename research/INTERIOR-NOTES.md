@@ -891,3 +891,83 @@ exact sub-pixel move by phase correlation and a Fourier shift, mean grey, `shimm
 - Step-down checked: a 200×200 view at scale 3 in software GL, the pointer moving, stepped from
   ratio 3 to 2 after 45 s ("frames took 733 ms while moving"). Gaps over 1 s are not counted (a
   hidden tab).
+
+### Pass f1: the fabrics on the furniture (2026-11-18, branch `fabrics`)
+
+Six of the project's fabric photos (`src/assets/textures/fabrics-ktx2/`, one from each group)
+lie on the furniture, each settled by a cloth simulation once at load, each with its own view
+and a Fabrics menu.
+
+**The photos.** Only photos taken flat from above are used: `teal-songket-30` and
+`black-goldflower-scarf-25` were taken at an angle (one from the side, one slightly
+trapezoidal) and were swapped for `teal-songket-28` and `black-goldflower-scarf-22`.
+`scripts/build-textures.mjs` now writes each photo's opaque box (`crop`) into the manifest, so
+the cloth's UVs cover the cloth and not the transparent margin (the ink pass draws no alpha
+test, so a margin would show as a rectangle).
+
+**The places** (the real fabric sizes are not recorded: all sizes are **estimated** from each
+photo's proportions):
+
+| Place | Fabric | Size (estimated) | How it lies |
+|---|---|---|---|
+| Front armchair (chair 2) | black-goldflower-scarf-22 | 0.8 × 1.6 m, folded in half (0.8 × 0.8) | over the top of the back, down the front, ends on the seat |
+| Settee | maroon-gold-songket-12 | 1.05 × 1.7 m, folded in half | the same |
+| Nearer low table (table 1) | teal-songket-28 | 1.0 × 1.2 m | a cover, over every side |
+| Left chair (chair 0) | plum-embroidered-scarf-01 | 0.9 × 1.23 m, folded in half | over the back, down to the seat |
+| Right chair (chair 1) | maroon-white-songket-32 | 1.1 × 0.95 m, folded in half across | over the back, ends on the seat |
+| Back window 0, lattice rail | lilac-beaded-scarf-18 | 0.8 × 1.33 m | folded over the rail, the longer side in the room |
+
+- On the seats, the user's rule: over the back, showing at the front, and at most reaching the
+  seat; a fabric too long (or wide) for that is folded (`fold` along the length, `foldAcross`
+  across the width, in `PLAN.fabrics`). The fold lies on the seat (or down the side).
+- The window scarf is on window 0, not 1: the settee stands in front of window 1.
+
+**Method.**
+- `scene/cloth.js` (the old gallery's `clothSim.js`, moved): a Verlet grid at 4 cm, with box
+  colliders (tilted about x for the leaning chair back, at least 4 cm thick, 4 mm skin) and
+  capsule colliders for the fold edges (arms, the crest rail's arch, the window rail, the table
+  top's edges), 8 mm proud of the real part, because the 4 cm grid cuts a corner by about 6 mm.
+  Friction is applied in every collision pass, with a 4 mm static grip, so the cloth does not
+  creep off. A per-step broad phase (bitmasks) keeps the cost down.
+- `interior/drape.js` lays each cloth along a path (a polyline in the piece's own frame, plus
+  small seeded ripples), settles it at 1/60 s steps, 6 iterations, until the fastest particle
+  moves under 0.2 mm a step (90 to 600 steps), and turns it into the room. The same seed gives the
+  same folds.
+- The six cloths settle in Web Workers (`drapeWorker.js`, up to the core count minus one), with
+  an inline fallback. The page veil waits for them (12 s at most).
+- `interior/fabrics.js` builds the mesh: a 2× Catmull-Rom upsample of the grid, UVs over the
+  crop box. A folded cloth gets a second layer 5 mm towards the furniture (the side the
+  collisions pushed it away from) and a half-round strip for the fold.
+- Material: the room's toon material with the photo, both sides, 95% opaque (the user's
+  request: thin cloth lets a little through). The clay theme draws it grey and solid. The fabrics
+  cast and take shadows like the furniture; the shadow maps are redrawn once they are in.
+- Textures: the 512 px preview at load; a fabric's 2048 px texture when its view is chosen.
+
+**The views.** `fabric-<name>` shots (`FABRIC_SHOTS` in `interior.js`), each aimed with an `at`
+point at the cloth from a natural height (1.05–1.5 m). The Fabrics menu (a native select, so
+it works with the keyboard) lists the seat, the window and the six fabrics; in a fabric view a
+caption names it.
+
+**Measured.**
+- `node research/tools/drape-check.mjs` (Node, this machine): all six settle with no particle
+  inside a solid or under the floor, the fastest moving 0.14–0.43 mm a step, each top within
+  6 cm of where it was laid. 53–359 ms each, 880 ms in all (in series; in the page they run in
+  parallel workers).
+- 95% against fully opaque, front armchair view: mean difference 1.9 of 255, 0.6% of pixels over
+  20. The lattice pattern on the cloths is the window lattice's shadow, not the cloth showing
+  through.
+- Load (production build, `vite preview`, SwiftShader software GL, 1240×894, `?debug=final`):
+  the fabrics are in 6.8 s after the page starts, and the page is ready at 8.7 s (the base
+  branch, `phone-wobble`: 5.4–6.7 s). The sims themselves take 0.1–0.8 s each in their workers;
+  most of the wait is the main thread drawing its first frames, which are slow in software GL.
+- The page does not wait for the exposure reading taken with the fabrics in place: a reading
+  comes back only after the frames already queued, which in software GL took 30–55 s here (the
+  base branch shows the same: 14.5 s for its reading after a switch to the window). On a GPU it
+  is a few frames. The exposure then adapts to it as after a change of view: with the dark
+  armchair cloth in the seat view, the seat exposure goes from 1.31 to 1.57; the frame's mean
+  lightness stays the same (122.5 → 121.8 of 255).
+- Frame cost (`perf-run.cjs`, SwiftShader, seed 1, against `phone-wobble`): seat median 1064 →
+  1136 ms (+7%), window 729 → 693 ms (noise). Shader programs 32 → 34, textures 39 → 45,
+  JS heap 69 → 73 MB.
+- Seat view against the base: mean difference 3.4 of 255, 3.6% of pixels over 20 (the fabrics in
+  view and the exposure).
