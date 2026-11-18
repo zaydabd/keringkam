@@ -715,8 +715,8 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
   const perf = params.has('perf') ? createPerfRun(renderer, { hold: Number(params.get('perf')) || 3, go: () => setShot('window'), moving: () => move.t < 1, load: perfLoad }) : null;
   if (perf) {
     setShot('seat', true);
-    // Time each composer pass on its own (scene, ink, pigment, finish).
-    for (const pass of composer.passes) perf.wrap(pass, pass === pigment ? 'pigment' : pass === finish ? 'finish' : pass === smaa ? 'aa' : pass instanceof RenderPass ? 'scene' : 'ink');
+    // Time each composer pass on its own (scene, ao, ink, pigment, finish, aa).
+    for (const pass of composer.passes) perf.wrap(pass, pass === pigment ? 'pigment' : pass === finish ? 'finish' : pass === smaa ? 'aa' : pass === ao ? 'ao' : pass instanceof RenderPass ? 'scene' : 'ink');
   }
   // Inspection handle for profiling scripts (?perf or ?debug only): stop the loop, draw one frame.
   if (perf || debug) {
