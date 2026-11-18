@@ -456,7 +456,7 @@ What changed:
 ## Performance notes
 
 - Geometry is merged per material. The shadow map renders once (`autoUpdate = false`).
-- pixelRatio is capped at 1.5. The room's windows, lattice and sky are on layer 1, so the ink pre-pass skips them;
+- pixelRatio is the device's, up to 3; `paceResolution` may step a 3x screen to 2, never lower (pass s1). The room's windows, lattice and sky are on layer 1, so the ink pre-pass skips them;
   the view outside (river, banks, trees, buildings) is on layer 0 and is inked, so the pre-pass draws it too.
 - I have not measured frame rate on a real phone yet. Screenshots are from a headless browser using software rendering (SwiftShader).
 
@@ -1032,3 +1032,89 @@ view's centre cloth is partly the window's.
 The mask alone moved the cloths little: without the grade's desaturation the warm light's yellow
 showed more. The white balance did most of the work.
 Saturation (mean max-min) now follows the photo, where before the yellow shift raised it.
+
+### Pass s1: sharpness at 2x (2026-11-18, branch `artstyle-sharpness`)
+
+**What the user saw:** "it is sooo blurry", the fabrics and the whole picture, on a laptop or
+desktop (pixel ratio 2).
+
+**Method:** the seat view at 1240×894 CSS px, pixel ratio 2 (2480×1788 buffer), `?t=5`, one
+effect changed at a time (`?set=pass.uniform:value`, `?off=`, `?dpr=`, `?fabrics=preview`,
+`?paint=1`, `?aa=1`). Sharpness = mean luma gradient magnitude and the variance of the Laplacian
+(fine detail), per crop (scratchpad `sharp.py`). Software GL (SwiftShader), but these are still
+images: the numbers do not depend on the GPU.
+
+| Change from the live build | whole frame | floor | armchair cloth | table cloth | window |
+| --- | --- | --- | --- | --- | --- |
+| resolution stepped down to 1.5 (`paceResolution`) | **-25.6%** (Lap. -73%) | -14.5% | -15.9% | -26.7% | -31.8% |
+| full fabric photos instead of the 512 px previews | +4.9% | 0 | **+52.2%** (Lap. ×4.2) | **+27.0%** | 0 |
+| SMAA off | +8.4% (Lap. +52%) | +5.8% | +6.8% | +5.0% | +8.2% |
+| bleed 0 | +8.5% | +6.5% | +4.0% | +1.6% | +14.0% |
+| pigment pass off | -1.2% (Lap. +11%) | -8.7% | +4.7% | +1.5% | -8.8% |
+| ink off | -15.3% | -20.5% | 0 | -0.8% | -31.4% |
+| ink hand wobble 0 | 0 | +1.5% | 0 | +0.2% | -0.3% |
+
+**Causes found:**
+- The resolution step-down: a 2x laptop that could not keep 24 ms a frame while moving dropped to
+  1.5, a quarter of the sharpness.
+- The fabrics showed their 512 px previews everywhere but their own view.
+- Ghost lines (crops in the session's captures): every thin line had faint copies 5-6 device px
+  to each side. Two sources in the pigment pass: the bleed's 8-sample ring 3 CSS px out copies a
+  thin line onto the ring, and the wet edge compared values ±2.5 CSS px apart, so a pixel 2.5 px
+  from an ink line counted as a wash edge and was darkened. With the pigment pass off the lines
+  are single. The gradient metric counts the ghosts as extra edges, so it cannot show this fix;
+  the crops do.
+- SMAA softened the fine detail by a third at 2x.
+- The armchair's black scarf let the chair through (opacity 0.95: 5% of a lit chair is about
+  half the cloth's own value). Its photo is opaque.
+- The painted room textures are 512 texels a metre (planks: 1024×256 for 2 × 0.5 m). Seen from the
+  seat (vertical fov 46.8°, 1788 px high: 2066 px focal length) the floor 1.5-3 m away gets 690-1380
+  px a metre, so a texel covered 1.3-2.7 device px: magnified, soft grain.
+- Not causes: the ink's hand wobble (it moves where lines are looked for, not the colours) and the
+  ink itself (it adds sharpness).
+
+**Fixes:**
+- `paceResolution` never steps below 2 (a 3x phone may still go to 2).
+- Every fabric's full photo loads after ready, one after another (`showFull`; `?fabrics=preview`
+  keeps the previews).
+- `paint.bleedRadius` 1.5 and `paint.edgeRadius` 1 CSS px (were 3 and 2.5, fixed in the shader):
+  the bleed and the pooling now hug the line instead of copying it. Bleed amount unchanged (0.45).
+- SMAA is skipped at pixel ratio 2 or more (`?aa=1` keeps it); kept below 2.
+- The room's painted textures are painted at twice the size on screens of ratio 1.5 or more
+  (`setPaintDetail` in `paint.js`: the same strokes on a finer canvas; `?paint=1` keeps 1).
+- Fabrics opacity 1.
+
+**Measured after** (same views):
+
+| | whole frame | floor | wall | armchair cloth | table cloth | window |
+| --- | --- | --- | --- | --- | --- | --- |
+| live build | 7.35 (Lap. 431) | 3.52 | 11.18 | 4.30 | 14.28 | 10.00 |
+| s1 | 8.18 (Lap. 739): +11%, fine detail +71% | +4.6% | -1.6% | **+63%** | **+41%** | +0.1% (Lap. +46%) |
+| s1 without the 2x paint | +10.0% | -1.3% | -2.0% | +62% | +41% | +0.1% |
+
+The window shot: whole frame +1.9% (fine detail +48%), river +1.0%, near bank +4.1%.
+The wall's small loss is the ghost lines' edges, gone.
+
+**Cost** (`perf-run.cjs --dpr=2`, software GL: not real GPU times; old settings with
+`--q=paint=1&aa=1&fabrics=preview`):
+
+| | old settings | s1 |
+| --- | --- | --- |
+| seat frame, GPU median | 4,389 ms | 3,431 ms (SMAA was 698 ms; pigment 734 → 615 ms) |
+| build | 624 ms | 579 ms (2x paint: within the noise) |
+| textures / programs | 46 / 36 | 42 / 33 (SMAA's gone) |
+| JS heap | 73.1 MB | 92.9 MB |
+
+Texture memory added (estimated, uncompressed RGBA8 with mips, 4/3): the room's painted textures
+at 2x, about 4× their pixels. The full fabric photos are 1464×1748 and similar (KTX2 files 0.37-0.68
+MB each, 3.5 MB for the six).
+
+Crawl without SMAA at 2x (the seat view turned in 0.03° steps, one page load each, `shimmer.py`
+as in pass l4, mean grey change per step that is not the camera's move):
+
+| | floor near | chair | right wall | table cloth | window |
+| --- | --- | --- | --- | --- | --- |
+| SMAA on (`?aa=1`) | 0.26 | 0.97 | 3.22 | 2.67 | 1.47 |
+| SMAA off (s1 at 2x) | 0.26 | 0.98 | 3.39 | 2.50 | 1.57 |
+
+At most 7% more crawl (window), within what pass l4 called steady.
