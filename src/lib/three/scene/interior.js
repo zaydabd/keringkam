@@ -27,6 +27,7 @@
 //   t     = seconds (stops the clock of the view outside, so two captures match pixel for pixel)
 //   eye = x,y,z   yaw = deg   pitch = deg   fov = deg   (a free camera, for close-ups)
 //   perf  (or perf=n: n seconds per shot) a timed run from the seat to the window (perf.js)
+//   dpr   = n (draws at this pixel ratio and never steps it down; default: the device's, up to 3)
 //   theme = original (default) | detailed | clay: the theme (themes/index.js). clay is the clay render, the
 //           scene without its look (themes/clay.js); theme=off still means clay. The theme
 //           picker in Interior.svelte sets it.
@@ -121,6 +122,7 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
   const yawParam = THREE.MathUtils.degToRad(num('yaw') ?? 0);
   const pitchParam = THREE.MathUtils.degToRad(num('pitch') ?? 0);
   const fovParam = num('fov');
+  const dprParam = num('dpr');
   const clockParam = num('t');
   // ?stage=farbank,trees,... shows only those objects of the view outside (outside/index.js
   // OBJECTS), without the room, from the window shot's eye; yaw, pitch, fov and eye then apply to
@@ -132,7 +134,10 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
   // would smooth nothing and still cost its memory and resolve. ?debug=nopost draws straight to
   // the screen and keeps it.
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: debug === 'nopost' });
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+  // The device's own resolution (up to 3): drawn smaller and stretched, every edge and fine
+  // texture moves in steps of 2 screen pixels and crawls as the view turns. If the device cannot
+  // keep up while the view moves, paceResolution steps it down (3, 2, 1.5), never back up.
+  renderer.setPixelRatio(dprParam || Math.min(window.devicePixelRatio, 3));
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.shadowMap.autoUpdate = false; // the sun and the room don't move: draw the shadows once
@@ -399,6 +404,32 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
   const resizeObserver = new ResizeObserver(resize);
   resizeObserver.observe(canvas);
 
+  // Steps the resolution down while frames come too slowly. Measured only on frames where the
+  // view moved (the AO is worked out again then: the dearest frames), after the first frame is
+  // ready: 60 such frames with a median interval over 24 ms (under about 40 a second) step down
+  // once, then it measures again. ?dpr=n fixes the ratio; a timed ?perf run keeps it too.
+  const pace = { steps: dprParam || params.has('perf') ? [] : [2, 1.5].filter((r) => r < renderer.getPixelRatio()), last: 0, samples: [], seen: new THREE.Matrix4() };
+  metrics.pixelRatio = renderer.getPixelRatio();
+  function paceResolution(now) {
+    const moved = !pace.seen.equals(camera.matrixWorld);
+    pace.seen.copy(camera.matrixWorld);
+    const interval = now - pace.last;
+    pace.last = now;
+    if (!readyCalled || !pace.steps.length || !moved || interval > 1000) return; // over 1 s: a hidden tab, not a pace
+    pace.samples.push(interval);
+    if (pace.samples.length < 60) return;
+    const median = pace.samples.sort((a, b) => a - b)[30];
+    pace.samples = [];
+    if (median <= 24) return;
+    const ratio = pace.steps.shift();
+    renderer.setPixelRatio(ratio);
+    composer.setPixelRatio(ratio);
+    width = 0; // resize() sizes every pass again at the new ratio
+    resize();
+    metrics.pixelRatio = ratio;
+    console.info(`interior: frames took ${median.toFixed(1)} ms while moving; drawing at pixel ratio ${ratio}`);
+  }
+
   const pointer = new THREE.Vector2();
   const look = new THREE.Vector2();
   function onPointerMove(e) {
@@ -508,6 +539,7 @@ export function createInterior(canvas, { onReady, onShot } = {}) {
     if (exposure !== null) applyExposure(exposure);
     // The ink's hand and the wash stay on the room when the view turns (toon.js VIEW_FIELD).
     camera.updateMatrixWorld();
+    paceResolution(now);
     outline.setView();
     pigmentField.setView(camera);
     perf?.section('mirror');

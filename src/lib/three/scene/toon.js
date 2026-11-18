@@ -9,7 +9,6 @@
 // and Maxime Heckel, "Moebius-style post-processing and other stylized shaders" (2024).
 
 import * as THREE from 'three';
-import { FullScreenQuad } from 'three/addons/postprocessing/Pass.js';
 
 /**
  * A three-band toon ramp: shadow, mid, light. Each band is an RGB colour, so the shadow band can
@@ -47,7 +46,43 @@ const EDGE_FRAGMENT = /* glsl */ `
   }
 `;
 
-const INK_TILE = 256; // px: the ink's hand field repeats this often (INK_FIELD_FRAGMENT)
+// The noise the ink's hand, the paper grain and the wash are made of: value noise whose lattice
+// values come from a texture of random bytes (four independent noises, one per channel). One
+// filtered read gives the smoothed noise: the read lands at the cell plus its smoothstep-eased
+// fraction, so the hardware's bilinear blend does the interpolation.
+// The lattice repeats every NOISE_SIZE cells, so a pattern repeats only every 512 cells (4096 px
+// for the hand's 8 px cells): never within a screen. The 256 px tiles the fields were drawn into
+// before repeated every 256 px, and every line's wiggle with them: a bump every few centimetres.
+const NOISE_SIZE = 512;
+let noiseTexture = null;
+/** The shared random-lattice texture (made once; deterministic). */
+export function fieldNoiseTexture() {
+  if (noiseTexture) return noiseTexture;
+  const data = new Uint8Array(NOISE_SIZE * NOISE_SIZE * 4);
+  let s = 0x9e3779b9; // mulberry32, a fixed seed: the same paper on every load
+  for (let i = 0; i < data.length; i++) {
+    s = (s + 0x6d2b79f5) | 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    data[i] = ((t ^ (t >>> 14)) >>> 0) & 255;
+  }
+  noiseTexture = new THREE.DataTexture(data, NOISE_SIZE, NOISE_SIZE, THREE.RGBAFormat);
+  noiseTexture.wrapS = noiseTexture.wrapT = THREE.RepeatWrapping;
+  noiseTexture.minFilter = noiseTexture.magFilter = THREE.LinearFilter;
+  noiseTexture.generateMipmaps = false;
+  noiseTexture.needsUpdate = true;
+  return noiseTexture;
+}
+/** GLSL: noise4(p) = four independent smooth value noises at p (1 cell = 1 unit), 0..1. Needs the
+ * uniform tNoise = fieldNoiseTexture(). */
+export const FIELD_NOISE = /* glsl */ `
+  uniform sampler2D tNoise;
+  vec4 noise4(vec2 p) {
+    vec2 i = floor(p), f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    return textureLod(tNoise, (i + f + 0.5) / ${NOISE_SIZE}.0, 0.0);
+  }
+`;
 
 /** GLSL: where a pixel reads a field that stays on the world when the camera turns: the pixel's
  * ray turned into the world (rotation = the camera's world rotation), as azimuth and elevation
@@ -71,8 +106,8 @@ const OUTLINE_SHADER = {
     tDiffuse: { value: null },
     tEdge: { value: null },
     tDepth: { value: null },
-    tWobble: { value: null }, // the hand-wobble noise, drawn once per screen size (INK_FIELD_FRAGMENT)
-    tGrain: { value: null }, // the paper grain, a tile drawn once (INK_FIELD_FRAGMENT)
+    tNoise: { value: null }, // the random lattice of the hand and grain noise (fieldNoiseTexture)
+    pixelRatio: { value: 1 }, // the hand and the grain are sized in CSS pixels, the same at any ratio
     resolution: { value: new THREE.Vector2(1, 1) },
     cameraNear: { value: 0.05 },
     cameraFar: { value: 400 },
@@ -97,11 +132,12 @@ const OUTLINE_SHADER = {
   `,
   fragmentShader: /* glsl */ `
     #include <packing>
-    uniform sampler2D tDiffuse, tEdge, tDepth, tWobble, tGrain;
+    uniform sampler2D tDiffuse, tEdge, tDepth;
     uniform vec2 resolution, fade, farDepth;
     uniform mat3 viewRotation;
-    uniform float focal;
+    uniform float focal, pixelRatio;
     ${VIEW_FIELD}
+    ${FIELD_NOISE}
     uniform float cameraNear, cameraFar, strength, thickness, split, seams, exposure, farInk;
     uniform vec3 ink, splitTint;
     varying vec2 vUv;
@@ -120,12 +156,14 @@ const OUTLINE_SHADER = {
       vec3 cool = mix(base.rgb, vec3(lum) * splitTint, 0.45); // half-way to a blue-grey of the same value
       base.rgb = mix(base.rgb, cool, sh * split);
       // Hand wobble: nudge where we look for edges by a slow noise, so lines waver like ink.
-      // The noise (wobble x, y, thickness, pressure) is precomputed: INK_FIELD_FRAGMENT, a tile
-      // that repeats every ${INK_TILE} px, read at the pixel's direction in the world (VIEW_FIELD).
+      // The noise (wobble x, y on 8 px cells; thickness on 21 px; pressure on 3.6 px, all CSS px)
+      // is read at the pixel's direction in the world (VIEW_FIELD), so it stays on the room as
+      // the view turns, and never repeats within a screen (FIELD_NOISE).
       vec2 px = 1.0 / resolution;
-      vec2 at = viewField(gl_FragCoord.xy, resolution, viewRotation, focal);
-      vec4 hand = texture2D(tWobble, at / ${INK_TILE}.0);
-      vec2 wob = (hand.xy - 0.5) * 2.2 * px;
+      vec2 atBuffer = viewField(gl_FragCoord.xy, resolution, viewRotation, focal);
+      vec2 q = atBuffer / pixelRatio / 8.0;
+      vec4 hand = vec4(noise4(q).xy, noise4(q * 0.375 + 5.3).z, noise4(q * 2.25 + 11.7).w);
+      vec2 wob = (hand.xy - 0.5) * 2.2 * pixelRatio * px;
       float t = thickness * (0.75 + 0.5 * hand.z);
       vec2 uv = vUv + wob;
 
@@ -173,52 +211,18 @@ const OUTLINE_SHADER = {
       edge *= 0.5 + 0.5 * hand.w; // uneven pressure: the line thins and breaks
       vec3 col = mix(base.rgb, ink, edge * strength);
       col *= 1.0 - seam * 0.55 * (1.0 - smoothstep(fade.x, fade.y, dc)) * (cm ? 0.0 : 1.0); // seams darken whatever they cross, so they show on dark wood too
-      // Paper grain: fine tooth plus a faint larger mottling, like watercolour paper (precomputed).
-      // It stays on the room too, read at the nearest whole texel: a fine grain resampled between
-      // pixels would blur and sharpen as the view turns, so it moves in whole-pixel steps instead.
-      col *= 0.935 + 0.11 * texture2D(tGrain, (floor(at) + 0.5) / ${INK_TILE}.0).r;
+      // Paper grain: fine tooth plus a faint larger mottling, like watercolour paper. It stays on
+      // the room too, read at whole drawing-buffer pixels: a fine grain resampled between pixels
+      // would blur and sharpen as the view turns, so it moves in whole-pixel steps instead.
+      // Tooth 0.875 and 0.203 cells a CSS px, mottling 0.0117.
+      vec2 g = (floor(atBuffer) + 0.5) / pixelRatio;
+      float tooth = noise4(g * 0.875).x * 0.6 + noise4(g * 0.203125 + 3.1).y * 0.4;
+      float mottle = noise4(g * 0.01171875 + 11.3).z;
+      col *= 0.955 + 0.07 * tooth + 0.04 * (mottle - 0.5);
       gl_FragColor = vec4(col, base.a);
     }
   `,
 };
-
-// The ink pass's noise depends on position only, never on the image, so it is drawn once instead
-// of every frame (7 value-noise lookups, 28 sines, per pixel per frame saved).
-// part 0, the hand: wobble x, wobble y, thickness, pressure (RGBA, 8 bits: a wobble step is
-// 0.01 px). It is a tile of INK_TILE px that repeats seamlessly: 8 px noise cells (32 a tile),
-// thickness 8 / 0.375 px (12 a tile), pressure 8 / 2.25 px (72 a tile); the lattice hash wraps at
-// each band's count. The ink pass reads it at each pixel's direction in the world (VIEW_FIELD).
-// part 1: the paper grain (one channel), a tile of the same size: tooth 0.875 cells a px (224 a
-// tile), 0.203 (52), mottling 0.0117 (3). Read, like the hand, at each pixel's world direction:
-// fixed to the screen, the room slid under it and the floor seemed to swim.
-const INK_FIELD_FRAGMENT = /* glsl */ `
-  uniform float part;
-  float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-  float noise(vec2 p) {
-    vec2 i = floor(p), f = fract(p);
-    f = f * f * (3.0 - 2.0 * f);
-    return mix(mix(hash(i), hash(i + vec2(1, 0)), f.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.x), f.y);
-  }
-  // The same noise, repeating every n cells.
-  float noise(vec2 p, float n) {
-    vec2 i = floor(p), f = fract(p);
-    f = f * f * (3.0 - 2.0 * f);
-    vec2 a = mod(i, n), b = mod(i + 1.0, n);
-    return mix(mix(hash(a), hash(vec2(b.x, a.y)), f.x), mix(hash(vec2(a.x, b.y)), hash(b), f.x), f.y);
-  }
-  void main() {
-    if (part < 0.5) {
-      vec2 q = gl_FragCoord.xy / 8.0;
-      gl_FragColor = vec4(noise(q, 32.0), noise(q + 17.3, 32.0), noise(q * 0.375 + 5.0, 12.0), noise(q * 2.25, 72.0));
-    } else {
-      vec2 fc = gl_FragCoord.xy;
-      float tooth = noise(fc * 0.875, 224.0) * 0.6 + noise(fc * 0.203125 + 3.0, 52.0) * 0.4;
-      float mottle = noise(fc * 0.01171875 + 11.0, 3.0);
-      // 0.955 + 0.07 tooth + 0.04 (mottle - 0.5) = 0.935 + 0.11 g, with g in 0..1
-      gl_FragColor = vec4((0.07 * tooth + 0.04 * mottle) / 0.11, 0.0, 0.0, 1.0);
-    }
-  }
-`;
 
 // A cut-out panel in the edge buffer: "nothing here" (alpha 0), but at the panel's own depth.
 const MASK_VERTEX = /* glsl */ `
@@ -256,26 +260,7 @@ export function createOutline(renderer, scene, camera, { layer = 0, ink = '#0000
   }
   material.uniforms.ink.value.set(ink);
   const clear = new THREE.Color();
-  const fieldOptions = { type: THREE.UnsignedByteType, depthBuffer: false, minFilter: THREE.NearestFilter, magFilter: THREE.NearestFilter, generateMipmaps: false };
-  const wobble = new THREE.WebGLRenderTarget(INK_TILE, INK_TILE, { ...fieldOptions, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, wrapS: THREE.RepeatWrapping, wrapT: THREE.RepeatWrapping });
-  const grain = new THREE.WebGLRenderTarget(INK_TILE, INK_TILE, { ...fieldOptions, format: THREE.RedFormat, wrapS: THREE.RepeatWrapping, wrapT: THREE.RepeatWrapping });
-  const fieldMaterial = new THREE.ShaderMaterial({
-    uniforms: { part: { value: 0 } },
-    vertexShader: 'void main() { gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
-    fragmentShader: INK_FIELD_FRAGMENT,
-  });
-  const fieldQuad = new FullScreenQuad(fieldMaterial);
-  material.uniforms.tWobble.value = wobble.texture;
-  material.uniforms.tGrain.value = grain.texture;
-  const drawField = (part, field) => {
-    const previous = renderer.getRenderTarget();
-    fieldMaterial.uniforms.part.value = part;
-    renderer.setRenderTarget(field);
-    fieldQuad.render(renderer);
-    renderer.setRenderTarget(previous);
-  };
-  drawField(0, wobble); // the tiles: once
-  drawField(1, grain);
+  material.uniforms.tNoise.value = fieldNoiseTexture();
 
   return {
     material,
@@ -283,6 +268,7 @@ export function createOutline(renderer, scene, camera, { layer = 0, ink = '#0000
       target.setSize(Math.round(w * pixelRatio), Math.round(h * pixelRatio));
       material.uniforms.resolution.value.set(w * pixelRatio, h * pixelRatio);
       material.uniforms.thickness.value = Math.max(0.75, pixelRatio * 0.7) * lineWidth;
+      material.uniforms.pixelRatio.value = pixelRatio;
     },
     /** Keeps the hand field on the world: call each frame after the camera moves. */
     setView() {
@@ -328,11 +314,7 @@ export function createOutline(renderer, scene, camera, { layer = 0, ink = '#0000
       target.dispose();
       edgeMaterial.dispose();
       maskMaterial?.dispose();
-      material.dispose();
-      wobble.dispose();
-      grain.dispose();
-      fieldMaterial.dispose();
-      fieldQuad.dispose();
+      material.dispose(); // the shared noise texture stays: the wash uses it too
     },
   };
 }

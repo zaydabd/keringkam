@@ -832,3 +832,62 @@ per step after lining up):**
 - Still frame: lightness 0.480 → 0.481, saturation 0.517 → 0.517. A 3× crop of the window light
   on the floor shows no blockiness from the texel-based turn.
 - Perf unchanged within noise (seat about 1110 ms a frame in software GL).
+
+### Pass l4: the phone — a repeating bump and half resolution (2026-11-18, branch `phone-wobble`)
+
+**What the user saw** (screen recording, iPhone, 1179×2556 at pixel ratio 3, the live l3 build):
+the lines carried a bump that came back every few centimetres, and the walls and floor still
+crawled as the view turned.
+
+**Causes:**
+- The bump came from pass l3 itself. To keep the ink's hand on the room, its noise (wobble,
+  thickness, pressure) was drawn once into a seamless 256 px tile and repeated, so every line's
+  wiggle repeated exactly every 256 drawing-buffer pixels: at pixel ratio 1.5 that is 171 CSS
+  px, about 2.8 cm on that phone. The paper grain (256 px) and the wash (768 px) tiles repeated
+  the same way.
+- The crawl: `renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5))`. On a ratio-3 phone the
+  room was drawn at 589×1140 and stretched 2×, so every edge and fine texture moved in steps of
+  two screen pixels, resampled differently on each frame. The desktop measures (ratio 1) could
+  not show it.
+
+**Fix:**
+- No tiles. The noise is value noise whose lattice values come from a 512² texture of random
+  bytes (`toon.js` `fieldNoiseTexture`, `FIELD_NOISE`): four independent noises, one per channel,
+  each one filtered read (the read lands at the cell plus its smoothstep-eased fraction, so the
+  bilinear blend is the interpolation). The lattice repeats every 512 cells: 4096 px for the
+  hand's 8 px cells, never within a screen. Still read at each pixel's direction in the world
+  (`VIEW_FIELD`), so it stays on the room as the view turns; the grain still at whole pixels.
+- The hand and the grain are sized in CSS px (`pixelRatio` uniform), as the wash already was, so
+  they look the same at any resolution (as drawn on the desktop, ratio 1). Per pixel per frame:
+  3 reads for the hand, 3 for the ink's grain, 9 for the wash, 2 for the tooth.
+- The device's own resolution, up to 3. `paceResolution` (interior.js) steps it down (2, then
+  1.5) only if the device cannot keep up: 60 frames in which the view moved with a median gap
+  over 24 ms. Never back up, so the image does not flip between sizes. `?dpr=n` fixes the
+  ratio; a `?perf` run keeps it too.
+
+**Measured** (test browser, phone viewport 393×760 at scale 3; the seat view turned in 0.04°
+steps, sub-pixel as a finger drag is; the change between neighbouring frames after undoing the
+exact sub-pixel move by phase correlation and a Fourier shift, mean grey, `shimmer.py`):
+
+| Region | l3 (ratio 1.5) | old noise at ratio 3 | l4 (ratio 3) |
+|---|---|---|---|
+| Right wall | 9.73 | 1.84 | 1.84 |
+| Floor middle | 5.09 | 1.08 | 0.92 |
+| Floor near | 2.26 | 0.65 | 0.57 |
+| Chair | 7.07 | 1.16 | 1.07 |
+| Ceiling | 2.54 | 1.09 | 1.03 |
+
+- Turns in whole-pixel steps (2 screen px) hide the crawl at ratio 1.5 (each step is exactly one
+  drawing-buffer pixel) and so are no test of it.
+- Desktop (1240×894, ratio 1, single-load turn, `regions2.py`): right wall 1.73 → 1.55, floor
+  middle 1.82 → 1.73, floor right 1.59 → 1.81, chair 3.95 → 3.77. Still frame lightness 0.481 →
+  0.482, saturation 0.517 → 0.515.
+- The ceiling's plank lines (crop in the session's captures) no longer repeat their wiggle.
+- Cost (SwiftShader software GL, `perf-run.cjs`, not a real GPU): desktop seat median 1091 ms
+  (about 1110 before); the wash pass 110 → 145 ms of it (9 noise reads instead of 1 tile read).
+  Phone size at ratio 3 (1311×2838 buffer): seat median 2879 ms, about 2.6× the desktop frame
+  for 3.4× the pixels. A real phone's GPU is not measured here: `paceResolution` steps down there
+  if it is too slow.
+- Step-down checked: a 200×200 view at scale 3 in software GL, the pointer moving, stepped from
+  ratio 3 to 2 after 45 s ("frames took 733 ms while moving"). Gaps over 1 s are not counted (a
+  hidden tab).
