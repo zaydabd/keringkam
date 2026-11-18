@@ -36,9 +36,11 @@ const glArgs = (args.gl ?? 'swiftshader') === 'swiftshader' ? ['--use-gl=angle',
   const r = await page.evaluate(() => window.__perf);
   if ('memory' in args)
     r.gpuMemory = await page.evaluate(() => {
-      const { scene, composer, outline, landscape } = window.__interior;
+      const { renderer, scene, composer, outline, landscape } = window.__interior;
       // Estimates: compressed textures by their data; the rest as RGBA8 (4 B a pixel), with mips 4/3;
       // render targets by type (half float RGBA 8 B, bytes 4 B) plus a 4 B depth buffer if they have one.
+      // three.js gives a target or texture GPU storage only when it is first used: "on GPU" says if it has it.
+      const onGpu = (x) => renderer.properties.get(x).__webglFramebuffer !== undefined || renderer.properties.get(x).__webglTexture !== undefined;
       const seen = new Set();
       const list = [];
       const targets = [];
@@ -49,7 +51,7 @@ const glArgs = (args.gl ?? 'swiftshader') === 'swiftshader' ? ['--use-gl=angle',
         if (t.depthTexture) seen.add(t.depthTexture);
         const bpp = t.texture.type === 1016 || t.texture.type === 1015 ? (t.texture.type === 1015 ? 16 : 8) : 4; // HalfFloatType, FloatType
         const bytes = t.width * t.height * (bpp + (t.depthBuffer ? 4 : 0));
-        targets.push({ name, size: `${t.width}x${t.height}`, MB: +(bytes / 2 ** 20).toFixed(2) });
+        targets.push({ name, size: `${t.width}x${t.height}`, MB: +(bytes / 2 ** 20).toFixed(2), 'on GPU': onGpu(t) });
       };
       addTarget(composer.renderTarget1, 'composer 1');
       addTarget(composer.renderTarget2, 'composer 2');
@@ -64,7 +66,7 @@ const glArgs = (args.gl ?? 'swiftshader') === 'swiftshader' ? ['--use-gl=angle',
           if (!t?.isTexture || seen.has(t) || !(t.isRenderTargetTexture || t.isDepthTexture)) continue;
           seen.add(t);
           const bpp = t.isDepthTexture ? 4 : t.type === 1016 ? 8 : t.type === 1015 ? 16 : 4;
-          targets.push({ name: `${name}.${k}`, size: `${t.image.width}x${t.image.height}`, MB: +((t.image.width * t.image.height * bpp) / 2 ** 20).toFixed(2) });
+          targets.push({ name: `${name}.${k}`, size: `${t.image.width}x${t.image.height}`, MB: +((t.image.width * t.image.height * bpp) / 2 ** 20).toFixed(2), 'on GPU': onGpu(t) });
         }
       };
       addUniformTextures(outline.material?.uniforms, 'ink');
@@ -82,12 +84,12 @@ const glArgs = (args.gl ?? 'swiftshader') === 'swiftshader' ? ['--use-gl=angle',
             seen.add(v);
             const img = v.image ?? {};
             const bytes = v.isCompressedTexture ? v.mipmaps.reduce((a, l) => a + l.data.byteLength, 0) : (img.width ?? 0) * (img.height ?? 0) * 4 * (v.generateMipmaps ? 4 / 3 : 1);
-            list.push({ name: v.name || m.name || o.name, size: `${img.width}x${img.height}`, MB: +(bytes / 2 ** 20).toFixed(2), compressed: !!v.isCompressedTexture });
+            list.push({ name: v.name || m.name || o.name, size: `${img.width}x${img.height}`, MB: +(bytes / 2 ** 20).toFixed(2), compressed: !!v.isCompressedTexture, 'on GPU': onGpu(v) });
           }
       });
       list.sort((a, b) => b.MB - a.MB);
       targets.sort((a, b) => b.MB - a.MB);
-      const sum = (l) => +l.reduce((a, x) => a + x.MB, 0).toFixed(1);
+      const sum = (l) => +l.filter((x) => x['on GPU']).reduce((a, x) => a + x.MB, 0).toFixed(1);
       return { texturesMB: sum(list), targetsMB: sum(targets), sceneTextures: list, targets };
     });
   if (args.shot) await page.screenshot({ path: args.shot });
@@ -117,7 +119,7 @@ const glArgs = (args.gl ?? 'swiftshader') === 'swiftshader' ? ['--use-gl=angle',
   console.log(`long frames: ${r.long.length}`, r.long.slice(0, 10).map((l) => `${l.phase}#${l.i} ${l.intervalMs}ms`).join(', '));
   console.log('memory', JSON.stringify(r.memory));
   if (r.gpuMemory) {
-    console.log(`GPU memory, estimated: scene textures ${r.gpuMemory.texturesMB} MB, render targets ${r.gpuMemory.targetsMB} MB`);
+    console.log(`GPU memory, estimated (only what is on the GPU): scene textures ${r.gpuMemory.texturesMB} MB, render targets ${r.gpuMemory.targetsMB} MB`);
     console.table(r.gpuMemory.sceneTextures.slice(0, 20));
     console.table(r.gpuMemory.targets);
   }
