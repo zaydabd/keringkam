@@ -319,13 +319,13 @@ export function emitTree(w, slot, tree, { at, scale = 1, yaw = 0, paint = TREE_P
         const out = b.centre.clone().sub(tree.centre);
         out.y = Math.max(out.y, 0);
         const d = out.normalize().add(new THREE.Vector3(r() - 0.5, r() - 0.3, r() - 0.5).multiplyScalar(1.4)).normalize();
-        const length = b.radius * (0.9 + r() * 0.5) * scale;
-        const base = place(b.centre.clone().addScaledVector(d, b.radius * (0.55 + r() * 0.25)));
+        const length = b.radius * (0.55 + r() * 0.3) * scale; // pokes out by a third to a half of the sub-lobe's radius
+        const base = place(b.centre.clone().addScaledVector(d, b.radius * (0.6 + r() * 0.2)));
         const up = turn(d.clone().addScaledVector(UP, 0.4).normalize());
         const toEye = new THREE.Vector3(eye[0] - base[0], eye[1] - base[1], eye[2] - base[2]).normalize();
         const side = new THREE.Vector3(...up).cross(toEye).normalize();
         const n = turn(d.clone().addScaledVector(UP, 0.8).normalize());
-        nCards += leafCard(w, base, up, [side.x, side.y, side.z], { length, width: length, cell: LEAF_ATLAS.cell.sprigBig, normal: n, colour: tint ? colour : tone(t > 0.45 ? paint.light : paint.mid), eye });
+        nCards += leafCard(w, base, up, [side.x, side.y, side.z], { length, width: length, cell: LEAF_ATLAS.cell.sprigBig, normal: n, colour: tint ? colour : tone(t > 0.3 ? paint.light : paint.mid), eye });
       }
     }
   });
