@@ -1734,3 +1734,100 @@ layer in any setting. Remaining divergences from R3, and why:
 The first version's fern clump (six ferns, 12 fronds, each 0.9–1.4 m) covered half the bank's
 width in the shot, and its lobed pinnae read as stripes. It is now five ferns of 0.7–1.1 m with
 nine narrower fronds each (the strip's half-width is 0.36 of the frond's length, was 0.5).
+
+### Pass e4: the far trees, more detailed (2026-11-19, branch `exterior-trees`)
+
+The user's concern: the trees on the far bank are okay but lack detail. Before this pass each
+crown was a few icosahedron lobes in three flat greens, so the trees read as lollipops in even
+rows. Every size, count and weight below is a design choice tuned in the window shot against R3,
+not a measurement.
+
+**What R3 shows.** Crowns painted as scalloped masses with many small bumps on their outline,
+light on top and dark underneath, with a few sky holes; tall slender trees with clear trunks on
+the right, broad ones and low round ones elsewhere; the wood left of the bridge stands in clumps
+of different heights with sky between some of them.
+
+**Crowns (trees.js `growTree`, `emitTree`).**
+- Each tip lobe becomes a cluster of sub-lobes, pushed out from the lobe's centre and up by
+  0.35–0.55 of its radius, each 0.5–0.65 of its radius. Near tier (the clump and the big tree):
+  3–6 per lobe, icosahedron detail 1, round a coarse inner mass (0.72 of the lobe) that fills
+  the gaps. Mid tier (the rows): 2–3 per lobe, detail 0, no inner mass: the gaps are sky holes.
+- Each sub-lobe takes its own colour by its height in the crown, a step lighter if it sits on top
+  of its lobe, so the crown is light above and dark below in many patches, not three bands.
+- Leaf cards from the leaf atlas (the large sprig, pass e3) poke out of each sub-lobe's outer side
+  by a third to a half of its radius, two per sub-lobe on the near tier and one on the mid tier,
+  wound to face the eye. They break the ink outline into a leafy fringe. The first version used
+  cards 0.9–1.4 of the sub-lobe's radius long; they read as dark spikes and were shortened to
+  0.55–0.85.
+- Each tree's colours are scaled by its own hue (r ± 7%, g ± 5%, b ± 10%).
+
+**Tiers.** A new `mid` tier, used by the rows, keeps all three branch levels (the old `far` tier
+stopped at two, so a row tree had four tips; it now has about sixteen). Twig wood is not drawn on
+the mid tier: it is inside the crown. The `far` tier is unchanged (the near bank's distant shrubs
+use it).
+
+**Variants (`TREE_TALL`, `TREE_BROAD`, `TREE_ROUND`), three seeds each on the near tier:**
+
+| variant | height (m) | crown width (m) | bare trunk (m) |
+| --- | --- | --- | --- |
+| bank tree (as before) | 13.4–14.9 | 11.1–12.3 | 3.0–4.0 |
+| tall | 13.6–14.7 | 7.6–8.5 | 5.6–6.8 |
+| broad | 14.3–14.8 | 13.9–16.1 | 1.3–2.5 |
+| round | 8.9–10.2 | 8.9–9.8 | 0.8–1.4 |
+
+The clump keeps the bank tree. Each row weighs the variants (`SITE.trees.rows[].mix`), and the
+wood, the wood behind and the upstream row stand in 4, 3 and 3 clumps (`groups`), each clump 0.6
+of its share of the row wide, with sky between them.
+
+**Contracts.** Kept: the growth contract's job, continuation and lateral counts, heights, widths,
+bare trunk and the clump's heights. Added: the mid tier has all three levels; sub-lobes per tip
+lobe within the tier's range; the tall variant's bare trunk at least 5 m and its crown at most
+0.65 of its height wide; the broad variant at least 0.9 as wide as tall; the round variant 8–12 m;
+all five plants (four trees and the bush) used; crown cards 3,000–9,000 triangles. The triangle
+range is now 60,000–130,000 (was 8,000–34,000). Seeds 0–3 pass.
+
+**Cost.** Counted from the slots in Node, seed 0:
+
+| | before (`exterior-plants`) | after |
+| --- | --- | --- |
+| tree wood (paint) | 15,376 | 15,824 |
+| crown lobes (paint) | 18,040 | 83,880 |
+| crown leaf cards (leaf) | – | 5,744 |
+| lobes / sub-lobes | 488 / – | 1,096 / 2,426 |
+| outside, total (about) | 144,689 | 216,721 |
+| outside meshes (draw calls) | 8 | 8 |
+
+A near-tier tree costs about 6,300–7,500 lobe triangles, a mid-tier one 850–1,050. The trees
+build in 160–271 ms in Node (was 55–77 ms; this container's CPU). The outside's triangle cap is now
+240,000 (was 170,000).
+
+**In the page** (renderer counters at the window shot, all passes of one frame):
+
+| view | triangles per frame, before | after | draw calls, before | after |
+| --- | --- | --- | --- | --- |
+| window | 531,625 | 747,721 | 55 | 55 |
+| window-left | 531,785 | 747,881 | 57 | 57 |
+| window-right | 547,467 | 763,563 | 59 | 59 |
+| window-phone | 531,627 | 747,723 | 56 | 56 |
+| window-seed1 | 519,718 | 732,904 | 55 | 55 |
+
+The crowns are drawn three times a frame: in the view, in the river's mirror and in the ink's
+edge pre-pass (toon.js renders layer 0 again with its edge material). That is why the outside's
+72,000 new triangles add about 216,000 per frame. No draw call was added: the crowns are in the
+paint mesh and their cards in the leaf mesh, both there already. The frame took 960 ms before and
+1,006 ms after in the window view. **These are SwiftShader (software) timings in this container,
+not real GPU timings**; they only show that nothing jumped.
+
+**Gate (window, left, right, phone, seed 1; R3 alongside).** The crowns read as many small
+scalloped masses with a leafy fringe, light above and dark below in patches, where before they
+were a few round balls. Tall trees with clear trunks, broad ones and round ones mix in the rows,
+and the wood left of the bridge stands in clumps with sky between some of them. Every tree stands
+on the ground in every view, and the fabrics loaded in every capture. Remaining divergences from
+R3, and why:
+- R3's crowns carry painted marks inside them (dots, short strokes). Here the inside of a crown
+  is flat colour with ink only where sub-lobes overlap; a crown texture would add this, left for
+  a later pass;
+- the far rows' sub-lobes are icosahedra of detail 0 (20 faces), so their outlines are slightly
+  angular up close; at the window's distance a sub-lobe is about 10 pixels across;
+- the leaf cards' fringe is darker than R3's crown edges, because the atlas's edge line darkens
+  the small mip levels.
