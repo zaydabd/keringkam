@@ -223,7 +223,7 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
   // --- Sky: a painted dome; its horizon is the haze colour (layer 1: no ink) -------------------
   if (want('sky')) {
     const skyMat = new THREE.MeshBasicMaterial({ map: mode === 'silhouette' || mode === 'clay' ? null : textures.sky, color: '#ffffff', side: THREE.BackSide, fog: false, depthWrite: false });
-    skyMat.color.setScalar(mode === 'silhouette' ? light * 2 : light * SKY_KEY);
+    skyMat.color.setScalar(mode === 'silhouette' ? light * 2 : light * SKY_KEY * (OUTSIDE_THEME.sky.gain ?? 1));
     const sky = new THREE.Mesh(new THREE.SphereGeometry(1300, 32, 16), skyMat);
     sky.rotation.y = 1.1 + seed;
     sky.renderOrder = -1;

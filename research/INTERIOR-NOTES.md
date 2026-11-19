@@ -1956,3 +1956,82 @@ flowers, the frond clump, the open water and the clear near boat hold in every v
 Full outlines. The leaves now read as separate pointed leaves with soft colour drifts. Remaining
 divergences: R4's leaves have ink outlines (ours have none, as in e5); R4's bush has more pale
 gaps between leaves; R4's frond clump is a darker green than ours.
+
+### Pass e6: the sky painted in R4's watercolour style (2026-11-19, branch `exterior-skies`)
+
+The user: "we need to do the skies", matching R4's sky with soft watercolour edges and no ink; and
+"more detail doesnt mean higher resolution. more detail means the way you style the art". So the
+sky is still the 2048 x 1024 canvas on the same dome; only how its clouds are painted changed.
+References: about 10, listed in `research/CREDITS.md` ("Window view: the sky").
+
+**Before:** wide banks of round puffs in one flat cream, no shaded undersides, no wash, a plain
+gradient: a toon look.
+
+**Now** (`paint.js paintSoftSky` → `paintWatercolourClouds`, `paintMass`, `washOutline`,
+`washShape`; settings in `themes/outside.js SKY.watercolour` and `cloudMarks.watercolour`):
+1. **The blue:** the gradient, then 70 broad strokes of a paler and a deeper blue and 7 pale blooms.
+2. **Low streaks:** thin flat clouds 4–30 px above the horizon.
+3. **Masses** in 9 rows from 12 to 270 px above the horizon, far to near, so near ones overlap far
+   ones. Each mass is scaled by perspective (tan of its height against that at 140 px), so they
+   shrink and crowd towards the horizon. Each row runs one full turn round the sky from a random
+   start. Width and gaps are capped at 1.5x scale, so every row has several masses.
+4. **Each mass** is painted on one scratch canvas, then laid on the sky:
+   - lobes along a lumpy top, each an irregular brushed outline (a closed loop whose radius
+     wanders by two random waves), wider than tall;
+   - a paper-white silhouette;
+   - inside it, a warm grey wash under each lobe's cap and a grey-blue shade lower and to the
+     right. A third of these are left crisp with a dried rim; the rest feather out (wet-in-wet);
+   - a broad grey-blue wash low on the mass;
+   - 1–2 pooled grey shapes with granulation;
+   - the flat base fading out over 7 px x scale;
+   - a little bleed below, and dry-brush strokes off some ends.
+5. **Paper grain** over the whole sky. No ink.
+6. **Brightness:** the dome's brightness gets `sky.gain` 1.3 on top of `air.skyKey`. Water
+   lighting still uses `skyKey` alone.
+
+The vivid sky (R3) and its theme entries were removed; nothing else used them. The soft (R2)
+style stays.
+
+**Bug found and fixed on the way:** the first version walked each row from a random x only to
+the canvas edge, so a row painted about half the sky on average. That is why some views showed
+nothing but blue.
+
+**Gate against R4's sky** (pixel sort: cloud where blue minus red < 25; a design check, not
+data). Window shot, sky box x 420–820, y 30–250; R4 crop x 290–720, y 25–170:
+
+| | R4 | e6 (window, before the row fix) |
+| --- | --- | --- |
+| cloud cover | ~80% | 64% (e5b: 18%) |
+| cloud median / 95% | #f2e4d2 / #fbf5e9 | #d7d4c2 / #f4e9c9 |
+| blue median | #7eb4d8 | #8bb0b4 |
+
+Cover round the dome, read from the raw texture between 20 and 200 px above the horizon, in 8
+sectors of 45°, after the row fix:
+
+| texture seed | lowest sector | mean |
+| --- | --- | --- |
+| 0 | 37% | 53% |
+| 1 | 50% | 56% |
+
+**Remaining divergences:**
+- **The blue is greyer and greener than R4's**, and the cloud tops are yellower. The room's
+  whole-frame grade warms and flattens everything, and its blue output tops out near B 180–200
+  whatever the sky paints. Raising the gain from 1.3 to 1.5 moved the blue only 8 levels, so this
+  needs a change to the grade, which is out of scope here.
+- **R4's clouds are greyer in their middle values** than ours. Darker greys made the median
+  darker than R4 instead of brighter, because the grade caps the whites.
+- **R4 has thin ink edges;** ours have none, as the user chose.
+
+**Cost:**
+- **Paint time** of the sky canvas, measured in headless Chromium on the CPU canvas (median of 7
+  in-page runs; first run in brackets). This is a load-time cost, not per frame, and **not a
+  real-device timing**:
+  - before (HEAD 0e18b19, same benchmark): 13–21 ms;
+  - now: 218–236 ms (158–196 ms).
+- **Where the time goes** (CPU profile): laying each mass onto the sky flushes its queued washes,
+  so it is fill area. Tried and kept: fewer lobes on far masses, one flat fill on masses below 0.6
+  scale, one scratch canvas instead of one per mass, wider lobe spacing (10 → 18 px), 2 fills per
+  soft wash, no rows above 270 px (no window sees them). Tried and dropped: removing the broad
+  under-wash (no measurable saving).
+- **Memory and geometry:** the texture is the same size (2048 x 1024), and triangles and draw
+  calls are unchanged: window 494,104 / 49, the same as e5b.

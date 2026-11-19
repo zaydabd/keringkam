@@ -24,13 +24,19 @@ const AIR = {
 };
 
 const SKY = {
-  // vivid (R3): a strong, clear blue that holds almost to the horizon, with wide cumulus banks.
-  // Painted more saturated than it should look: the room's grade takes a third of the colour out.
-  vivid: {
-    gradient: [[0, '#1f6fd6'], [0.6, '#3f8fe6'], [0.93, '#8cc4f0']], // [height, colour] from the top; the haze below
-    cloudBase: '#9a9eb8', // the flat shaded base: cool grey, the shade side of a cumulus
-    cloudShade: '#c8c5cc', // each lobe's warm grey shade
-    cloudLit: '#fffdf6', // and its lit cap
+  // watercolour (R4, pass e6): a cerulean wash, paler low down, with layered cumulus. R4's own
+  // samples (pixels off the painting, not real data): blue high #7ab3d8, low #a8d6e5; cloud
+  // tops #f9f4e8, body #dfddd3, shade #d0cec5, pools #c4c3ba, darkest #aea89b. The values below
+  // are those pushed through the room's grade backwards (it warms, flattens and greys), then
+  // tuned in the window shot until the capture matches the samples.
+  watercolour: {
+    gradient: [[0, '#2a86e8'], [0.55, '#3c9eee'], [0.9, '#7cc8f0']], // [height, colour] from the top; the haze below
+    washLight: '#8ccaf4', // the wash's paler strokes and the blooms' middles
+    washDeep: '#1e74d8', // and its deeper strokes
+    lit: '#fffefb', // bare paper: the clouds' lit tops (a little cool, against the grade's warmth)
+    body: '#ecf3ff', // the warm light grey of a cloud's body
+    shade: '#b8c4f2', // the cool grey-blue underside
+    pool: '#9098d0', // where the grey wash pooled, and its dried edge
   },
   // soft (R2): pale blue with single puffs (the painter's other option; not used in the current shot).
   soft: {
@@ -40,13 +46,23 @@ const SKY = {
   },
   // The clouds' marks (paintSoftSky), on a 2048 x 1024 sky; heights are px above the horizon.
   cloudMarks: {
-    vivid: {
-      banks: { count: 8, scatter: 0.7, height: [60, 120], width: [220, 300], tall: [0.22, 0.12] }, // wide cumulus banks round the sky
-      low: { count: 10, height: [18, 30], width: [60, 90], tall: [0.18, 0.08] }, // small clouds low near the horizon
-      lobes: { spacing: 9, size: [8, 22], minSize: 6, lift: [0.4, 0.6] }, // the lumpy tops: px of bank per lobe
-      base: { opacity: 0.4, core: 0.6 }, // the flat shaded base (core: how far out a puff stays solid)
-      shade: { opacity: 0.8, core: 0.78 }, // each lobe's shade
-      lit: { opacity: 0.97, core: 0.82, minLift: 0.2 }, // and its lit cap (only on lobes standing this high)
+    // watercolour (R4, pass e6). Heights are px above the horizon (the sky is 2048 px round, so
+    // 5.7 px a degree); sizes of a mass are scaled by its perspective (tan of its height, of
+    // that at `rows.ref`), so masses shrink and crowd towards the horizon. Design choices, tuned
+    // in the window shot against R4's cloud cover (pass e6 in research/INTERIOR-NOTES.md).
+    watercolour: {
+      wash: { strokes: 70, length: [120, 260], thick: [10, 26], opacity: [0.08, 0.12], blooms: 7, bloom: [26, 40] }, // the uneven blue
+      // keep: the share of masses painted, [base, + per unit of scale]; widthMax: the largest scale a mass's width and gaps take; jitter: px up or down, at scale 1; a gap below 0 overlaps
+      rows: { count: 9, from: 12, to: 270, bias: 1.15, ref: 140, width: [280, 240], gap: [-130, 90], widthMax: 1.5, scaleMin: 0.25, keep: [0.35, 0.7], jitter: 30 },
+      // lobes along the top: px of mass per lobe (at scale 1); small: share of small scraps; aspect: a lobe's width and height (of its size); rough: how far its outline wanders
+      mass: { tall: [0.14, 0.1], spacing: 18, size: [9, 16], lift: [0.4, 0.6], small: 0.3, aspect: [1.35, 0.85], rough: 0.16 },
+      // body: the warm grey's strength; opacity: each lobe's grey-blue shade; crisp: share of washes left with a dried edge; under: the broad wash low on the mass; fade: px (at scale 1) the base fades over
+      shade: { body: 0.7, opacity: 0.55, crisp: 0.35, under: 0.35, fade: 7 },
+      lit: { opacity: 1, cap: 0.65 }, // the paper-white silhouette; cap: how far down a lobe (of its size) its grey starts
+      pool: { perMass: [1, 2], size: [0.05, 0.05], opacity: 0.35 }, // pooled grey: small crisp shapes with a dried rim
+      dry: { chance: 0.3, strokes: [3, 4], opacity: 0.35 }, // broken dry-brush strokes off a mass's end
+      streaks: { count: 22, height: [4, 26], length: [40, 120], thick: [2, 4], opacity: [0.5, 0.35] }, // thin flat clouds low down
+      grain: { count: 9000, opacity: 0.05, granules: 0.35 }, // paper grain over the sky; granules: density in the greys, per 100 px²
     },
     soft: {
       clouds: { count: 26, height: [36, 190], width: [70, 150], puffs: 9, size: [0.16, 0.1] }, // single puffs
@@ -172,8 +188,9 @@ export const OUTSIDE_THEME = {
 
   // paintSoftSky; its horizon is air.daylight. style picks one of the two looks below.
   sky: {
-    style: 'vivid',
-    vivid: { colours: SKY.vivid, pattern: SKY.cloudMarks.vivid },
+    style: 'watercolour',
+    gain: 1.3, // the dome's brightness on top of air.skyKey: R4's blue and paper white come through the room's grade (pass e6)
+    watercolour: { colours: SKY.watercolour, pattern: SKY.cloudMarks.watercolour },
     soft: { colours: SKY.soft, pattern: SKY.cloudMarks.soft },
   },
 

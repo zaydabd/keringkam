@@ -180,3 +180,28 @@ is in the repo. The scene reference is R4, an image supplied by the user (not in
 | Many small oval leaf cards with red flowers mixed in | [Hand Painted Bush](https://sketchfab.com/3d-models/hand-painted-bush-3dacde1a3180439fa1a24be69c03a74b) | CookieNoir (Sketchfab) | Screenshot only; licence not checked |
 | Ferns and bushes hanging over a stream's edge | [Birch Forest](https://sketchfab.com/3d-models/birch-forest-f46fb5815325462f9f2a6a9b88374c65) | Jordan Cameron (Sketchfab) | Screenshot only; licence not checked |
 | Placing plants at the water's edge | [forest and waterfal](https://sketchfab.com/3d-models/forest-and-waterfal-f3ed15cf2d8b4f03a9383672a67ce5c0) | Engin.Berki (Sketchfab) | Screenshot only; licence not checked |
+
+# Window view: the sky (2026-11-19, pass e6)
+
+Looked at only, to read how clouds are painted for `paintSoftSky`'s watercolour style
+(`src/lib/three/scene/paint.js`). Nothing is copied into the scene; none of these images is in
+the repo. The scene reference is R4, an image supplied by the user (not in the repo). Trait
+numbers are the plan's: 1 lobed masses, layered; 2 values (paper-white tops, warm grey, cool
+undersides, pools); 3 edges (crisp lit, lost below, dry-brush); 4 the uneven blue wash; 5 flat
+streaks and small clouds low down; 6 granulation and paper grain.
+
+| Used for | Source | Author | Licence |
+|---|---|---|---|
+| 2, 3, 4: paper-white tops left bare, the blue cut round them, grey shade (the closest match) | [Cloud Study (B1977.14.4279)](https://commons.wikimedia.org/wiki/File:Aaron_Edwin_Penley_-_Cloud_Study_-_B1977.14.4279_-_Yale_Center_for_British_Art.jpg) | Aaron Edwin Penley (Yale Center for British Art) | CC0 |
+| 3, 5: horizontal grey washes, dry-brush | [Cloud Study, 1830–35](https://commons.wikimedia.org/wiki/File:Cloud_Study_MET_DP865817.jpg) | John Constable (The Met) | CC0 |
+| 2, 5: grey undersides, low streaks | [Cloud Study – Cumulus (B1975.4.58)](https://commons.wikimedia.org/wiki/File:Thomas_Lindsay_-_Cloud_Study_-_Cumulus_-_B1975.4.58_-_Yale_Center_for_British_Art.jpg) | Thomas Lindsay (Yale Center for British Art) | CC0 |
+| 2, 3, 6: wet-in-wet grey and blue, paper white | [Clouds, 1897](https://commons.wikimedia.org/wiki/File:Clouds_MET_DP212024.jpg) | John Singer Sargent (The Met) | CC0 |
+| 1, 3: dark masses with wet edges | [Sand and Sky, 1887](https://commons.wikimedia.org/wiki/File:Winslow_Homer_-_Sand_and_Sky.jpg) | Winslow Homer | Public domain |
+| Looked at, little used (very faint) | [Cloud Study, 1824](https://commons.wikimedia.org/wiki/File:Cloud_Study_-_James_Giles_-_ABDAG010564.jpg) | James Giles | Public domain |
+| Looked at, little used (too loose) | [Cloud Study, 1880](https://commons.wikimedia.org/wiki/File:Cloud_Study_Ruskin.jpg) | John Ruskin | Public domain |
+| Not used: the image did not load (the user said to go on without it) | [Cloud Study, ca. 1900 (1994.18)](https://commons.wikimedia.org/wiki/File:Sargent_-_Cloud_Study,_ca._1900,_1994.18.jpg) | John Singer Sargent | Not checked |
+| 1, 4: big layered cumulus in a painted 3D skybox | [Anime Skybox 7 – Ghibli Day Style](https://sketchfab.com/3d-models/831948f2d34a426781740d73e89f43c9) | JABAMI Production (Sketchfab) | Screenshot only; Standard licence |
+| 1, 5: clouds shrinking towards the horizon | [FREE – SkyBox Anime Sky](https://sketchfab.com/3d-models/56a60c1d1e8b44eabff138374f996d8f) | Paul (Sketchfab) | Screenshot only; CC BY |
+| 4: an uneven blue behind the clouds | [Skybox Skydays 3](https://sketchfab.com/3d-models/ec111b6006a14bfb91dee33a4646e80b) | JABAMI Production (Sketchfab) | Screenshot only; Free Standard |
+| 1: lobed masses as layered shapes | [Head in the Clouds](https://sketchfab.com/3d-models/7b338c7fecbd4acc99fa9a77e7c7a932) | Duznot (Sketchfab) | Screenshot only; CC BY |
+| The look avoided: round toon puffs | [Stylized clouds](https://sketchfab.com/3d-models/e326c36890364526910cba03c1393ebc) | lavakongen (Sketchfab) | Screenshot only; CC BY |
