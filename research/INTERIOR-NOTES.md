@@ -1972,8 +1972,8 @@ gradient: a toon look.
 1. **The blue:** the gradient, then 70 broad strokes of a paler and a deeper blue and 7 pale blooms.
 2. **Low streaks:** thin flat clouds 4–30 px above the horizon.
 3. **Masses** in 9 rows from 12 to 270 px above the horizon, far to near, so near ones overlap far
-   ones. Each mass is scaled by perspective (tan of its height against that at 140 px), so they
-   shrink and crowd towards the horizon. Each row runs one full turn round the sky from a random
+   ones. Each mass is scaled by perspective (tan of its height against that at 80 px; at least
+   0.35), so they shrink and crowd towards the horizon. Each row runs one full turn round the sky from a random
    start. Width and gaps are capped at 1.5x scale, so every row has several masses.
 4. **Each mass** is painted on one scratch canvas, then laid on the sky:
    - lobes along a lumpy top, each an irregular brushed outline (a closed loop whose radius
@@ -1999,21 +1999,31 @@ nothing but blue.
 **Gate against R4's sky** (pixel sort: cloud where blue minus red < 25; a design check, not
 data). Window shot, sky box x 420–820, y 30–250; R4 crop x 290–720, y 25–170:
 
-| | R4 | e6 (window, before the row fix) |
-| --- | --- | --- |
-| cloud cover | ~80% | 64% (e5b: 18%) |
-| cloud median / 95% | #f2e4d2 / #fbf5e9 | #d7d4c2 / #f4e9c9 |
-| blue median | #7eb4d8 | #8bb0b4 |
+| | R4 | e5b | e6 window | e6 window-seed1 |
+| --- | --- | --- | --- | --- |
+| cloud cover | ~80% | 18% | 90% | 90% |
+| cloud median / 95% | #f2e4d2 / #fbf5e9 | #dcd8c1 / #efe4c4 | #d4d0c2 / #efe6c9 | #dfd9c5 / #f4e9c9 |
+| blue median | #7eb4d8 | #77a4a9 | #8cb4b5 | #7aa8b1 |
+
+(The window-left and window-right boxes include curtain, so they were judged by eye: layered
+masses over a blue gap in both.)
 
 Cover round the dome, read from the raw texture between 20 and 200 px above the horizon, in 8
 sectors of 45°, after the row fix:
 
 | texture seed | lowest sector | mean |
 | --- | --- | --- |
-| 0 | 37% | 53% |
-| 1 | 50% | 56% |
+| 0 | 48% | 69% |
+| 1 | 64% | 73% |
+
+**Sizing:** with masses full size at 140 px up, the windows (which see roughly the lowest 100 px
+of sky) showed only small, far masses, at 50–110 px wide. They read as separate white puffs, and
+their greys were lost. Full size at 80 px gives the large, layered masses R4 has in the same
+part of its frame.
 
 **Remaining divergences:**
+- **Cover is about 10 points above R4** in the measured box (90% against ~80%). R4's gaps are
+  larger, irregular blue lakes.
 - **The blue is greyer and greener than R4's**, and the cloud tops are yellower. The room's
   whole-frame grade warms and flattens everything, and its blue output tops out near B 180–200
   whatever the sky paints. Raising the gain from 1.3 to 1.5 moved the blue only 8 levels, so this
@@ -2027,7 +2037,7 @@ sectors of 45°, after the row fix:
   in-page runs; first run in brackets). This is a load-time cost, not per frame, and **not a
   real-device timing**:
   - before (HEAD 0e18b19, same benchmark): 13–21 ms;
-  - now: 218–236 ms (158–196 ms).
+  - now: 218–247 ms (166–207 ms).
 - **Where the time goes** (CPU profile): laying each mass onto the sky flushes its queued washes,
   so it is fill area. Tried and kept: fewer lobes on far masses, one flat fill on masses below 0.6
   scale, one scratch canvas instead of one per mass, wider lobe spacing (10 → 18 px), 2 fills per

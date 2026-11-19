@@ -53,7 +53,7 @@ const SKY = {
     watercolour: {
       wash: { strokes: 70, length: [120, 260], thick: [10, 26], opacity: [0.08, 0.12], blooms: 7, bloom: [26, 40] }, // the uneven blue
       // keep: the share of masses painted, [base, + per unit of scale]; widthMax: the largest scale a mass's width and gaps take; jitter: px up or down, at scale 1; a gap below 0 overlaps
-      rows: { count: 9, from: 12, to: 270, bias: 1.15, ref: 140, width: [280, 240], gap: [-130, 90], widthMax: 1.5, scaleMin: 0.25, keep: [0.35, 0.7], jitter: 30 },
+      rows: { count: 9, from: 12, to: 270, bias: 1.15, ref: 80, width: [280, 240], gap: [-130, 90], widthMax: 1.5, scaleMin: 0.35, keep: [0.35, 0.7], jitter: 30 },
       // lobes along the top: px of mass per lobe (at scale 1); small: share of small scraps; aspect: a lobe's width and height (of its size); rough: how far its outline wanders
       mass: { tall: [0.14, 0.1], spacing: 18, size: [9, 16], lift: [0.4, 0.6], small: 0.3, aspect: [1.35, 0.85], rough: 0.16 },
       // body: the warm grey's strength; opacity: each lobe's grey-blue shade; crisp: share of washes left with a dried edge; under: the broad wash low on the mass; fade: px (at scale 1) the base fades over
