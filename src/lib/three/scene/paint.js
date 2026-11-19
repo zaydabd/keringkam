@@ -958,7 +958,7 @@ export function paintTrample(seed = 41, { colours: C, pattern: P }, trample) {
     }
   };
   for (const f of trample.prints) {
-    const S = Pr[f.kind];
+    const S = Pr[f.kind], k = f.old ? Pr.old : 1; // old prints are half filled in
     for (const gg of [g, b]) {
       gg.save();
       gg.translate(f.s, f.o);
@@ -966,17 +966,17 @@ export function paintTrample(seed = 41, { colours: C, pattern: P }, trample) {
       gg.scale(f.size, f.size * f.foot);
     }
     // the pale rim, squeezed up round the sole; then the sole pressed in, wet and dark
-    g.fillStyle = rgba(rim, Pr.rim * (0.6 + r() * 0.4));
+    g.fillStyle = rgba(rim, k * Pr.rim * (0.6 + r() * 0.4));
     sole(g, f.kind, 0.018);
     g.fill();
-    b.fillStyle = height(Pr.lift * (0.6 + r() * 0.4));
+    b.fillStyle = height(k * Pr.lift * (0.6 + r() * 0.4));
     sole(b, f.kind, 0.02);
     b.fill();
     const fill = f.water ? water : soaked.map((c, n) => 127.5 + (c - 127.5) * (Pr.depth + r() * 0.25));
-    g.fillStyle = rgba(fill, 0.95);
+    g.fillStyle = rgba(fill, f.water ? 0.95 : k * 0.95);
     sole(g, f.kind);
     g.fill();
-    b.fillStyle = height(-Pr.sink * (0.75 + r() * 0.25));
+    b.fillStyle = height(-k * Pr.sink * (0.75 + r() * 0.25));
     sole(b, f.kind);
     b.fill();
     if (f.water) {
@@ -988,7 +988,7 @@ export function paintTrample(seed = 41, { colours: C, pattern: P }, trample) {
     }
     if (f.kind === 'boot') {
       // the tread: bars across the sole, pressed a little less deep
-      b.strokeStyle = heightA(-Pr.sink * 0.55, 0.9);
+      b.strokeStyle = heightA(-k * Pr.sink * 0.55, 0.9);
       b.lineWidth = 0.009;
       for (let x = -S.length * 0.38; x < S.length * 0.45; x += 0.024) {
         b.beginPath();
@@ -997,9 +997,9 @@ export function paintTrample(seed = 41, { colours: C, pattern: P }, trample) {
         b.stroke();
       }
     } else {
-      g.fillStyle = rgba(f.water ? water : soaked, 0.9);
+      g.fillStyle = rgba(f.water ? water : soaked, k * 0.9);
       toes(g, S, 1);
-      b.fillStyle = height(-Pr.sink);
+      b.fillStyle = height(-k * Pr.sink);
       toes(b, S, 1);
     }
     for (const gg of [g, b]) gg.restore();

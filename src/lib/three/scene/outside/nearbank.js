@@ -54,19 +54,22 @@ export const NEAR_DETAIL = {
     rate: 0.008, // there the step grows by this much per metre from the eye
     outside: [1.5, 0.08], // out of view: at least this (m), else distance times this
     inland: 0.2, // the columns' spacing inland (m)
-    hummocks: { height: 0.24, size: 3.4 },
-    lumps: { height: 0.08, size: 1.1 },
-    hollows: { depth: 0.16, size: 2.3, from: 0.2 }, // noise above `from` is a hollow
+    hummocks: { height: 0.34, size: 3 },
+    lumps: { height: 0.1, size: 1.1 },
+    hollows: { depth: 0.16, size: 2.3, from: 0.2, bare: 0.5 }, // noise above `from` is a hollow; hollower than `bare` is bare mud
     ruts: { depth: 0.1, width: 0.22, lip: 0.035, apart: 1.15 }, // two ruts along the track
     // The worn way from the house to the water: [x of the waterline, offset inland] (design choice).
-    path: { depth: 0.07, width: 0.45, points: [[0.9, 9], [0.2, 6.5], [-0.6, 4], [-1.2, 1.8], [-1.6, 0.3]] },
+    path: { depth: 0.07, width: 0.6, points: [[0.9, 9], [0.2, 6.5], [-0.6, 4], [-1.2, 1.8], [-1.6, 0.3]] },
     cut: 0.12, // the turf's lip over the cut bank
     crest: 0.1, // hummocks higher than this keep their grass on the mud
-    relief: 0.7, // the terrain adds at most this, up or down (m)
+    relief: 0.85, // the terrain adds at most this, up or down (m)
     triangles: [15000, 60000], // the ground's triangles
-    wet: 1.6, // the mud is wet this far above the waterline (m)
+    wet: 2.2, // the mud is wet this far above the waterline (m)
     rutWater: 0.05, // water stands in the ruts where noise is above this
-    prints: { stride: 1.36, flooded: 0.12, landing: 26, crossings: 5 }, // stride (m), share with water in them, prints where people step into a boat, paths across the flat
+    // Footprints: stride (m), the share with water in them, people walking each way (down the worn
+    // way, along the track, along the wet lip), prints where they step into a boat, walks across
+    // the flat, old prints anywhere on the mud.
+    prints: { stride: 1.36, flooded: 0.12, walkers: { path: 8, track: 5, lip: 3 }, landing: 90, crossings: 16, old: 900 },
   },
   tile: { mud: 4, turf: 3 }, // metres per texture tile
   reach: 60, // detail stops this far from the eye (m)
@@ -339,21 +342,16 @@ export function buildNearBank(w, { seed = 0 } = {}) {
     for (let k = 0; k < KEY.length - 1; k++) if (o <= KEY[k + 1][0]) return lerp(KEY[k][1], KEY[k + 1][1], (o - KEY[k][0]) / (KEY[k + 1][0] - KEY[k][0]));
     return S.ground;
   };
-  // Grass on the berm: the bank on the left, ending raggedly, and an uneven patch on the tip of the flat.
-  const grassAt = (x, o) => {
-    if (x + 1.6 * fbm(x * 0.35, o * 0.5, 31 + seed) < N.bermTo) return true;
+  // Grass on the berm, as a field (> 0: grass; about metres): the bank on the left, ending
+  // raggedly, and an uneven patch on the tip of the flat.
+  const bermGrass = (x, o) => {
+    const left = N.bermTo - (x + 1.6 * fbm(x * 0.35, o * 0.5, 31 + seed));
     const cx = (N.tip[0] + N.tip[1]) / 2, rx = (N.tip[1] - N.tip[0]) / 2;
-    return Math.hypot((x - cx) / (rx * 0.6), (o - 1.1) / 0.8) < 1 + 0.5 * fbm(x * 1.1, o * 1.1, 37 + seed);
+    const tip = 0.5 * (1 + 0.5 * fbm(x * 1.1, o * 1.1, 37 + seed) - Math.hypot((x - cx) / (rx * 0.6), (o - 1.1) / 0.8));
+    return Math.max(left, tip);
   };
-  const zoneAt = (s, x, o) => {
-    const E = edgesAt(s);
-    if (o < 0) return 'under';
-    if (o < E.lip) return 'lip';
-    if (o < E.berm) return grassAt(x, o) ? 'berm' : 'flat';
-    if (o < E.track) return 'track';
-    if (o < E.edge) return 'shoulder';
-    return 'level';
-  };
+  /** The section's band at offset o: under, lip, berm, track, shoulder, level. */
+  const bandAt = (E, o) => (o < 0 ? 'under' : o < E.lip ? 'lip' : o < E.berm ? 'berm' : o < E.track ? 'track' : o < E.edge ? 'shoulder' : 'level');
 
   // The worn way from the house down to the water, in (s, o).
   const path = T.path.points.map(([x, o]) => [sOfX(x), o]);
@@ -387,31 +385,43 @@ export function buildNearBank(w, { seed = 0 } = {}) {
     const dy = a * (hum + lumpy - T.hollows.depth * hollow + ruts - T.path.depth * onPath + cut);
     return { a, hum: a * hum, hollow: a * hollow, rut: a * rut, onPath, dy };
   };
-  // A zone from the section's zone and the terrain: grass keeps to the crests and the upper bank,
-  // the mud takes the hollows, the ruts, the worn way and the cut bank's face.
-  const zoneOf = (s, x, o, R) => {
-    const z0 = zoneAt(s, x, o);
-    if (z0 === 'under' || z0 === 'lip') return z0;
-    if (R.onPath > 0.45 + 0.25 * vnoise(s * 2.3, o * 2.3, 53 + seed)) return 'track';
-    if (z0 === 'flat' || z0 === 'track') return R.hum > T.crest && R.rut < 0.2 ? 'berm' : z0;
-    if (z0 === 'shoulder') return R.hum > T.crest * 0.5 ? 'shoulder' : 'cut';
-    if (R.hollow > 0.65) return 'flat';
-    return z0;
+  // Mud or grass, as a field (> 0: mud; about metres, so its zero line can be found between grid
+  // points): the wet lip, the berm where it has no grass, the track, the cut bank's face, bare
+  // hollows and the worn way are mud; hummock crests on the flat and the track keep their grass.
+  const mudField = (s, x, o, R, E) => {
+    if (o <= 0) return 1;
+    const lip = E.lip - o;
+    const flat = Math.min(o - E.lip, E.berm - o, -bermGrass(x, o));
+    const track = Math.min(o - E.berm, E.track - o);
+    const crest = Math.min(R.hum - T.crest, 0.5 * (0.2 - R.rut));
+    const cut = Math.min(o - E.track, E.edge - o, T.crest * 0.5 - R.hum);
+    const hollow = 0.5 * (R.hollow - T.hollows.bare);
+    const worn = 0.6 * (R.onPath - 0.45 - 0.25 * vnoise(s * 2.3, o * 2.3, 53 + seed));
+    return Math.max(lip, Math.min(Math.max(flat, track), -crest), cut, hollow, worn);
   };
+  // The zone at a point, for what is placed there: mud zones (lip, flat, track, cut) and grass
+  // zones (berm, shoulder, level).
+  const MUD_ZONE = { under: 'under', lip: 'lip', berm: 'flat', track: 'track', shoulder: 'cut', level: 'flat' };
+  const GRASS_ZONE = { under: 'under', lip: 'berm', berm: 'berm', track: 'berm', shoulder: 'shoulder', level: 'level' };
+  const zoneOf = (s, x, o, R, E = edgesAt(s)) => (mudField(s, x, o, R, E) > 0 ? MUD_ZONE : GRASS_ZONE)[bandAt(E, o)];
   /** Ground height for offset o where the base is `base`: never pushed below the water. */
   const heightOf = (base, R, o) => (o <= 0 ? base : base + Math.max(R.dy, -(base - S.water) * 0.7));
   const MUD = new Set(['under', 'lip', 'flat', 'track', 'cut']);
-  const look = { under: P.mudUnder, lip: P.mudFlat, flat: P.mudFlat, track: P.mudFlat, cut: P.mudFlat, berm: P.berm, shoulder: P.shoulder, level: P.level };
+  // One colour for the mud and one for the grass: the ink pass draws a seam wherever the vertex
+  // colour changes, so the only seam is where the grass meets the mud.
+  const look = { mud: P.mudFlat, turf: P.level, under: P.mudUnder };
 
   // The grid: under water, the waterline, then evenly spaced columns to the level ground.
   const nIn = Math.round(N.level / T.inland);
   const columns = [-4, 0, ...Array.from({ length: nIn }, (_, j) => ((j + 1) * N.level) / nIn)];
   const last = columns.length - 1;
   const edges = stations.map((st) => edgesAt(st.s));
+  const field = stations.map(() => []);
   const rows = stations.map((st, i) =>
-    columns.map((o) => {
-      const x = st.x + st.nx * o, z = st.z + st.nz * o;
-      return [x, heightOf(baseY(edges[i], o), relief(st.s, x, z, o, edges[i]), o), z];
+    columns.map((o, k) => {
+      const x = st.x + st.nx * o, z = st.z + st.nz * o, R = relief(st.s, x, z, o, edges[i]);
+      field[i][k] = mudField(st.s, x, o, R, edges[i]);
+      return [x, heightOf(baseY(edges[i], o), R, o), z];
     }),
   );
   // Smooth normals over the grid.
@@ -430,27 +440,54 @@ export function buildNearBank(w, { seed = 0 } = {}) {
   const uvOf = (p, slot) => [p[0] / D.tile[slot], p[2] / D.tile[slot]];
   const stats = { stations: stations.length, inView: viewed.length, columns: columns.length, quads: 0, seenQuads: 0, land: 0, shrubs: 0, clumps: 0, ferns: 0, clods: 0, stones: 0, sticks: 0, puddles: 0, prints: 0, zones: {}, triangles: {} };
   const from = { mud: w.slot('mud').triangles, turf: w.slot('turf').triangles, paint: w.slot('paint').triangles, blade: w.slot('blade').triangles };
+  // Each grid triangle is cut where the mud field crosses zero, so the grass's edge runs smoothly
+  // across the grid instead of along its steps. A crossing keeps 20% of the edge on either side
+  // (no slivers), and is worked out from the edge's two ends in a fixed order, so the two
+  // triangles that share an edge cut it at the same point.
+  const vertex = ([i, k]) => ({ p: rows[i][k], n: nrm[i][k], u1: uv1Of(stations[i].s, columns[k]), f: field[i][k], id: i * columns.length + k });
+  const between = (a, b) => {
+    const [lo, hi] = a.id < b.id ? [a, b] : [b, a];
+    const t = Math.min(0.8, Math.max(0.2, lo.f / (lo.f - hi.f)));
+    return { p: lerp3(lo.p, hi.p, t), n: norm(lerp3(lo.n, hi.n, t)), u1: [lerp(lo.u1[0], hi.u1[0], t), lerp(lo.u1[1], hi.u1[1], t)], f: 0 };
+  };
+  /** The part of a triangle on one side of the field's zero (sign 1: mud, -1: grass), in order. */
+  const clip = (tri, sign) => {
+    const out = [];
+    for (let j = 0; j < 3; j++) {
+      const a = tri[j], b = tri[(j + 1) % 3], ina = a.f * sign > 0 || (a.f === 0 && sign < 0), inb = b.f * sign > 0 || (b.f === 0 && sign < 0);
+      if (ina) out.push(a);
+      if (ina !== inb) out.push(between(a, b));
+    }
+    return out;
+  };
+  const emit = (slot, poly, colour) => {
+    for (let j = 1; j < poly.length - 1; j++) {
+      const t = [poly[0], poly[j], poly[j + 1]];
+      w.smoothTri(slot, t.map((v) => v.p), t.map((v) => v.n), t.map((v) => uvOf(v.p, slot)), colour, t.map((v) => v.u1));
+      stats.zones[slot] = (stats.zones[slot] ?? 0) + 1;
+    }
+  };
   for (let i = 0; i < rows.length - 1; i++) {
-    const s = (stations[i].s + stations[i + 1].s) / 2, E = edgesAt(s);
     for (let k = 0; k < last; k++) {
-      const o = (columns[k] + columns[k + 1]) / 2;
       const c = lerp3(lerp3(rows[i][k], rows[i][k + 1], 0.5), lerp3(rows[i + 1][k], rows[i + 1][k + 1], 0.5), 0.5);
-      const zone = zoneOf(s, c[0], o, relief(s, c[0], c[2], o, E));
-      const slot = MUD.has(zone) ? 'mud' : 'turf';
-      stats.zones[zone] = (stats.zones[zone] ?? 0) + 1;
       if (seen(c)) stats.seenQuads++;
-      const A = [i, k], B = [i + 1, k], C = [i + 1, k + 1], Dd = [i, k + 1];
-      const q = [A, Dd, C, B]; // land on the left of the waterline's direction: this winding faces up
-      const p = q.map(([a, b]) => rows[a][b]), n = q.map(([a, b]) => nrm[a][b]), uv = p.map((v) => uvOf(v, slot));
-      const u1 = q.map(([a, b]) => uv1Of(stations[a].s, columns[b]));
-      w.smoothTri(slot, [p[0], p[1], p[2]], [n[0], n[1], n[2]], [uv[0], uv[1], uv[2]], look[zone], [u1[0], u1[1], u1[2]]);
-      w.smoothTri(slot, [p[0], p[2], p[3]], [n[0], n[2], n[3]], [uv[0], uv[2], uv[3]], look[zone], [u1[0], u1[2], u1[3]]);
       stats.quads++;
+      const q = [[i, k], [i, k + 1], [i + 1, k + 1], [i + 1, k]].map(vertex); // land on the left of the waterline's direction: this winding faces up
+      for (const tri of [[q[0], q[1], q[2]], [q[0], q[2], q[3]]]) {
+        if (k === 0) {
+          emit('mud', tri, look.under); // under the water
+          continue;
+        }
+        const mud = clip(tri, 1), grass = clip(tri, -1);
+        if (mud.length >= 3) emit('mud', mud, look.mud);
+        if (grass.length >= 3) emit('turf', grass, look.turf);
+        if (mud.length >= 3 && grass.length >= 3) stats.cut = (stats.cut ?? 0) + 1;
+      }
     }
   }
 
   const contract = createContract('near bank');
-  checkSweep(contract, w, [['mud', from.mud], ['turf', from.turf]], rows, stations, 0, { minArea: 0.004, minAdvance: 0.02 }); // fine steps: the inner columns of a bend advance less
+  checkSweep(contract, w, [['mud', from.mud], ['turf', from.turf]], rows, stations, 0, { minArea: 0.0002, minAdvance: 0.02 }); // fine steps: the inner columns of a bend advance less; a cut keeps 20% of each edge
   contract.near('waterline at the water level', Math.max(...rows.map((r) => Math.abs(r[1][1] - S.water))), 0, 1e-6);
   contract.is('columns per section', rows[0].length, columns.length);
   contract.range('shoulder slope (degrees), steepest', THREE.MathUtils.radToDeg(Math.atan2(S.ground - 0.15 - (S.water + 0.6), Math.min(...edges.map((E) => E.edge - E.track)))), 15, 42);
@@ -605,28 +642,41 @@ export function buildNearBank(w, { seed = 0 } = {}) {
       carry = t - len;
     }
   };
-  const reversed = [...path].reverse();
-  walk(path, { kind: 'boot' });
-  walk(reversed.map(([s, o]) => [s + 0.22, o]), { kind: 'bare', side: 0.08 });
-  walk(reversed.map(([s, o]) => [s - 0.25, o + 0.1]), { kind: 'boot' });
-  const [sEnd, oEnd] = path[path.length - 1];
-  for (let k = 0; k < T.prints.landing; k++) {
-    const a = (rand() - 0.5) * Math.PI * 1.6 - Math.PI / 2 + (rand() < 0.5 ? Math.PI : 0);
-    prints.push({ s: sEnd + (rand() - 0.5) * 2.4, o: oEnd + rand() * 1.6, a, foot: rand() < 0.5 ? 1 : -1, kind: rand() < 0.3 ? 'bare' : 'boot', size: 0.92 + rand() * 0.18, water: rand() < T.prints.flooded * 2 });
+  const Pt = T.prints;
+  const someone = () => (rand() < 0.35 ? { kind: 'bare', side: 0.08 } : { kind: 'boot' });
+  // Down the worn way and back, each a little to one side.
+  for (let k = 0; k < Pt.walkers.path; k++) {
+    const off = (rand() - 0.5) * 0.7, way = path.map(([s, o]) => [s + off, o]);
+    walk(k % 2 ? way.reverse() : way, someone());
   }
-  const along = (offset) => {
+  // Milling about where they step into a boat.
+  const [sEnd, oEnd] = path[path.length - 1];
+  for (let k = 0; k < Pt.landing; k++) {
+    const a = (rand() - 0.5) * Math.PI * 1.6 - Math.PI / 2 + (rand() < 0.5 ? Math.PI : 0);
+    prints.push({ s: sEnd + (rand() - 0.5) * 3, o: oEnd + rand() * 2, a, foot: rand() < 0.5 ? 1 : -1, ...someone(), size: 0.92 + rand() * 0.18, water: rand() < Pt.flooded * 2 });
+  }
+  // Along the track and along the wet lip.
+  const along = (offset, at = (E) => (E.berm + E.track) / 2) => {
     const pts = [];
-    for (let s = map.s[0] + 2; s < map.s[1] - 2; s += 1) {
-      const E = edgesAt(s);
-      pts.push([s, (E.berm + E.track) / 2 + offset + 0.18 * Math.sin(s * 0.45 + offset * 9)]);
-    }
+    for (let s = map.s[0] + 2; s < map.s[1] - 2; s += 1) pts.push([s, at(edgesAt(s)) + offset + 0.18 * Math.sin(s * 0.45 + offset * 9)]);
     return pts;
   };
-  walk(along(-0.3));
-  walk(along(0.35).reverse(), { kind: 'bare', side: 0.08 });
-  for (let k = 0; k < T.prints.crossings; k++) {
+  for (let k = 0; k < Pt.walkers.track; k++) {
+    const pts = along((rand() - 0.5) * 1.1);
+    walk(k % 2 ? pts.reverse() : pts, someone());
+  }
+  for (let k = 0; k < Pt.walkers.lip; k++) {
+    const pts = along(0.35 + rand() * 0.6, (E) => E.lip);
+    walk(k % 2 ? pts.reverse() : pts, someone());
+  }
+  // Across the flat to the water.
+  for (let k = 0; k < Pt.crossings; k++) {
     const s0 = lerp(map.s[0] + 4, map.s[1] - 4, rand()), E = edgesAt(s0), turn = (rand() - 0.5) * 4;
-    walk([[s0, (E.berm + E.track) / 2], [s0 + turn * 0.5, E.berm * 0.6], [s0 + turn, 0.25]]);
+    walk([[s0, (E.berm + E.track) / 2], [s0 + turn * 0.5, E.berm * 0.6], [s0 + turn, 0.25]], someone());
+  }
+  // Old prints, half filled in, anywhere on the mud.
+  for (let k = 0; k < Pt.old; k++) {
+    prints.push({ s: lerp(map.s[0], map.s[1], rand()), o: lerp(0, N.level, rand() * rand()), a: rand() * Math.PI * 2, foot: rand() < 0.5 ? 1 : -1, ...someone(), size: 0.9 + rand() * 0.2, water: rand() < Pt.flooded, old: true });
   }
   const kept = prints.filter((f) => {
     if (f.s < map.s[0] + 0.3 || f.s > map.s[1] - 0.3 || f.o < 0.08 || f.o > N.level - 0.3) return false;
@@ -634,7 +684,7 @@ export function buildNearBank(w, { seed = 0 } = {}) {
     return MUD.has(zoneOf(f.s, x, f.o, relief(f.s, x, z, f.o, edgesAt(f.s))));
   });
   stats.prints = kept.length;
-  contract.min('footprints on the mud in view', kept.length, 120);
+  contract.min('footprints on the mud in view', kept.length, 600);
 
   const ground = w.slot('mud').triangles - from.mud + w.slot('turf').triangles - from.turf;
   contract.min('every plant and stone stands above the water (m)', lowest - S.water, 0);
