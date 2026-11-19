@@ -43,6 +43,11 @@ export const MIRROR_LAYER = 2;
  * drawn on layer 1 (no ink) and mask the ink of what is behind them (toon.js createOutline).
  */
 export const LEAF_MASK_LAYER = 6;
+/** How much a leaf card's alpha is raised per mip level (keepCover below). */
+export const LEAF_COVER = 0.25;
+/** GLSL: the alpha scale for a cut-out sampled at `uv` from `map` (keepCover; toon.js's ink mask). */
+export const coverOf = (uv, map, k = LEAF_COVER) =>
+  `(1.0 + ${k.toFixed(3)} * max(0.0, 0.5 * log2(max(dot(dFdx(${uv} * vec2(textureSize(${map}, 0))), dFdx(${uv} * vec2(textureSize(${map}, 0)))), dot(dFdy(${uv} * vec2(textureSize(${map}, 0))), dFdy(${uv} * vec2(textureSize(${map}, 0))))))))`;
 
 export const OBJECTS = ['farbank', 'nearbank', 'trees', 'river', 'assembly', 'bridge', 'skyline', 'boats', 'sky'];
 
@@ -187,6 +192,22 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
     m.customProgramCacheKey = () => 'trodden-mud';
     return m;
   };
+  /**
+   * A small cut-out is drawn from a smaller mip level of its map, whose alpha is averaged with the
+   * transparent space round each leaf: below the alpha test, so far leaves thin out and vanish.
+   * The alpha is raised by LEAF_COVER per mip level (B. Golus's anti-aliased alpha test, as described
+   * by lisyarus: alpha * (1 + level * 0.25)). The ink mask (toon.js) does the same.
+   */
+  const keepCover = (m) => {
+    m.onBeforeCompile = (shader) => {
+      shader.fragmentShader = shader.fragmentShader.replace('#include <alphatest_fragment>', `#ifdef USE_MAP
+  diffuseColor.a *= ${coverOf('vMapUv', 'map')};
+#endif
+#include <alphatest_fragment>`);
+    };
+    m.customProgramCacheKey = () => 'leaf-cover';
+    return m;
+  };
   const materials = {
     paint: toon(),
     blade: toon({ side: THREE.DoubleSide }),
@@ -194,8 +215,9 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
     mud: trodden(toon({ map: textures.mud })), // the near bank's ground: painted detail, UVs in tiles of NEAR_DETAIL.tile metres, and the trodden map
     turf: toon({ map: textures.turf }),
   };
-  // Leaf cards (leaves.js): two-sided, cut out by the atlas's alpha.
-  if (textures.leaves) materials.leaf = toon({ map: textures.leaves, side: THREE.DoubleSide, alphaTest: 0.5 });
+  // Leaf cards (leaves.js): two-sided, cut out by the atlas's alpha, which keeps its coverage when
+  // the card is small (keepCover).
+  if (textures.leaves) materials.leaf = keepCover(toon({ map: textures.leaves, side: THREE.DoubleSide, alphaTest: 0.5 }));
   for (const name of Object.keys(materials)) {
     if (!w.slots.has(name)) continue;
     const mesh = new THREE.Mesh(geometry(name), materials[name]);
@@ -253,7 +275,7 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
     total += n;
   }
   const budget = createContract('outside budget');
-  budget.max('triangles', total, 140000); // was 95,000; the near bank's muddy terrain (exterior step 1) adds about 23,000, and steps 2-4 add more (the user set no limit; the cost is reported per step)
+  budget.max('triangles', total, 170000); // was 95,000, then 140,000; the muddy terrain (exterior step 1) added about 23,000, the far bank (step 2) 3,000, the plants (step 3) 28,000 (the user set no limit; the cost is reported per step)
   budget.max('meshes (draw calls)', group.children.length, 10);
   reports.budget = { contract: budget.assert() };
 
@@ -262,7 +284,7 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
     reports,
     stats: { triangles: total, meshes: group.children.length, perMesh: triangles },
     /** For the ink pass (toon.js createOutline `mask`): the leaf cards' layer and atlas. */
-    inkMasks: textures.leaves ? [{ layer: LEAF_MASK_LAYER, map: textures.leaves }] : [],
+    inkMasks: textures.leaves ? [{ layer: LEAF_MASK_LAYER, map: textures.leaves, cover: LEAF_COVER }] : [],
     /** Moves the water. t in seconds. */
     update(t) {
       water.material.uniforms.uTime.value = t;

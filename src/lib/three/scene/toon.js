@@ -248,20 +248,26 @@ const MASK_VERTEX = /* glsl */ `
     gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
   }
 `;
+// `cover` raises the alpha per mip level, as the leaf cards' own material does (outside/index.js
+// keepCover), so the mask covers what the cards show.
 const MASK_FRAGMENT = /* glsl */ `
   uniform sampler2D map;
+  uniform float cover;
   varying vec2 vUv;
   void main() {
-    if (texture2D(map, vUv).a < 0.5) discard;
+    vec2 t = vUv * vec2(textureSize(map, 0));
+    float level = max(0.0, 0.5 * log2(max(dot(dFdx(t), dFdx(t)), dot(dFdy(t), dFdy(t)))));
+    if (texture2D(map, vUv).a * (1.0 + cover * level) < 0.5) discard;
     gl_FragColor = vec4(0.0);
   }
 `;
 
 /**
  * Creates the outline pass. Call render() each frame before the composer renders; it draws the
- * edge buffer for objects on `layer` (default 0). `mask` = { layer, map } or a list of them:
+ * edge buffer for objects on `layer` (default 0). `mask` = { layer, map, cover } or a list of them:
  * objects on that layer are cut out by `map` (alpha: the window lattice, leaf cards outside);
- * they hide the ink of what is behind them and get none.
+ * they hide the ink of what is behind them and get none. `cover` (default 0) raises their alpha
+ * per mip level, to match a material that does (outside/index.js keepCover).
  */
 export function createOutline(renderer, scene, camera, { layer = 0, ink = '#000000', lineWidth = 1.3, mask = null } = {}) {
   const target = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType });
@@ -269,9 +275,9 @@ export function createOutline(renderer, scene, camera, { layer = 0, ink = '#0000
   target.texture.minFilter = target.texture.magFilter = THREE.NearestFilter;
   const edgeMaterial = new THREE.ShaderMaterial({ vertexShader: EDGE_VERTEX, fragmentShader: EDGE_FRAGMENT, side: THREE.DoubleSide });
   const material = new THREE.ShaderMaterial({ ...OUTLINE_SHADER, uniforms: THREE.UniformsUtils.clone(OUTLINE_SHADER.uniforms) });
-  const masks = (Array.isArray(mask) ? mask : mask ? [mask] : []).map(({ layer: maskLayer, map }) => {
+  const masks = (Array.isArray(mask) ? mask : mask ? [mask] : []).map(({ layer: maskLayer, map, cover = 0 }) => {
     map.updateMatrix();
-    return { layer: maskLayer, material: new THREE.ShaderMaterial({ uniforms: { map: { value: map }, uvTransform: { value: map.matrix } }, vertexShader: MASK_VERTEX, fragmentShader: MASK_FRAGMENT, side: THREE.DoubleSide }) };
+    return { layer: maskLayer, material: new THREE.ShaderMaterial({ uniforms: { map: { value: map }, uvTransform: { value: map.matrix }, cover: { value: cover } }, vertexShader: MASK_VERTEX, fragmentShader: MASK_FRAGMENT, side: THREE.DoubleSide }) };
   });
   material.uniforms.ink.value.set(ink);
   const clear = new THREE.Color();

@@ -80,7 +80,7 @@ export const NEAR_DETAIL = {
   // Plants and debris per square metre of each zone (offset range inland, metres).
   place: [
     { kind: 'edge', zones: ['berm'], range: [0.2, 0.95], density: 5 }, // over the wet lip, leaning out to the water
-    { kind: 'verge', zones: ['berm', 'shoulder', 'level'], range: [0.2, 6], density: 5, near: 0.3 }, // grass within about 0.3 m of the mud, leaning over it
+    { kind: 'verge', zones: ['berm', 'shoulder', 'level'], range: [0.2, 6], density: 3.5, near: 0.3 }, // grass within about 0.3 m of the mud, leaning over it
     { kind: 'grass', zones: ['berm'], range: [0.9, 3.7], density: 1.4 },
     { kind: 'shrub', zones: ['berm'], range: [0.5, 2.8], density: 0.75, xMax: -6 }, // the bank's bushes (R3: left only)
     { kind: 'weed', zones: ['flat', 'track', 'lip', 'cut'], range: [0.15, 5.6], density: 0.9, margin: 0.35 }, // broad-leaved rosettes on the mud's margin
@@ -138,7 +138,7 @@ export const NEAR_PLANTS = {
     core: 0.55, // the dark core's radius, of the crown's
     hue: [0.16, 0.1, 0.16], // each shrub's colour is scaled by 1 ± half of these (r, g, b)
   },
-  tussock: { segments: 3, arch: [0.15, 0.5], heads: 0.12 }, // arch: how far a blade's tip bends down, of its height
+  tussock: { segments: [3, 2], near: 14, arch: [0.15, 0.5], heads: 0.12 }, // segments per blade within `near` m of the eye, and beyond; arch: how far a blade's tip bends down, of its height
   rosette: { leaves: [5, 4], length: [0.07, 0.1], rise: [0.25, 0.35] }, // count from, + up to; m; radians up from the ground
   fern: { fronds: 12, segments: 9, roll: 0.45 }, // roll: each frond's leaflets turn towards the eye by up to this (radians)
 };
@@ -205,7 +205,8 @@ function shrub(w, at, { radius, rand, P, simple = false }) {
  */
 function grassClump(w, at, { blades, height, spread = 0.08, lean = 0.35, arch = NEAR_PLANTS.tussock.arch, out = null, heads = 0, rand, P, simple = false }) {
   const main = P.blade[Math.floor(rand() * P.blade.length)];
-  const segs = simple ? 1 : NEAR_PLANTS.tussock.segments;
+  const Tq = NEAR_PLANTS.tussock;
+  const segs = simple ? 1 : Tq.segments[EYE[2] - at[2] > Tq.near ? 1 : 0];
   let n = 0;
   for (let b = 0; b < blades; b++) {
     const a = rand() * Math.PI * 2;
@@ -770,7 +771,9 @@ export function buildNearBank(w, { seed = 0 } = {}) {
   contract.min('grass clumps in view', stats.clumps, 250); // was 300; the muddy terrain leaves less grass (seeds 1, 2: 284, 287)
   contract.is('ferns', stats.ferns, N.ferns.length);
   contract.range('ground triangles', ground, T.triangles[0], T.triangles[1]);
-  contract.range('plant triangles', w.slot('blade').triangles - from.blade, 10000, 1e6);
+  contract.range('plant triangles', w.slot('blade').triangles - from.blade, 25000, 60000); // was 10,000-30,000; exterior step 3 measured 36,000-42,000 (seeds 0-5)
+  contract.range('leaf card triangles', w.slot('leaf').triangles - from.leaf, 4000, 12000); // step 3 measured 6,800-7,400
+  contract.min('weed rosettes on the mud margin', stats.weeds, 40);
   stats.triangles.ground = ground;
 
   // What the painter needs: the map's extent, the ground at any (s, o), and the footprints.
