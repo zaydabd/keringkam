@@ -1,4 +1,4 @@
-// The far river bank (reference R3; our own bank is nearbank.js). After
+// The far river bank (reference R3; our side has no bank since pass e5, see waterbush.js). After
 // .claude/skills/threejs-procedural-geometry: the bank is one cross-section (mud, grass, path,
 // embankment) swept along its waterline (site.js), not a pile of boxes; the flat land behind it
 // is one triangulated polygon, so no two faces share a plane;

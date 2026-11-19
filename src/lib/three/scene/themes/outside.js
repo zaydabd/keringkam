@@ -59,7 +59,6 @@ const SKY = {
 const WATER = {
   river: '#cf9a5c', // the body colour seen into the water
   film: '#f4d8a2', // the thin silt film on top
-  puddle: '#9c9680', // puddles on the near bank (was #b8b49e: drawn near white in the window shot)
 };
 
 const EARTH = {
@@ -67,68 +66,6 @@ const EARTH = {
   mud: '#70522e',
   mudDark: '#6e5234',
   path: '#a8905a',
-  // near bank, from the water up
-  mudUnder: '#5a4430',
-  mudWet: '#6c5238',
-  mudFlat: '#bca47c',
-  mudTrack: '#c6b08a',
-  clod: '#6a5038',
-  clodLight: '#a8875e',
-  // The painted mud texture (paintMud), in light values: the band's colour sets the hue.
-  texture: {
-    ground: '#f6f0e8',
-    patches: ['#8c7c6c', '#fffcf4'], // mottled wet and dry patches: darker, lighter
-    hollow: '#5c5048', // wet hollows
-    trickle: '#584c44', // trickle and drag marks
-    clod: ['#4e443e', '#fffcf6'], // small clods: shade, lit top
-    grit: ['#faf8f2', '#5a544e'], // grit: fill, outline
-  },
-  // The mud's marks (paintMud), one 512 px tile.
-  mudMarks: {
-    patches: { count: 90, length: [28, 70], width: [18, 46], opacity: [0.2, 0.25], darkShare: 0.6 }, // mottled wet and dry patches
-    hollows: { count: 34, length: [16, 40], width: [8, 22], opacity: [0.3, 0.25] }, // wet hollows
-    trickles: { count: 140, length: [18, 60], width: [1.2, 2.8], opacity: [0.3, 0.35], tilt: 0.7, alongShare: 0.6, wobble: 6 }, // trickle and drag marks
-    clods: { count: 520, size: [1.2, 5.5], shadeOpacity: [0.3, 0.35], litOpacity: [0.25, 0.3] }, // size is skewed small
-    grit: { count: 260, size: [0.8, 1.8], opacity: 0.7, outline: 0.8, outlineOpacity: 0.35 },
-    noise: 18, // fine paper grain over everything
-  },
-  // The trodden mud over the stretch the window sees (paintTrample), as the mud should look: the
-  // painter turns each into a multiplier of `base`, the mud's vertex colour.
-  trample: {
-    base: '#bca47c', // = mudFlat
-    wet: '#6c5238', // = mudWet: wet mud near the water and in the hollows
-    soaked: '#4e3a28', // the wettest mud: the waterline, the bottoms of the prints
-    rim: '#d2bc94', // rims squeezed up round the prints, drying pale
-    churn: ['#5e4630', '#ccb68c'], // churned smears: dark, pale
-    glint: '#f2e6cc', // wet glints
-    water: '#9c9680', // = WATER.puddle: standing water
-  },
-  trampleMarks: {
-    pxPerM: 64, // map pixels per metre (at most `maxWidth` along the river)
-    maxWidth: 4096,
-    field: 8, // the wetness field is worked out every this many pixels and smoothed
-    wetness: 0.9, // how far wet mud goes towards `wet`
-    soak: 0.35, // below this offset (m) wet mud goes on to `soaked`
-    mottle: { size: 1.4, amount: 0.25 }, // large wet and dry mottling (m, share)
-    prints: {
-      boot: { length: 0.29, width: 0.105, heel: 0.075 },
-      bare: { length: 0.25, width: 0.095 },
-      depth: 0.45, // how far a print darkens towards `soaked`
-      rim: 0.6, // opacity of the pale rim
-      old: 0.45, // old prints, half filled in: this much of a fresh one
-      sink: 70, // bump: how far a print is pressed in (of 128)
-      lift: 34, // bump: how high its rim stands
-    },
-    churn: { count: 4000, size: [0.03, 0.1], opacity: [0.12, 0.22], bump: 26 }, // smears where people and boats come and go
-    drag: { opacity: 0.35, ridges: 9, bump: 40 },
-    glints: { count: 1600, size: [0.006, 0.02], opacity: [0.35, 0.4] }, // on wet mud only
-    grain: 10,
-  },
-};
-
-const STONE = {
-  stone: '#928b7c',
-  stoneLight: '#b4ac9a',
 };
 
 const PLANT = {
@@ -143,45 +80,19 @@ const PLANT = {
   reed: '#4e6a2c',
   tuft: '#5c7630',
   tick: '#7c9030',
-  // near bank grass bands
-  berm: '#8fae4c',
-  shoulder: '#7c9c44',
-  level: '#80a048',
-  // near bank shrubs, blades and fern
-  leafLight: '#a2c85e',
-  leafMid: '#78a844',
-  leafDark: '#527e36',
-  leafCore: '#6a9c40',
+  // the bush at the water: grass blades and fern
   blades: ['#7aa63e', '#94b84e', '#5e8a36', '#a8c060'],
   straw: '#c2b06a',
   seedHead: '#a89058', // the grasses' seed heads (design choice; R3 shows none this small)
-  weed: '#6a9a3c', // the broad-leaved weeds on the mud's margin
   fern: '#5c9638',
   fernLight: '#84b44a',
   // trees and bushes on the banks
   foliageLight: '#74a845',
   foliageMid: '#528c3c',
   foliageDark: '#3a6c38',
-  // The painted turf texture (paintTurf), in light values: the band's colour sets the hue.
-  turf: {
-    ground: '#eef2e2',
-    lush: '#788664', // soft lush patches
-    dry: '#fff4c4', // and dry ones
-    blades: ['#46583a', '#ffffee', '#ecdc96'], // short blade strokes: dark, light, straw
-  },
-  // The turf's marks (paintTurf), one 512 px tile.
-  turfMarks: {
-    lush: { count: 70, length: [24, 60], width: [18, 44], opacity: [0.2, 0.22] },
-    dry: { count: 26, length: [20, 50], width: [14, 36], opacity: [0.14, 0.16] },
-    // blades: lean in radians from upright; split: dark below the first, light below the second, the rest straw
-    blades: { count: 14000, length: [3, 7], width: [0.9, 0.8], lean: 1.1, split: [0.45, 0.8], opacity: [[0.4, 0.35], [0.35, 0.3], [0.3, 0.3]] },
-    noise: 14,
-  },
 };
 
 const WOOD = {
-  drift: '#7a6650', // driftwood and posts on the near bank
-  driftPale: '#b0a088',
   trunk: '#5c5a34', // tree trunks and branches
   deck: '#6b5440', // boat decks
   oar: '#a8875e',
@@ -286,45 +197,32 @@ export const OUTSIDE_THEME = {
     tick: PLANT.tick,
   },
 
-  // The near bank (nearbank.js), as vertex colours. The textured bands are lifted because the
-  // detail textures darken them.
-  nearBank: {
-    mudUnder: EARTH.mudUnder,
-    mudWet: EARTH.mudWet,
-    mudFlat: EARTH.mudFlat,
-    mudTrack: EARTH.mudTrack,
-    berm: PLANT.berm,
-    shoulder: PLANT.shoulder,
-    level: PLANT.level,
-    clod: EARTH.clod,
-    clodLight: EARTH.clodLight,
-    stone: STONE.stone,
-    stoneLight: STONE.stoneLight,
-    wood: WOOD.drift,
-    woodPale: WOOD.driftPale,
-    puddle: WATER.puddle,
-    leafLight: PLANT.leafLight,
-    leafMid: PLANT.leafMid,
-    leafDark: PLANT.leafDark,
-    leafCore: PLANT.leafCore,
+  // The bush at the water below the window (waterbush.js), as vertex colours. The leaf ramp
+  // runs from a warm yellow-green in the sun to a cool blue-green in the shade: watercolour
+  // shadows are cool, not grey (Homer, Sargent; research/INTERIOR-NOTES.md, pass e5). Design
+  // choices, tuned in the window shot.
+  waterBush: {
+    ramp: ['#c2d470', '#94bc52', '#64a04c', '#3e8060', '#2a5a58'], // sun to deep shade
+    core: '#2a5450', // the dark inside, between the leaves
+    stem: '#5a4c36',
+    flower: '#fff6f2', // the flowers' vertex tints: the atlas paints their red (textures.leaves)
+    flowerDeep: '#e6d4d0',
+    fern: PLANT.fern,
+    fernLight: PLANT.fernLight,
     blade: PLANT.blades,
     straw: PLANT.straw,
     seedHead: PLANT.seedHead,
-    weed: PLANT.weed,
-    fern: PLANT.fern,
-    fernLight: PLANT.fernLight,
   },
-  // The near bank's painted detail textures (paint.js).
+
+  // Painted textures (paint.js).
   textures: {
-    mud: { colours: EARTH.texture, pattern: EARTH.mudMarks },
-    turf: { colours: PLANT.turf, pattern: PLANT.turfMarks },
-    trample: { colours: EARTH.trample, pattern: EARTH.trampleMarks, bumpScale: 1.2 },
     // The leaf atlas (paint.js paintLeaves): light greys, the plant's vertex colour sets the green.
     // The edge line stands in for the ink the leaf cards do not get. Sizes are fractions of a cell.
     leaves: {
-      colours: { fill: '#f2f2ea', fillDark: '#dcdfd2', shade: '#8c9086', vein: '#c4c8b8', edge: '#4c4e44', stem: '#8c8468' },
+      // petal, petalDeep and eye are the flower's own colours: it is drawn with a near-white vertex colour
+      colours: { fill: '#f2f2ea', fillDark: '#dcdfd2', shade: '#8c9086', vein: '#c4c8b8', edge: '#4c4e44', stem: '#8c8468', petal: '#e0382c', petalDeep: '#a81e26', eye: '#f4e6b8' },
       pattern: {
-        cell: 512, // px; the atlas is 2 x 2 cells
+        cell: 512, // px; the atlas is 3 x 2 cells
         shade: 0.26, // how dark the half of a blade turned from the light is
         vein: 0.012, // midrib width, of the leaf's length
         edge: 3, // px
@@ -334,6 +232,10 @@ export const OUTSIDE_THEME = {
         sprigBig: { top: 0.24, count: 6, length: [0.25, 0.1], width: [0.44, 0.12], spread: [0.9, 0.3], droop: 0.6 },
         broad: { width: 0.5, veins: 6 }, // one leaf filling its cell, for the weeds' rosettes
         frond: { pairs: 15, reach: 0.36, angle: 0.3, lobes: 7, width: 0.44 }, // paired leaflets, each a lobed blade; width: its half-width, of the gap between pairs
+        // the bush at the water (pass e5): leaves as washes in a fan; fan in radians, wobble of the
+        // cell, bloom and rim the alpha of the blots inside and the dried edge
+        wash: { count: 7, fan: 2.4, length: [0.5, 0.12], width: [0.42, 0.1], wobble: 0.012, bloom: 0.35, rim: 0.45 },
+        flower: { radius: 0.46, spread: 1.5 }, // radius of the cell; spread: each petal's angle, radians (5 x 1.5 > 2 pi, so they overlap)
       },
     },
   },

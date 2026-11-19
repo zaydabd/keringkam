@@ -2,14 +2,16 @@
 // Kuching, with the Darul Hana Bridge and the State Legislative Assembly building on the far bank.
 //
 // Reference R3 (a painting supplied by the user; not in the repo) gives the view and its look: a
-// muddy river curving past the house, a mud-and-grass bank on our side, a mown embankment and
+// muddy river curving past the house, a mown embankment and
 // trees on the far side, two roofed boats, the bridge on the left, the gold-roofed Assembly
 // building on the right, blue sky with cumulus. site.js holds the layout (estimates read off the
-// painting); sourced sizes are in assembly.js and bridge.js.
+// painting); sourced sizes are in assembly.js and bridge.js. Our own bank was removed (pass e5, R4,
+// the user's second image): the river runs to the house, and a bush in the water covers the lower
+// left of the view (waterbush.js).
 //
 // The view is built object by object, each after its skill in .claude/skills:
 //   farbank            banks.js     procedural-geometry (swept cross-sections, contracts)
-//   nearbank           nearbank.js  procedural-geometry + procedural-vegetation (pass w7)
+//   waterbush          waterbush.js procedural-vegetation (pass e5: our bank removed, a bush in the water)
 //   trees              trees.js     procedural-vegetation
 //   river              water.js     water-optics
 //   assembly: rebuilt from the user's Sketchfab model (pass w5, research/INTERIOR-NOTES.md).
@@ -21,13 +23,13 @@
 // where two colours meet (toon.js). The haze is the scene fog.
 
 import * as THREE from 'three';
-import { paintSoftSky, paintMud, paintTurf, paintTrample, paintLeaves } from '../paint.js';
+import { paintSoftSky, paintLeaves } from '../paint.js';
 import { SlotWriter, createContract } from './contract.js';
 import { SITE, mulberry32 } from './site.js';
 import { OUTSIDE_THEME } from '../themes/index.js';
 import { CLAY } from '../themes/clay.js';
 import { buildFarBank } from './banks.js';
-import { buildNearBank } from './nearbank.js';
+import { buildWaterBush } from './waterbush.js';
 import { buildTrees } from './trees.js';
 import { planAssembly, compileAssembly } from './assembly.js';
 import { PENAMBANG, planBoat, compileBoat } from './boats.js';
@@ -49,7 +51,7 @@ export const LEAF_COVER = 0.25;
 export const coverOf = (uv, map, k = LEAF_COVER) =>
   `(1.0 + ${k.toFixed(3)} * max(0.0, 0.5 * log2(max(dot(dFdx(${uv} * vec2(textureSize(${map}, 0))), dFdx(${uv} * vec2(textureSize(${map}, 0)))), dot(dFdy(${uv} * vec2(textureSize(${map}, 0))), dFdy(${uv} * vec2(textureSize(${map}, 0))))))))`;
 
-export const OBJECTS = ['farbank', 'nearbank', 'trees', 'river', 'assembly', 'bridge', 'skyline', 'boats', 'sky'];
+export const OBJECTS = ['farbank', 'waterbush', 'trees', 'river', 'assembly', 'bridge', 'skyline', 'boats', 'sky'];
 
 // The sky is keyed down like the rest of the outdoors, so its blue survives an exposure set for
 // the shaded room (themes/outside.js air.skyKey).
@@ -86,7 +88,7 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
 
   // --- The banks (banks.js) ---------------------------------------------------------------------
   if (want('farbank')) reports.farbank = buildFarBank(w, { seed });
-  if (want('nearbank')) reports.nearbank = buildNearBank(w, { seed });
+  if (want('waterbush')) reports.waterbush = buildWaterBush(w, { seed }); // our side has no bank: a bush in the water below the window
 
   // --- Trees and bushes of the far bank (trees.js); they stand on the far bank's surface ---------
   if (want('trees')) {
@@ -134,18 +136,12 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
     g.setAttribute('normal', new THREE.Float32BufferAttribute(s.normal, 3));
     g.setAttribute('uv', new THREE.Float32BufferAttribute(s.uv, 2));
     g.setAttribute('color', new THREE.Float32BufferAttribute(s.color, 3));
-    if (s.hasUv1) g.setAttribute('uv1', new THREE.Float32BufferAttribute(s.uv1, 2)); // the near bank's (s, o): the trodden-mud map
     return g;
   };
   const hazeStyle = new THREE.Color(haze).getStyle().slice(4, -1);
   const textures = {
     sky: paintSoftSky(25 + seed, { ...OUTSIDE_THEME.sky[OUTSIDE_THEME.sky.style], haze: hazeStyle }),
-    mud: paintMud(31 + seed, OUTSIDE_THEME.textures.mud),
-    turf: paintTurf(37 + seed, OUTSIDE_THEME.textures.turf),
   };
-  // The trodden mud over the stretch of the near bank the window sees (paint.js paintTrample).
-  const trample = reports.nearbank && mode !== 'flat' && mode !== 'silhouette' && mode !== 'clay' ? paintTrample(41 + seed, OUTSIDE_THEME.textures.trample, reports.nearbank.trample) : null;
-  if (trample) Object.assign(textures, { trample: trample.map, trampleBump: trample.bump });
   if (w.slots.has('leaf')) textures.leaves = paintLeaves(43 + seed, OUTSIDE_THEME.textures.leaves); // the leaf atlas (leaves.js); cut-outs, so painted in every mode
   disposables.push(...Object.values(textures));
   // `alphaTest`: a cut-out (the leaf cards); its map is kept in every mode, for the shape.
@@ -164,32 +160,6 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
       m.color.multiplyScalar(key);
     }
     disposables.push(m);
-    return m;
-  };
-  /**
-   * The mud with its trodden map: the bump map (second map channel) presses in the prints and the
-   * ruts' smears; the shader multiplies the colour by (2 v)^2.2 of the trodden map, and where the
-   * bump map's green says water stands it drops the tiled mud texture under it.
-   */
-  const trodden = (m) => {
-    if (!trample) return m;
-    m.bumpMap = trample.bump;
-    m.bumpScale = OUTSIDE_THEME.textures.trample.bumpScale;
-    m.onBeforeCompile = (shader) => {
-      shader.uniforms.trampleMap = { value: trample.map };
-      shader.fragmentShader = shader.fragmentShader
-        .replace('#include <common>', '#include <common>\nuniform sampler2D trampleMap;')
-        .replace(
-          '#include <map_fragment>',
-          [
-            'vec3 untextured = diffuseColor.rgb;',
-            '#include <map_fragment>',
-            'float standing = texture2D( bumpMap, vBumpMapUv ).g;',
-            'diffuseColor.rgb = mix( diffuseColor.rgb, untextured, standing ) * pow( texture2D( trampleMap, vBumpMapUv ).rgb * 2.0, vec3( 2.2 ) );',
-          ].join('\n'),
-        );
-    };
-    m.customProgramCacheKey = () => 'trodden-mud';
     return m;
   };
   /**
@@ -212,8 +182,6 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
     paint: toon(),
     blade: toon({ side: THREE.DoubleSide }),
     gold: toon({ side: THREE.DoubleSide }), // the Assembly building's gold: plain paint; its folds come from the facets
-    mud: trodden(toon({ map: textures.mud })), // the near bank's ground: painted detail, UVs in tiles of NEAR_DETAIL.tile metres, and the trodden map
-    turf: toon({ map: textures.turf }),
   };
   // Leaf cards (leaves.js): two-sided, cut out by the atlas's alpha, which keeps its coverage when
   // the card is small (keepCover).

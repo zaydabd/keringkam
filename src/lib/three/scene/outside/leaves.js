@@ -2,9 +2,10 @@
 // leaf atlas (paint.js paintLeaves), cut out by its alpha. They go to the 'leaf' slot, drawn
 // two-sided with an alpha test (outside/index.js). The ink pass gets no rectangles from them: the
 // leaf mesh is not on the ink's layer, only on a mask layer that hides the ink behind its leaves
-// (toon.js createOutline). The near bank's plants use them, and the far trees.
+// (toon.js createOutline). The far trees use them, and the bush at the water below the window.
 //
-// Atlas: 2 x 2 cells. In every cell the leaf's base is at the bottom middle and its tip at the top.
+// Atlas: 3 x 2 cells. In every cell the leaf's base is at the bottom middle and its tip at the top,
+// except the flower, which is centred.
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const add = (a, b, s = 1) => [a[0] + b[0] * s, a[1] + b[1] * s, a[2] + b[2] * s];
@@ -12,10 +13,11 @@ const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a
 const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 
 export const LEAF_ATLAS = {
-  cols: 2,
+  cols: 3,
   rows: 2,
-  // a sprig of small leaves; a sprig of larger, drooping ones; one broad leaf; a fern frond
-  cell: { sprig: 0, sprigBig: 1, broad: 2, frond: 3 },
+  // a sprig of small leaves; a sprig of larger, drooping ones; one broad leaf; a fern frond; a
+  // cluster of leaves painted as soft washes (the bush at the water); a five-petalled flower
+  cell: { sprig: 0, sprigBig: 1, broad: 2, frond: 3, wash: 4, flower: 5 },
 };
 
 /** The atlas cell's UV box [u0, u1, v0, v1]; v0 is the leaf's base (the canvas is flipped on upload). */

@@ -670,384 +670,18 @@ export function paintSoftSky(seed = 25, { colours: C, pattern: P, haze }) {
 }
 
 /**
- * Tileable ground detail for the near bank (outside/nearbank.js), painted in light values: the
- * band's vertex colour sets the hue, this adds the texture. One tile covers `tile` metres; the
- * near bank maps it by world x and z.
- */
-function tileDraw(S, g) {
-  // Draws fn at (x, y) and at its wrapped copies wherever a shape of radius r crosses an edge.
-  return (x, y, r, fn) => {
-    for (const dx of [-S, 0, S]) {
-      for (const dy of [-S, 0, S]) {
-        if (x + dx + r < 0 || x + dx - r > S || y + dy + r < 0 || y + dy - r > S) continue;
-        fn(x + dx, y + dy);
-      }
-    }
-  };
-}
-
-function softSpot(g, at) {
-  return (x, y, rx, ry, rgbs, a) =>
-    at(x, y, Math.max(rx, ry), (X, Y) => {
-      g.save();
-      g.translate(X, Y);
-      g.scale(1, ry / rx);
-      const gr = g.createRadialGradient(0, 0, 0, 0, 0, rx);
-      gr.addColorStop(0, `rgba(${rgbs},${a})`);
-      gr.addColorStop(0.65, `rgba(${rgbs},${a * 0.55})`);
-      gr.addColorStop(1, `rgba(${rgbs},0)`);
-      g.fillStyle = gr;
-      g.fillRect(-rx, -rx, rx * 2, rx * 2);
-      g.restore();
-    });
-}
-
-function grain(g, S, r, amount) {
-  const im = g.getImageData(0, 0, g.canvas.width, g.canvas.height); // every canvas pixel (setPaintDetail)
-  for (let p = 0; p < im.data.length; p += 4) {
-    const n = (r() - 0.5) * amount;
-    im.data[p] += n;
-    im.data[p + 1] += n;
-    im.data[p + 2] += n;
-  }
-  g.putImageData(im, 0, 0);
-}
-
-/** River mud: mottled wet and dry patches, trickle and drag marks, clods with a lit top, grit. */
-export function paintMud(seed = 31, { colours: C, pattern: P }) {
-  const r = rng(seed);
-  const S = 512;
-  const [c, g] = canvas(S, S);
-  const at = tileDraw(S, g), soft = softSpot(g, at);
-  g.fillStyle = C.ground;
-  g.fillRect(0, 0, S, S);
-  const { patches: Pa, hollows: Ho, trickles: Tr, clods: Cd, grit: Gr } = P;
-  for (let i = 0; i < Pa.count; i++) soft(r() * S, r() * S, vary(r, Pa.length), vary(r, Pa.width), r() < Pa.darkShare ? css(C.patches[0]) : css(C.patches[1]), vary(r, Pa.opacity));
-  for (let i = 0; i < Ho.count; i++) soft(r() * S, r() * S, vary(r, Ho.length), vary(r, Ho.width), css(C.hollow), vary(r, Ho.opacity)); // wet hollows
-  g.lineCap = 'round';
-  for (let i = 0; i < Tr.count; i++) {
-    const x = r() * S, y = r() * S, len = vary(r, Tr.length), a = (r() - 0.5) * Tr.tilt + (r() < Tr.alongShare ? 0 : Math.PI / 2);
-    const pts = [0, 1, 2, 3].map((k) => [x + Math.cos(a) * len * (k / 3) + (r() - 0.5) * Tr.wobble, y + Math.sin(a) * len * (k / 3) + (r() - 0.5) * Tr.wobble]);
-    at(x, y, len + Tr.wobble, (X, Y) => {
-      g.strokeStyle = `rgba(${css(C.trickle)},${vary(r, Tr.opacity)})`;
-      g.lineWidth = vary(r, Tr.width);
-      g.beginPath();
-      pts.forEach(([px, py], k) => (k ? g.lineTo(px - x + X, py - y + Y) : g.moveTo(px - x + X, py - y + Y)));
-      g.stroke();
-    });
-  }
-  for (let i = 0; i < Cd.count; i++) {
-    const x = r() * S, y = r() * S, rad = Cd.size[0] + r() * r() * Cd.size[1]; // mostly small: r * r
-    const dark = vary(r, Cd.shadeOpacity), lit = vary(r, Cd.litOpacity);
-    at(x, y, rad + 2, (X, Y) => {
-      g.fillStyle = `rgba(${css(C.clod[0])},${dark})`;
-      g.beginPath();
-      g.ellipse(X, Y + rad * 0.3, rad, rad * 0.7, 0, 0, Math.PI * 2);
-      g.fill();
-      g.fillStyle = `rgba(${css(C.clod[1])},${lit})`;
-      g.beginPath();
-      g.ellipse(X - rad * 0.2, Y - rad * 0.25, rad * 0.6, rad * 0.38, 0, 0, Math.PI * 2);
-      g.fill();
-    });
-  }
-  for (let i = 0; i < Gr.count; i++) {
-    const x = r() * S, y = r() * S, rad = vary(r, Gr.size);
-    at(x, y, rad + 1, (X, Y) => {
-      g.fillStyle = `rgba(${css(C.grit[0])},${Gr.opacity})`;
-      g.strokeStyle = `rgba(${css(C.grit[1])},${Gr.outlineOpacity})`;
-      g.lineWidth = Gr.outline;
-      g.beginPath();
-      g.arc(X, Y, rad, 0, Math.PI * 2);
-      g.fill();
-      g.stroke();
-    });
-  }
-  grain(g, S, r, P.noise);
-  const t = texture(c);
-  t.anisotropy = 8;
-  return t;
-}
-
-/** Turf: short blade strokes in light, dark and straw tones over soft lush and dry patches. */
-export function paintTurf(seed = 37, { colours: C, pattern: P }) {
-  const r = rng(seed);
-  const S = 512;
-  const [c, g] = canvas(S, S);
-  const at = tileDraw(S, g), soft = softSpot(g, at);
-  g.fillStyle = C.ground;
-  g.fillRect(0, 0, S, S);
-  const { lush: Lu, dry: Dr, blades: Bl } = P;
-  for (let i = 0; i < Lu.count; i++) soft(r() * S, r() * S, vary(r, Lu.length), vary(r, Lu.width), css(C.lush), vary(r, Lu.opacity));
-  for (let i = 0; i < Dr.count; i++) soft(r() * S, r() * S, vary(r, Dr.length), vary(r, Dr.width), css(C.dry), vary(r, Dr.opacity));
-  g.lineCap = 'round';
-  for (let i = 0; i < Bl.count; i++) {
-    const x = r() * S, y = r() * S, len = vary(r, Bl.length), a = -Math.PI / 2 + (r() - 0.5) * Bl.lean;
-    const k = r();
-    const [dark, light, straw] = Bl.opacity;
-    const col = k < Bl.split[0] ? `rgba(${css(C.blades[0])},${vary(r, dark)})` : k < Bl.split[1] ? `rgba(${css(C.blades[1])},${vary(r, light)})` : `rgba(${css(C.blades[2])},${vary(r, straw)})`;
-    const lw = vary(r, Bl.width);
-    at(x, y, len + 1, (X, Y) => {
-      g.strokeStyle = col;
-      g.lineWidth = lw;
-      g.beginPath();
-      g.moveTo(X, Y);
-      g.lineTo(X + Math.cos(a) * len, Y + Math.sin(a) * len);
-      g.stroke();
-    });
-  }
-  grain(g, S, r, P.noise);
-  const t = texture(c);
-  t.anisotropy = 8;
-  return t;
-}
-
-/**
- * The trodden mud of the near bank (outside/nearbank.js `trample`): one map over the stretch the
- * window sees, mapped by distance along the river (s, across) and offset inland (o, down), so it
- * never repeats. Returns { map, bump }:
- *   - map: what the mud's colour is multiplied by, painted as `v = 127.5 * target / base` per
- *     channel (sRGB), so 127.5 changes nothing and the shader takes (2 v)^2.2: wet mud near the
- *     water and in the hollows, prints with dark wet soles and pale rims, churned smears, glints,
- *     standing water;
- *   - bump: red is the height (128 flat) of the prints, rims, smears and the dragged hull; green
- *     is where water stands (the shader drops the tiled mud texture there).
- * Both fade to neutral at their edges, so the clamped edge is neutral for everything outside.
- */
-export function paintTrample(seed = 41, { colours: C, pattern: P }, trample) {
-  const r = rng(seed);
-  const [s0, s1] = trample.s, [o0, o1] = trample.o;
-  const W = Math.min(P.maxWidth, Math.ceil((s1 - s0) * P.pxPerM));
-  const H = Math.ceil((o1 - o0) * P.pxPerM);
-  const [cMap, g] = canvas(W, H);
-  const [cBump, b] = canvas(W, H);
-  const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
-  const base = hex(C.base);
-  /** The multiplier that turns the mud into `target`, as canvas values. */
-  const ratio = (target) => hex(target).map((v, k) => Math.min(255, (127.5 * v) / base[k]));
-  const wet = ratio(C.wet), soaked = ratio(C.soaked), rim = ratio(C.rim), water = ratio(C.water), glint = ratio(C.glint);
-  const churn = C.churn.map(ratio);
-  const rgba = (v, a) => `rgba(${v.map(Math.round).join(',')},${a})`;
-  const fade = (s, o) => {
-    const t = (v, a, c) => Math.min(1, Math.max(0, (v - a) / c));
-    return t(s, s0, 1.5) * t(s1, s, 1.5) * t(o, o0, 0.3) * t(o1, o, 0.3);
-  };
-
-  // The field: wet mud, soaked mud at the water, standing water; worked out on a coarse grid and
-  // drawn smoothed onto the full map.
-  const F = P.field, w = Math.ceil(W / F) + 1, h = Math.ceil(H / F) + 1;
-  const cField = document.createElement('canvas');
-  cField.width = w;
-  cField.height = h;
-  const cWater = document.createElement('canvas');
-  cWater.width = w;
-  cWater.height = h;
-  const field = cField.getContext('2d', { willReadFrequently: true }).createImageData(w, h);
-  const still = cWater.getContext('2d', { willReadFrequently: true }).createImageData(w, h);
-  const M = P.mottle;
-  const mottleAt = (s, o) => Math.sin(s / M.size + Math.sin(o * 1.7 / M.size) * 1.3) * Math.cos(o / (M.size * 0.7) + Math.sin(s * 0.9 / M.size));
-  for (let j = 0; j < h; j++) {
-    for (let i = 0; i < w; i++) {
-      const s = s0 + ((i * F) / W) * (s1 - s0), o = o0 + ((j * F) / H) * (o1 - o0);
-      const q = trample.sample(s, o), f = fade(s, o), p = (j * w + i) * 4;
-      let v = [127.5, 127.5, 127.5], st = 0;
-      if (q.mud) {
-        const k = Math.min(1, Math.max(0, q.wet * P.wetness + M.amount * mottleAt(s, o)));
-        v = v.map((c, n) => c + (wet[n] - c) * k);
-        const sk = Math.min(1, Math.max(0, 1 - o / P.soak)) * q.wet;
-        v = v.map((c, n) => c + (soaked[n] - c) * sk);
-        if (q.water) {
-          v = water;
-          st = 1;
-        }
-      }
-      for (let n = 0; n < 3; n++) field.data[p + n] = 127.5 + (v[n] - 127.5) * f;
-      field.data[p + 3] = 255;
-      still.data[p] = 128;
-      still.data[p + 1] = 255 * st * f;
-      still.data[p + 2] = 128;
-      still.data[p + 3] = 255;
-    }
-  }
-  cField.getContext('2d').putImageData(field, 0, 0);
-  cWater.getContext('2d').putImageData(still, 0, 0);
-  for (const [gg, src] of [[g, cField], [b, cWater]]) {
-    gg.imageSmoothingEnabled = true;
-    gg.imageSmoothingQuality = 'high';
-    gg.drawImage(src, 0, 0, w - 1, h - 1, 0, 0, W, H);
-  }
-
-  // From here on everything is drawn in metres: x along the river (s), y inland (o).
-  for (const gg of [g, b]) {
-    gg.save();
-    gg.scale(W / (s1 - s0), H / (o1 - o0));
-    gg.translate(-s0, -o0);
-  }
-  const height = (d) => rgba([128 + d, 0, 128], 1); // red is the height; no standing water
-  const heightA = (d, a) => rgba([128 + d, 0, 128], a);
-
-  // Churned smears where people and boats come and go: the worn way, the ruts, the landing.
-  const Ch = P.churn;
-  for (let k = 0, tries = 0; k < Ch.count && tries < Ch.count * 20; tries++) {
-    const s = s0 + r() * (s1 - s0), o = o0 + r() * (o1 - o0);
-    const q = trample.sample(s, o);
-    if (!q.mud || fade(s, o) < 0.5 || r() > Math.max(q.path, q.rut * 0.7, 0.08)) continue;
-    k++;
-    const rx = vary(r, Ch.size), ry = rx * (0.35 + r() * 0.4), a = r() * Math.PI, dark = r() < 0.6;
-    const op = vary(r, Ch.opacity);
-    g.fillStyle = rgba(dark ? churn[0] : churn[1], op);
-    b.fillStyle = heightA(dark ? -Ch.bump : Ch.bump, op * 2);
-    for (const gg of [g, b]) {
-      gg.beginPath();
-      gg.ellipse(s, o, rx, ry, a, 0, Math.PI * 2);
-      gg.fill();
-    }
-  }
-
-  // A hull dragged up from the water: a smooth trough with lengthwise ridges.
-  const Dg = P.drag, [ds0, do0] = trample.drag.from, [ds1, do1] = trample.drag.to;
-  const dAng = Math.atan2(do1 - do0, ds1 - ds0), dLen = Math.hypot(ds1 - ds0, do1 - do0), dW = trample.drag.width;
-  for (const gg of [g, b]) {
-    gg.save();
-    gg.translate(ds0, do0);
-    gg.rotate(dAng);
-  }
-  const grad = b.createLinearGradient(0, -dW / 2, 0, dW / 2);
-  grad.addColorStop(0, height(0));
-  grad.addColorStop(0.15, height(18));
-  grad.addColorStop(0.3, height(-Dg.bump));
-  grad.addColorStop(0.7, height(-Dg.bump));
-  grad.addColorStop(0.85, height(18));
-  grad.addColorStop(1, height(0));
-  b.fillStyle = grad;
-  b.fillRect(0, -dW / 2, dLen, dW);
-  g.fillStyle = rgba(wet, Dg.opacity);
-  g.fillRect(0, -dW * 0.35, dLen, dW * 0.7);
-  b.lineWidth = 0.012;
-  for (let k = 0; k < Dg.ridges; k++) {
-    const y = (k / (Dg.ridges - 1) - 0.5) * dW * 0.6 + (r() - 0.5) * 0.02;
-    b.strokeStyle = heightA(r() < 0.5 ? 14 : -14, 0.8);
-    b.beginPath();
-    b.moveTo(r() * 0.2, y);
-    b.lineTo(dLen - r() * 0.3, y + (r() - 0.5) * 0.04);
-    b.stroke();
-  }
-  for (const gg of [g, b]) gg.restore();
-
-  // Footprints. A sole is drawn in its own frame: x forward (toe), y to the side, in metres.
-  const Pr = P.prints;
-  const sole = (gg, kind, grow = 0) => {
-    const S = Pr[kind];
-    gg.beginPath();
-    if (kind === 'boot') {
-      gg.ellipse(S.length * 0.2, 0, S.length * 0.31 + grow, S.width / 2 + grow, 0, 0, Math.PI * 2); // forefoot
-      gg.moveTo(-S.length * 0.25 + S.heel / 2 + grow, 0);
-      gg.ellipse(-S.length * 0.25, 0, S.heel / 2 + grow, S.width * 0.42 + grow, 0, 0, Math.PI * 2); // heel
-      gg.rect(-S.length * 0.25, -S.width * 0.3 - grow, S.length * 0.4, S.width * 0.6 + grow * 2); // waist
-    } else {
-      gg.ellipse(S.length * 0.12, 0.006, S.length * 0.3 + grow, S.width / 2 + grow, 0.05, 0, Math.PI * 2);
-      gg.moveTo(-S.length * 0.26 + S.width * 0.38 + grow, 0);
-      gg.ellipse(-S.length * 0.26, 0, S.width * 0.38 + grow, S.width * 0.36 + grow, 0, 0, Math.PI * 2);
-    }
-  };
-  const toes = (gg, S, foot) => {
-    for (let t = 0; t < 5; t++) {
-      const y = (t / 4 - 0.5) * S.width * 0.85 * -foot, x = S.length * (0.44 - Math.abs(t / 4 - 0.15) * 0.1);
-      gg.beginPath();
-      gg.arc(x, y, (t === 0 ? 0.016 : 0.01), 0, Math.PI * 2);
-      gg.fill();
-    }
-  };
-  for (const f of trample.prints) {
-    const S = Pr[f.kind], k = f.old ? Pr.old : 1; // old prints are half filled in
-    for (const gg of [g, b]) {
-      gg.save();
-      gg.translate(f.s, f.o);
-      gg.rotate(f.a);
-      gg.scale(f.size, f.size * f.foot);
-    }
-    // the pale rim, squeezed up round the sole; then the sole pressed in, wet and dark
-    g.fillStyle = rgba(rim, k * Pr.rim * (0.6 + r() * 0.4));
-    sole(g, f.kind, 0.018);
-    g.fill();
-    b.fillStyle = height(k * Pr.lift * (0.6 + r() * 0.4));
-    sole(b, f.kind, 0.02);
-    b.fill();
-    const fill = f.water ? water : soaked.map((c, n) => 127.5 + (c - 127.5) * (Pr.depth + r() * 0.25));
-    g.fillStyle = rgba(fill, f.water ? 0.95 : k * 0.95);
-    sole(g, f.kind);
-    g.fill();
-    b.fillStyle = height(-k * Pr.sink * (0.75 + r() * 0.25));
-    sole(b, f.kind);
-    b.fill();
-    if (f.water) {
-      b.fillStyle = 'rgba(0,255,0,0.9)'; // green only matters here: water stands in this print
-      b.globalCompositeOperation = 'lighter';
-      sole(b, f.kind, -0.008);
-      b.fill();
-      b.globalCompositeOperation = 'source-over';
-    }
-    if (f.kind === 'boot') {
-      // the tread: bars across the sole, pressed a little less deep
-      b.strokeStyle = heightA(-k * Pr.sink * 0.55, 0.9);
-      b.lineWidth = 0.009;
-      for (let x = -S.length * 0.38; x < S.length * 0.45; x += 0.024) {
-        b.beginPath();
-        b.moveTo(x, -S.width * 0.4);
-        b.lineTo(x + 0.006, S.width * 0.4);
-        b.stroke();
-      }
-    } else {
-      g.fillStyle = rgba(f.water ? water : soaked, k * 0.9);
-      toes(g, S, 1);
-      b.fillStyle = height(-k * Pr.sink);
-      toes(b, S, 1);
-    }
-    for (const gg of [g, b]) gg.restore();
-  }
-
-  // Wet glints on the wet mud.
-  const Gl = P.glints;
-  for (let k = 0, tries = 0; k < Gl.count && tries < Gl.count * 10; tries++) {
-    const s = s0 + r() * (s1 - s0), o = o0 + r() * (o1 - o0);
-    const q = trample.sample(s, o);
-    if (!q.mud || fade(s, o) < 0.7 || r() > q.wet) continue;
-    k++;
-    const rad = vary(r, Gl.size);
-    g.fillStyle = rgba(glint, vary(r, Gl.opacity));
-    g.beginPath();
-    g.ellipse(s, o, rad * 1.8, rad, 0, 0, Math.PI * 2);
-    g.fill();
-  }
-  for (const gg of [g, b]) gg.restore();
-  grain(g, W, r, P.grain);
-  // A neutral border: outside the map the shader reads the clamped edge.
-  g.strokeStyle = 'rgb(128,128,128)';
-  g.lineWidth = 4;
-  g.strokeRect(0, 0, W, H);
-
-  const map = texture(cMap, [1, 1], false);
-  map.colorSpace = THREE.NoColorSpace; // the shader decodes it: (2 v)^2.2
-  map.flipY = false; // row 0 is the waterline end (o0), as the bank's second map channel has it
-  map.anisotropy = 8;
-  const bump = texture(cBump, [1, 1], false);
-  bump.colorSpace = THREE.NoColorSpace;
-  bump.flipY = false;
-  bump.anisotropy = 8;
-  bump.channel = 1; // the near bank's second map channel: (s, o); the shader reads `map` there too
-  return { map, bump, size: [W, H] };
-}
-
-/**
- * The leaf atlas (outside/leaves.js LEAF_ATLAS): 2 x 2 cells of `pattern.cell` px, one cut-out in
+ * The leaf atlas (outside/leaves.js LEAF_ATLAS): 3 x 2 cells of `pattern.cell` px, one cut-out in
  * each, its base at the bottom middle: a sprig of small leaves, a sprig of larger drooping ones,
- * one broad leaf, a fern frond with lobed leaflets. Light greys with a dark edge line (the leaves
- * get no ink from the ink pass); the plant's vertex colour sets the green. Transparent around.
+ * one broad leaf, a fern frond with lobed leaflets, a cluster of leaves painted as soft washes,
+ * and a five-petalled flower (centred). The leaves are light greys with a dark edge line (the
+ * leaves get no ink from the ink pass); the plant's vertex colour sets the green. The flower is
+ * painted in its own colours, for a near-white vertex colour. Transparent around.
  */
 export function paintLeaves(seed = 43, { colours: C, pattern: P }) {
   const r = rng(seed);
   const S = P.cell;
-  const [c, g] = canvas(S * 2, S * 2);
-  g.clearRect(0, 0, S * 2, S * 2);
+  const [c, g] = canvas(S * 3, S * 2);
+  g.clearRect(0, 0, S * 3, S * 2);
   g.lineCap = g.lineJoin = 'round';
   const tone = () => (r() < 0.5 ? C.fill : C.fillDark);
   // A leaf: base at (x, y), pointing along angle a (0 = up the cell), length L, width W.
@@ -1103,7 +737,7 @@ export function paintLeaves(seed = 43, { colours: C, pattern: P }) {
   };
   const inCell = (index, fn) => {
     g.save();
-    g.translate((index % 2) * S, Math.floor(index / 2) * S);
+    g.translate((index % 3) * S, Math.floor(index / 3) * S);
     fn();
     g.restore();
   };
@@ -1195,6 +829,115 @@ export function paintLeaves(seed = 43, { colours: C, pattern: P }) {
       g.restore();
     }
     stem([[S * 0.5, S * 0.985], [S * 0.5, S * 0.03]], S * 0.012, S * 0.004);
+  });
+  // A wobbly outline: the edge of a wash, which a brush never leaves smooth. `pts` is a closed
+  // polygon; each point is pushed in or out by up to `wob` px.
+  const wobbly = (pts, wob) => {
+    g.beginPath();
+    pts.forEach(([x, y], i) => {
+      const [nx, ny] = pts[(i + 1) % pts.length];
+      const jx = x + (r() - 0.5) * wob * 2, jy = y + (r() - 0.5) * wob * 2;
+      if (i === 0) g.moveTo(jx, jy);
+      g.quadraticCurveTo(jx, jy, (jx + nx) / 2, (jy + ny) / 2);
+    });
+    g.closePath();
+  };
+  // A leaf shape as a polygon, base at the origin pointing up, then turned and moved.
+  const leafPoly = (x, y, a, L, W, n = 14) => {
+    const pts = [];
+    for (let i = 0; i <= n; i++) {
+      const t = i / n; // up one margin
+      pts.push([W * 0.55 * Math.sin(Math.PI * Math.pow(t, 0.8)), -L * t]);
+    }
+    for (let i = n - 1; i > 0; i--) {
+      const t = i / n; // down the other
+      pts.push([-W * 0.55 * Math.sin(Math.PI * Math.pow(t, 0.8)), -L * t]);
+    }
+    const ca = Math.cos(a), sa = Math.sin(a);
+    return pts.map(([px, py]) => [x + px * ca - py * sa, y + px * sa + py * ca]);
+  };
+  inCell(4, () => {
+    // A cluster of leaves as watercolour washes (pass e5; Homer and Sargent, research/CREDITS.md):
+    // each leaf a flat wash with a wobbly edge, one or two paler or darker blooms inside it, and a
+    // darker line where the wash dried at its edge. No vein, no hard edge line. The gaps between
+    // the leaves stay transparent, so the bush shows pale gaps between its dabs.
+    const W = P.wash;
+    const stems = [];
+    for (let k = 0; k < W.count; k++) {
+      const u = k / (W.count - 1) - 0.5; // -0.5 .. 0.5 across the fan
+      const a = u * W.fan + (r() - 0.5) * 0.25;
+      const L = S * vary(r, W.length) * (1 - 0.35 * Math.abs(u));
+      const reach = S * (0.06 + 0.18 * (1 - Math.abs(u)) * r());
+      const x = S * 0.5 + Math.sin(a) * reach, y = S * 0.97 - Math.cos(a) * reach;
+      stems.push([x, y]);
+      const poly = leafPoly(x, y, a, Math.min(L, y - S * 0.03), L * vary(r, W.width));
+      g.save();
+      wobbly(poly, S * W.wobble);
+      g.fillStyle = tone();
+      g.fill();
+      g.clip();
+      for (let j = 0; j < 2; j++) {
+        // a bloom: a soft blot of paler or darker pigment inside the wash
+        const [bx, by] = poly[Math.floor(r() * poly.length)];
+        const cx = (bx + x) / 2, cy = (by + y) / 2, rad = L * (0.25 + 0.3 * r());
+        const grad = g.createRadialGradient(cx, cy, 0, cx, cy, rad);
+        const col = r() < 0.5 ? C.fill : C.shade;
+        grad.addColorStop(0, col);
+        grad.addColorStop(1, 'rgba(0,0,0,0)');
+        g.globalAlpha = W.bloom;
+        g.fillStyle = grad;
+        g.fillRect(cx - rad, cy - rad, rad * 2, rad * 2);
+      }
+      g.globalAlpha = W.rim;
+      g.strokeStyle = C.shade; // the dried edge, inside the clip so only its inner half shows
+      g.lineWidth = S * 0.018;
+      wobbly(poly, S * W.wobble * 0.5);
+      g.stroke();
+      g.globalAlpha = 1;
+      g.restore();
+    }
+    g.lineCap = 'round';
+    for (const [x, y] of stems) stem([[S * 0.5, S * 0.985], [x, y]], S * 0.01, S * 0.006);
+  });
+  inCell(5, () => {
+    // A flower (pass e5): five broad overlapping petals, a little cupped, painted as loose washes
+    // (Homer's reds are single strokes over the green), a deeper red towards the throat and at the
+    // dried edge, and a pale point in the middle. Shape from the Commons photos (research/CREDITS.md).
+    const F = P.flower;
+    const cx = S * 0.5, cy = S * 0.5, R = S * F.radius;
+    const turn = r() * Math.PI * 2;
+    for (let k = 0; k < 5; k++) {
+      const a = turn + (k * Math.PI * 2) / 5 + (r() - 0.5) * 0.2;
+      const pts = [];
+      for (let i = 0; i <= 16; i++) {
+        // a petal: narrow at the throat, a broad rounded end, a slight notch
+        const t = i / 16, ang = (t - 0.5) * F.spread;
+        const rr = R * (0.15 + 0.85 * Math.sin(Math.PI * Math.min(1, t * 1.02)) ** 0.35) * (1 - 0.06 * Math.cos(ang * 6));
+        pts.push([cx + Math.sin(a + ang) * rr, cy - Math.cos(a + ang) * rr]);
+      }
+      pts.push([cx, cy]);
+      g.save();
+      wobbly(pts, R * 0.04);
+      g.fillStyle = C.petal;
+      g.fill();
+      g.clip();
+      const grad = g.createRadialGradient(cx, cy, 0, cx, cy, R);
+      grad.addColorStop(0, C.petalDeep);
+      grad.addColorStop(0.45, 'rgba(0,0,0,0)');
+      g.fillStyle = grad;
+      g.fillRect(cx - R, cy - R, R * 2, R * 2);
+      g.globalAlpha = 0.55;
+      g.strokeStyle = C.petalDeep;
+      g.lineWidth = S * 0.02;
+      wobbly(pts, R * 0.02);
+      g.stroke();
+      g.globalAlpha = 1;
+      g.restore();
+    }
+    g.fillStyle = C.eye; // the pale column in the middle
+    g.beginPath();
+    g.ellipse(cx, cy - R * 0.08, R * 0.07, R * 0.16, 0, 0, Math.PI * 2);
+    g.fill();
   });
   const t = texture(c, [1, 1], false);
   t.anisotropy = 4;

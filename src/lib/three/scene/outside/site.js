@@ -15,10 +15,10 @@ export const WINDOW_EYE = [-0.475, 1.5, -4.62];
 export const SITE = {
   ground: -1.85, // the house stands on 1.85 m stilts; the room's floor is y = 0
   water: -3.2,
-  // Waterlines as [x, z], upstream (far left of the view) to downstream (right, passing the house).
-  // The first point of each only carries the river out of sight.
+  // The far waterline as [x, z], upstream (far left of the view) to downstream (right). The first
+  // point only carries the river out of sight. Our side has no bank: the river runs to the house
+  // (the bush at the water below the window is waterbush.js).
   farLine: [[-900, -585], [-420, -360], [-260, -285], [-122, -207], [-27, -147], [3, -109], [19.6, -83.5], [30, -67], [34, -57], [40, -40], [52, -10], [70, 30], [85, 70]],
-  nearLine: [[-900, -520], [-440, -290], [-280, -210], [-140, -130], [-60, -78], [-20.4, -45.2], [-12.6, -33.7], [-7.6, -26.9], [-4, -22.7], [0.5, -21], [10, -20], [24, -14], [40, 5], [55, 35], [65, 70]],
   // The far bank, as distances inland from its waterline (metres) and heights (y).
   far: {
     mud: 1.5, // bare mud above the water
@@ -35,19 +35,7 @@ export const SITE = {
     wall: { from: 12, offset: 40, height: 3 }, // pale retaining wall on the terrace (x of the waterline it starts at)
   },
   extent: { x0: -1100, x1: 900, z0: -1100, z1: 400 }, // the land and the water end here, in the haze
-  // Our bank, as distances inland from its waterline: a low grass berm at the water, a bare mud
-  // track behind it that opens to the water at the bend, a short shoulder, level grass.
-  near: {
-    lip: 0.35, // wet mud at the water
-    berm: 3.1, // the berm ends
-    mud: 4.4, // the mud track ends at the foot of the shoulder
-    edge: 5.2, // edge of the level grass
-    level: 9,
-    bermY: -2.5,
-    bermTo: -6.5, // the berm runs down to this x of the waterline; from there the mud meets the water
-    tip: [-3, 1], // a patch of grass and tufts on the tip of the mud flat (x of the waterline)
-    ferns: [[-7.6, -17, 1.1], [-4.6, -13.8, 0.8], [-4.6, -15.2, 0.9], [-3.6, -14.6, 0.7], [-4.0, -16.3, 0.95]], // ferns below the window, a clump at the frame's lower left as R3 has [x, z, reach] (design choice)
-  },
+
   // Trees of the far bank (trees.js). clump and big: [x, z, scale]; bushes: [x of the waterline,
   // offset inland, scale]; rows: far-tier trees spread along the waterline (x0..x1 of the waterline,
   // offsets inland) or over a box [x0, x1, z0, z1]; `bush` rows are shrubs.
