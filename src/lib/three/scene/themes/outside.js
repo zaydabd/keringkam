@@ -202,8 +202,8 @@ export const OUTSIDE_THEME = {
   // shadows are cool, not grey (Homer, Sargent; research/INTERIOR-NOTES.md, pass e5). Design
   // choices, tuned in the window shot.
   waterBush: {
-    ramp: ['#c2d470', '#94bc52', '#64a04c', '#3e8060', '#2a5a58'], // sun to deep shade
-    core: '#2a5450', // the dark inside, between the leaves
+    ramp: ['#d4e290', '#a8c666', '#7ca64e', '#507c46', '#2e5038'], // sun to deep shade: R4's greens (pass e5b; its sampled pixels include ink lines, so tuned by eye in the window shot), the shade a little cool
+    core: '#2a4434', // the dark inside, between the leaves
     stem: '#5a4c36',
     flower: '#fff6f2', // the flowers' vertex tints: the atlas paints their red (textures.leaves)
     flowerDeep: '#e6d4d0',
@@ -220,7 +220,7 @@ export const OUTSIDE_THEME = {
     // The edge line stands in for the ink the leaf cards do not get. Sizes are fractions of a cell.
     leaves: {
       // petal, petalDeep and eye are the flower's own colours: it is drawn with a near-white vertex colour
-      colours: { fill: '#f2f2ea', fillDark: '#dcdfd2', shade: '#8c9086', vein: '#c4c8b8', edge: '#4c4e44', stem: '#8c8468', petal: '#e0382c', petalDeep: '#a81e26', eye: '#f4e6b8' },
+      colours: { fill: '#f2f2ea', fillDark: '#dcdfd2', shade: '#8c9086', vein: '#c4c8b8', edge: '#4c4e44', stem: '#8c8468', washBase: '#b4b8a8', petal: '#cc4a52', petalDeep: '#9d2e35', petalLight: '#e8908a', eye: '#f4e6b8' }, // petals: R4's reds, sampled (pass e5b)
       pattern: {
         cell: 512, // px; the atlas is 3 x 2 cells
         shade: 0.26, // how dark the half of a blade turned from the light is
@@ -231,10 +231,11 @@ export const OUTSIDE_THEME = {
         // a sprig of fewer, larger leaves that hang further
         sprigBig: { top: 0.24, count: 6, length: [0.25, 0.1], width: [0.44, 0.12], spread: [0.9, 0.3], droop: 0.6 },
         broad: { width: 0.5, veins: 6 }, // one leaf filling its cell, for the weeds' rosettes
-        frond: { pairs: 15, reach: 0.36, angle: 0.3, lobes: 7, width: 0.44 }, // paired leaflets, each a lobed blade; width: its half-width, of the gap between pairs
-        // the bush at the water (pass e5): leaves as washes in a fan; fan in radians, wobble of the
-        // cell, bloom and rim the alpha of the blots inside and the dried edge
-        wash: { count: 7, fan: 2.4, length: [0.5, 0.12], width: [0.42, 0.1], wobble: 0.012, bloom: 0.35, rim: 0.45 },
+        frond: { pairs: 19, reach: 0.34, angle: 0.35, lobes: 3, width: 0.3, edge: 0.8 }, // paired leaflets, each a lobed blade; width: its half-width, of the gap between pairs; edge: its soft rim, of `edge` (pass e5b: slender and soft, as R4's palm-like fronds)
+        // the bush at the water (pass e5b): sprays of pointed leaves painted as washes; fan and
+        // spread in radians, sizes and wobble of the cell; bloom, rib and rim the alpha of the
+        // pooled pigment, the midrib and the dried edge
+        wash: { sprays: 3, leaves: 5, fan: 1.3, spread: [0.75, 0.3], length: [0.3, 0.08], width: [0.36, 0.08], wobble: 0.006, bloom: 0.3, rib: 0.35, rim: 0.3 },
         flower: { radius: 0.46, spread: 1.5 }, // radius of the cell; spread: each petal's angle, radians (5 x 1.5 > 2 pi, so they overlap)
       },
     },

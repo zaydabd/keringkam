@@ -10,7 +10,8 @@
 //   - each card's shading normal comes from the blobby shell, not the card, so the light falls
 //     over the bush as one soft mass;
 //   - its colour runs along a ramp from a warm yellow-green on top to a cool blue-green in the
-//     shade: a depth term times blocky noise, plus a hue jitter per card;
+//     shade: a depth term and smooth noise (pass e5b: blocky noise gave flat, toon-like patches),
+//     plus a hue jitter per card;
 //   - red flowers (cell flower) over its upper half, facing out; a fern clump reaching over the
 //     water at its right end and a smaller one at the left; grass tufts and a few bare stems
 //     where it meets the water.
@@ -90,9 +91,9 @@ export const BUSH = {
   ],
   sink: 0.3, // nothing goes deeper than this below the water
   settle: 0.45, // the blobs sit this much (m) lower than their touching sight line: the leaf cards stand out of them
-  lumps: 0.18, // the shell's outline is pushed in and out by up to this (m), in blocks of `block`
+  lumps: 0.22, // the shell's outline is pushed in and out by up to this (m), smooth noise of scale `block`
   block: 0.9,
-  cards: { perSquareMetre: 9, length: [0.42, 0.7], edge: 0.6, loose: 0.08, float: 0.15 }, // edge: card size at the shell's outline, of the inner; loose: share that float up to `float` m outside
+  cards: { perSquareMetre: 5, length: [0.6, 0.95], edge: 0.6, loose: 0.08, float: 0.15 }, // edge: card size at the shell's outline, of the inner; loose: share that float up to `float` m outside
   shade: { depth: 0.7, noise: 0.65, block: 0.6, jitter: [0.1, 0.08, 0.1] }, // the colour ramp's terms; jitter per card (r, g, b)
   flowers: { count: 20, size: 0.32, upper: 0.45, out: 0.06 }, // upper: only above this height in the blob (of its half-height, from its centre)
   ferns: [
@@ -109,6 +110,19 @@ function blocky(p, size, seed) {
   let h = (i * 374761393 + j * 668265263 + k * 1274126177 + seed * 951274213) | 0;
   h = Math.imul(h ^ (h >>> 13), 1274126177);
   return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
+
+/** Smooth value noise in 0..1 (trilinear between the blocky values): soft colour drifts, no patches. */
+function smooth(p, size, seed) {
+  const q = [p[0] / size, p[1] / size, p[2] / size], i = q.map(Math.floor), f = q.map((v, k) => v - i[k]);
+  const s = f.map((v) => v * v * (3 - 2 * v));
+  let out = 0;
+  for (let c = 0; c < 8; c++) {
+    const d = [c & 1, (c >> 1) & 1, (c >> 2) & 1];
+    const wgt = d.reduce((m, b, k) => m * (b ? s[k] : 1 - s[k]), 1);
+    out += wgt * blocky([(i[0] + d[0]) * size, (i[1] + d[1]) * size, (i[2] + d[2]) * size], size, seed);
+  }
+  return out;
 }
 
 /** The blobs in the world, each raised so its top meets the profile in its column. */
@@ -221,7 +235,7 @@ export function buildWaterBush(w, { seed = 0 } = {}) {
       })())) continue;
       if (p[1] < water - 0.05) continue; // under the water: never seen
       const n = shellNormal(p);
-      p = add(p, n, BUSH.lumps * (2 * blocky(p, BUSH.block, seed + 1) - 1));
+      p = add(p, n, BUSH.lumps * (2 * smooth(p, BUSH.block, seed + 1) - 1));
       shellPoints.push({ p, n, blob: bi });
     }
   }
@@ -239,9 +253,12 @@ export function buildWaterBush(w, { seed = 0 } = {}) {
     let side = cross(up, toEye);
     if (Math.hypot(...side) < 0.1) side = cross(up, [1, 0, 0]);
     side = norm(side);
-    // colour: dark inside and underneath, broken by blocky noise, then a jitter per card
+    if (rand() < 0.5) side = scale(side, -1); // mirrored: the one painted cell reads as two
+    // colour: dark inside and underneath, drifting with smooth noise, then a jitter per card
     const depth = 0.5 * (1 - h) * (1 - 0.4 * rim);
-    const s = BUSH.shade.depth * depth + BUSH.shade.noise * blocky(p, BUSH.shade.block, seed + 2) ** 1.4 + (float ? -0.12 : 0);
+    // two scales of smooth noise: broad drifts of warm and cool, and smaller pools of shade
+    const drift = 0.65 * smooth(p, BUSH.shade.block * 2.5, seed + 2) + 0.35 * smooth(p, BUSH.shade.block, seed + 3);
+    const s = BUSH.shade.depth * depth + BUSH.shade.noise * drift ** 1.4 + (float ? -0.12 : 0);
     const colour = tinted(ramp(s), hueOf(rand, BUSH.shade.jitter));
     // the shell's normal at each corner: base left, base right, tip right, tip left
     const width = len * 0.95;
@@ -343,9 +360,9 @@ export function buildWaterBush(w, { seed = 0 } = {}) {
   c.max('loose cards float at most (m)', stats.maxFloat, BUSH.cards.float);
   c.min('stems rooted inside the bush (all)', stemRoots.filter((r) => field(r) > 1).length, stemRoots.length);
   c.min('stems that dip into the water (all)', stemTips.filter((t) => t[1] < water).length, stemTips.length);
-  c.range('leaf cards', stats.cards, 900, 2000);
+  c.range('leaf cards', stats.cards, 500, 1200); // 724-730 built (seeds 0-7)
   c.range('flowers', stats.flowers, 8, 30);
-  c.range('triangles, leaves (cards, flowers, ferns)', tris.cards + tris.flowers + tris.ferns, 2000, 6000); // 3,038-3,046 built (seeds 0-7)
+  c.range('triangles, leaves (cards, flowers, ferns)', tris.cards + tris.flowers + tris.ferns, 1200, 3600); // 1,848-1,860 built (seeds 0-7)
   c.range('triangles, cores, grass and stems', tris.core + tris.tufts + tris.stems, 1000, 3000); // 1,576-1,612 built (seeds 0-7)
   return { contract: c.assert(), stats: { ...stats, blobs: blobs.map((b) => b.c.map((v) => +v.toFixed(2))) }, triangles: tris };
 }

@@ -1913,3 +1913,46 @@ Remaining divergences from R4, and why:
   so they read as red spots;
 - R4's interior (the potted plant, the shutters, the carved walls) and the reflections are out
   of scope.
+
+### Pass e5b: the bush less toon, a little like a watercolour render (2026-11-19, branch `exterior-water-bush`)
+
+The user: "not a toon only but bit realistic water colour 3d render too". In e5 the bush read as
+flat patches of colour with small, uniform leaves. Changes (all design choices, tuned by eye in the
+window shot against R4 and the pass e5 watercolour references; no measured data):
+- **Wash leaf cell:** three sprays of five pointed leaves, each with a gradient from a cool base
+  to the tone, a pooled-pigment blot, a faint midrib and a soft dried rim (was a fan of seven
+  rounded washes).
+- **Colour:** smooth value noise at two scales instead of blocky noise, so warm and cool drift
+  across the bush instead of forming flat patches; the ramp is lighter and greener
+  (`#d4e290` to `#2e5038`), tuned by eye since R4's sampled pixels include its ink lines.
+- **Cards:** fewer and larger (5 per m², 0.6–0.95 m; was 9 per m², 0.42–0.7 m); half are
+  mirrored, so the one painted cell reads as two; the shell's lumps use the smooth noise too.
+- **Fronds:** slimmer leaflets (19 pairs, 3 lobes) with a softer edge.
+- **Flowers:** petals with a radial gradient in reds sampled from R4's flowers (pixel samples off
+  a painting).
+
+**Contract:** seeds 0–7 pass; the worst column is 3.5% of the opening's height (seed 0, f 0.3).
+Card and triangle ranges were set again from the build.
+
+**Cost** (seeds 0–7 for the bush; the page at the window shot):
+
+| | e5 | e5b |
+| --- | --- | --- |
+| the bush: leaf cards | 1,319–1,323 | 724–730 |
+| the bush: leaf triangles (cards, flowers, ferns) | 3,038–3,046 | 1,848–1,860 |
+| the bush: cores, grass, stems | 1,576–1,612 | 1,579–1,601 |
+| outside, total triangles (seed 0) | 133,303 | 132,118 |
+| window: triangles per frame / draw calls | 497,659 / 49 | 494,104 / 49 |
+| window-left | 497,819 / 51 | 494,264 / 51 |
+| window-right | 513,501 / 53 | 509,946 / 53 |
+| window-phone | 497,661 / 50 | 494,106 / 50 |
+| window-seed1 | 494,701 / 49 | 491,173 / 49 |
+
+The atlas size is unchanged (8.0 MiB, computed). The window frame took 1,029 ms (e5: 1,044 ms);
+**SwiftShader (software) timing in this container, not a real GPU timing**.
+
+**Gate** (window, left, right, phone, seed 1, Full outlines; R4 alongside): the profile, the
+flowers, the frond clump, the open water and the clear near boat hold in every view; no seams with
+Full outlines. The leaves now read as separate pointed leaves with soft colour drifts. Remaining
+divergences: R4's leaves have ink outlines (ours have none, as in e5); R4's bush has more pale
+gaps between leaves; R4's frond clump is a darker green than ours.

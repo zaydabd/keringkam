@@ -802,8 +802,8 @@ export function paintLeaves(seed = 43, { colours: C, pattern: P }) {
       g.closePath();
       g.restore();
     };
-    g.strokeStyle = C.edge;
-    g.lineWidth = P.edge * 1.4;
+    g.strokeStyle = C.shade; // a soft edge, not an ink line (pass e5b: the bush's fronds)
+    g.lineWidth = P.edge * F.edge;
     for (const q of pinnae) blade(q), g.stroke();
     for (const q of pinnae) {
       blade(q);
@@ -842,6 +842,7 @@ export function paintLeaves(seed = 43, { colours: C, pattern: P }) {
     });
     g.closePath();
   };
+  const lerpN = (a, b, t) => a + (b - a) * t;
   // A leaf shape as a polygon, base at the origin pointing up, then turned and moved.
   const leafPoly = (x, y, a, L, W, n = 14) => {
     const pts = [];
@@ -857,47 +858,66 @@ export function paintLeaves(seed = 43, { colours: C, pattern: P }) {
     return pts.map(([px, py]) => [x + px * ca - py * sa, y + px * sa + py * ca]);
   };
   inCell(4, () => {
-    // A cluster of leaves as watercolour washes (pass e5; Homer and Sargent, research/CREDITS.md):
-    // each leaf a flat wash with a wobbly edge, one or two paler or darker blooms inside it, and a
-    // darker line where the wash dried at its edge. No vein, no hard edge line. The gaps between
-    // the leaves stay transparent, so the bush shows pale gaps between its dabs.
+    // Loose sprays of pointed leaves painted as washes (pass e5b; R4 and the watercolour
+    // references in research/CREDITS.md): each leaf a soft wash, darker at its base and pale at
+    // its tip, a faint midrib, a thin dried edge a little darker than the wash, no hard edge line.
+    // The gaps between the leaves stay transparent, so the bush is not a solid mass.
     const W = P.wash;
-    const stems = [];
-    for (let k = 0; k < W.count; k++) {
-      const u = k / (W.count - 1) - 0.5; // -0.5 .. 0.5 across the fan
-      const a = u * W.fan + (r() - 0.5) * 0.25;
-      const L = S * vary(r, W.length) * (1 - 0.35 * Math.abs(u));
-      const reach = S * (0.06 + 0.18 * (1 - Math.abs(u)) * r());
-      const x = S * 0.5 + Math.sin(a) * reach, y = S * 0.97 - Math.cos(a) * reach;
-      stems.push([x, y]);
-      const poly = leafPoly(x, y, a, Math.min(L, y - S * 0.03), L * vary(r, W.width));
-      g.save();
-      wobbly(poly, S * W.wobble);
-      g.fillStyle = tone();
-      g.fill();
-      g.clip();
-      for (let j = 0; j < 2; j++) {
-        // a bloom: a soft blot of paler or darker pigment inside the wash
-        const [bx, by] = poly[Math.floor(r() * poly.length)];
-        const cx = (bx + x) / 2, cy = (by + y) / 2, rad = L * (0.25 + 0.3 * r());
-        const grad = g.createRadialGradient(cx, cy, 0, cx, cy, rad);
-        const col = r() < 0.5 ? C.fill : C.shade;
-        grad.addColorStop(0, col);
-        grad.addColorStop(1, 'rgba(0,0,0,0)');
-        g.globalAlpha = W.bloom;
-        g.fillStyle = grad;
-        g.fillRect(cx - rad, cy - rad, rad * 2, rad * 2);
-      }
-      g.globalAlpha = W.rim;
-      g.strokeStyle = C.shade; // the dried edge, inside the clip so only its inner half shows
-      g.lineWidth = S * 0.018;
-      wobbly(poly, S * W.wobble * 0.5);
-      g.stroke();
-      g.globalAlpha = 1;
-      g.restore();
-    }
     g.lineCap = 'round';
-    for (const [x, y] of stems) stem([[S * 0.5, S * 0.985], [x, y]], S * 0.01, S * 0.006);
+    for (let k = 0; k < W.sprays; k++) {
+      const lean = (k / Math.max(1, W.sprays - 1) - 0.5) * W.fan + (r() - 0.5) * 0.15;
+      const reach = S * (0.8 - 0.15 * Math.abs(lean));
+      const bend = (r() - 0.5) * 0.5;
+      const at = (t) => {
+        const a = lean + bend * t;
+        return [S * 0.5 + Math.sin(a) * reach * t, S * 0.98 - Math.cos(a) * reach * t];
+      };
+      stem(Array.from({ length: 9 }, (_, i) => at(i / 8)), S * 0.009, S * 0.004);
+      const leaves = [];
+      for (let j = 0; j < W.leaves; j++) {
+        const t = 0.25 + (0.7 * j) / W.leaves, [x, y] = at(t), [x2, y2] = at(t + 0.02);
+        const dir = Math.atan2(x2 - x, -(y2 - y));
+        const side = j % 2 ? 1 : -1;
+        leaves.push([x, y, dir + side * vary(r, W.spread), S * vary(r, W.length) * (1 - 0.3 * t)]);
+      }
+      const [x, y] = at(1), [x0, y0] = at(0.97);
+      leaves.push([x, y, Math.atan2(x - x0, -(y - y0)), Math.min(S * W.length[0], y - S * 0.02)]);
+      for (const [lx, ly, a, L] of leaves) {
+        const poly = leafPoly(lx, ly, a, L, L * vary(r, W.width));
+        g.save();
+        wobbly(poly, S * W.wobble);
+        const tip = [lx + Math.sin(a) * L, ly - Math.cos(a) * L];
+        const grad = g.createLinearGradient(lx, ly, tip[0], tip[1]);
+        grad.addColorStop(0, C.washBase);
+        grad.addColorStop(0.55, tone());
+        grad.addColorStop(1, C.fill);
+        g.fillStyle = grad;
+        g.fill();
+        g.clip();
+        // a bloom: pigment pooled somewhere in the wash
+        const bx = lerpN(lx, tip[0], r()), by = lerpN(ly, tip[1], r()), rad = L * (0.2 + 0.25 * r());
+        const blot = g.createRadialGradient(bx, by, 0, bx, by, rad);
+        blot.addColorStop(0, C.shade);
+        blot.addColorStop(1, 'rgba(0,0,0,0)');
+        g.globalAlpha = W.bloom;
+        g.fillStyle = blot;
+        g.fillRect(bx - rad, by - rad, rad * 2, rad * 2);
+        g.globalAlpha = W.rib;
+        g.strokeStyle = C.vein;
+        g.lineWidth = S * 0.006;
+        g.beginPath();
+        g.moveTo(lx, ly);
+        g.lineTo(lerpN(lx, tip[0], 0.85), lerpN(ly, tip[1], 0.85));
+        g.stroke();
+        g.globalAlpha = W.rim; // the dried edge: inside the clip, so only its inner half shows
+        g.strokeStyle = C.shade;
+        g.lineWidth = S * 0.012;
+        wobbly(poly, S * W.wobble * 0.5);
+        g.stroke();
+        g.globalAlpha = 1;
+        g.restore();
+      }
+    }
   });
   inCell(5, () => {
     // A flower (pass e5): five broad overlapping petals, a little cupped, painted as loose washes
@@ -922,13 +942,14 @@ export function paintLeaves(seed = 43, { colours: C, pattern: P }) {
       g.fill();
       g.clip();
       const grad = g.createRadialGradient(cx, cy, 0, cx, cy, R);
-      grad.addColorStop(0, C.petalDeep);
-      grad.addColorStop(0.45, 'rgba(0,0,0,0)');
+      grad.addColorStop(0, C.petalDeep); // deep at the throat...
+      grad.addColorStop(0.5, C.petal);
+      grad.addColorStop(1, C.petalLight); // ...pale at the tips (R4)
       g.fillStyle = grad;
       g.fillRect(cx - R, cy - R, R * 2, R * 2);
-      g.globalAlpha = 0.55;
+      g.globalAlpha = 0.35;
       g.strokeStyle = C.petalDeep;
-      g.lineWidth = S * 0.02;
+      g.lineWidth = S * 0.012;
       wobbly(pts, R * 0.02);
       g.stroke();
       g.globalAlpha = 1;
