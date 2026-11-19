@@ -418,7 +418,17 @@ export function buildTrees(w, { seed = 0, place, groundAt, tint } = {}) {
   contract.range('clump heights (m), lowest', stats.heights.clump[0], 13, 19);
   contract.range('clump heights (m), highest', stats.heights.clump[1], 13, 19);
   contract.min('every plant stands on land above the water (m)', lowestGround - SITE.water, 0.3);
-  contract.range('triangles', stats.wood + stats.leaf, 8000, 340000);
+  // The variants, three seeds each on the near tier: what makes each one read as itself.
+  const grown = (sp) => [11, 12, 13].map((s) => growTree(s, sp, 'near').report);
+  const tall = grown(TREE_TALL), broad = grown(TREE_BROAD), round = grown(TREE_ROUND);
+  contract.min('tall variant: bare trunk below the crown (m), least', Math.min(...tall.map((r) => r.clear)), 5);
+  contract.max('tall variant: crown width to height, largest', Math.max(...tall.map((r) => r.width / r.height)), 0.65);
+  contract.min('broad variant: crown width to height, least', Math.min(...broad.map((r) => r.width / r.height)), 0.9);
+  contract.range('round variant: height (m), lowest', Math.min(...round.map((r) => r.height)), 8, 12);
+  contract.range('round variant: height (m), highest', Math.max(...round.map((r) => r.height)), 8, 12);
+  contract.min('rows: variants used', Object.keys(stats.variants).length, 5);
+  contract.range('crown leaf cards (triangles)', stats.cards, 3000, 9000);
+  contract.range('triangles', stats.wood + stats.leaf, 60000, 130000); // was 8,000-34,000 before the sub-lobes (exterior step 4)
   stats.threeSeeds = three.map((t) => ({ seed: t.report.seed, height: t.report.height, width: t.report.width, clear: t.report.clear }));
   return { contract: contract.assert(), stats };
 }
