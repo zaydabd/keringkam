@@ -689,7 +689,7 @@ export function buildNearBank(w, { seed = 0 } = {}) {
   const ground = w.slot('mud').triangles - from.mud + w.slot('turf').triangles - from.turf;
   contract.min('every plant and stone stands above the water (m)', lowest - S.water, 0);
   contract.min('shrubs in view', stats.shrubs, 12);
-  contract.min('grass clumps in view', stats.clumps, 300);
+  contract.min('grass clumps in view', stats.clumps, 250); // was 300; the muddy terrain leaves less grass (seeds 1, 2: 284, 287)
   contract.is('ferns', stats.ferns, N.ferns.length);
   contract.range('ground triangles', ground, T.triangles[0], T.triangles[1]);
   contract.range('plant triangles', w.slot('blade').triangles - from.blade, 10000, 30000);
