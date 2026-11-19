@@ -1831,3 +1831,85 @@ R3, and why:
   angular up close; at the window's distance a sub-lobe is about 10 pixels across;
 - the leaf cards' fringe is darker than R3's crown edges, because the atlas's edge line darkens
   the small mip levels.
+
+### Pass e5: no near bank; a bush in the water (2026-11-19, branch `exterior-water-bush`)
+
+The user asked to remove our bank and let a nearby bush cover the lower part of the view,
+cutting straight into the river. The reference is **R4**, an image the user supplied (not in the
+repo). References looked at are in `research/CREDITS.md` (pass e5). Readings off R4 are pixels
+off a painting, not real sizes; every size in `waterbush.js` is a design choice tuned in the
+window shot.
+
+**Removed.** `outside/nearbank.js`; `SITE.near` and `SITE.nearLine`; the near bank's colours;
+`paintMud`, `paintTurf`, `paintTrample` and their helpers; the `mud` and `turf` meshes and the
+trodden-mud shader. The river plane already covered the whole extent, so the water reaches the
+house with no other change. The grass and fern builders moved to `outside/plants.js` (the fern
+gained `fronds`, `out`, `rise` and `width`).
+
+**R4, measured** (window opening x 280–880 px, sill y ≈ 402, far waterline y ≈ 290). The bush's
+top edge as (f across the opening, height from the sill to the far waterline):
+(0, 1.0), (0.12, 0.73), (0.2, 0.64), (0.33, 0.37), (0.42, 0.46, the frond clump), (0.53, 0).
+Seven red five-petal flowers on its upper half; an upright frond clump at its right end; open
+water from there to the right edge, down to the sill; the near boat just above the bush.
+
+**Built** (`outside/waterbush.js`):
+- seven blobs in a row 13–15 m out, each raised until its top meets R4's profile in its column
+  (the sight line's slope, from the window's opening in `interior/plan.js`), then lowered
+  0.45 m because the leaf cards stand out of them; a dark lumpy core in each;
+- about 1,320 wash leaf cards (seeds 0–7: 1,319–1,323) over the union of the blobs, larger inside than at the outline,
+  8% floating up to 0.15 m outside; shading normals from the blobby field, not the card; colour
+  along a ramp from warm yellow-green to cool blue-green by a depth term times blocky noise, with
+  a hue jitter per card;
+- 20 flower cards (0.26–0.38 m) on the upper half, on the side the window sees;
+- an upright frond clump at the right end, 11 m out, in front of the bush, placed by a sweep over
+  eight seeds against the profile; a smaller one at the left;
+- nine grass tufts and six bare stems where it meets the water.
+
+**Leaf atlas.** Grows from 2 x 2 to 3 x 2 cells of 512 px: a cluster of leaves painted as
+washes (wobbly edge, paler and darker blooms inside, a darker dried edge, no vein or edge line,
+transparent gaps between leaves) and a flower painted in its own reds with a pale centre (drawn
+with a near-white vertex colour). Memory with mips, computed, not measured: 1536 x 1024 x 4 B x
+4/3 = 8.0 MiB (was 1024 x 1024: 5.3 MiB).
+
+**Contract** (throws at build): the top edge within 5% of the opening's height of R4's profile in
+every column from f 0.03 to 0.48; nothing of the bush up to the near boat's waterline in its
+column; the bush's right edge at f ≤ 0.62; no leaf deeper than 0.3 m below the water; loose
+cards at most 0.15 m out; every stem rooted inside the bush and dipping into the water; card,
+flower and triangle ranges. Seeds 0–7 pass; the worst column is 3.1% (seed 0: f 0.33).
+
+**Cost**:
+
+| | before (`exterior-trees`) | after |
+| --- | --- | --- |
+| outside, total triangles | 216,721 | 133,303 |
+| outside meshes (draw calls) | 8 | 6 |
+| the bush: leaf cards, flowers, ferns (leaf) | – | 3,038–3,046 (seeds 0–7) |
+| the bush: cores, grass, stems (blade) | – | 1,576–1,612 (seeds 0–7) |
+
+The outside's triangle cap is now 160,000 (was 240,000) and its mesh cap 8 (was 10).
+
+**In the page** (renderer counters at the window shot, all passes of one frame):
+
+| view | triangles per frame, before | after | draw calls, before | after |
+| --- | --- | --- | --- | --- |
+| window | 747,721 | 497,659 | 55 | 49 |
+| window-left | 747,881 | 497,819 | 57 | 51 |
+| window-right | 763,563 | 513,501 | 59 | 53 |
+| window-phone | 747,723 | 497,661 | 56 | 50 |
+| window-seed1 | 732,904 | 494,701 | 55 | 49 |
+
+Two meshes fewer, each drawn three times a frame (view, mirror, ink pre-pass): six draw calls
+fewer. The window frame took 1,044 ms (was 1,006 ms). **These are SwiftShader (software) timings
+in this container, not real GPU timings**; they only show that nothing jumped.
+
+**Gate (window, left, right, phone, seed 1, and Full outlines; R4 alongside).** The bush fills
+the lower left with its top sloping down to the right as in R4; flowers read as red spots; the
+frond clump stands at its right end; the lower right is open water to the sill; the near boat
+stays clear above the bush in every view. Full outlines show no rectangles or seams on the cards.
+Remaining divergences from R4, and why:
+- R4's leaves are drawn with fine dark outlines; here they have none (leaf cards are kept off the
+  ink pass), so the bush reads softer;
+- R4's flowers are pink-red with visible petals; ours are about 8–12 px across in the wide shot,
+  so they read as red spots;
+- R4's interior (the potted plant, the shutters, the carved walls) and the reflections are out
+  of scope.

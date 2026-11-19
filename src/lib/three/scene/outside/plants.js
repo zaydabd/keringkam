@@ -1,6 +1,6 @@
 // Plant builders for the view outside: grass clumps and ferns, wound to face the window shot's
 // eye. Moved unchanged from the near bank (removed in pass e5; git history keeps its shrubs,
-// rosettes, clods and sticks); the fern gained `fronds`, `out` and `rise`. Used by the bush at the
+// rosettes, clods and sticks); the fern gained `fronds`, `out`, `rise` and `width`. Used by the bush at the
 // water (waterbush.js). Sizes are design choices tuned in the window shot, not measured.
 
 import { WINDOW_EYE } from './site.js';
@@ -92,9 +92,10 @@ export function grassClump(w, at, { blades, height, spread = 0.08, lean = 0.35, 
 /**
  * A fern: arching fronds, each a bent strip of the leaf atlas's frond (paired leaflets of rounded
  * lobes, longest a third of the way up), its leaflets turned a little towards the eye. `out`
- * (a unit vector) makes most fronds reach one way; `rise` is how far they arch up [from, + up to].
+ * (a unit vector) makes most fronds reach one way; `rise` is how far they arch up [from, + up to];
+ * `width` the strip's half-width, of the frond's length.
  */
-export function fern(w, at, { reach, rand, P, fronds = PLANTS.fern.fronds, out = null, rise: riseAt = [0.5, 0.25] }) {
+export function fern(w, at, { reach, rand, P, fronds = PLANTS.fern.fronds, out = null, rise: riseAt = [0.5, 0.25], width = PLANTS.fern.width }) {
   const Q = PLANTS.fern;
   const hue = hueOf(rand, PLANTS.hue);
   let n = 0;
@@ -117,7 +118,7 @@ export function fern(w, at, { reach, rand, P, fronds = PLANTS.fern.fronds, out =
       const side = norm(add(flat, up, Math.tan(-Q.roll * dot(toEye, flat)))); // turns the face (about the spine) towards the eye
       spine.push(p);
       sides.push(side);
-      half.push(L * Q.width);
+      half.push(L * width);
       normals.push(norm(add(up, UP, 0.6)));
     }
     n += leafStrip(w, spine, sides, half, { cell: LEAF_ATLAS.cell.frond, normals, colour: tinted(rise > 0.62 ? P.fernLight : P.fern, hue), eye: EYE });

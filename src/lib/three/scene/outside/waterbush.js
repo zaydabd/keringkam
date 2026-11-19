@@ -93,11 +93,11 @@ export const BUSH = {
   lumps: 0.18, // the shell's outline is pushed in and out by up to this (m), in blocks of `block`
   block: 0.9,
   cards: { perSquareMetre: 9, length: [0.42, 0.7], edge: 0.6, loose: 0.08, float: 0.15 }, // edge: card size at the shell's outline, of the inner; loose: share that float up to `float` m outside
-  shade: { depth: 0.55, noise: 0.45, jitter: [0.1, 0.08, 0.1] }, // the colour ramp's terms; jitter per card (r, g, b)
-  flowers: { count: 26, size: 0.22, upper: 0.45, out: 0.06 }, // upper: only above this height in the blob (of its half-height, from its centre)
+  shade: { depth: 0.7, noise: 0.65, block: 0.6, jitter: [0.1, 0.08, 0.1] }, // the colour ramp's terms; jitter per card (r, g, b)
+  flowers: { count: 20, size: 0.32, upper: 0.45, out: 0.06 }, // upper: only above this height in the blob (of its half-height, from its centre)
   ferns: [
-    { f: 0.36, dz: 12.4, reach: 2.0, fronds: 11, out: [0.45, 0, 0.9], rise: [0.42, 0.2] }, // the clump at the right end, over the water
-    { f: 0.02, dz: 12.6, reach: 1.4, fronds: 7, out: [0.3, 0, 0.95], rise: [0.35, 0.2] }, // a smaller one at the left, in front
+    { f: 0.44, dz: 11, reach: 1.8, fronds: 13, out: [0, 0, 1], rise: [1.0, 0.2], width: 0.22 }, // the upright clump at the right end, in front of the bush (R4); placed by a sweep over 8 seeds against the profile
+    { f: 0.02, dz: 12.6, reach: 1.4, fronds: 7, out: [0.3, 0, 0.95], rise: [0.35, 0.2], width: 0.26 }, // a smaller one at the left, in front
   ],
   tufts: { count: 9, height: [0.45, 0.35], blades: 9 },
   stems: { count: 6, length: [1.2, 0.8], radius: 0.025 },
@@ -177,7 +177,7 @@ export function buildWaterBush(w, { seed = 0 } = {}) {
     return lerp3(R[i], R[i + 1], x - i);
   };
   const tris = { core: 0, cards: 0, flowers: 0, ferns: 0, tufts: 0, stems: 0 };
-  const stats = { cards: 0, loose: 0, maxFloat: 0, flowers: 0, belowWater: 0, stemsDry: 0 };
+  const stats = { cards: 0, loose: 0, maxFloat: 0, flowers: 0, belowWater: 0 };
   const leafTips = []; // every card corner, for the contract
 
   // --- Cores: a lumpy icosahedron per blob, a little inside the shell, cut off below the floor --
@@ -206,7 +206,7 @@ export function buildWaterBush(w, { seed = 0 } = {}) {
   const C = BUSH.cards;
   const shellPoints = [];
   for (const [bi, { c, r }] of blobs.entries()) {
-    const area = 4 * Math.PI * Math.pow((r[0] * r[1] + r[1] * r[2] + r[0] * r[2]) / 3, 1);
+    const area = (4 * Math.PI * (r[0] * r[1] + r[1] * r[2] + r[0] * r[2])) / 3; // an ellipsoid's area, roughly
     const count = Math.round(area * C.perSquareMetre);
     for (let k = 0; k < count; k++) {
       // an even spread over the sphere (Fibonacci), then out along it to the shell
@@ -241,7 +241,7 @@ export function buildWaterBush(w, { seed = 0 } = {}) {
     side = norm(side);
     // colour: dark inside and underneath, broken by blocky noise, then a jitter per card
     const depth = 0.5 * (1 - h) * (1 - 0.4 * rim);
-    const s = BUSH.shade.depth * depth + BUSH.shade.noise * blocky(p, 0.8, seed + 2) + (float ? -0.12 : 0);
+    const s = BUSH.shade.depth * depth + BUSH.shade.noise * blocky(p, BUSH.shade.block, seed + 2) ** 1.4 + (float ? -0.12 : 0);
     const colour = tinted(ramp(s), hueOf(rand, BUSH.shade.jitter));
     // the shell's normal at each corner: base left, base right, tip right, tip left
     const width = len * 0.95;
@@ -279,7 +279,7 @@ export function buildWaterBush(w, { seed = 0 } = {}) {
     const xw = lerp(OPENING.x0, OPENING.x1, Q.f);
     const at = [EYE[0] + ((xw - EYE[0]) * Q.dz) / (EYE[2] - OPENING.wall), water + 0.1, EYE[2] - Q.dz];
     const before = w.slot('leaf').position.length;
-    tris.ferns += fern(w, at, { reach: Q.reach, rand, P: fernPaint, fronds: Q.fronds, out: norm(Q.out), rise: Q.rise });
+    tris.ferns += fern(w, at, { reach: Q.reach, rand, P: fernPaint, fronds: Q.fronds, out: norm(Q.out), rise: Q.rise, width: Q.width });
     const pos = w.slot('leaf').position;
     for (let i = before; i < pos.length; i += 3) fernTops.push([pos[i], pos[i + 1], pos[i + 2]]);
   }
@@ -343,9 +343,9 @@ export function buildWaterBush(w, { seed = 0 } = {}) {
   c.max('loose cards float at most (m)', stats.maxFloat, BUSH.cards.float);
   c.min('stems rooted inside the bush (all)', stemRoots.filter((r) => field(r) > 1).length, stemRoots.length);
   c.min('stems that dip into the water (all)', stemTips.filter((t) => t[1] < water).length, stemTips.length);
-  c.range('leaf cards', stats.cards, 300, 4000);
-  c.range('flowers', stats.flowers, 15, 40);
-  c.range('triangles, leaves (cards, flowers, ferns)', tris.cards + tris.flowers + tris.ferns, 600, 10000);
-  c.range('triangles, cores, grass and stems', tris.core + tris.tufts + tris.stems, 300, 6000);
+  c.range('leaf cards', stats.cards, 900, 2000);
+  c.range('flowers', stats.flowers, 8, 30);
+  c.range('triangles, leaves (cards, flowers, ferns)', tris.cards + tris.flowers + tris.ferns, 2000, 6000); // 3,038-3,046 built (seeds 0-7)
+  c.range('triangles, cores, grass and stems', tris.core + tris.tufts + tris.stems, 1000, 3000); // 1,576-1,612 built (seeds 0-7)
   return { contract: c.assert(), stats: { ...stats, blobs: blobs.map((b) => b.c.map((v) => +v.toFixed(2))) }, triangles: tris };
 }

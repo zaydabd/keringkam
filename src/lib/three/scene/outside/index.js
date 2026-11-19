@@ -243,8 +243,8 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
     total += n;
   }
   const budget = createContract('outside budget');
-  budget.max('triangles', total, 240000); // was 95,000, then 140,000, then 170,000; the muddy terrain (exterior step 1) added about 23,000, the far bank (step 2) 3,000, the plants (step 3) 28,000, the trees (step 4) about 72,000 (the user set no limit; the cost is reported per step)
-  budget.max('meshes (draw calls)', group.children.length, 10);
+  budget.max('triangles', total, 160000); // was 95,000, then 140,000, 170,000 and 240,000 (the trees, step 4: 216,721 built); pass e5 removed the near bank and added the bush in the water: 133,303 built (the user set no limit; the cost is reported per step)
+  budget.max('meshes (draw calls)', group.children.length, 8); // 6 since pass e5 (the mud and turf meshes went with the near bank)
   reports.budget = { contract: budget.assert() };
 
   return {

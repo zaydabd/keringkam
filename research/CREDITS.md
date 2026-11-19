@@ -153,3 +153,30 @@ Used only to read shapes, proportions and colours for `boats.js`. Nothing is cop
 | Used for | Photos | Author | Licence |
 |---|---|---|---|
 | The six fabrics on the furniture (`PLAN.fabrics`): black-goldflower-scarf-22, maroon-gold-songket-12, teal-songket-28, plum-embroidered-scarf-01, maroon-white-songket-32, lilac-beaded-scarf-18 | The project's own photos, `src/assets/textures/fabrics-ktx2/` | Not recorded in the repo | Not recorded in the repo |
+
+# Window view: the bush in the water (2026-11-19, pass e5)
+
+Looked at only, to read shapes, colours and how the leaves are painted for `outside/waterbush.js`
+and the leaf atlas's wash and flower cells. Nothing is copied into the scene; none of these images
+is in the repo. The scene reference is R4, an image supplied by the user (not in the repo).
+
+| Used for | Source | Author | Licence |
+|---|---|---|---|
+| A bush hanging over a river and meeting the water with no shore; dark underside, broken edge, stems dipping in | [Sungai Sarawak Kiri, Sarawak.jpg](https://commons.wikimedia.org/wiki/File:Sungai_Sarawak_Kiri,_Sarawak.jpg) | Fabio Achilli | CC BY 2.0 |
+| Flower shape: five broad overlapping petals, pale column | [Red Hibiscus in Cairo, Egypt.jpg](https://commons.wikimedia.org/wiki/File:Red_Hibiscus_in_Cairo,_Egypt.jpg) | Hexafluoride | CC BY-SA 4.0 |
+| Flower shape and size against the leaves | [Hibiscus rosa-sinensis (20).jpg](https://commons.wikimedia.org/wiki/File:Hibiscus_rosa-sinensis_(20).jpg) | Dinkun Chen | CC BY-SA 4.0 |
+| Watercolour fronds: dry-brush strokes, warm light, cool shade | [Palm Trees, Bahamas](https://commons.wikimedia.org/wiki/File:Winslow_Homer_-_Palm_Trees,_Bahamas_(1890s).jpg) | Winslow Homer | Public domain |
+| Flat washes, cool shadows, reds as single loose strokes | [Under the Coco Palm](https://commons.wikimedia.org/wiki/File:Winslow_Homer_-_Under_the_Coco_Palm_(1898).jpg) | Winslow Homer | Public domain |
+| Soft, low-contrast foliage washes | [Children Under a Palm Tree](https://commons.wikimedia.org/wiki/File:Winslow_Homer%27s_%27Children_Under_a_Palm_Tree%27.jpg) | Winslow Homer | Public domain |
+| Green at the shore as a few broad strokes | [After the Hurricane, Bahamas](https://commons.wikimedia.org/wiki/File:Winslow_Homer_-_After_the_Hurricane,_Bahamas_-_Google_Art_Project.jpg) | Winslow Homer | Public domain |
+| Wet-in-wet greens, warm and cool side by side | [Under the Willows](https://commons.wikimedia.org/wiki/File:John_Singer_Sargent_-_Under_the_Willows_-_Google_Art_Project.jpg) | John Singer Sargent | Public domain |
+| Plants at the water's edge as vertical strokes | [Muddy Alligators](https://commons.wikimedia.org/wiki/File:Sargent_-_Muddy_Alligators.jpg) | John Singer Sargent | Public domain |
+| Painterly foliage method: brush-stroke cards, floating cards, blobby shell normals, AO times blocky noise | [Breakdown: making a 3D landscape look like a painting](https://80.lv/articles/breakdown-making-3d-landscape-look-like-painting) | Alexander Maznev (80.lv) | Article; quoted only |
+| Leaf-card dome, light on top and dark below (the approach used) | [Stylized Bush](https://sketchfab.com/3d-models/stylized-bush-9d9ce79d3ae040619e96d5b22c7de1a6) | Daniel (Sketchfab) | Screenshot only; licence not checked |
+| Scaled leaf layers with red dots: how the flowers are spread | [Stylized bush](https://sketchfab.com/3d-models/stylized-bush-50a50c35841044a38cf18a504b290e5c) | selskiy_durachok (Sketchfab) | Screenshot only; licence not checked |
+| Cupped five-petal flowers among leaves | [Red Flowers With Foliage](https://sketchfab.com/3d-models/red-flowers-with-foliage-hand-painted-c9cd4d7d233e4408b58fecc851e58269) | Malicefay Art (Sketchfab) | Screenshot only; licence not checked |
+| The look avoided: one smooth blob | [toon Bush](https://sketchfab.com/3d-models/toon-bush-3a7400d017294e5fa8e6c9102e365726) | Stylized Box (Sketchfab) | Screenshot only; licence not checked |
+| Blotchy watercolour leaf clusters, colour varying inside each | [WaterColor Tree](https://sketchfab.com/3d-models/watercolor-tree-546889d32dd6431eab3d8adc1af70586) | Mermaid (Sketchfab) | Screenshot only; licence not checked |
+| Many small oval leaf cards with red flowers mixed in | [Hand Painted Bush](https://sketchfab.com/3d-models/hand-painted-bush-3dacde1a3180439fa1a24be69c03a74b) | CookieNoir (Sketchfab) | Screenshot only; licence not checked |
+| Ferns and bushes hanging over a stream's edge | [Birch Forest](https://sketchfab.com/3d-models/birch-forest-f46fb5815325462f9f2a6a9b88374c65) | Jordan Cameron (Sketchfab) | Screenshot only; licence not checked |
+| Placing plants at the water's edge | [forest and waterfal](https://sketchfab.com/3d-models/forest-and-waterfal-f3ed15cf2d8b4f03a9383672a67ce5c0) | Engin.Berki (Sketchfab) | Screenshot only; licence not checked |
