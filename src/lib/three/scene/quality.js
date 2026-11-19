@@ -139,3 +139,21 @@ export function saveQuality(settings) {
     // storage blocked (a private window): the settings last until the page closes
   }
 }
+
+/** The settings panel's "Show FPS" switch: kept apart from the presets, in this browser. Off unless saved on. */
+const SHOW_FPS = 'keringkam.showFps';
+export function loadShowFps() {
+  try {
+    return localStorage.getItem(SHOW_FPS) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function saveShowFps(on) {
+  try {
+    localStorage.setItem(SHOW_FPS, on ? '1' : '0');
+  } catch {
+    // storage blocked: the switch lasts until the page closes
+  }
+}

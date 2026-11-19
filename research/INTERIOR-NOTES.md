@@ -1421,3 +1421,18 @@ window the pass is smaller (274–315 ms, shadow lookups 16–27%).
 No change to the scene pass was kept. What would make it cheaper changes the picture or is a larger
 job: baking the still shadows, fewer shadow samples, or the view outside at a lower resolution.
 These are listed for the user to choose from.
+
+### Pass p3: frame-rate counter (2026-11-19, branch `fps-counter`)
+
+A "Show FPS" switch in the Graphics panel shows frames a second and the mean time between frames
+beside the Graphics button. It is kept in this browser (`keringkam.showFps`) and is not part of
+the presets. The count uses the frames' own rAF timestamps (interior.js `countFrames`), reported
+about twice a second, or every frame when frames are slower than that. It starts again when a
+hidden tab is shown. The counter adds no GPU work.
+
+Check (`fps/check.cjs`, SwiftShader at 1240×894: software GL on the CPU, so these numbers are not
+a real GPU's frame rate; the check shows only that the counter is right). Over 12 s the counter's
+mean frame time agreed with a separate in-page rAF count within 6–7% (1× 1,667 ms vs 1,579 ms;
+2× 2,997 ms vs 2,792 ms). The difference is because the two sample different windows of very slow
+frames. The switch persists after a reload; turning it off removes the counter and stores '0';
+the preset still reads High; no page errors.

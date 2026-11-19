@@ -3,7 +3,7 @@
   import { fade } from 'svelte/transition';
   import { createInterior, FABRIC_VIEWS } from '../three/scene/interior.js';
   import { THEMES, THEME_NAME, DEFAULT_THEME } from '../three/scene/themes/index.js';
-  import { OPTIONS, PRESETS, loadQuality, saveQuality, presetOf, presetSettings } from '../three/scene/quality.js';
+  import { OPTIONS, PRESETS, loadQuality, saveQuality, presetOf, presetSettings, loadShowFps, saveShowFps } from '../three/scene/quality.js';
 
   let canvas;
   let ready = $state(false);
@@ -15,6 +15,14 @@
   let quality = $state(loadQuality());
   let settingsOpen = $state(false);
   let drawn = $state(null);
+  // The frame-rate counter beside the Graphics button: a switch in the panel, kept in this browser.
+  let showFps = $state(loadShowFps());
+  let frameRate = $state(null);
+  function toggleFps(on) {
+    showFps = on;
+    saveShowFps(on);
+    if (!on) frameRate = null;
+  }
   const preset = $derived(presetOf(quality));
   function applyQuality(next) {
     const reload = next.textures !== quality.textures;
@@ -38,6 +46,7 @@
       onReady: () => (ready = true),
       onShot: (name) => (shot = name),
       onResolution: (r) => (drawn = r),
+      onFrameRate: (r) => showFps && (frameRate = r),
     });
     shot = scene.getShot();
     return () => scene.destroy();
@@ -51,9 +60,14 @@
 
   <header>
     <a class="mark" href="#/">Keringkam</a>
-    <button class="settings-toggle" type="button" aria-expanded={settingsOpen} aria-controls="graphics" onclick={() => (settingsOpen = !settingsOpen)}>
-      Graphics
-    </button>
+    <div class="tools">
+      {#if showFps && frameRate}
+        <span class="fps" aria-hidden="true">{frameRate.fps} fps · {frameRate.ms} ms</span>
+      {/if}
+      <button class="settings-toggle" type="button" aria-expanded={settingsOpen} aria-controls="graphics" onclick={() => (settingsOpen = !settingsOpen)}>
+        Graphics
+      </button>
+    </div>
   </header>
 
   {#if settingsOpen}
@@ -77,10 +91,14 @@
           </select>
         </label>
       {/each}
+      <label>
+        Show FPS
+        <input type="checkbox" checked={showFps} onchange={(e) => toggleFps(e.currentTarget.checked)} />
+      </label>
       {#if drawn}
         <p class="note">Drawing {drawn.width} × {drawn.height} for a {drawn.cssWidth} × {drawn.cssHeight} window.</p>
       {/if}
-      <p class="note">Resolution: the most pixels drawn; a bigger screen is stretched. Ambient occlusion Auto: half while the view moves, full when it stops. Outlines Light: no lines on the view outside, lighter creases. Anti-aliasing auto: off at 2× and above. Texture detail reloads the page.</p>
+      <p class="note">Resolution: the most pixels drawn; a bigger screen is stretched. Ambient occlusion Auto: half while the view moves, full when it stops. Outlines Light: no lines on the view outside, lighter creases. Anti-aliasing auto: off at 2× and above. Texture detail reloads the page. FPS: frames a second, and the time between frames.</p>
     </section>
   {/if}
 
@@ -201,6 +219,20 @@
   .fabrics select {
     max-width: 16em;
   }
+  .tools {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  .fps {
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: rgba(58, 36, 24, 0.55);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    text-shadow: none;
+    white-space: nowrap;
+  }
   .settings-toggle {
     padding: 6px 14px;
     border: 1px solid rgba(246, 234, 210, 0.7);
@@ -257,6 +289,17 @@
   }
   .settings option {
     color: #3a2418;
+  }
+  .settings input[type='checkbox'] {
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    accent-color: #f6ead2;
+    cursor: pointer;
+  }
+  .settings input[type='checkbox']:focus-visible {
+    outline: 2px solid #f6ead2;
+    outline-offset: 2px;
   }
   .settings .note {
     margin: 0;

@@ -126,7 +126,7 @@ export const FABRIC_VIEWS = PLAN.fabrics.map((f) => {
 });
 const SHOT_MOVE_SECONDS = 2.2;
 
-export function createInterior(canvas, { onReady, onShot, onResolution, quality } = {}) {
+export function createInterior(canvas, { onReady, onShot, onResolution, onFrameRate, quality } = {}) {
   // The graphics settings (quality.js): the resolution, AO, shadows, anti-aliasing and texture
   // detail. setQuality changes them while the page runs.
   const Q = normalise(quality);
@@ -677,6 +677,23 @@ export function createInterior(canvas, { onReady, onShot, onResolution, quality 
   }
   const timer = new THREE.Timer();
   let frame = 0;
+  // The frame rate for the settings panel's counter (onFrameRate): frames and the mean time between
+  // them, from the frames' own timestamps, about twice a second (every frame when they are slower).
+  // A hidden tab draws no frames: the count starts again when the page is shown, so that gap is not
+  // counted, while a slow frame, however long, is.
+  const rate = { from: null, frames: 0 };
+  function countFrames(now) {
+    if (!onFrameRate) return;
+    if (rate.from === null) Object.assign(rate, { from: now, frames: 0 });
+    else rate.frames++;
+    const span = now - rate.from;
+    if (span < 500 || !rate.frames) return;
+    const fps = (rate.frames * 1000) / span;
+    onFrameRate({ fps: fps < 10 ? +fps.toFixed(1) : Math.round(fps), ms: +(span / rate.frames).toFixed(1) });
+    Object.assign(rate, { from: now, frames: 0 });
+  }
+  const onVisibility = () => (rate.from = null);
+  document.addEventListener('visibilitychange', onVisibility);
   let readyCalled = false;
   function tick(now) {
     frame = requestAnimationFrame(tick);
@@ -724,6 +741,7 @@ export function createInterior(canvas, { onReady, onShot, onResolution, quality 
     // The ink's hand and the wash stay on the room when the view turns (toon.js VIEW_FIELD).
     camera.updateMatrixWorld();
     paceResolution(now);
+    countFrames(now);
     outline.setView();
     pigmentField.setView(camera);
     perf?.section('mirror');
@@ -824,6 +842,7 @@ export function createInterior(canvas, { onReady, onShot, onResolution, quality 
       cancelAnimationFrame(frame);
       perf?.dispose();
       resizeObserver.disconnect();
+      document.removeEventListener('visibilitychange', onVisibility);
       window.removeEventListener('pointermove', onPointerMove);
       scene.traverse((o) => {
         if (o.geometry) o.geometry.dispose();
