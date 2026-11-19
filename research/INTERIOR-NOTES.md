@@ -1469,3 +1469,89 @@ Two causes, both fixed:
 `drape-check.mjs`: all six pass (529 ms in total). The six fabric views (SwiftShader, before and
 after): the table's corners are covered; elsewhere the changes are the cover's hem as seen from
 the chairs and a slightly rounder top edge on the settee's cloth, no new glitch.
+
+### Pass e1: the near bank as muddy terrain (2026-11-19, branch `exterior-mud-terrain`)
+
+The user's concerns about the view outside: the bank is too flat, and the dirt does not look
+mushy or stepped in. (The other concerns are the next steps: the far bank, the plants, the
+trees. Reflections are left alone, at the user's request.) The user asked for a muddy terrain on
+the bank. Every size, height and count below is a design choice tuned in the window shot against
+R3, not a measurement.
+
+**Shape (nearbank.js `buildNearBank`, NEAR_DETAIL.terrain).** The sweep along our waterline is now
+a fine heightfield where the window looks. Stations are 0.15 m apart near the eye, and the gap
+grows by 0.008 m per metre of distance. Out of view, stations are 1.5–40 m apart. The columns
+inland are 0.2 m apart. The relief is added to the old section (water, lip, berm, track,
+shoulder, level). It adds:
+- hummocks up to 0.34 m, about 3 m across;
+- lumps of 0.1 m;
+- hollows 0.16 m deep;
+- two ruts along the track (0.1 m deep with 0.035 m lips);
+- a worn way from the house to the water (0.07 m deep, 0.6 m wide);
+- a turf lip over the cut bank.
+
+The relief is zero at the waterline and fades out before the level ground, so the flat land
+behind still meets the sweep. The contract allows up to 0.85 m of relief and requires at least
+0.2 m, so the bank cannot be flat.
+
+**Grass and mud (`mudField`).** A signed field decides where there is mud: the wet lip, the berm
+where it has no grass, the track, the cut bank, bare hollows and the worn way. Hummock crests on
+the flat keep their grass. Each grid triangle is cut where the field crosses zero, so the grass
+edge runs smoothly across the grid. The first try followed the grid and showed stair-steps
+outlined in ink. Each cut keeps at least 20% of the edge on either side, so there are no
+slivers. Mud and grass each have one vertex colour, so the ink draws only the edge where they
+meet. Before this, berm, shoulder and level had three greens, which drew seams between them.
+
+**Trodden mud (paint.js `paintTrample`).** One map covers the stretch of mud the window sees: 62
+m along the river by 9.6 m inland, 3962 × 615 px (about 1.6 cm per pixel). It is placed by a
+second UV channel (s along the river, o inland), so it never repeats. It holds:
+- 958 footprints, boots and bare feet, each with a dark wet sole and a pale rim. People walk
+  down the worn way and back, along the track and the wet lip, and across the flat. They mill
+  about at the landing. Old prints are half filled in;
+- wet mud near the water and in the hollows, churned smears, a hull dragged up from the water,
+  and wet glints;
+- water standing in the ruts and in some prints.
+
+The colour map is a multiplier of the mud's colour (shader: `(2 v)^2.2`, so 127.5 changes
+nothing). It sits beside a bump map: red is the height, green marks standing water. Where water
+stands, the shader drops the tiled mud texture. The map's edges are neutral, and the clamped
+edge covers everything outside it. Footprints are texture, not vertex colour, so the ink pass
+draws no seam round them. The bump map shades only through the light: the ink's edge pass uses
+the geometry's normals.
+
+A bug found on the way: canvas textures flip Y on upload by default. The map's rows ran from the
+level grass down, and the prints landed on the grass. Fixed with `flipY = false`.
+
+Other changes:
+- puddles lie in the hollows, and are darker (`#9c9680`; the old colour showed near white);
+- `sampleLine` takes a step function, `checkSweep` takes `minArea` and `minAdvance`, and the
+  SlotWriter has an optional second UV channel (`uv1`).
+
+**Cost.** Counted from the slots in Node, with the same method before and after:
+
+| | before (`polish`) | after |
+| --- | --- | --- |
+| near-bank ground (mud + turf) | 7,632 | 36,924 |
+| outside, total (about) | 85,364 | 114,397 |
+| outside meshes (draw calls) | 7 | 7 |
+
+The outside budget contract was raised from 95,000 to 140,000 triangles, because the user set no
+limit. The river's mirror draws the outside again, so the cost counts twice.
+
+The near bank builds in 209–232 ms in Node. The trodden map paints in 305–309 ms in headless
+Chromium (a CPU canvas; this container's CPU, not the user's device). Its two maps take about 2
+× 9.7 MB of GPU memory with mipmaps (3962 × 615 × 4 bytes × 4/3 each).
+
+**Gate.** Window captures at CLOCK=5 (before: `polish`; SwiftShader, so no GPU timings):
+- **before:** a flat lawn, a flat mud strip and the water;
+- **after:**
+  - the left bank slopes down as mud under its grass, as R3 paints it;
+  - the strip along the water is uneven, wet and dark, with grass on the crests;
+  - the worn way runs down to the water with prints in it;
+  - no ink seams on the prints or between the greens.
+- **Remaining:**
+  - at 16 m and more, single prints read as dark spots rather than footprint shapes;
+  - most of the lower frame is still the flat level lawn (o > 7 m), which this pass keeps flat
+    so it meets the land behind.
+- **Seeds:** with more mud, seeds 1 and 2 have 284 and 287 grass clumps. The clump contract went
+  from 300 to 250.

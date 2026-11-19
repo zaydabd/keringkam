@@ -113,7 +113,7 @@ const EARTH = {
     prints: {
       boot: { length: 0.29, width: 0.105, heel: 0.075 },
       bare: { length: 0.25, width: 0.095 },
-      depth: 0.6, // how far a print darkens towards `soaked`
+      depth: 0.45, // how far a print darkens towards `soaked`
       rim: 0.6, // opacity of the pale rim
       old: 0.45, // old prints, half filled in: this much of a fresh one
       sink: 70, // bump: how far a print is pressed in (of 128)
