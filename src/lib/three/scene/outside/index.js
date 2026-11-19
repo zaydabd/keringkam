@@ -275,7 +275,7 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
     total += n;
   }
   const budget = createContract('outside budget');
-  budget.max('triangles', total, 170000); // was 95,000, then 140,000; the muddy terrain (exterior step 1) added about 23,000, the far bank (step 2) 3,000, the plants (step 3) 28,000 (the user set no limit; the cost is reported per step)
+  budget.max('triangles', total, 240000); // was 95,000, then 140,000, then 170,000; the muddy terrain (exterior step 1) added about 23,000, the far bank (step 2) 3,000, the plants (step 3) 28,000, the trees (step 4) about 72,000 (the user set no limit; the cost is reported per step)
   budget.max('meshes (draw calls)', group.children.length, 10);
   reports.budget = { contract: budget.assert() };
 

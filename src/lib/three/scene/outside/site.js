@@ -9,6 +9,9 @@
 
 import * as THREE from 'three';
 
+// The window shot's eye (interior.js SHOTS.window). Blades and leaf cards are wound to face it.
+export const WINDOW_EYE = [-0.475, 1.5, -4.62];
+
 export const SITE = {
   ground: -1.85, // the house stands on 1.85 m stilts; the room's floor is y = 0
   water: -3.2,
@@ -52,14 +55,19 @@ export const SITE = {
     clump: [[-9.1, -130, 1.05], [-5.2, -132, 1.15], [-1.2, -129, 1.2], [1.9, -133, 1.12], [5.2, -130, 1.05]], // between the bridge and the Assembly building, clear of its arcade (R3)
     big: [[-118, -219, 2.2]],
     bushes: [[-13, 12, 0.9], [-9, 11.5, 1.1], [-6, 12.5, 1.3], [-2.5, 11.5, 1], [1, 12, 1.2], [4.5, 13, 1.1]],
+    // groups: clumps along the row with sky between them (R3); mix: the weight of each variant
+    // (trees.js TREE_VARIANTS). Design choices.
     rows: [
-      { name: 'wood', x0: -135, x1: -30, count: 16, offset: [12, 26], scale: [1, 1.45], detail: 0 },
-      { name: 'wood behind', x0: -135, x1: -28, count: 8, offset: [34, 60], scale: [1.2, 1.6], detail: 0 },
+      { name: 'wood', x0: -135, x1: -30, count: 16, offset: [12, 26], scale: [1, 1.45], detail: 0, groups: 4, mix: { base: 2, tall: 2, broad: 2, round: 1 } },
+      { name: 'wood behind', x0: -135, x1: -28, count: 8, offset: [34, 60], scale: [1.2, 1.6], detail: 0, groups: 3, mix: { base: 1, tall: 2, broad: 1 } },
       { name: 'underwood', x0: -138, x1: -2, count: 20, offset: [7, 13], scale: [2, 3], detail: 0, bush: true },
-      { name: 'low', x0: -28, x1: 0, count: 6, offset: [16, 44], scale: [0.55, 0.8], detail: 0 },
-      { name: 'upstream', x0: -430, x1: -140, count: 9, offset: [10, 40], scale: [1, 1.5], detail: 0 },
-      { name: 'behind', box: [10, 45, -300, -250], count: 7, scale: [0.5, 0.7], detail: 0 }, // left of the Assembly building, outside its brim
+      { name: 'low', x0: -28, x1: 0, count: 6, offset: [16, 44], scale: [0.55, 0.8], detail: 0, mix: { round: 2, broad: 1 } },
+      { name: 'upstream', x0: -430, x1: -140, count: 9, offset: [10, 40], scale: [1, 1.5], detail: 0, groups: 3, mix: { base: 1, tall: 1, broad: 1 } },
+      { name: 'behind', box: [10, 45, -300, -250], count: 7, scale: [0.5, 0.7], detail: 0, mix: { round: 2, tall: 1 } }, // left of the Assembly building, outside its brim
     ],
+    clumpWidth: 0.6, // a clump's width, of its share of the row
+    hue: [0.14, 0.1, 0.2], // each tree's colours are scaled by 1 ± half of these (r, g, b)
+    cards: { near: 2, mid: 1 }, // leaf cards per sub-lobe, by tier
   },
   // Placed for R3's composition as seen from the window shot (eye -0.475, 1.5, -4.62, looking
   // down -z): bearings are degrees right of that view, read off R3.

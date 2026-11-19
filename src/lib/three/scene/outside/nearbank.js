@@ -19,7 +19,7 @@
 
 import * as THREE from 'three';
 import { createContract } from './contract.js';
-import { SITE, sampleLine, mulberry32, rgbTable, vnoise, fbm } from './site.js';
+import { SITE, WINDOW_EYE, sampleLine, mulberry32, rgbTable, vnoise, fbm } from './site.js';
 import { OUTSIDE_THEME } from '../themes/index.js';
 import { checkSweep } from './banks.js';
 import { growTree, emitTree, TREE_PAINT } from './trees.js';
@@ -37,9 +37,9 @@ const norm = (a) => {
 };
 const UP = [0, 1, 0];
 
-// The window shot's eye (interior.js SHOTS.window; site.js). Blades and leaves are wound to face it,
-// so their two-sided material shades their front, and detail is only placed where it can be seen.
-const EYE = [-0.475, 1.5, -4.62];
+// The window shot's eye (site.js). Blades and leaves are wound to face it, so their two-sided
+// material shades their front, and detail is only placed where it can be seen.
+const EYE = WINDOW_EYE;
 
 // Paint, as vertex colours (themes/outside.js).
 export const NEAR_PAINT = rgbTable(OUTSIDE_THEME.nearBank);
