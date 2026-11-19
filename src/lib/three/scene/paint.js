@@ -1036,3 +1036,142 @@ export function paintTrample(seed = 41, { colours: C, pattern: P }, trample) {
   bump.channel = 1; // the near bank's second map channel: (s, o); the shader reads `map` there too
   return { map, bump, size: [W, H] };
 }
+
+/**
+ * The leaf atlas (outside/leaves.js LEAF_ATLAS): 2 x 2 cells of `pattern.cell` px, one cut-out in
+ * each, its base at the bottom middle: a sprig of small leaves, a sprig of larger drooping ones,
+ * one broad leaf, a fern frond with lobed leaflets. Light greys with a dark edge line (the leaves
+ * get no ink from the ink pass); the plant's vertex colour sets the green. Transparent around.
+ */
+export function paintLeaves(seed = 43, { colours: C, pattern: P }) {
+  const r = rng(seed);
+  const S = P.cell;
+  const [c, g] = canvas(S * 2, S * 2);
+  g.clearRect(0, 0, S * 2, S * 2);
+  g.lineCap = g.lineJoin = 'round';
+  const tone = () => (r() < 0.5 ? C.fill : C.fillDark);
+  // A leaf: base at (x, y), pointing along angle a (0 = up the cell), length L, width W.
+  const outline = (L, W) => {
+    g.beginPath();
+    g.moveTo(0, 0);
+    g.bezierCurveTo(W * 0.62, -L * 0.15, W * 0.55, -L * 0.7, 0, -L);
+    g.bezierCurveTo(-W * 0.55, -L * 0.7, -W * 0.62, -L * 0.15, 0, 0);
+  };
+  const leaf = (x, y, a, L, W, veins = 3) => {
+    g.save();
+    g.translate(x, y);
+    g.rotate(a);
+    outline(L, W);
+    g.fillStyle = tone();
+    g.fill();
+    g.save();
+    g.clip();
+    g.fillStyle = C.shade; // one half of the blade turned from the light
+    g.globalAlpha = P.shade;
+    g.fillRect(0, -L, W, L);
+    g.globalAlpha = 1;
+    g.strokeStyle = C.vein;
+    g.lineWidth = Math.max(1.2, L * P.vein);
+    g.beginPath();
+    g.moveTo(0, 0);
+    g.lineTo(0, -L * 0.9);
+    for (let k = 1; k <= veins; k++) {
+      const y0 = (-L * k) / (veins + 1.2);
+      for (const s of [-1, 1]) {
+        g.moveTo(0, y0);
+        g.lineTo(s * W * 0.34, y0 - L * 0.12);
+      }
+    }
+    g.lineWidth = Math.max(0.8, L * P.vein * 0.5);
+    g.stroke();
+    g.restore(); // the veins stay inside the blade
+    outline(L, W);
+    g.strokeStyle = C.edge;
+    g.lineWidth = P.edge;
+    g.stroke();
+    g.restore();
+  };
+  const stem = (pts, w0, w1) => {
+    g.strokeStyle = C.stem;
+    for (let i = 0; i < pts.length - 1; i++) {
+      g.lineWidth = w0 + ((w1 - w0) * i) / (pts.length - 1);
+      g.beginPath();
+      g.moveTo(...pts[i]);
+      g.lineTo(...pts[i + 1]);
+      g.stroke();
+    }
+  };
+  const inCell = (index, fn) => {
+    g.save();
+    g.translate((index % 2) * S, Math.floor(index / 2) * S);
+    fn();
+    g.restore();
+  };
+  // A sprig: a bent stem with leaves on alternate sides and one at its tip.
+  const sprig = ({ top, count, length, width, spread, droop }) => {
+    const bend = (r() - 0.5) * S * 0.12;
+    const at = (t) => {
+      const u = 1 - t; // quadratic: base, control, tip
+      return [u * u * S * 0.5 + 2 * u * t * (S * 0.5 - bend * 0.6) + t * t * (S * 0.5 + bend), u * u * S * 0.97 + 2 * u * t * S * (0.97 + top) / 2 + t * t * S * top];
+    };
+    const pts = Array.from({ length: 13 }, (_, i) => at(i / 12));
+    stem(pts, S * 0.014, S * 0.005);
+    for (let k = 0; k < count; k++) {
+      const t = 0.18 + (0.8 * k) / count;
+      const [x, y] = at(t), [x2, y2] = at(Math.min(1, t + 0.02));
+      const dir = Math.atan2(x2 - x, -(y2 - y)); // the stem's own angle from up
+      const side = k % 2 ? 1 : -1;
+      const L = S * vary(r, length) * (1 - 0.25 * t);
+      leaf(x, y, dir + side * (vary(r, spread) + droop * (1 - t)), L, L * vary(r, width));
+    }
+    const [x, y] = at(1), [x0, y0] = at(0.96);
+    const L = S * length[0] * 1.05;
+    const tipL = Math.min(L, y - S * 0.02);
+    leaf(x, y, Math.atan2(x - x0, -(y - y0)), tipL, tipL * width[0]);
+  };
+  inCell(0, () => sprig(P.sprig));
+  inCell(1, () => sprig(P.sprigBig));
+  inCell(2, () => {
+    stem([[S * 0.5, S * 0.98], [S * 0.5, S * 0.9]], S * 0.016, S * 0.012);
+    leaf(S * 0.5, S * 0.9, (r() - 0.5) * 0.08, S * 0.86, S * P.broad.width, P.broad.veins);
+  });
+  inCell(3, () => {
+    // A frond: a spine with paired leaflets (pinnae), longest about a third of the way up, each a
+    // row of rounded lobes shrinking to its tip, narrower than the gap to the next pair.
+    const F = P.frond;
+    const gap = (S * 0.9) / F.pairs;
+    stem([[S * 0.5, S * 0.985], [S * 0.5, S * 0.03]], S * 0.012, S * 0.004);
+    for (let k = 0; k < F.pairs; k++) {
+      const u = (k + 0.5) / F.pairs, y = S * (0.95 - 0.9 * u);
+      const len = S * F.reach * Math.max(0.08, Math.sin(Math.PI * (0.18 + 0.8 * u)));
+      const lobes = Math.max(2, Math.round((F.lobes * len) / (S * F.reach)));
+      for (const s of [-1, 1]) {
+        g.save();
+        g.translate(S * 0.5, y);
+        g.rotate(s * (Math.PI / 2 - F.angle - 0.25 * u));
+        const step = len / (lobes + 0.3);
+        for (let j = 0; j < lobes; j++) {
+          const t = (j + 0.5) / lobes;
+          const across = gap * F.width * (1 - 0.55 * t), along = step * 0.62;
+          g.beginPath();
+          g.ellipse(0, -step * (j + 0.6), across, along, 0, 0, Math.PI * 2);
+          g.fillStyle = tone();
+          g.fill();
+          g.strokeStyle = C.edge;
+          g.lineWidth = P.edge * 0.6;
+          g.stroke();
+        }
+        g.strokeStyle = C.vein;
+        g.lineWidth = 1.2;
+        g.beginPath();
+        g.moveTo(0, 0);
+        g.lineTo(0, -len * 0.92);
+        g.stroke();
+        g.restore();
+      }
+    }
+  });
+  const t = texture(c, [1, 1], false);
+  t.anisotropy = 4;
+  return t;
+}

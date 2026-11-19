@@ -181,9 +181,10 @@ const TINT = {
 /**
  * Writes a grown plant into slot `slot`, standing at `at`, scaled and turned about its trunk.
  * `tint` 'tree-level' or 'tree-kind' paints the diagnostic colours the growth contract asks for.
+ * `foliage` false writes the wood only (the near bank's shrubs put leaf cards on the tips instead).
  * Returns the triangles written.
  */
-export function emitTree(w, slot, tree, { at, scale = 1, yaw = 0, paint = TREE_PAINT, detail = 1, tint } = {}) {
+export function emitTree(w, slot, tree, { at, scale = 1, yaw = 0, paint = TREE_PAINT, detail = 1, tint, foliage = true } = {}) {
   const c = Math.cos(yaw), s = Math.sin(yaw);
   const place = (v) => [at[0] + (v.x * c + v.z * s) * scale, at[1] + v.y * scale, at[2] + (-v.x * s + v.z * c) * scale];
   const turn = (v) => [v.x * c + v.z * s, v.y, -v.x * s + v.z * c];
@@ -213,6 +214,7 @@ export function emitTree(w, slot, tree, { at, scale = 1, yaw = 0, paint = TREE_P
       prev = cur;
     }
   }
+  if (!foliage) return { wood, leaf };
   // Lobes: three flat greens by height in the crown (R3: light on top, dark underneath).
   const P = tree.species.lobe;
   const ys = tree.lobes.map((l) => l.centre.y);

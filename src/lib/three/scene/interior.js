@@ -458,7 +458,7 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
   camera.layers.enable(1);
 
   const { color: ink, lineWidth, ...inkLook } = THEME.ink;
-  const outline = createOutline(renderer, scene, camera, { ink, lineWidth, mask: { layer: 3, map: textures.lattice } });
+  const outline = createOutline(renderer, scene, camera, { ink, lineWidth, mask: [{ layer: 3, map: textures.lattice }, ...landscape.inkMasks] });
   setUniforms(outline.material.uniforms, inkLook);
   // The theme's ink, which the outlines setting (quality.js OUTLINES) scales.
   const inkBase = Object.fromEntries(Object.keys(OUTLINES.full).map((k) => [k, outline.material.uniforms[k].value]));

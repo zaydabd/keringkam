@@ -22,6 +22,8 @@ import { createContract } from './contract.js';
 import { SITE, sampleLine, mulberry32, rgbTable, vnoise, fbm } from './site.js';
 import { OUTSIDE_THEME } from '../themes/index.js';
 import { checkSweep } from './banks.js';
+import { growTree, emitTree, TREE_PAINT } from './trees.js';
+import { LEAF_ATLAS, leafCard, leafStrip } from './leaves.js';
 
 const lerp = (a, b, t) => a + (b - a) * t;
 const lerp3 = (a, b, t) => [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)];
@@ -77,10 +79,11 @@ export const NEAR_DETAIL = {
   far: 25, // beyond this (m) shrubs and grass are drawn simpler
   // Plants and debris per square metre of each zone (offset range inland, metres).
   place: [
-    { kind: 'edge', zones: ['berm'], range: [0.2, 0.95], density: 3 },
+    { kind: 'edge', zones: ['berm'], range: [0.2, 0.95], density: 5 }, // over the wet lip, leaning out to the water
+    { kind: 'verge', zones: ['berm', 'shoulder', 'level'], range: [0.2, 6], density: 5, near: 0.3 }, // grass within about 0.3 m of the mud, leaning over it
     { kind: 'grass', zones: ['berm'], range: [0.9, 3.7], density: 1.4 },
     { kind: 'shrub', zones: ['berm'], range: [0.5, 2.8], density: 0.75, xMax: -6 }, // the bank's bushes (R3: left only)
-    { kind: 'weed', zones: ['flat', 'track', 'lip'], range: [0.15, 4.6], density: 0.14 },
+    { kind: 'weed', zones: ['flat', 'track', 'lip', 'cut'], range: [0.15, 5.6], density: 0.9, margin: 0.35 }, // broad-leaved rosettes on the mud's margin
     { kind: 'clod', zones: ['flat', 'track', 'lip'], range: [0.05, 4.6], density: 0.8 },
     { kind: 'stone', zones: ['flat', 'track', 'lip'], range: [0.1, 4.4], density: 0.3 },
     { kind: 'rim', zones: ['shoulder'], range: [4.2, 5.7], density: 1.3 },
@@ -110,119 +113,187 @@ const ICO = [0, 1].map((d) => {
 });
 
 /**
- * A shrub, as R3 paints the bank's bushes: two to four lumpy lobes in mid green (the toon bands
- * light their tops and shade their undersides), with leaf cards over them that break the outline;
- * light leaves on top, dark ones low down.
+ * The bank's shrubs (R3: dense leafy bushes, light on top and dark underneath): stems grown like
+ * the far bank's trees (trees.js growTree), wood only, from a stub of a trunk. In species units of
+ * 5 cm: about 1 m tall and 1.4 m across at scale 1. Design choice, not measured.
  */
-function shrub(w, at, { radius, height, rand, P, simple = false }) {
-  const cy = at[1] + height * 0.42;
-  const phase = [rand() * 6, rand() * 6, rand() * 6];
-  const lump = (d) => 1 + 0.16 * Math.sin(d[0] * 4.1 + phase[0]) * Math.sin(d[1] * 3.7 + phase[1]) * Math.sin(d[2] * 4.4 + phase[2]) * 2;
-  const shell = (d, s) => {
-    const l = lump(d) * s;
-    return [at[0] + d[0] * radius * l, Math.max(at[1] - 0.04, cy + d[1] * height * 0.58 * l), at[2] + d[2] * radius * l];
-  };
-  let n = 0;
-  const lobes = 2 + Math.floor(rand() * 3);
-  for (let j = 0; j < lobes; j++) {
-    const a = rand() * Math.PI * 2, off = j === 0 ? 0 : radius * (0.35 + rand() * 0.3);
-    const r = radius * (j === 0 ? 0.8 : 0.5 + rand() * 0.2), h = height * (j === 0 ? 0.48 : 0.3 + rand() * 0.12);
-    const c = [at[0] + Math.cos(a) * off, at[1] + h * (j === 0 ? 0.9 : 0.8), at[2] + Math.sin(a) * off];
-    const core = ICO[simple ? 0 : 1];
-    for (let i = 0; i < core.length; i += 3) {
-      const ds = [core[i], core[i + 1], core[i + 2]];
-      const p = ds.map((d) => {
-        const l = lump(d);
-        return [c[0] + d[0] * r * l, Math.max(at[1] - 0.04, c[1] + d[1] * h * l), c[2] + d[2] * r * l];
-      });
-      w.smoothTri('blade', p, ds.map((d) => norm(add(d, UP, 0.3))), null, P.leafCore);
-      n++;
+export const NEAR_SHRUB = {
+  name: 'near shrub',
+  unit: 0.05,
+  taper: 0.65,
+  force: 0.05,
+  levels: [
+    { length: 3, radius: 0.55, sections: 2, radial: 4, children: 5, childStart: 0.15, angle: 0, gnarl: 0.08, twist: 0 },
+    { length: 11, radiusFactor: 0.7, sections: 3, radial: 3, children: 3, childStart: 0.35, angle: 48, gnarl: 0.14, twist: 0.05 },
+    { length: 5.5, radiusFactor: 0.65, sections: 2, radial: 3, children: 0, childStart: 0, angle: 50, gnarl: 0.12, twist: 0 },
+  ],
+  lobe: { radius: 2.6, variance: 0.3, squash: 0.8, lumps: 0.12, core: 2.4 },
+};
+
+// What the plants are made of (design choices, tuned in the window shot).
+export const NEAR_PLANTS = {
+  shrub: {
+    cards: [5, 3], // sprig cards per stem tip [near, simple]
+    card: [0.2, 0.12], // card length (m) at scale 1: from, + up to
+    core: 0.55, // the dark core's radius, of the crown's
+    hue: [0.16, 0.1, 0.16], // each shrub's colour is scaled by 1 ± half of these (r, g, b)
+  },
+  tussock: { segments: 3, arch: [0.15, 0.5], heads: 0.12 }, // arch: how far a blade's tip bends down, of its height
+  rosette: { leaves: [5, 4], length: [0.07, 0.1], rise: [0.25, 0.35] }, // count from, + up to; m; radians up from the ground
+  fern: { fronds: 12, segments: 9, roll: 0.45 }, // roll: each frond's leaflets turn towards the eye by up to this (radians)
+};
+
+const tinted = (c, k) => [c[0] * k[0], c[1] * k[1], c[2] * k[2]];
+const hueOf = (rand, h) => h.map((v) => 1 + (rand() - 0.5) * v);
+
+/**
+ * A shrub: growTree's stems (blade slot, the trees' bark colour), a dark lumpy core so the sky does
+ * not show through, and sprig cards from the leaf atlas round every stem tip (leaf slot): light
+ * on top, mid round the sides, dark low down, all in the shrub's own hue. `radius` is its half
+ * width (m). Returns the triangles written (blade, leaf).
+ */
+function shrub(w, at, { radius, rand, P, simple = false }) {
+  const Q = NEAR_PLANTS.shrub;
+  const tree = growTree(Math.floor(rand() * 1e9), NEAR_SHRUB, simple ? 'far' : 'near');
+  const half = Math.max(0.2, (tree.bounds.max.x - tree.bounds.min.x + tree.bounds.max.z - tree.bounds.min.z) / 4);
+  const scale = radius / half, yaw = rand() * Math.PI * 2;
+  const c = Math.cos(yaw), s = Math.sin(yaw);
+  const place = (v) => [at[0] + (v.x * c + v.z * s) * scale, at[1] - 0.03 + v.y * scale, at[2] + (-v.x * s + v.z * c) * scale];
+  const hue = hueOf(rand, Q.hue);
+  let blade = emitTree(w, 'blade', tree, { at: [at[0], at[1] - 0.03, at[2]], scale, yaw, paint: TREE_PAINT, foliage: false }).wood;
+  const crown = place(tree.centre), height = tree.bounds.max.y * scale;
+  // The core: a squashed lumpy ball in the dark leaf colour, sunk into the ground.
+  const R = radius * Q.core, phase = [rand() * 6, rand() * 6, rand() * 6];
+  const lumpOf = (d) => 1 + 0.2 * Math.sin(d[0] * 4.1 + phase[0]) * Math.sin(d[1] * 3.7 + phase[1]) * Math.sin(d[2] * 4.4 + phase[2]) * 2;
+  const core = ICO[simple ? 0 : 1];
+  for (let i = 0; i < core.length; i += 3) {
+    const ds = [core[i], core[i + 1], core[i + 2]];
+    const p = ds.map((d) => {
+      const l = lumpOf(d);
+      return [crown[0] + d[0] * R * l, Math.max(at[1] - 0.04, crown[1] + d[1] * R * 0.8 * l), crown[2] + d[2] * R * l];
+    });
+    w.smoothTri('blade', p, ds.map((d) => norm(add(d, UP, 0.4))), null, tinted(P.leafDark, hue));
+    blade++;
+  }
+  // Sprig cards round each tip, pointing out of the crown and hanging a little.
+  let leaf = 0;
+  const lobes = tree.lobes.slice(0, -1); // the last is the crown's centre
+  const cards = Q.cards[simple ? 1 : 0];
+  for (const l of lobes) {
+    const tip = place(l.centre);
+    const out = norm(sub(tip, crown));
+    for (let k = 0; k < cards; k++) {
+      const d = norm([out[0] + (rand() - 0.5) * 1.3, out[1] + (rand() - 0.5) * 1.1 - 0.2, out[2] + (rand() - 0.5) * 1.3]);
+      const length = (Q.card[0] + rand() * Q.card[1]) * Math.min(1.4, scale);
+      const base = add(tip, d, -length * (0.25 + rand() * 0.3));
+      const across = norm(cross(d, norm([rand() - 0.5, rand() - 0.5, rand() - 0.5])));
+      const y = (base[1] + length * 0.5 * d[1] - at[1]) / Math.max(0.2, height); // 0 at the ground, 1 at the top
+      const k2 = y + (rand() - 0.5) * 0.3 + 0.25 * out[1];
+      const colour = tinted(k2 > 0.72 ? P.leafLight : k2 > 0.4 ? P.leafMid : P.leafDark, hue);
+      const n = norm(add(add(out, d, 0.5), UP, 0.8)); // rounded by the crown, lit from above
+      leaf += leafCard(w, base, d, across, { length, width: length, cell: rand() < 0.4 ? LEAF_ATLAS.cell.sprigBig : LEAF_ATLAS.cell.sprig, normal: n, colour, eye: EYE });
     }
   }
-  const leaves = Math.round(Math.min(220, Math.max(60, 300 * radius * radius)) * (simple ? 0.3 : 1));
-  for (let j = 0; j < leaves; j++) {
-    let d;
-    do d = norm([rand() * 2 - 1, rand() * 2 - 1, rand() * 2 - 1]);
-    while (d[1] < -0.1);
-    const p = shell(d, 0.9 + rand() * 0.2);
-    const L = (0.08 + rand() * 0.06) * Math.min(1.3, 0.6 + radius);
-    const W = L * (0.38 + rand() * 0.15);
-    const axis = norm([d[0] * 0.7 + (rand() - 0.5) * 0.9, -0.45 + (rand() - 0.5) * 0.5, d[2] * 0.7 + (rand() - 0.5) * 0.9]);
-    const side = norm(cross(axis, d));
-    const base = add(p, axis, -L * 0.2), tip = add(p, axis, L * 0.8);
-    const s1 = add(add(p, axis, L * 0.25), side, W / 2), s2 = add(add(p, axis, L * 0.25), side, -W / 2);
-    const k = d[1] + (rand() - 0.5) * 0.35;
-    const colour = k > 0.45 ? P.leafLight : k > 0.05 ? P.leafMid : P.leafDark;
-    const sn = norm(add(d, UP, 1.0));
-    facing(w, 'blade', base, s1, tip, colour, sn);
-    facing(w, 'blade', base, tip, s2, colour, sn);
-    n += 2;
-  }
-  return n;
+  return { blade, leaf };
 }
 
-/** A clump of curved grass blades from one root; `out` leans them (over the water at the edge). */
-function grassClump(w, at, { blades, height, spread = 0.08, lean = 0.35, out = null, rand, P, simple = false }) {
+/**
+ * A clump of grass from one root: blades that rise and arch over (each a curve from its root, up
+ * and out, its tip bent down by `arch` of its height), leaning out along `out` when given (over the
+ * mud or the water). `heads` is the share of blades that are seed stalks: thin, straighter, taller,
+ * with a seed head at the top.
+ */
+function grassClump(w, at, { blades, height, spread = 0.08, lean = 0.35, arch = NEAR_PLANTS.tussock.arch, out = null, heads = 0, rand, P, simple = false }) {
   const main = P.blade[Math.floor(rand() * P.blade.length)];
+  const segs = simple ? 1 : NEAR_PLANTS.tussock.segments;
   let n = 0;
   for (let b = 0; b < blades; b++) {
     const a = rand() * Math.PI * 2;
     let dir = [Math.cos(a), 0, Math.sin(a)];
     if (out) dir = norm(add(dir, out, 1.4));
-    const tilt = lean * (0.3 + 0.9 * rand());
-    const h = height * (0.5 + 0.65 * rand());
-    const wd = Math.min(0.026, Math.max(0.01, h * 0.055));
+    const stalk = !simple && rand() < heads;
+    const tilt = lean * (0.3 + 0.9 * rand()) * (stalk ? 0.4 : 1);
+    const h = height * (0.5 + 0.65 * rand()) * (stalk ? 1.35 : 1);
+    const bend = stalk ? 0.06 : arch[0] + rand() * arch[1];
+    const wd = Math.min(0.026, Math.max(0.01, h * 0.055)) * (stalk ? 0.45 : 1);
     const root = add(at, [Math.cos(a), 0, Math.sin(a)], spread * Math.sqrt(rand()));
     root[1] -= 0.02;
-    const pt = (t) => add(add(root, dir, Math.sin(tilt) * h * Math.pow(t, 1.5)), UP, h * t * (1 - 0.3 * tilt * t));
+    // A quadratic curve: root, a control point straight up, the tip out and bent down.
+    const ctrl = add(add(root, UP, h), dir, h * Math.sin(tilt) * 0.35);
+    const tip = add(add(root, UP, h * (1 - 0.9 * bend)), dir, h * (Math.sin(tilt) + 0.9 * bend));
+    const pt = (t) => [0, 1, 2].map((i) => (1 - t) * (1 - t) * root[i] + 2 * (1 - t) * t * ctrl[i] + t * t * tip[i]);
     const side = norm(cross(dir, UP).map((v, i) => v + (i === 1 ? 0 : (rand() - 0.5) * 0.6)));
-    const colour = rand() < 0.12 ? P.straw : rand() < 0.3 ? P.blade[Math.floor(rand() * P.blade.length)] : main;
+    const colour = stalk ? P.straw : rand() < 0.1 ? P.straw : rand() < 0.3 ? P.blade[Math.floor(rand() * P.blade.length)] : main;
     const sn = norm(add(UP, dir, 0.3));
-    if (simple) {
-      facing(w, 'blade', add(root, side, -wd / 2), add(root, side, wd / 2), pt(1), colour, sn);
-      n++;
-      continue;
+    let p0 = pt(0), w0 = wd;
+    for (let k = 1; k <= segs; k++) {
+      const t = k / segs, p1 = pt(t), w1 = wd * (1 - t) * (stalk ? 1 : 0.9) + (stalk ? wd * 0.6 * t : 0);
+      if (w1 < 1e-4) facing(w, 'blade', add(p0, side, -w0 / 2), add(p0, side, w0 / 2), p1, colour, sn), n++;
+      else facing(w, 'blade', add(p0, side, -w0 / 2), add(p0, side, w0 / 2), add(p1, side, w1 / 2), colour, sn), facing(w, 'blade', add(p0, side, -w0 / 2), add(p1, side, w1 / 2), add(p1, side, -w1 / 2), colour, sn), (n += 2);
+      p0 = p1;
+      w0 = w1;
     }
-    const m = pt(0.55), tip = pt(1);
-    const a0 = add(root, side, -wd / 2), a1 = add(root, side, wd / 2), b0 = add(m, side, -wd * 0.32), b1 = add(m, side, wd * 0.32);
-    facing(w, 'blade', a0, a1, b1, colour, sn);
-    facing(w, 'blade', a0, b1, b0, colour, sn);
-    facing(w, 'blade', b0, b1, tip, colour, sn);
-    n += 3;
+    if (stalk) {
+      // The seed head: a narrow spindle along the stalk's end, facing the eye.
+      const along = norm(sub(tip, pt(0.85)));
+      const L = 0.04 + rand() * 0.05, half = 0.008 + rand() * 0.006;
+      const top = add(tip, along, L), mid = add(tip, along, L * 0.4);
+      facing(w, 'blade', tip, add(mid, side, half), top, P.seedHead, sn);
+      facing(w, 'blade', tip, top, add(mid, side, -half), P.seedHead, sn);
+      n += 2;
+    }
   }
   return n;
 }
 
-/** A fern: arching fronds, each a stem with paired leaflets shrinking to its tip. */
-function fern(w, at, { reach, fronds = 8, rand, P }) {
+/** A rosette of broad leaves lying low round one point, on the mud's margin (leaf cards). */
+function rosette(w, at, { rand, P }) {
+  const Q = NEAR_PLANTS.rosette;
+  const leaves = Q.leaves[0] + Math.floor(rand() * Q.leaves[1]);
+  const hue = hueOf(rand, NEAR_PLANTS.shrub.hue);
   let n = 0;
-  for (let j = 0; j < fronds; j++) {
-    const a = ((j + rand() * 0.7) / fronds) * Math.PI * 2;
+  for (let j = 0; j < leaves; j++) {
+    const a = ((j + rand() * 0.6) / leaves) * Math.PI * 2;
+    const rise = Q.rise[0] + rand() * Q.rise[1];
+    const d = [Math.cos(a) * Math.cos(rise), Math.sin(rise), Math.sin(a) * Math.cos(rise)];
+    const side = [-Math.sin(a), 0, Math.cos(a)];
+    const length = Q.length[0] + rand() * Q.length[1];
+    const normal = norm(cross(side, d));
+    n += leafCard(w, add(at, UP, 0.01), d, side, { length, width: length * 0.75, cell: LEAF_ATLAS.cell.broad, normal: normal[1] < 0 ? normal.map((v) => -v) : normal, colour: tinted(rand() < 0.5 ? P.weed : P.leafMid, hue), eye: EYE });
+  }
+  return n;
+}
+
+/**
+ * A fern: arching fronds, each a bent strip of the leaf atlas's frond (paired leaflets of rounded
+ * lobes, longest a third of the way up), its leaflets turned a little towards the eye.
+ */
+function fern(w, at, { reach, rand, P }) {
+  const Q = NEAR_PLANTS.fern;
+  const hue = hueOf(rand, NEAR_PLANTS.shrub.hue);
+  let n = 0;
+  for (let j = 0; j < Q.fronds; j++) {
+    const a = ((j + rand() * 0.7) / Q.fronds) * Math.PI * 2;
     const L = reach * (0.7 + rand() * 0.45);
     const fwd = [Math.cos(a), 0, Math.sin(a)];
-    const side = [-fwd[2], 0, fwd[0]];
+    const flat = [-fwd[2], 0, fwd[0]];
     const rise = 0.5 + rand() * 0.25;
-    const spine = (t) => add(add(at, fwd, L * t), UP, L * (rise * Math.sin(Math.PI * Math.min(1, t * 0.85)) * (1 - 0.35 * t)));
-    const colour = rise > 0.62 ? P.fernLight : P.fern;
-    const segs = 12;
-    for (let k = 0; k < segs; k++) {
-      const p0 = spine(k / segs), p1 = spine((k + 1) / segs);
-      facing(w, 'blade', add(p0, side, -0.008), add(p0, side, 0.008), p1, colour, UP);
-      n++;
-      if (k === 0) continue;
-      const t = k / segs;
-      const lp = L * 0.17 * Math.sin(Math.PI * Math.min(1, 0.12 + t * 0.9));
-      const along = norm(sub(p1, p0));
-      for (const s of [-1, 1]) {
-        const d = norm([side[0] * s + along[0] * 0.35, along[1] * 0.35 - 0.12, side[2] * s + along[2] * 0.35]);
-        const tip = add(p0, d, lp);
-        const wv = add(along, UP, 0.2);
-        const m1 = add(add(p0, d, lp * 0.35), wv, lp * 0.2), m2 = add(add(p0, d, lp * 0.35), wv, -lp * 0.2);
-        facing(w, 'blade', p0, m1, tip, colour, norm(add(UP, d, 0.2)));
-        facing(w, 'blade', p0, tip, m2, colour, norm(add(UP, d, 0.2)));
-        n += 2;
-      }
+    const at0 = add(at, fwd, 0.04);
+    const spineAt = (t) => add(add(at0, fwd, L * t), UP, L * (rise * Math.sin(Math.PI * Math.min(1, t * 0.85)) * (1 - 0.35 * t)));
+    const spine = [], sides = [], half = [], normals = [];
+    const toEye = norm(sub(EYE, at));
+    for (let k = 0; k <= Q.segments; k++) {
+      const t = k / Q.segments, p = spineAt(t);
+      const along = norm(sub(spineAt(Math.min(1, t + 0.02)), spineAt(Math.max(0, t - 0.02))));
+      let up = norm(cross(flat, along)); // the frond's face
+      if (up[1] < 0) up = up.map((v) => -v);
+      const side = norm(add(flat, up, Math.tan(-Q.roll * dot(toEye, flat)))); // turns the face (about the spine) towards the eye
+      spine.push(p);
+      sides.push(side);
+      half.push(L * 0.5);
+      normals.push(norm(add(up, UP, 0.6)));
     }
+    n += leafStrip(w, spine, sides, half, { cell: LEAF_ATLAS.cell.frond, normals, colour: tinted(rise > 0.62 ? P.fernLight : P.fern, hue), eye: EYE });
   }
   return n;
 }
@@ -426,8 +497,8 @@ export function buildNearBank(w, { seed = 0 } = {}) {
   const map = { s: [viewed[0].s - 1, viewed[viewed.length - 1].s + 1], o: [-0.6, N.level] };
   const uv1Of = (s, o) => [(s - map.s[0]) / (map.s[1] - map.s[0]), (o - map.o[0]) / (map.o[1] - map.o[0])];
   const uvOf = (p, slot) => [p[0] / D.tile[slot], p[2] / D.tile[slot]];
-  const stats = { stations: stations.length, inView: viewed.length, columns: columns.length, quads: 0, seenQuads: 0, land: 0, shrubs: 0, clumps: 0, ferns: 0, clods: 0, stones: 0, sticks: 0, puddles: 0, prints: 0, zones: {}, triangles: {} };
-  const from = { mud: w.slot('mud').triangles, turf: w.slot('turf').triangles, paint: w.slot('paint').triangles, blade: w.slot('blade').triangles };
+  const stats = { stations: stations.length, inView: viewed.length, columns: columns.length, quads: 0, seenQuads: 0, land: 0, shrubs: 0, clumps: 0, weeds: 0, ferns: 0, clods: 0, stones: 0, sticks: 0, puddles: 0, prints: 0, zones: {}, triangles: {} };
+  const from = { mud: w.slot('mud').triangles, turf: w.slot('turf').triangles, paint: w.slot('paint').triangles, blade: w.slot('blade').triangles, leaf: w.slot('leaf').triangles };
   // Each grid triangle is cut where the mud field crosses zero, so the grass's edge runs smoothly
   // across the grid instead of along its steps. A crossing keeps 20% of the edge on either side
   // (no slivers), and is worked out from the edge's two ends in a fixed order, so the two
@@ -527,24 +598,40 @@ export function buildNearBank(w, { seed = 0 } = {}) {
   };
   const toWater = (i) => [-stations[i].nx, 0, -stations[i].nz];
   let lowest = Infinity;
+  /** The way to the mud from (s, o) on the grass: up the mud field (> 0: mud), along the ground. */
+  const toMud = (i, s, o) => {
+    const f = (ds, dO) => {
+      const q = stationAt(s + ds), x = q.x + q.nx * (o + dO), z = q.z + q.nz * (o + dO), E = edgesAt(s + ds);
+      return mudField(s + ds, x, o + dO, relief(s + ds, x, z, o + dO, E), E);
+    };
+    const gs = f(0.15, 0) - f(-0.15, 0), go = f(0, 0.15) - f(0, -0.15), st = stations[i];
+    const d = [gs * st.tx + go * st.nx, 0, gs * st.tz + go * st.nz];
+    return Math.hypot(d[0], d[2]) > 1e-6 ? norm(d) : toWater(i);
+  };
+  const T2 = NEAR_PLANTS.tussock;
   const kinds = {
-    edge: (p, i) => (stats.clumps++, grassClump(w, p, { blades: 9 + Math.floor(rand() * 6), height: 0.3 + rand() * 0.35, lean: 0.55, out: toWater(i), rand, P })),
+    edge: (p, i) => (stats.clumps++, grassClump(w, p, { blades: 12 + Math.floor(rand() * 8), height: 0.32 + rand() * 0.38, lean: 0.6, arch: [0.3, 0.45], out: toWater(i), heads: T2.heads, rand, P })),
+    verge: (p, i, s, o) => {
+      stats.clumps++;
+      const far = EYE[2] - p[2] > D.far;
+      return grassClump(w, p, { blades: far ? 8 : 11 + Math.floor(rand() * 7), height: 0.24 + rand() * 0.3, lean: 0.7, arch: [0.3, 0.4], out: toMud(i, s, o), heads: T2.heads * 0.7, rand, P, simple: far });
+    },
     grass: (p) => {
       stats.clumps++;
       const far = EYE[2] - p[2] > D.far;
-      return grassClump(w, p, { blades: far ? 7 : 10 + Math.floor(rand() * 6), height: 0.16 + rand() * 0.22, rand, P, simple: far });
+      return grassClump(w, p, { blades: far ? 7 : 11 + Math.floor(rand() * 7), height: 0.18 + rand() * 0.26, heads: T2.heads, rand, P, simple: far });
     },
-    rim: (p, i) => (stats.clumps++, grassClump(w, p, { blades: 7 + Math.floor(rand() * 5), height: 0.14 + rand() * 0.2, lean: 0.45, out: toWater(i), rand, P })),
-    weed: (p) => (stats.clumps++, grassClump(w, p, { blades: 4 + Math.floor(rand() * 4), height: 0.1 + rand() * 0.15, rand, P })),
+    rim: (p, i) => (stats.clumps++, grassClump(w, p, { blades: 9 + Math.floor(rand() * 6), height: 0.16 + rand() * 0.24, lean: 0.5, arch: [0.25, 0.4], out: toWater(i), rand, P })),
+    weed: (p) => (stats.weeds++, rosette(w, p, { rand, P })),
     shrub: (p) => {
       stats.shrubs++;
-      const radius = 0.4 + rand() * 0.55;
-      return shrub(w, p, { radius, height: radius * (1.1 + rand() * 0.5), rand, P, simple: EYE[2] - p[2] > D.far });
+      return shrub(w, p, { radius: 0.4 + rand() * 0.55, rand, P, simple: EYE[2] - p[2] > D.far });
     },
     clod: (p) => (stats.clods++, lump(w, p, { r: 0.04 + rand() * rand() * 0.12, squash: 0.45, rand, colour: rand() < 0.7 ? P.clod : P.clodLight })),
     stone: (p) => (stats.stones++, lump(w, p, { r: 0.03 + rand() * 0.07, squash: 0.6, rand, colour: rand() < 0.6 ? P.stone : P.stoneLight })),
   };
-  const counts = { paint: 0, blade: 0 };
+  const counts = { paint: 0, blade: 0, leaf: 0 };
+  const slotOf = { clod: 'paint', stone: 'paint', weed: 'leaf' };
   for (let i = 0; i < stations.length - 1; i++) {
     const a = stations[i], b = stations[i + 1];
     if (!seen([(a.x + b.x) / 2 + a.nx * 4, 0, (a.z + b.z) / 2 + a.nz * 4])) continue;
@@ -556,12 +643,15 @@ export function buildNearBank(w, { seed = 0 } = {}) {
         const t = rand(), o = lerp(rule.range[0], rule.range[1], rand());
         const p = surface(i, t, o);
         const s = lerp(a.s, b.s, t);
-        if (!rule.zones.includes(zoneOf(s, p[0], o, relief(s, p[0], p[2], o, edgesAt(s))))) continue;
+        const E = edgesAt(s), mf = mudField(s, p[0], o, relief(s, p[0], p[2], o, E), E);
+        if (!rule.zones.includes((mf > 0 ? MUD_ZONE : GRASS_ZONE)[bandAt(E, o)])) continue;
+        if ((rule.margin && mf > rule.margin) || (rule.near && mf < -rule.near)) continue;
         if (!seen(p) || p[0] > (rule.xMax ?? Infinity)) continue;
         if (rule.fade && rand() > lerp(1, rule.fade[2], smoothstep(EYE[2] - p[2], rule.fade[0], rule.fade[1]))) continue;
         lowest = Math.min(lowest, p[1]);
-        const made = kinds[rule.kind](p, i);
-        counts[rule.kind === 'clod' || rule.kind === 'stone' ? 'paint' : 'blade'] += made;
+        let made = kinds[rule.kind](p, i, s, o);
+        if (typeof made === 'number') counts[slotOf[rule.kind] ?? 'blade'] += made;
+        else counts.blade += made.blade, counts.leaf += made.leaf, (made = made.blade + made.leaf);
         stats.triangles[rule.kind] = (stats.triangles[rule.kind] ?? 0) + made;
       }
     }
@@ -569,7 +659,7 @@ export function buildNearBank(w, { seed = 0 } = {}) {
   // Ferns on the grass below the window (positions: SITE.near.ferns).
   for (const [x, z, reach] of N.ferns) {
     stats.ferns++;
-    counts.blade += fern(w, [x, groundAt(x, z) - 0.04, z], { reach, rand, P });
+    counts.leaf += fern(w, [x, groundAt(x, z) - 0.04, z], { reach, rand, P });
   }
   // Driftwood on the mud near the water, and puddles in its hollows, in view.
   const mudSpots = [];
@@ -680,7 +770,7 @@ export function buildNearBank(w, { seed = 0 } = {}) {
   contract.min('grass clumps in view', stats.clumps, 250); // was 300; the muddy terrain leaves less grass (seeds 1, 2: 284, 287)
   contract.is('ferns', stats.ferns, N.ferns.length);
   contract.range('ground triangles', ground, T.triangles[0], T.triangles[1]);
-  contract.range('plant triangles', w.slot('blade').triangles - from.blade, 10000, 30000);
+  contract.range('plant triangles', w.slot('blade').triangles - from.blade, 10000, 1e6);
   stats.triangles.ground = ground;
 
   // What the painter needs: the map's extent, the ground at any (s, o), and the footprints.

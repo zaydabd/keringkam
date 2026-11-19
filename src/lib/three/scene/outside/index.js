@@ -21,7 +21,7 @@
 // where two colours meet (toon.js). The haze is the scene fog.
 
 import * as THREE from 'three';
-import { paintSoftSky, paintMud, paintTurf, paintTrample } from '../paint.js';
+import { paintSoftSky, paintMud, paintTurf, paintTrample, paintLeaves } from '../paint.js';
 import { SlotWriter, createContract } from './contract.js';
 import { SITE, mulberry32 } from './site.js';
 import { OUTSIDE_THEME } from '../themes/index.js';
@@ -37,6 +37,12 @@ import { createWater, fresnelF0, WAVES } from './water.js';
 export { SITE };
 /** The mirrored camera of the river draws this layer: the outside without the water. Lights must be on it too. */
 export const MIRROR_LAYER = 2;
+/**
+ * The leaf cards (leaves.js) are on this layer for the ink pass: they are cut out by the leaf
+ * atlas, so the edge buffer (which ignores alpha) would outline whole rectangles. Instead they are
+ * drawn on layer 1 (no ink) and mask the ink of what is behind them (toon.js createOutline).
+ */
+export const LEAF_MASK_LAYER = 6;
 
 export const OBJECTS = ['farbank', 'nearbank', 'trees', 'river', 'assembly', 'bridge', 'skyline', 'boats', 'sky'];
 
@@ -135,18 +141,21 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
   // The trodden mud over the stretch of the near bank the window sees (paint.js paintTrample).
   const trample = reports.nearbank && mode !== 'flat' && mode !== 'silhouette' && mode !== 'clay' ? paintTrample(41 + seed, OUTSIDE_THEME.textures.trample, reports.nearbank.trample) : null;
   if (trample) Object.assign(textures, { trample: trample.map, trampleBump: trample.bump });
+  if (w.slots.has('leaf')) textures.leaves = paintLeaves(43 + seed, OUTSIDE_THEME.textures.leaves); // the leaf atlas (leaves.js); cut-outs, so painted in every mode
   disposables.push(...Object.values(textures));
-  const toon = ({ map, side = THREE.FrontSide } = {}) => {
+  // `alphaTest`: a cut-out (the leaf cards); its map is kept in every mode, for the shape.
+  const toon = ({ map, side = THREE.FrontSide, alphaTest = 0 } = {}) => {
     let m;
-    if (mode === 'silhouette') m = new THREE.MeshBasicMaterial({ color: '#000000', fog: false, side });
-    else if (mode === 'flat') m = new THREE.MeshToonMaterial({ gradientMap, color: '#bdbdbd', side });
+    const cut = alphaTest ? { map, alphaTest } : {};
+    if (mode === 'silhouette') m = new THREE.MeshBasicMaterial({ color: '#000000', fog: false, side, ...cut });
+    else if (mode === 'flat') m = new THREE.MeshToonMaterial({ gradientMap, color: '#bdbdbd', side, ...cut });
     else if (mode === 'clay') {
       // plain grey, lit as it is; keyed down like the paint so sunlit ground does not burn out
-      m = new THREE.MeshStandardMaterial({ color: CLAY.colour, roughness: 1, metalness: 0, side });
+      m = new THREE.MeshStandardMaterial({ color: CLAY.colour, roughness: 1, metalness: 0, side, ...cut });
       m.color.multiplyScalar(key);
     }
     else {
-      m = new THREE.MeshToonMaterial({ gradientMap, vertexColors: true, side, map: map ?? null });
+      m = new THREE.MeshToonMaterial({ gradientMap, vertexColors: true, side, map: map ?? null, alphaTest });
       m.color.multiplyScalar(key);
     }
     disposables.push(m);
@@ -185,10 +194,16 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
     mud: trodden(toon({ map: textures.mud })), // the near bank's ground: painted detail, UVs in tiles of NEAR_DETAIL.tile metres, and the trodden map
     turf: toon({ map: textures.turf }),
   };
+  // Leaf cards (leaves.js): two-sided, cut out by the atlas's alpha.
+  if (textures.leaves) materials.leaf = toon({ map: textures.leaves, side: THREE.DoubleSide, alphaTest: 0.5 });
   for (const name of Object.keys(materials)) {
     if (!w.slots.has(name)) continue;
     const mesh = new THREE.Mesh(geometry(name), materials[name]);
     mesh.name = name;
+    if (name === 'leaf') {
+      mesh.layers.set(1); // no ink of its own...
+      mesh.layers.enable(LEAF_MASK_LAYER); // ...and it hides the ink behind its leaves
+    }
     mesh.layers.enable(MIRROR_LAYER);
     group.add(mesh);
   }
@@ -246,6 +261,8 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
     group,
     reports,
     stats: { triangles: total, meshes: group.children.length, perMesh: triangles },
+    /** For the ink pass (toon.js createOutline `mask`): the leaf cards' layer and atlas. */
+    inkMasks: textures.leaves ? [{ layer: LEAF_MASK_LAYER, map: textures.leaves }] : [],
     /** Moves the water. t in seconds. */
     update(t) {
       water.material.uniforms.uTime.value = t;
