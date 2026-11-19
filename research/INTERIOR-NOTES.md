@@ -1703,3 +1703,34 @@ outside at 154,058 triangles, over the old cap; the page threw at load.
 Seeds 0–5: blade 33,000–42,000, leaf 6,800–8,500 triangles. The near bank builds in 185–365 ms in
 Node (was 279 ms for seed 0; this container's CPU). The atlas is 1024 × 1024 RGBA with mipmaps:
 about 5.3 MB of texture memory (4 MB plus a third).
+
+**In the page** (renderer counters at the window shot, all passes of one frame):
+
+| view | triangles per frame, before | after | draw calls, before | after |
+| --- | --- | --- | --- | --- |
+| window | 450,265 | 531,625 | 52 | 55 |
+| window-left | 450,425 | 531,785 | 54 | 57 |
+| window-right | 466,107 | 547,467 | 56 | 59 |
+| window-phone | 450,267 | 531,627 | 53 | 56 |
+| window-seed1 | – | 519,718 | – | 55 |
+
+The three new draw calls are the leaf mesh in the view, in the river's mirror and in the ink's
+mask pass. The frame took 839 ms before and 960 ms after in the window view. **These are
+SwiftShader (software) timings in this container, not real GPU timings**; they only show that
+nothing jumped.
+
+**Gate (window, left, right, phone, seed 1; R3 alongside).** The shrubs read as leafy bushes
+on stems, light on top and dark underneath, where before they were smooth blobs. Arching grass
+and seed heads line the bank's edge and the verge. The ferns are a clump at the frame's lower
+left, as in R3. No card shows an ink rectangle, and no plant floats or sinks. The fabrics loaded
+in every capture. Checked at the default Outlines setting only: the leaf mesh is not on the ink's
+layer in any setting. Remaining divergences from R3, and why:
+- the shrubs stand on short bare stems, so they read as small trees; R3's bushes reach the
+  ground. More low cards would hide the stems; left for a later pass;
+- the weeds are a few pixels across in the window shot, so they barely read;
+- R3's bank is painted with loose brush marks, not single blades; the blades here are drawn
+  one by one.
+
+The first version's fern clump (six ferns, 12 fronds, each 0.9–1.4 m) covered half the bank's
+width in the shot, and its lobed pinnae read as stripes. It is now five ferns of 0.7–1.1 m with
+nine narrower fronds each (the strip's half-width is 0.36 of the frond's length, was 0.5).
