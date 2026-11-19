@@ -19,7 +19,7 @@
 
 import * as THREE from 'three';
 import { createContract } from './contract.js';
-import { SITE, sampleLine, mulberry32, rgbTable } from './site.js';
+import { SITE, sampleLine, mulberry32, rgbTable, vnoise, fbm } from './site.js';
 import { OUTSIDE_THEME } from '../themes/index.js';
 import { checkSweep } from './banks.js';
 
@@ -90,18 +90,6 @@ export const NEAR_DETAIL = {
   sticks: 3,
 };
 
-// Value noise in 2D, deterministic.
-function hash2(i, j, seed) {
-  let h = (Math.imul(i, 374761393) + Math.imul(j, 668265263) + Math.imul(seed, 1442695041)) | 0;
-  h = Math.imul(h ^ (h >>> 13), 1274126177);
-  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
-}
-function vnoise(x, y, seed) {
-  const i = Math.floor(x), j = Math.floor(y), fx = x - i, fy = y - j;
-  const u = fx * fx * (3 - 2 * fx), v = fy * fy * (3 - 2 * fy);
-  return lerp(lerp(hash2(i, j, seed), hash2(i + 1, j, seed), u), lerp(hash2(i, j + 1, seed), hash2(i + 1, j + 1, seed), u), v) * 2 - 1;
-}
-const fbm = (x, y, seed) => vnoise(x, y, seed) * 0.6 + vnoise(x * 2.1, y * 2.1, seed + 1) * 0.3 + vnoise(x * 4.3, y * 4.3, seed + 2) * 0.1;
 
 /** A triangle wound to face the eye, with its own shading normals (one, or one per corner). */
 function facing(w, slot, a, b, c, colour, n) {

@@ -116,6 +116,20 @@ export const smooth = (a, b, v) => {
   return t * t * (3 - 2 * t);
 };
 
+// Value noise in 2D, deterministic, in -1..1; fbm adds two finer octaves (weights 0.6, 0.3, 0.1).
+function hash2(i, j, seed) {
+  let h = (Math.imul(i, 374761393) + Math.imul(j, 668265263) + Math.imul(seed, 1442695041)) | 0;
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
+export function vnoise(x, y, seed) {
+  const i = Math.floor(x), j = Math.floor(y), fx = x - i, fy = y - j;
+  const u = fx * fx * (3 - 2 * fx), v = fy * fy * (3 - 2 * fy);
+  const mix = (a, b, t) => a + (b - a) * t;
+  return mix(mix(hash2(i, j, seed), hash2(i + 1, j, seed), u), mix(hash2(i, j + 1, seed), hash2(i + 1, j + 1, seed), u), v) * 2 - 1;
+}
+export const fbm = (x, y, seed) => vnoise(x, y, seed) * 0.6 + vnoise(x * 2.1, y * 2.1, seed + 1) * 0.3 + vnoise(x * 4.3, y * 4.3, seed + 2) * 0.1;
+
 export function mulberry32(a) {
   return () => {
     a |= 0;
