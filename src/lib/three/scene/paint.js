@@ -1027,9 +1027,11 @@ export function paintTrample(seed = 41, { colours: C, pattern: P }, trample) {
 
   const map = texture(cMap, [1, 1], false);
   map.colorSpace = THREE.NoColorSpace; // the shader decodes it: (2 v)^2.2
+  map.flipY = false; // row 0 is the waterline end (o0), as the bank's second map channel has it
   map.anisotropy = 8;
   const bump = texture(cBump, [1, 1], false);
   bump.colorSpace = THREE.NoColorSpace;
+  bump.flipY = false;
   bump.anisotropy = 8;
   bump.channel = 1; // the near bank's second map channel: (s, o); the shader reads `map` there too
   return { map, bump, size: [W, H] };

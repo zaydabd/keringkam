@@ -59,7 +59,7 @@ const SKY = {
 const WATER = {
   river: '#cf9a5c', // the body colour seen into the water
   film: '#f4d8a2', // the thin silt film on top
-  puddle: '#b8b49e', // puddles on the near bank
+  puddle: '#9c9680', // puddles on the near bank (was #b8b49e: drawn near white in the window shot)
 };
 
 const EARTH = {
@@ -101,7 +101,7 @@ const EARTH = {
     rim: '#d2bc94', // rims squeezed up round the prints, drying pale
     churn: ['#5e4630', '#ccb68c'], // churned smears: dark, pale
     glint: '#f2e6cc', // wet glints
-    water: '#b8b49e', // = WATER.puddle: standing water (it takes the sky's colour, as the puddles do)
+    water: '#9c9680', // = WATER.puddle: standing water
   },
   trampleMarks: {
     pxPerM: 64, // map pixels per metre (at most `maxWidth` along the river)

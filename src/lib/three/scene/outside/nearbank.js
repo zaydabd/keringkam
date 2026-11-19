@@ -56,7 +56,7 @@ export const NEAR_DETAIL = {
     inland: 0.2, // the columns' spacing inland (m)
     hummocks: { height: 0.34, size: 3 },
     lumps: { height: 0.1, size: 1.1 },
-    hollows: { depth: 0.16, size: 2.3, from: 0.2, bare: 0.5 }, // noise above `from` is a hollow; hollower than `bare` is bare mud
+    hollows: { depth: 0.16, size: 2.3, from: 0.2, bare: 0.4 }, // noise above `from` is a hollow; hollower than `bare` is bare mud
     ruts: { depth: 0.1, width: 0.22, lip: 0.035, apart: 1.15 }, // two ruts along the track
     // The worn way from the house to the water: [x of the waterline, offset inland] (design choice).
     path: { depth: 0.07, width: 0.6, points: [[0.9, 9], [0.2, 6.5], [-0.6, 4], [-1.2, 1.8], [-1.6, 0.3]] },
