@@ -24,7 +24,7 @@ export const SITE = {
     foot: 15, // foot of the mown embankment
     crest: 27, // its crest, at about the eye's height: the terrace behind it is seen edge-on
     back: 110, // the terrace behind, as far as the swept part goes
-    roughY: -2.3,
+    roughY: -1.7, // the bank's face rises 1.5 m from the water to the rough grass (R3 shows a face, not a flat strip)
     crestY: 1.4,
     backY: 1.9,
     meadowY: 0, // left of the embankment the bank is natural: this high at the crest distance

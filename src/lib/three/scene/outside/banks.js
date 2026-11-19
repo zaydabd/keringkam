@@ -108,8 +108,8 @@ function tuft(w, at, dir, { height, width, colour, rand, blades = 3 }) {
  */
 export const FAR_RELIEF = {
   stations: { rate: 0.03, min: 2.5, max: 40 }, // finer than before, so a bump of 10 m shows near the house
-  mud: { width: [0.9, 2.6], top: [0.2, 0.75], along: 13 }, // the mud strip: width inland (m), top above the water (m), wavelength along the bank (m)
-  cut: { run: 0.4, height: [0.1, 0.6], along: 8 }, // the eroded step from the mud up to the grass: its width (m) and height (m)
+  mud: { width: [0.9, 2.6], top: [0.25, 0.9], along: 13 }, // the mud strip: width inland (m), top above the water (m), wavelength along the bank (m)
+  cut: { run: 0.45, height: [0.15, 0.85], along: 8 }, // the eroded step from the mud up to the grass: its width (m) and height (m)
   rough: { height: 0.35, along: 15, inland: 6 }, // ± on the rough grass, path and verge (m)
   meadow: { height: [0.8, 2, 3], along: 42, inland: 34 }, // rolling ground left of the embankment: ± at its foot, crest and the terrace's distance (m)
   land: { columns: [33, 52, 70, 90], back: [135, 160] }, // extra columns between the crest and F.back; the gridded land behind fades flat by the last
