@@ -53,16 +53,9 @@ export function drapeAll(places = PLAN.fabrics) {
     .catch(() => places.map(drape)); // a Worker failed (e.g. blocked): work them out here
 }
 
-/** Catmull-Rom weights for t in [0, 1]. */
-function cr(t) {
-  const t2 = t * t;
-  const t3 = t2 * t;
-  return [(-t3 + 2 * t2 - t) / 2, (3 * t3 - 5 * t2 + 2) / 2, (-3 * t3 + 4 * t2 + t) / 2, (t3 - t2) / 2];
-}
-
 /**
- * A smooth mesh through a settled grid: every cell split in `split` both ways along Catmull-Rom
- * curves, so the 4 cm simulation grid does not show as facets up close. UVs run over the photo's
+ * The mesh of a settled cloth, through its smoothed grid (drape.js: the 4 cm simulation grid
+ * split along Catmull-Rom curves and kept clear of the furniture). UVs run over the photo's
  * crop box: across the cloth along u, down its length along v (from the top edge, or from the
  * bottom if flipped).
  *
@@ -72,24 +65,10 @@ function cr(t) {
  * `foldAcross` folds across the width the same way (one or the other, not both).
  */
 const FOLD_GAP = 0.005;
-export function fabricGeometry({ cols, rows, position, out = 1 }, crop, { flip = false, fold = 0, foldAcross = 0 } = {}, split = 2) {
-  const nc0 = (cols - 1) * split + 1;
-  const nr0 = (rows - 1) * split + 1;
-  const S = new Float32Array(nc0 * nr0 * 3);
-  const at = (c, r, a) => position[(Math.min(rows - 1, Math.max(0, r)) * cols + Math.min(cols - 1, Math.max(0, c))) * 3 + a];
-  for (let r = 0; r < nr0; r++) {
-    const r0 = Math.min(rows - 2, Math.floor(r / split));
-    const wr = cr(r / split - r0);
-    for (let c = 0; c < nc0; c++) {
-      const c0 = Math.min(cols - 2, Math.floor(c / split));
-      const wc = cr(c / split - c0);
-      for (let a = 0; a < 3; a++) {
-        let v = 0;
-        for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) v += wr[i] * wc[j] * at(c0 - 1 + j, r0 - 1 + i, a);
-        S[(r * nc0 + c) * 3 + a] = v;
-      }
-    }
-  }
+export function fabricGeometry({ cols, rows, position, out = 1 }, crop, { flip = false, fold = 0, foldAcross = 0 } = {}) {
+  const nc0 = cols;
+  const nr0 = rows;
+  const S = position;
   // Folded across, the same code runs on the grid turned a quarter: its columns become rows (which
   // also turns the grid's normal over) and the photo's u and v swap.
   const across = foldAcross > 0;

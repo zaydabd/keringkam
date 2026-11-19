@@ -19,7 +19,7 @@ for (const place of PLAN.fabrics) {
   const laid = Math.max(...place.path.map((p) => p[1]));
   const pass = !r.inside && r.fastest < 0.001 && r.position.every(Number.isFinite) && hi > laid - 0.06;
   ok &&= pass;
-  console.log(`${pass ? 'ok  ' : 'FAIL'} ${place.name.padEnd(12)} ${r.cols}x${r.rows} ${r.steps} steps ${r.ms.toFixed(0)} ms, fastest ${(r.fastest * 1000).toFixed(2)} mm/step, inside ${r.inside}, y ${lo.toFixed(3)}..${hi.toFixed(3)}`);
+  console.log(`${pass ? 'ok  ' : 'FAIL'} ${place.name.padEnd(12)} ${r.grid.join('x')} ${r.steps} steps ${r.ms.toFixed(0)} ms, fastest ${(r.fastest * 1000).toFixed(2)} mm/step, inside ${r.inside}, y ${lo.toFixed(3)}..${hi.toFixed(3)}`);
   if (out) {
     fs.mkdirSync(out, { recursive: true });
     let s = '';

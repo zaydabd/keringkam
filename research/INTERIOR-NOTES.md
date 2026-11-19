@@ -935,8 +935,9 @@ photo's proportions):
   same folds.
 - The six cloths settle in Web Workers (`drapeWorker.js`, up to the core count minus one), with
   an inline fallback. The page veil waits for them (12 s at most).
-- `interior/fabrics.js` builds the mesh: a 2× Catmull-Rom upsample of the grid, UVs over the
-  crop box. A folded cloth gets a second layer 5 mm towards the furniture (the side the
+- `interior/drape.js` also smooths the grid (a 2× Catmull-Rom upsample) and pushes every point
+  of it out of the solid parts again (pass p4); `interior/fabrics.js` builds the mesh through
+  it, UVs over the crop box. A folded cloth gets a second layer 5 mm towards the furniture (the side the
   collisions pushed it away from) and a half-round strip for the fold.
 - Material: the room's toon material with the photo, both sides, 95% opaque (the user's
   request: thin cloth lets a little through). The clay theme draws it grey and solid. The fabrics
@@ -1436,3 +1437,35 @@ mean frame time agreed with a separate in-page rAF count within 6–7% (1× 1,66
 2× 2,997 ms vs 2,792 ms). The difference is because the two sample different windows of very slow
 frames. The switch persists after a reload; turning it off removes the counter and stores '0';
 the preset still reads High; no page errors.
+
+### Pass p4: polish, the low table's corners through its cover (2026-11-19, branch `polish`)
+
+The user saw the table's edges come through the teal cover. The fabric view showed the four
+corners of the top as small wooden points through the cloth.
+
+`research/tools/drape-poke.mjs` (new, Node through Vite) settles the cover, builds the mesh the
+page draws and samples every triangle about 2 mm apart against the top as buildTable draws it
+(1.00 × 0.035 × 0.80 m, corners rounded 6 mm):
+
+| | wood through the cloth | triangles | settle |
+| --- | --- | --- | --- |
+| before | 13.2 mm, at a corner | 67 of 6,000 | 600 steps (the cap), 466 ms |
+| smoothed grid pushed out of the solids only | 7.1 mm | 18 | 600 steps |
+| rounder corner only (below) | 9.0 mm | 22 | 190 steps |
+| both (kept) | 0.0 mm | 0 | 190 steps, 156–185 ms |
+
+Two causes, both fixed:
+- **The collider's corner.** The top's collision box went out to the edges, so its sharp corner
+  stood outside the round edge bars, and the cloth folded over a point. Now the box stops inside
+  the bars, and each corner has a ball 4 mm larger than the bars (drape.js `tablePiece`;
+  cloth.js `addCapsule` takes a ball, a = b). The cover also comes to rest now (190 steps)
+  instead of running to the 600-step cap.
+- **The smoothing.** The mesh goes through a 2× Catmull-Rom upsample of the 4 cm grid, and a
+  curve between two particles that are both clear of a corner can still cut it. The smoothing
+  moved from fabrics.js into drape.js (`smoothGrid`), and every smoothed point is pushed out of
+  the solid parts again, as the particles are (a second ClothSim with the same boxes and bars,
+  two collision passes, no friction). The same mesh size as before.
+
+`drape-check.mjs`: all six pass (529 ms in total). The six fabric views (SwiftShader, before and
+after): the table's corners are covered; elsewhere the changes are the cover's hem as seen from
+the chairs and a slightly rounder top edge on the settee's cloth, no new glitch.

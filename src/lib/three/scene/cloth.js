@@ -126,11 +126,11 @@ export class ClothSim {
     this.boxes.push({ c, h, cos, sin, lo: [c[0] - h[0], c[1] - ey, c[2] - ez], hi: [c[0] + h[0], c[1] + ey, c[2] + ez] });
   }
 
-  /** A round bar of radius r from point a to point b. */
+  /** A round bar of radius r from point a to point b (a ball when a and b are the same point). */
   addCapsule(a, b, r) {
     if (this.capsules.length === 32) throw new Error('ClothSim: at most 32 capsules');
     const d = [b[0] - a[0], b[1] - a[1], b[2] - a[2]];
-    const len2 = d[0] * d[0] + d[1] * d[1] + d[2] * d[2];
+    const len2 = d[0] * d[0] + d[1] * d[1] + d[2] * d[2] || 1; // a ball: d is 0, so t is 0
     const R = r + this.skin;
     this.capsules.push({ a, d, len2, R, lo: [0, 1, 2].map((k) => Math.min(a[k], b[k]) - R), hi: [0, 1, 2].map((k) => Math.max(a[k], b[k]) + R) });
   }

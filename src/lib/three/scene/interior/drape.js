@@ -9,6 +9,9 @@ import { PLAN } from './plan.js';
 import { SEAT } from './seat.js';
 
 const SPACING = 0.04; // metres between particles
+// The mesh is drawn through a grid this many times finer, smoothed along Catmull-Rom curves, so
+// the 4 cm grid does not show as facets up close (smoothGrid).
+const SPLIT = 2;
 
 /** The piece a fabric lies on: its colliders (in its own frame) and where that frame stands. */
 export function pieceOf(on) {
@@ -76,17 +79,21 @@ function seatSolids({ w, d, back, settee = false }) {
 function tablePiece({ x0, x1, z0, z1, h }) {
   const w = x1 - x0;
   const d = z1 - z0;
-  const boxes = [[[0, h - 0.0175, 0], [w, 0.035, d], 0]];
-  const capsules = [];
-  for (const sx of [-1, 1]) for (const sz of [-1, 1]) capsules.push([[sx * (w / 2 - 0.05), 0, sz * (d / 2 - 0.05)], [sx * (w / 2 - 0.05), h, sz * (d / 2 - 0.05)], 0.028]);
-  // The top's four edges as round bars a little proud of the corner (as the seats' fold edges), so
-  // the cloth folds over them instead of the 4 cm grid cutting the corner.
+  // The top as a rounded slab: its four edges as round bars a little proud of the corner (as the
+  // seats' fold edges), so the cloth folds over them instead of the 4 cm grid cutting the corner;
+  // the box only inside the bars, and at each corner a ball a little larger than the bars. A box
+  // out to the edges put a sharp corner outside the bars, and the cloth over it showed the
+  // table's corner through (research/tools/drape-poke.mjs).
   const r = 0.0175;
   const ex = w / 2 - r;
   const ez = d / 2 - r;
   const y = h - r;
   const R = r + 0.008;
+  const boxes = [[[0, h - 0.0175, 0], [2 * ex, 0.035, 2 * ez], 0]];
+  const capsules = [];
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) capsules.push([[sx * (w / 2 - 0.05), 0, sz * (d / 2 - 0.05)], [sx * (w / 2 - 0.05), h, sz * (d / 2 - 0.05)], 0.028]);
   capsules.push([[-ex, y, -ez], [ex, y, -ez], R], [[-ex, y, ez], [ex, y, ez], R], [[-ex, y, -ez], [-ex, y, ez], R], [[ex, y, -ez], [ex, y, ez], R]);
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]) capsules.push([[sx * ex, y, sz * ez], [sx * ex, y, sz * ez], R + 0.004]);
   return { frame: { x: (x0 + x1) / 2, z: (z0 + z1) / 2, ry: 0 }, boxes, capsules };
 }
 
@@ -187,15 +194,58 @@ export function drape(place) {
       const g = [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
       vote += Math.sign(g[0] * n[0] + g[1] * n[1] + g[2] * n[2]);
     }
+  // The grid the mesh is drawn through: smoothed, then every point pushed out of the solid parts
+  // as the particles were. A curve between two particles can cut a corner they both clear: the
+  // low table's corners showed through its cover by up to 13 mm (research/tools/drape-poke.mjs).
+  const fine = smoothGrid(sim.pos, cols, rows, SPLIT);
+  const fit = new ClothSim(width, length, fine.cols, fine.rows);
+  for (const [c, size, rx] of boxes) fit.addBox(c, size, rx);
+  for (const [a, b, r] of capsules) fit.addCapsule(a, b, r);
+  fit.floorY = sim.floorY;
+  fit.friction = 0; // a push only: no rub along the surface
+  fit.pos.set(fine.pos);
+  fit.prev.set(fit.pos);
+  fit.broadPhase(0.05);
+  fit.collide(-Infinity);
+  fit.collide(-Infinity); // once more: a push out of one part can end inside the next
   // To the world: turned by ry about y, then moved to the piece's place (as buildSeat's F).
   const cos = Math.cos(frame.ry);
   const sin = Math.sin(frame.ry);
-  const position = new Float32Array(sim.count * 3);
-  for (let i = 0; i < sim.count; i++) {
-    const [x, y, z] = [sim.pos[i * 3], sim.pos[i * 3 + 1], sim.pos[i * 3 + 2]];
+  const position = new Float32Array(fit.count * 3);
+  for (let i = 0; i < fit.count; i++) {
+    const [x, y, z] = [fit.pos[i * 3], fit.pos[i * 3 + 1], fit.pos[i * 3 + 2]];
     position[i * 3] = frame.x + x * cos + z * sin;
     position[i * 3 + 1] = y;
     position[i * 3 + 2] = frame.z - x * sin + z * cos;
   }
-  return { name: place.name, cols, rows, position, out: vote < 0 ? -1 : 1, ms: performance.now() - t0, steps: settled.steps, fastest: settled.fastest, inside: sim.inside() };
+  return { name: place.name, grid: [cols, rows], cols: fine.cols, rows: fine.rows, position, out: vote < 0 ? -1 : 1, ms: performance.now() - t0, steps: settled.steps, fastest: settled.fastest, inside: sim.inside() || fit.inside() };
+}
+
+/** Catmull-Rom weights for t in [0, 1]. */
+function cr(t) {
+  const t2 = t * t;
+  const t3 = t2 * t;
+  return [(-t3 + 2 * t2 - t) / 2, (3 * t3 - 5 * t2 + 2) / 2, (-3 * t3 + 4 * t2 + t) / 2, (t3 - t2) / 2];
+}
+
+/** A grid of points (x, y, z each) with every cell split in `split` both ways along Catmull-Rom curves. */
+export function smoothGrid(position, cols, rows, split) {
+  const nc = (cols - 1) * split + 1;
+  const nr = (rows - 1) * split + 1;
+  const pos = new Float64Array(nc * nr * 3);
+  const at = (c, r, a) => position[(Math.min(rows - 1, Math.max(0, r)) * cols + Math.min(cols - 1, Math.max(0, c))) * 3 + a];
+  for (let r = 0; r < nr; r++) {
+    const r0 = Math.min(rows - 2, Math.floor(r / split));
+    const wr = cr(r / split - r0);
+    for (let c = 0; c < nc; c++) {
+      const c0 = Math.min(cols - 2, Math.floor(c / split));
+      const wc = cr(c / split - c0);
+      for (let a = 0; a < 3; a++) {
+        let v = 0;
+        for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) v += wr[i] * wc[j] * at(c0 - 1 + j, r0 - 1 + i, a);
+        pos[(r * nc + c) * 3 + a] = v;
+      }
+    }
+  }
+  return { pos, cols: nc, rows: nr };
 }
