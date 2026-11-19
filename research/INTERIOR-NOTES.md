@@ -1555,3 +1555,84 @@ Chromium (a CPU canvas; this container's CPU, not the user's device). Its two ma
     so it meets the land behind.
 - **Seeds:** with more mud, seeds 1 and 2 have 284 and 287 grass clumps. The clump contract went
   from 300 to 250.
+
+### Pass e2: the far bank, less flat (2026-11-19, branch `exterior-far-bank`)
+
+The user's concern: the bank is too flat (both banks; the near bank was pass e1). Every height
+and size below is a design choice tuned in the window shot against R3, not a measurement.
+
+**What R3 shows.** The far bank rises from the water as a face in tiers: mud at the water, a
+sloped band of rough grass, the path, then the embankment. In the window shot before this pass,
+the bank was a thin straight strip: the rough grass stood 0.9 m above the water 8 m inland, which
+reads as flat from 100 m and more.
+
+**One cross-section function (banks.js `buildFarBank`, `FAR_RELIEF`).** `cross(station)` gives the
+[offset inland, height] of every column at any point along the waterline. The mesh, the reeds
+and tufts, and the trees (`groundAt`, `place`) all read it, so nothing floats or sinks.
+`groundAt` now moves the nearest station along the line to the point, instead of using the
+station's own section. The section:
+- the mud strip changes width (0.9–2.6 m) and height (its top 0.25–0.9 m above the water) along
+  the bank;
+- an eroded step of 0.15–0.85 m rises from the mud to the grass over 0.45 m. It is painted mud,
+  the same part as the strip, so the ink draws no new seam;
+- the rough grass is 1.5 m above the water (`SITE.far.roughY` −2.3 → −1.7), with ±0.35 m
+  bumps on it, the path and the verge;
+- left of the embankment the natural bank and meadow roll by ±0.8 m at the foot, ±2 m at the
+  crest distance and ±3 m at 110 m inland (value noise, about 40 m features);
+- the land behind is swept to 160 m inland (columns at 33, 52, 70, 90, 110, 135, 160 m) and fades
+  flat at its edge, where the flat polygon takes over. At 180 m the sweep folded at the bend near
+  x = 33 (the columns ran backwards by 0.06 m), so it stops at 160 m.
+- the embankment, its terrace and the wall stay straight: built ground. A contract checks that
+  the foot, slope and crest have no relief where the embankment is full height.
+
+Stations are finer: 0.03 × the distance from the house, 2.5–40 m apart (was 0.045 × and 3–45 m).
+The value noise moved from nearbank.js to site.js, unchanged, so both banks use it.
+
+**Contracts added.** Same columns at every station; the mud top 0.15–0.5 m (lowest) and 0.4–1 m
+(highest) above the water; the step at least 0.3 m somewhere; the meadow's crest varies by at
+least 1.5 m; the land fades flat at its edge; every tuft roots at least 0.15 m above the water.
+The triangle range is now 4,000–16,000 (was 1,500–9,000).
+
+**Cost.** Counted from the slots in Node:
+
+| | before (`exterior-mud-terrain`) | after |
+| --- | --- | --- |
+| far bank ground (paint) | 2,514 | 5,738 |
+| far bank reeds and tufts (blade) | 1,773 | 1,721 |
+| outside, total (about) | 114,397 | 117,569 |
+| outside meshes (draw calls) | 7 | 7 |
+
+The far bank builds in 38–51 ms in Node (was 26 ms; this container's CPU).
+
+Relief measured in Node for seed 0: the mud top is 0.43–0.76 m above the water, the step 0.31–0.76
+m, the meadow's crest from −0.96 to +1.1 m. Seeds 0–3 pass every contract.
+
+**In the page** (renderer counters at the window shot, all passes of one frame: the view, the
+river's mirror, the shadow maps):
+
+| view | triangles per frame, before | after | draw calls, before | after |
+| --- | --- | --- | --- | --- |
+| window | 440,749 | 450,265 | 52 | 52 |
+| window-left | 440,909 | 450,425 | 54 | 54 |
+| window-right | 456,591 | 466,107 | 56 | 56 |
+| window-phone | 440,751 | 450,267 | 53 | 53 |
+
+The frame took 809 ms before and 839 ms after in the window view. **These are SwiftShader
+(software) timings in this container, not real GPU timings**; they only show that nothing jumped.
+
+**Gate (window, left, right, phone, seed 1; R3 alongside).** The waterline mud is now a band of
+changing width and height with an eroded step, where before it was a thin even line; the bank
+behind rises in a slope from the water; the meadow left of the embankment rolls a little. Trees,
+bushes, reeds and tufts stand on the ground in every view (none float or sink); the fabrics
+loaded in every capture. Remaining divergences from R3, and why:
+- R3's tiers (rough grass, path, grass strip) read as distinct bands. Here the path and the rough
+  grass are level strips seen from 100 m and more at a low angle, so they are foreshortened to a
+  few pixels, and the reeds cover most of them. Making them read would mean steeper tiers than
+  the embankment allows; left as is.
+- The embankment stays straight and even (by design: it is built ground).
+- At this distance a footprint or a puddle is under a pixel, so the far mud gets shape, not marks.
+
+Capture note: the captures ran from a second worktree of the repo with `vite` started directly.
+That skips `npm run copy:basis`, so `/basis/` fell through to index.html and every KTX2 texture
+failed (`Unexpected identifier 'html'` in the transcoder worker). Run `node scripts/copy-basis.mjs`
+in a fresh worktree first, or start it with `npm run dev`.
