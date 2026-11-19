@@ -1136,40 +1136,65 @@ export function paintLeaves(seed = 43, { colours: C, pattern: P }) {
     leaf(S * 0.5, S * 0.9, (r() - 0.5) * 0.08, S * 0.86, S * P.broad.width, P.broad.veins);
   });
   inCell(3, () => {
-    // A frond: a spine with paired leaflets (pinnae), longest about a third of the way up, each a
-    // row of rounded lobes shrinking to its tip, narrower than the gap to the next pair.
+    // A frond: a spine with paired leaflets (pinnae), longest about a third of the way up. Each
+    // pinna is one tapering blade with a scalloped (lobed) margin. All pinnae are stroked first
+    // with a wide edge and then filled on top, so only the frond's outer margin keeps an edge:
+    // no line between lobes or where pinnae touch the spine.
     const F = P.frond;
     const gap = (S * 0.9) / F.pairs;
-    stem([[S * 0.5, S * 0.985], [S * 0.5, S * 0.03]], S * 0.012, S * 0.004);
+    const pinnae = [];
     for (let k = 0; k < F.pairs; k++) {
       const u = (k + 0.5) / F.pairs, y = S * (0.95 - 0.9 * u);
       const len = S * F.reach * Math.max(0.08, Math.sin(Math.PI * (0.18 + 0.8 * u)));
       const lobes = Math.max(2, Math.round((F.lobes * len) / (S * F.reach)));
-      for (const s of [-1, 1]) {
-        g.save();
-        g.translate(S * 0.5, y);
-        g.rotate(s * (Math.PI / 2 - F.angle - 0.25 * u));
-        const step = len / (lobes + 0.3);
+      for (const s of [-1, 1]) pinnae.push({ y, s, a: s * (Math.PI / 2 - F.angle - 0.25 * u), len, lobes, half: gap * F.width, fill: tone() });
+    }
+    const blade = ({ y, a, len, lobes, half }) => {
+      g.save();
+      g.translate(S * 0.5, y);
+      g.rotate(a);
+      g.beginPath();
+      g.moveTo(0, 0);
+      const hw = (t) => half * (1 - 0.75 * t);
+      for (const side of [-1, 1]) {
+        // out along one margin (scallop per lobe) to the tip, then back along the other
         for (let j = 0; j < lobes; j++) {
-          const t = (j + 0.5) / lobes;
-          const across = gap * F.width * (1 - 0.55 * t), along = step * 0.62;
-          g.beginPath();
-          g.ellipse(0, -step * (j + 0.6), across, along, 0, 0, Math.PI * 2);
-          g.fillStyle = tone();
-          g.fill();
-          g.strokeStyle = C.edge;
-          g.lineWidth = P.edge * 0.6;
-          g.stroke();
+          const jj = side < 0 ? j : lobes - 1 - j;
+          const t0 = jj / lobes, t1 = (jj + 1) / lobes, tm = (t0 + t1) / 2;
+          const tEnd = side < 0 ? t1 : t0;
+          g.quadraticCurveTo(side * hw(tm) * 1.45, -len * tm, side * hw(tEnd) * 0.7 * (tEnd < 1 ? 1 : 0), -len * tEnd);
         }
-        g.strokeStyle = C.vein;
-        g.lineWidth = 1.2;
-        g.beginPath();
-        g.moveTo(0, 0);
-        g.lineTo(0, -len * 0.92);
-        g.stroke();
-        g.restore();
+      }
+      g.closePath();
+      g.restore();
+    };
+    g.strokeStyle = C.edge;
+    g.lineWidth = P.edge * 1.4;
+    for (const q of pinnae) blade(q), g.stroke();
+    for (const q of pinnae) {
+      blade(q);
+      g.fillStyle = q.fill;
+      g.fill();
+      if (q.s > 0) {
+        g.fillStyle = C.shade; // the pinnae on one side turned from the light
+        g.globalAlpha = P.shade * 0.6;
+        g.fill();
+        g.globalAlpha = 1;
       }
     }
+    g.strokeStyle = C.vein;
+    g.lineWidth = 1.2;
+    for (const q of pinnae) {
+      g.save();
+      g.translate(S * 0.5, q.y);
+      g.rotate(q.a);
+      g.beginPath();
+      g.moveTo(0, 0);
+      g.lineTo(0, -q.len * 0.9);
+      g.stroke();
+      g.restore();
+    }
+    stem([[S * 0.5, S * 0.985], [S * 0.5, S * 0.03]], S * 0.012, S * 0.004);
   });
   const t = texture(c, [1, 1], false);
   t.anisotropy = 4;

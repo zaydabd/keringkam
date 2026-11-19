@@ -135,12 +135,13 @@ export const NEAR_PLANTS = {
   shrub: {
     cards: [5, 3], // sprig cards per stem tip [near, simple]
     card: [0.2, 0.12], // card length (m) at scale 1: from, + up to
-    core: 0.55, // the dark core's radius, of the crown's
+    core: 0.5, // the dark core's radius, of the crown's
+    light: [0.62, 0.32], // a card is light above this height (of the shrub's), mid above the second, dark below
     hue: [0.16, 0.1, 0.16], // each shrub's colour is scaled by 1 ± half of these (r, g, b)
   },
   tussock: { segments: [3, 2], near: 14, arch: [0.15, 0.5], heads: 0.12 }, // segments per blade within `near` m of the eye, and beyond; arch: how far a blade's tip bends down, of its height
   rosette: { leaves: [5, 4], length: [0.07, 0.1], rise: [0.25, 0.35] }, // count from, + up to; m; radians up from the ground
-  fern: { fronds: 12, segments: 9, roll: 0.45 }, // roll: each frond's leaflets turn towards the eye by up to this (radians)
+  fern: { fronds: 9, segments: 9, roll: 0.45, width: 0.36 }, // roll: each frond's leaflets turn towards the eye by up to this (radians); width: the strip's half-width, of the frond's length
 };
 
 const tinted = (c, k) => [c[0] * k[0], c[1] * k[1], c[2] * k[2]];
@@ -189,7 +190,7 @@ function shrub(w, at, { radius, rand, P, simple = false }) {
       const across = norm(cross(d, norm([rand() - 0.5, rand() - 0.5, rand() - 0.5])));
       const y = (base[1] + length * 0.5 * d[1] - at[1]) / Math.max(0.2, height); // 0 at the ground, 1 at the top
       const k2 = y + (rand() - 0.5) * 0.3 + 0.25 * out[1];
-      const colour = tinted(k2 > 0.72 ? P.leafLight : k2 > 0.4 ? P.leafMid : P.leafDark, hue);
+      const colour = tinted(k2 > Q.light[0] ? P.leafLight : k2 > Q.light[1] ? P.leafMid : P.leafDark, hue);
       const n = norm(add(add(out, d, 0.5), UP, 0.8)); // rounded by the crown, lit from above
       leaf += leafCard(w, base, d, across, { length, width: length, cell: rand() < 0.4 ? LEAF_ATLAS.cell.sprigBig : LEAF_ATLAS.cell.sprig, normal: n, colour, eye: EYE });
     }
@@ -291,7 +292,7 @@ function fern(w, at, { reach, rand, P }) {
       const side = norm(add(flat, up, Math.tan(-Q.roll * dot(toEye, flat)))); // turns the face (about the spine) towards the eye
       spine.push(p);
       sides.push(side);
-      half.push(L * 0.5);
+      half.push(L * Q.width);
       normals.push(norm(add(up, UP, 0.6)));
     }
     n += leafStrip(w, spine, sides, half, { cell: LEAF_ATLAS.cell.frond, normals, colour: tinted(rise > 0.62 ? P.fernLight : P.fern, hue), eye: EYE });

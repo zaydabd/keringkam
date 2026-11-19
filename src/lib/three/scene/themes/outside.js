@@ -322,10 +322,10 @@ export const OUTSIDE_THEME = {
     // The leaf atlas (paint.js paintLeaves): light greys, the plant's vertex colour sets the green.
     // The edge line stands in for the ink the leaf cards do not get. Sizes are fractions of a cell.
     leaves: {
-      colours: { fill: '#f2f2ea', fillDark: '#dcdfd2', shade: '#8c9086', vein: '#c4c8b8', edge: '#3c3e36', stem: '#8c8468' },
+      colours: { fill: '#f2f2ea', fillDark: '#dcdfd2', shade: '#8c9086', vein: '#c4c8b8', edge: '#4c4e44', stem: '#8c8468' },
       pattern: {
         cell: 512, // px; the atlas is 2 x 2 cells
-        shade: 0.32, // how dark the half of a blade turned from the light is
+        shade: 0.26, // how dark the half of a blade turned from the light is
         vein: 0.012, // midrib width, of the leaf's length
         edge: 3, // px
         // a sprig of small leaves, alternate along a bent stem
@@ -333,7 +333,7 @@ export const OUTSIDE_THEME = {
         // a sprig of fewer, larger leaves that hang further
         sprigBig: { top: 0.24, count: 6, length: [0.25, 0.1], width: [0.44, 0.12], spread: [0.9, 0.3], droop: 0.6 },
         broad: { width: 0.5, veins: 6 }, // one leaf filling its cell, for the weeds' rosettes
-        frond: { pairs: 18, reach: 0.36, angle: 0.3, lobes: 8, width: 0.4 }, // paired leaflets of rounded lobes; width: of the gap between pairs
+        frond: { pairs: 15, reach: 0.36, angle: 0.3, lobes: 7, width: 0.44 }, // paired leaflets, each a lobed blade; width: its half-width, of the gap between pairs
       },
     },
   },
