@@ -21,7 +21,7 @@
 // where two colours meet (toon.js). The haze is the scene fog.
 
 import * as THREE from 'three';
-import { paintSoftSky, paintMud, paintTurf } from '../paint.js';
+import { paintSoftSky, paintMud, paintTurf, paintTrample } from '../paint.js';
 import { SlotWriter, createContract } from './contract.js';
 import { SITE, mulberry32 } from './site.js';
 import { OUTSIDE_THEME } from '../themes/index.js';
@@ -67,6 +67,8 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
     for (let i = 0; i < from.position.length; i += 3) dst.position.push(from.position[i] + dx, from.position[i + 1] + dy, from.position[i + 2] + dz);
     dst.normal.push(...from.normal);
     dst.uv.push(...from.uv);
+    dst.uv1.push(...from.uv1);
+    dst.hasUv1 ||= from.hasUv1;
     dst.color.push(...from.color);
     dst.triangles += from.triangles;
   };
@@ -121,6 +123,7 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
     g.setAttribute('normal', new THREE.Float32BufferAttribute(s.normal, 3));
     g.setAttribute('uv', new THREE.Float32BufferAttribute(s.uv, 2));
     g.setAttribute('color', new THREE.Float32BufferAttribute(s.color, 3));
+    if (s.hasUv1) g.setAttribute('uv1', new THREE.Float32BufferAttribute(s.uv1, 2)); // the near bank's (s, o): the trodden-mud map
     return g;
   };
   const hazeStyle = new THREE.Color(haze).getStyle().slice(4, -1);
@@ -129,6 +132,9 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
     mud: paintMud(31 + seed, OUTSIDE_THEME.textures.mud),
     turf: paintTurf(37 + seed, OUTSIDE_THEME.textures.turf),
   };
+  // The trodden mud over the stretch of the near bank the window sees (paint.js paintTrample).
+  const trample = reports.nearbank && mode !== 'flat' && mode !== 'silhouette' && mode !== 'clay' ? paintTrample(41 + seed, OUTSIDE_THEME.textures.trample, reports.nearbank.trample) : null;
+  if (trample) Object.assign(textures, { trample: trample.map, trampleBump: trample.bump });
   disposables.push(...Object.values(textures));
   const toon = ({ map, side = THREE.FrontSide } = {}) => {
     let m;
@@ -146,11 +152,37 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
     disposables.push(m);
     return m;
   };
+  /**
+   * The mud with its trodden map: the bump map (second map channel) presses in the prints and the
+   * ruts' smears; the shader multiplies the colour by (2 v)^2.2 of the trodden map, and where the
+   * bump map's green says water stands it drops the tiled mud texture under it.
+   */
+  const trodden = (m) => {
+    if (!trample) return m;
+    m.bumpMap = trample.bump;
+    m.bumpScale = OUTSIDE_THEME.textures.trample.bumpScale;
+    m.onBeforeCompile = (shader) => {
+      shader.uniforms.trampleMap = { value: trample.map };
+      shader.fragmentShader = shader.fragmentShader
+        .replace('#include <common>', '#include <common>\nuniform sampler2D trampleMap;')
+        .replace(
+          '#include <map_fragment>',
+          [
+            'vec3 untextured = diffuseColor.rgb;',
+            '#include <map_fragment>',
+            'float standing = texture2D( bumpMap, vBumpMapUv ).g;',
+            'diffuseColor.rgb = mix( diffuseColor.rgb, untextured, standing ) * pow( texture2D( trampleMap, vBumpMapUv ).rgb * 2.0, vec3( 2.2 ) );',
+          ].join('\n'),
+        );
+    };
+    m.customProgramCacheKey = () => 'trodden-mud';
+    return m;
+  };
   const materials = {
     paint: toon(),
     blade: toon({ side: THREE.DoubleSide }),
     gold: toon({ side: THREE.DoubleSide }), // the Assembly building's gold: plain paint; its folds come from the facets
-    mud: toon({ map: textures.mud }), // the near bank's ground: painted detail, UVs in tiles of NEAR_DETAIL.tile metres
+    mud: trodden(toon({ map: textures.mud })), // the near bank's ground: painted detail, UVs in tiles of NEAR_DETAIL.tile metres, and the trodden map
     turf: toon({ map: textures.turf }),
   };
   for (const name of Object.keys(materials)) {
@@ -206,7 +238,7 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
     total += n;
   }
   const budget = createContract('outside budget');
-  budget.max('triangles', total, 95000); // was 60,000; the detailed near bank (nearbank.js) adds about 28,000
+  budget.max('triangles', total, 140000); // was 95,000; the near bank's muddy terrain (exterior step 1) adds about 23,000, and steps 2-4 add more (the user set no limit; the cost is reported per step)
   budget.max('meshes (draw calls)', group.children.length, 10);
   reports.budget = { contract: budget.assert() };
 

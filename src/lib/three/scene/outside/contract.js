@@ -23,12 +23,15 @@ export function createContract(name) {
 }
 
 /** Collects triangles per material slot (non-indexed), with a flat colour per part. */
+/** The second map channel of a vertex that has none: off the map's edge, where it is neutral. */
+export const NO_UV1 = [-1, -1];
+
 export class SlotWriter {
   constructor() {
     this.slots = new Map();
   }
   slot(name) {
-    if (!this.slots.has(name)) this.slots.set(name, { position: [], normal: [], uv: [], color: [], triangles: 0 });
+    if (!this.slots.has(name)) this.slots.set(name, { position: [], normal: [], uv: [], uv1: [], color: [], triangles: 0, hasUv1: false });
     return this.slots.get(name);
   }
   /** Adds a triangle a, b, c (arrays of 3); counter-clockwise seen from outside. uv optional. */
@@ -42,6 +45,7 @@ export class SlotWriter {
     s.position.push(...a, ...b, ...c);
     s.normal.push(nx, ny, nz, nx, ny, nz, nx, ny, nz);
     s.uv.push(...uva, ...uvb, ...uvc);
+    s.uv1.push(...NO_UV1, ...NO_UV1, ...NO_UV1);
     for (let i = 0; i < 3; i++) s.color.push(color[0], color[1], color[2]);
     s.triangles++;
   }
@@ -61,13 +65,18 @@ export class SlotWriter {
     f(p(-1, 1, 1), p(1, 1, 1), p(1, 1, -1), p(-1, 1, -1));
     f(p(-1, -1, -1), p(1, -1, -1), p(1, -1, 1), p(-1, -1, 1));
   }
-  /** Three vertices with their own normals (for smooth, grown forms): p, n, uv are arrays of 3 points. */
-  smoothTri(name, p, n, uv, color) {
+  /**
+   * Three vertices with their own normals (for smooth, grown forms): p, n, uv are arrays of 3
+   * points. uv1 (optional, 3 points) is a second map channel; where it is not given, NO_UV1.
+   */
+  smoothTri(name, p, n, uv, color, uv1 = null) {
     const s = this.slot(name);
+    if (uv1) s.hasUv1 = true;
     for (let i = 0; i < 3; i++) {
       s.position.push(...p[i]);
       s.normal.push(...n[i]);
       s.uv.push(...(uv ? uv[i] : [0, 0]));
+      s.uv1.push(...(uv1 ? uv1[i] : NO_UV1));
       s.color.push(...(Array.isArray(color[0]) ? color[i] : color));
     }
     s.triangles++;

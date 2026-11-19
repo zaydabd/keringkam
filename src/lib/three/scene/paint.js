@@ -800,3 +800,237 @@ export function paintTurf(seed = 37, { colours: C, pattern: P }) {
   t.anisotropy = 8;
   return t;
 }
+
+/**
+ * The trodden mud of the near bank (outside/nearbank.js `trample`): one map over the stretch the
+ * window sees, mapped by distance along the river (s, across) and offset inland (o, down), so it
+ * never repeats. Returns { map, bump }:
+ *   - map: what the mud's colour is multiplied by, painted as `v = 127.5 * target / base` per
+ *     channel (sRGB), so 127.5 changes nothing and the shader takes (2 v)^2.2: wet mud near the
+ *     water and in the hollows, prints with dark wet soles and pale rims, churned smears, glints,
+ *     standing water;
+ *   - bump: red is the height (128 flat) of the prints, rims, smears and the dragged hull; green
+ *     is where water stands (the shader drops the tiled mud texture there).
+ * Both fade to neutral at their edges, so the clamped edge is neutral for everything outside.
+ */
+export function paintTrample(seed = 41, { colours: C, pattern: P }, trample) {
+  const r = rng(seed);
+  const [s0, s1] = trample.s, [o0, o1] = trample.o;
+  const W = Math.min(P.maxWidth, Math.ceil((s1 - s0) * P.pxPerM));
+  const H = Math.ceil((o1 - o0) * P.pxPerM);
+  const [cMap, g] = canvas(W, H);
+  const [cBump, b] = canvas(W, H);
+  const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+  const base = hex(C.base);
+  /** The multiplier that turns the mud into `target`, as canvas values. */
+  const ratio = (target) => hex(target).map((v, k) => Math.min(255, (127.5 * v) / base[k]));
+  const wet = ratio(C.wet), soaked = ratio(C.soaked), rim = ratio(C.rim), water = ratio(C.water), glint = ratio(C.glint);
+  const churn = C.churn.map(ratio);
+  const rgba = (v, a) => `rgba(${v.map(Math.round).join(',')},${a})`;
+  const fade = (s, o) => {
+    const t = (v, a, c) => Math.min(1, Math.max(0, (v - a) / c));
+    return t(s, s0, 1.5) * t(s1, s, 1.5) * t(o, o0, 0.3) * t(o1, o, 0.3);
+  };
+
+  // The field: wet mud, soaked mud at the water, standing water; worked out on a coarse grid and
+  // drawn smoothed onto the full map.
+  const F = P.field, w = Math.ceil(W / F) + 1, h = Math.ceil(H / F) + 1;
+  const cField = document.createElement('canvas');
+  cField.width = w;
+  cField.height = h;
+  const cWater = document.createElement('canvas');
+  cWater.width = w;
+  cWater.height = h;
+  const field = cField.getContext('2d', { willReadFrequently: true }).createImageData(w, h);
+  const still = cWater.getContext('2d', { willReadFrequently: true }).createImageData(w, h);
+  const M = P.mottle;
+  const mottleAt = (s, o) => Math.sin(s / M.size + Math.sin(o * 1.7 / M.size) * 1.3) * Math.cos(o / (M.size * 0.7) + Math.sin(s * 0.9 / M.size));
+  for (let j = 0; j < h; j++) {
+    for (let i = 0; i < w; i++) {
+      const s = s0 + ((i * F) / W) * (s1 - s0), o = o0 + ((j * F) / H) * (o1 - o0);
+      const q = trample.sample(s, o), f = fade(s, o), p = (j * w + i) * 4;
+      let v = [127.5, 127.5, 127.5], st = 0;
+      if (q.mud) {
+        const k = Math.min(1, Math.max(0, q.wet * P.wetness + M.amount * mottleAt(s, o)));
+        v = v.map((c, n) => c + (wet[n] - c) * k);
+        const sk = Math.min(1, Math.max(0, 1 - o / P.soak)) * q.wet;
+        v = v.map((c, n) => c + (soaked[n] - c) * sk);
+        if (q.water) {
+          v = water;
+          st = 1;
+        }
+      }
+      for (let n = 0; n < 3; n++) field.data[p + n] = 127.5 + (v[n] - 127.5) * f;
+      field.data[p + 3] = 255;
+      still.data[p] = 128;
+      still.data[p + 1] = 255 * st * f;
+      still.data[p + 2] = 128;
+      still.data[p + 3] = 255;
+    }
+  }
+  cField.getContext('2d').putImageData(field, 0, 0);
+  cWater.getContext('2d').putImageData(still, 0, 0);
+  for (const [gg, src] of [[g, cField], [b, cWater]]) {
+    gg.imageSmoothingEnabled = true;
+    gg.imageSmoothingQuality = 'high';
+    gg.drawImage(src, 0, 0, w - 1, h - 1, 0, 0, W, H);
+  }
+
+  // From here on everything is drawn in metres: x along the river (s), y inland (o).
+  for (const gg of [g, b]) {
+    gg.save();
+    gg.scale(W / (s1 - s0), H / (o1 - o0));
+    gg.translate(-s0, -o0);
+  }
+  const height = (d) => rgba([128 + d, 0, 128], 1); // red is the height; no standing water
+  const heightA = (d, a) => rgba([128 + d, 0, 128], a);
+
+  // Churned smears where people and boats come and go: the worn way, the ruts, the landing.
+  const Ch = P.churn;
+  for (let k = 0, tries = 0; k < Ch.count && tries < Ch.count * 20; tries++) {
+    const s = s0 + r() * (s1 - s0), o = o0 + r() * (o1 - o0);
+    const q = trample.sample(s, o);
+    if (!q.mud || fade(s, o) < 0.5 || r() > Math.max(q.path, q.rut * 0.7, 0.08)) continue;
+    k++;
+    const rx = vary(r, Ch.size), ry = rx * (0.35 + r() * 0.4), a = r() * Math.PI, dark = r() < 0.6;
+    const op = vary(r, Ch.opacity);
+    g.fillStyle = rgba(dark ? churn[0] : churn[1], op);
+    b.fillStyle = heightA(dark ? -Ch.bump : Ch.bump, op * 2);
+    for (const gg of [g, b]) {
+      gg.beginPath();
+      gg.ellipse(s, o, rx, ry, a, 0, Math.PI * 2);
+      gg.fill();
+    }
+  }
+
+  // A hull dragged up from the water: a smooth trough with lengthwise ridges.
+  const Dg = P.drag, [ds0, do0] = trample.drag.from, [ds1, do1] = trample.drag.to;
+  const dAng = Math.atan2(do1 - do0, ds1 - ds0), dLen = Math.hypot(ds1 - ds0, do1 - do0), dW = trample.drag.width;
+  for (const gg of [g, b]) {
+    gg.save();
+    gg.translate(ds0, do0);
+    gg.rotate(dAng);
+  }
+  const grad = b.createLinearGradient(0, -dW / 2, 0, dW / 2);
+  grad.addColorStop(0, height(0));
+  grad.addColorStop(0.15, height(18));
+  grad.addColorStop(0.3, height(-Dg.bump));
+  grad.addColorStop(0.7, height(-Dg.bump));
+  grad.addColorStop(0.85, height(18));
+  grad.addColorStop(1, height(0));
+  b.fillStyle = grad;
+  b.fillRect(0, -dW / 2, dLen, dW);
+  g.fillStyle = rgba(wet, Dg.opacity);
+  g.fillRect(0, -dW * 0.35, dLen, dW * 0.7);
+  b.lineWidth = 0.012;
+  for (let k = 0; k < Dg.ridges; k++) {
+    const y = (k / (Dg.ridges - 1) - 0.5) * dW * 0.6 + (r() - 0.5) * 0.02;
+    b.strokeStyle = heightA(r() < 0.5 ? 14 : -14, 0.8);
+    b.beginPath();
+    b.moveTo(r() * 0.2, y);
+    b.lineTo(dLen - r() * 0.3, y + (r() - 0.5) * 0.04);
+    b.stroke();
+  }
+  for (const gg of [g, b]) gg.restore();
+
+  // Footprints. A sole is drawn in its own frame: x forward (toe), y to the side, in metres.
+  const Pr = P.prints;
+  const sole = (gg, kind, grow = 0) => {
+    const S = Pr[kind];
+    gg.beginPath();
+    if (kind === 'boot') {
+      gg.ellipse(S.length * 0.2, 0, S.length * 0.31 + grow, S.width / 2 + grow, 0, 0, Math.PI * 2); // forefoot
+      gg.moveTo(-S.length * 0.25 + S.heel / 2 + grow, 0);
+      gg.ellipse(-S.length * 0.25, 0, S.heel / 2 + grow, S.width * 0.42 + grow, 0, 0, Math.PI * 2); // heel
+      gg.rect(-S.length * 0.25, -S.width * 0.3 - grow, S.length * 0.4, S.width * 0.6 + grow * 2); // waist
+    } else {
+      gg.ellipse(S.length * 0.12, 0.006, S.length * 0.3 + grow, S.width / 2 + grow, 0.05, 0, Math.PI * 2);
+      gg.moveTo(-S.length * 0.26 + S.width * 0.38 + grow, 0);
+      gg.ellipse(-S.length * 0.26, 0, S.width * 0.38 + grow, S.width * 0.36 + grow, 0, 0, Math.PI * 2);
+    }
+  };
+  const toes = (gg, S, foot) => {
+    for (let t = 0; t < 5; t++) {
+      const y = (t / 4 - 0.5) * S.width * 0.85 * -foot, x = S.length * (0.44 - Math.abs(t / 4 - 0.15) * 0.1);
+      gg.beginPath();
+      gg.arc(x, y, (t === 0 ? 0.016 : 0.01), 0, Math.PI * 2);
+      gg.fill();
+    }
+  };
+  for (const f of trample.prints) {
+    const S = Pr[f.kind];
+    for (const gg of [g, b]) {
+      gg.save();
+      gg.translate(f.s, f.o);
+      gg.rotate(f.a);
+      gg.scale(f.size, f.size * f.foot);
+    }
+    // the pale rim, squeezed up round the sole; then the sole pressed in, wet and dark
+    g.fillStyle = rgba(rim, Pr.rim * (0.6 + r() * 0.4));
+    sole(g, f.kind, 0.018);
+    g.fill();
+    b.fillStyle = height(Pr.lift * (0.6 + r() * 0.4));
+    sole(b, f.kind, 0.02);
+    b.fill();
+    const fill = f.water ? water : soaked.map((c, n) => 127.5 + (c - 127.5) * (Pr.depth + r() * 0.25));
+    g.fillStyle = rgba(fill, 0.95);
+    sole(g, f.kind);
+    g.fill();
+    b.fillStyle = height(-Pr.sink * (0.75 + r() * 0.25));
+    sole(b, f.kind);
+    b.fill();
+    if (f.water) {
+      b.fillStyle = 'rgba(0,255,0,0.9)'; // green only matters here: water stands in this print
+      b.globalCompositeOperation = 'lighter';
+      sole(b, f.kind, -0.008);
+      b.fill();
+      b.globalCompositeOperation = 'source-over';
+    }
+    if (f.kind === 'boot') {
+      // the tread: bars across the sole, pressed a little less deep
+      b.strokeStyle = heightA(-Pr.sink * 0.55, 0.9);
+      b.lineWidth = 0.009;
+      for (let x = -S.length * 0.38; x < S.length * 0.45; x += 0.024) {
+        b.beginPath();
+        b.moveTo(x, -S.width * 0.4);
+        b.lineTo(x + 0.006, S.width * 0.4);
+        b.stroke();
+      }
+    } else {
+      g.fillStyle = rgba(f.water ? water : soaked, 0.9);
+      toes(g, S, 1);
+      b.fillStyle = height(-Pr.sink);
+      toes(b, S, 1);
+    }
+    for (const gg of [g, b]) gg.restore();
+  }
+
+  // Wet glints on the wet mud.
+  const Gl = P.glints;
+  for (let k = 0, tries = 0; k < Gl.count && tries < Gl.count * 10; tries++) {
+    const s = s0 + r() * (s1 - s0), o = o0 + r() * (o1 - o0);
+    const q = trample.sample(s, o);
+    if (!q.mud || fade(s, o) < 0.7 || r() > q.wet) continue;
+    k++;
+    const rad = vary(r, Gl.size);
+    g.fillStyle = rgba(glint, vary(r, Gl.opacity));
+    g.beginPath();
+    g.ellipse(s, o, rad * 1.8, rad, 0, 0, Math.PI * 2);
+    g.fill();
+  }
+  for (const gg of [g, b]) gg.restore();
+  grain(g, W, r, P.grain);
+  // A neutral border: outside the map the shader reads the clamped edge.
+  g.strokeStyle = 'rgb(128,128,128)';
+  g.lineWidth = 4;
+  g.strokeRect(0, 0, W, H);
+
+  const map = texture(cMap, [1, 1], false);
+  map.colorSpace = THREE.NoColorSpace; // the shader decodes it: (2 v)^2.2
+  map.anisotropy = 8;
+  const bump = texture(cBump, [1, 1], false);
+  bump.colorSpace = THREE.NoColorSpace;
+  bump.anisotropy = 8;
+  bump.channel = 1; // the near bank's second map channel: (s, o); the shader reads `map` there too
+  return { map, bump, size: [W, H] };
+}

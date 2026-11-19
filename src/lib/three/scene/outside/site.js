@@ -82,12 +82,12 @@ export const SITE = {
  * `focus` times `rate`, kept between `min` and `max` metres. Returns stations
  * { x, z, tx, tz, nx, nz, s }: position, unit tangent, unit normal pointing inland, distance
  * along the line. `landOnLeft`: the land lies to the left of the direction of travel (our bank)
- * or to the right (the far bank).
+ * or to the right (the far bank). `fine` is the finest step (m); `step(station)`, if given,
+ * replaces the rule above and returns the step (m) after that station.
  */
-export function sampleLine(points, { landOnLeft, focus = [0, -5], rate = 0.05, min = 2, max = 40 }) {
+export function sampleLine(points, { landOnLeft, focus = [0, -5], rate = 0.05, min = 2, max = 40, fine = 0.25, step: stepAt = null }) {
   const curve = new THREE.CatmullRomCurve3(points.map(([x, z]) => new THREE.Vector3(x, 0, z)), false, 'centripetal');
   const length = curve.getLength();
-  const fine = 0.25;
   const n = Math.ceil(length / fine);
   const pts = curve.getSpacedPoints(n);
   const sign = landOnLeft ? 1 : -1;
@@ -100,9 +100,10 @@ export function sampleLine(points, { landOnLeft, focus = [0, -5], rate = 0.05, m
   const out = [];
   let i = 0;
   while (i < n) {
-    out.push(at(i));
+    const here = at(i);
+    out.push(here);
     const p = pts[i];
-    const step = Math.min(max, Math.max(min, Math.hypot(p.x - focus[0], p.z - focus[1]) * rate));
+    const step = stepAt ? stepAt(here) : Math.min(max, Math.max(min, Math.hypot(p.x - focus[0], p.z - focus[1]) * rate));
     i += Math.max(1, Math.round(step / (length / n)));
   }
   if (n - (out.length ? Math.round((out[out.length - 1].s / length) * n) : 0) < 4) out.pop(); // no sliver at the end

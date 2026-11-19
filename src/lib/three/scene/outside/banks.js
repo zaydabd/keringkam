@@ -46,7 +46,7 @@ function fill(w, slot, contour, y, colour) {
  * What the sweep must satisfy whatever the numbers: no fold, every face up, no sliver. `slot` is a
  * slot name (faces from index `from`) or a list of [slot, from] pairs.
  */
-export function checkSweep(contract, w, slot, rows, stations, from = 0) {
+export function checkSweep(contract, w, slot, rows, stations, from = 0, { minArea: smallest = 0.01, minAdvance = 0.05 } = {}) {
   let fold = Infinity;
   for (let i = 0; i < rows.length - 1; i++) {
     for (let k = 0; k < rows[i].length; k++) {
@@ -54,7 +54,7 @@ export function checkSweep(contract, w, slot, rows, stations, from = 0) {
       fold = Math.min(fold, (b[0] - a[0]) * s.tx + (b[2] - a[2]) * s.tz);
     }
   }
-  contract.min('every column advances along the river (m per station; no fold)', fold, 0.05);
+  contract.min('every column advances along the river (m per station; no fold)', fold, minAdvance);
   let minUp = Infinity, minArea = Infinity;
   for (const [name, start] of Array.isArray(slot) ? slot : [[slot, from]]) {
     const s = w.slot(name);
@@ -67,7 +67,7 @@ export function checkSweep(contract, w, slot, rows, stations, from = 0) {
     }
   }
   contract.min('every ground face looks up (normal y)', minUp, 0.05);
-  contract.min('smallest ground triangle (m2; no sliver)', minArea, 0.01);
+  contract.min('smallest ground triangle (m2; no sliver)', minArea, smallest);
 }
 
 /** A saw-tooth of upright blades along a line of points: reeds, grass at the water's edge. */

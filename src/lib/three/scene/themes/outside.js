@@ -92,6 +92,37 @@ const EARTH = {
     grit: { count: 260, size: [0.8, 1.8], opacity: 0.7, outline: 0.8, outlineOpacity: 0.35 },
     noise: 18, // fine paper grain over everything
   },
+  // The trodden mud over the stretch the window sees (paintTrample), as the mud should look: the
+  // painter turns each into a multiplier of `base`, the mud's vertex colour.
+  trample: {
+    base: '#bca47c', // = mudFlat
+    wet: '#6c5238', // = mudWet: wet mud near the water and in the hollows
+    soaked: '#4e3a28', // the wettest mud: the waterline, the bottoms of the prints
+    rim: '#d2bc94', // rims squeezed up round the prints, drying pale
+    churn: ['#5e4630', '#ccb68c'], // churned smears: dark, pale
+    glint: '#f2e6cc', // wet glints
+    water: '#b8b49e', // = WATER.puddle: standing water (it takes the sky's colour, as the puddles do)
+  },
+  trampleMarks: {
+    pxPerM: 64, // map pixels per metre (at most `maxWidth` along the river)
+    maxWidth: 4096,
+    field: 8, // the wetness field is worked out every this many pixels and smoothed
+    wetness: 0.9, // how far wet mud goes towards `wet`
+    soak: 0.35, // below this offset (m) wet mud goes on to `soaked`
+    mottle: { size: 1.4, amount: 0.25 }, // large wet and dry mottling (m, share)
+    prints: {
+      boot: { length: 0.29, width: 0.105, heel: 0.075 },
+      bare: { length: 0.25, width: 0.095 },
+      depth: 0.32, // how far a print darkens towards `soaked`
+      rim: 0.35, // opacity of the pale rim
+      sink: 70, // bump: how far a print is pressed in (of 128)
+      lift: 34, // bump: how high its rim stands
+    },
+    churn: { count: 2400, size: [0.03, 0.1], opacity: [0.12, 0.22], bump: 26 }, // smears where people and boats come and go
+    drag: { opacity: 0.35, ridges: 9, bump: 40 },
+    glints: { count: 1600, size: [0.006, 0.02], opacity: [0.35, 0.4] }, // on wet mud only
+    grain: 10,
+  },
 };
 
 const STONE = {
@@ -282,6 +313,7 @@ export const OUTSIDE_THEME = {
   textures: {
     mud: { colours: EARTH.texture, pattern: EARTH.mudMarks },
     turf: { colours: PLANT.turf, pattern: PLANT.turfMarks },
+    trample: { colours: EARTH.trample, pattern: EARTH.trampleMarks, bumpScale: 1.2 },
   },
 
   // Trees and bushes on the banks (trees.js).
