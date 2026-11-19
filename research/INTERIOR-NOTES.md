@@ -1636,3 +1636,70 @@ Capture note: the captures ran from a second worktree of the repo with `vite` st
 That skips `npm run copy:basis`, so `/basis/` fell through to index.html and every KTX2 texture
 failed (`Unexpected identifier 'html'` in the transcoder worker). Run `node scripts/copy-basis.mjs`
 in a fresh worktree first, or start it with `npm run dev`.
+
+### Pass e3: the near bank's plants (2026-11-19, branch `exterior-plants`)
+
+The user's concern: the flora look poor. Before this pass the shrubs were smooth blobs, the grass
+was a sparse set of sticks and there were two ferns. Every size, count and colour below is a
+design choice tuned in the window shot against R3, not a measurement. No species is named: no
+sourced reference was used for one.
+
+**A leaf atlas (paint.js `paintLeaves`, theme `textures.leaves`).** One 1024 × 1024 canvas of
+2 × 2 cells, painted in light greys so a plant's vertex colour sets its green:
+- a sprig of nine small leaves; a sprig of six larger, drooping leaves; one broad leaf; a fern
+  frond;
+- each leaf is a bezier outline, a darker half (the side turned from the light), a midrib and
+  side veins kept inside the blade, and an edge line that stands in for the ink;
+- the frond is 15 pairs of pinnae, each one lobed blade (scalloped margin), longest a third of the
+  way up. All pinnae are stroked with a wide edge first and filled on top, so only the frond's
+  outer margin keeps a line. The first version drew every lobe as its own outlined ellipse; at
+  the window's distance that read as dark stripes.
+
+**The `leaf` slot (outside/index.js, leaves.js).** Leaf cards (quads) and strips (bent quads, for
+fronds) go to a new slot drawn two-sided with an alpha test at 0.5. The mesh is on layer 1 (no
+ink), on the mirror's layer and on a new mask layer, `LEAF_MASK_LAYER` = 6. The ink pass
+(toon.js `createOutline`) now takes a list of masks; the lattice's mask stays, and the leaves'
+mask hides the ink behind each leaf, so the ink draws no rectangle round a card.
+
+Alpha-tested leaves thin out and vanish at a distance, because the mipmaps average the alpha
+down. The leaf material and the ink mask scale the alpha by 1 + 0.25 × the mip level (worked out
+from the screen derivatives of the texture coordinates) before the test, which keeps the leaves'
+coverage. This is the method described by Ben Golus
+(https://bgolus.medium.com/anti-aliased-alpha-test-the-esoteric-alpha-to-coverage-8b177335ae4f; the
+page returned 403 to this container, so it was read through the summary at
+https://lisyarus.github.io/blog/posts/exploring-ways-to-mipmap-alpha-tested-textures.html). The 0.25
+is the value that summary gives; it was not tuned here.
+
+**The plants (outside/nearbank.js, `NEAR_PLANTS`, `NEAR_SHRUB`):**
+- **shrubs**: stems grown with the far trees' `growTree` from a new shrub species (`NEAR_SHRUB`:
+  a short trunk, 5 stems, 3 twigs each), wood only (`emitTree` with `foliage: false`). A dark
+  lumpy core keeps the sky from showing through. Five sprig cards round each twig tip, light
+  above 0.62 of the shrub's height, mid above 0.32, dark below. Each shrub's colour is scaled by
+  its own random hue;
+- **grass**: blades are quadratic curves that rise and arch over (the tip bends down by 0.15–0.75
+  of the height); 8–12% of blades are seed stalks with a spindle head. A new `verge` rule puts
+  denser clumps on the berm, the shoulder and the level within about 0.3 m of the mud, leaning
+  out over it; blades have 3 segments within 14 m of the eye and 2 beyond;
+- **weeds**: rosettes of 5–8 broad leaf cards lying low on the mud's margin (flat, track, lip,
+  cut), at least 40 per seed;
+- **ferns**: five ferns at the frame's lower left, as R3 has (`SITE.near.ferns`), each nine fronds
+  of the frond cell on a bent strip, their pinnae turned towards the eye.
+
+**Contracts added.** Plant triangles 25,000–60,000; leaf-card triangles 4,000–12,000; at least 12
+shrubs, 250 clumps and 40 weeds; one fern per entry in `SITE.near.ferns`. The outside's triangle cap
+is now 170,000 (was 140,000). The first version (verge grass with 3 segments everywhere) put the
+outside at 154,058 triangles, over the old cap; the page threw at load.
+
+**Cost.** Counted from the slots in Node, seed 0:
+
+| | before (`exterior-far-bank`) | after |
+| --- | --- | --- |
+| near bank plants and props (blade) | 21,858 | 42,284 |
+| leaf cards (leaf) | – | 6,774 |
+| outside, total (about) | 117,569 | 144,689 |
+| outside meshes (draw calls) | 7 | 8 |
+| shrubs / grass clumps / weeds / ferns | 54 / 320 / – / 2 | 56 / 847 / 99 / 5 |
+
+Seeds 0–5: blade 33,000–42,000, leaf 6,800–8,500 triangles. The near bank builds in 185–365 ms in
+Node (was 279 ms for seed 0; this container's CPU). The atlas is 1024 × 1024 RGBA with mipmaps:
+about 5.3 MB of texture memory (4 MB plus a third).
