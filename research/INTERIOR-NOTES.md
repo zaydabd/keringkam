@@ -2094,3 +2094,27 @@ part of its frame.
   - draw calls 49 → 49 → 49 (the new parts merge into the existing 'paint' and 'leaf' slots).
 - **Gate sheets** (scratchpad only, not committed): `gate-e7b.png` (step 2), `gate-e7c.png`
   (step 3).
+
+### Pass e8: contrast on the far-bank buildings (2026-11-20, branch `farbank-contrast`)
+
+- **Request:** the outside colours look greyed out; add contrast to the buildings.
+- **Measured** (`window` view; a crop of the Assembly's facade against the same part of the
+  Horatio Wong photo; luma 0..1; pixel checks, not real data):
+  - photo: darkest 5% at 0.19, brightest 5% at 0.92, range 0.73; glass about #363737, columns
+    about #dbdbd2;
+  - before: 0.42 to 0.86, range 0.44; glass #635a43; saturation was already like the photo's
+    (0.26 against 0.23), so the grey look was lifted darks, not missing colour;
+  - which pass lifts them: the post passes only a little (grade, pigment and ink all off: range
+    0.51). Most of it was in the scene: the haze (linear fog, near -100 m, far 1500 m, so about
+    22% fog colour at the Assembly, about 254 m off) and the light glazing paint.
+- **Change** (`themes/outside.js`):
+  - haze far 1500 → 2600 m (about 13% at the Assembly);
+  - the Assembly's glazing (`infill`) near black, floor bands, soffit darker;
+  - whites, brim and stone a little cool, against the warm sun.
+- **After:** facade 0.25 to 0.86, range 0.61 (photo 0.73); glass #524f3c. The forecourt went
+  from 0.58 to 0.63 and the far trees from 0.57 to 0.62.
+- **Left as is:** the whites still read warm cream (#dfd2ae against the photo's #dbdbd2). That
+  comes from the warm sun and the room's grade (cream paper, warm black lift), which are the
+  painting's look for the whole frame; changing it would mean a separate grade for the outside.
+- **Cost:** none. Triangles and draw calls are unchanged (window 521,830 / 49), measured in
+  headless SwiftShader, **not a real GPU**.

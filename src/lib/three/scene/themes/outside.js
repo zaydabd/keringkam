@@ -156,13 +156,13 @@ const BUILT = {
     cone: [0.3, 0.29, 0.3],
     coneShade: [0.42, 0.4, 0.4],
     bronze: [0.78, 0.56, 0.28], // the side kiosks' spires
-    white: [0.97, 0.94, 0.87],
-    brim: [0.88, 0.87, 0.84],
-    brimEdge: [0.76, 0.75, 0.72], // a shade darker than the columns, so they read against it
-    soffit: [0.66, 0.62, 0.56],
-    infill: [0.27, 0.17, 0.14],
-    floor: [0.46, 0.3, 0.24],
-    stone: [0.9, 0.88, 0.82],
+    white: [0.93, 0.94, 0.96], // a little cool: the warm sun and the room's grade bring it back to the photo's near-neutral #dbdbd2 (pass e8; was 0.97, 0.94, 0.87)
+    brim: [0.85, 0.86, 0.88],
+    brimEdge: [0.72, 0.73, 0.76], // a shade darker than the columns, so they read against it
+    soffit: [0.52, 0.48, 0.43],
+    infill: [0.05, 0.05, 0.06], // the glazing: near black, so it lands near the photo's #363737 (pass e8; was 0.27, 0.17, 0.14)
+    floor: [0.24, 0.17, 0.13],
+    stone: [0.86, 0.87, 0.89],
   },
   kioskGold: [1.0, 0.8, 0.42], // the small kiosks' roofs: a lighter gold than the main roof (linear)
   kioskGoldShade: [0.88, 0.66, 0.3],
@@ -175,7 +175,7 @@ const BUILT = {
 export const OUTSIDE_THEME = {
   air: {
     daylight: AIR.daylight,
-    haze: { near: -100, far: 1500 }, // metres: clear air (R3). The Assembly, 330 m off, is about a sixth washed
+    haze: { near: -100, far: 2600 }, // metres: clear air (R3; pass e8: 1500 lifted the buildings' darks, see notes)
     // The room is exposed for shade, so sunlit paint outside would burn out to white. The outdoor
     // paint is keyed down by this much instead, as a painter would, so it keeps its colour.
     key: 0.3,
