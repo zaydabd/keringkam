@@ -15,7 +15,8 @@
 //     an open porch at the bow under the roof, a raking strut at its front;
 //   - a long roof, nearly flat across the beam, low over the middle, swept up hard at the bow
 //     and a little at the stern; a hatch on its after end;
-//   - the boatman standing on the stern deck with a long oar.
+//   - an open stern deck behind the cabin. No boatman or oar: the user asked for no people
+//     (pass e9); the sizes above were still scaled by his head in the photos.
 
 import { createContract } from './contract.js';
 import { rgbTable } from './site.js';
@@ -46,7 +47,7 @@ export const PENAMBANG = {
     fascia: 0.1,
     hatch: { from: -2.3, to: -0.4, inner: 0.08, outer: 0.72, lift: 0.06 }, // B1, B3: a raised panel on the after roof (u across)
   },
-  boatman: { x: -2.55, deck: 0.2, height: 1.65 }, // just aft of the roof (B1, B3)
+  stern: { deck: 0.2 }, // the open stern deck above the water, just aft of the roof (B1, B3)
   stations: 18,
 };
 
@@ -57,7 +58,7 @@ const SHADE = OUTSIDE_THEME.boats.shade;
 /** Parts in build order. Pure data: no geometry. */
 export function planBoat(settings = PENAMBANG, scheme = 'red') {
   if (!SCHEMES[scheme]) throw new Error(`boats: no colour scheme ${scheme}`);
-  const parts = ['hull', 'deck', 'cabin', 'porch', 'roof', 'hatch', 'boatman'].map((part) => ({ part }));
+  const parts = ['hull', 'deck', 'cabin', 'porch', 'roof', 'hatch'].map((part) => ({ part }));
   return { settings, scheme, parts };
 }
 
@@ -106,7 +107,7 @@ const PARTS = {
       // the inside of the sides, above the floor (seen over the gunwale and through the porch)
       for (const s of [-1, 1]) {
         const p = (x, y) => at(x, y, s * (halfBeam(B, x) - 0.02));
-        const q = [p(x0, B.boatman.deck), p(x1, B.boatman.deck), p(x1, sheerAt(B, x1)), p(x0, sheerAt(B, x0))];
+        const q = [p(x0, B.stern.deck), p(x1, B.stern.deck), p(x1, sheerAt(B, x1)), p(x0, sheerAt(B, x0))];
         if (s < 0) w.quad('paint', q[0], q[1], q[2], q[3], C.hull);
         else w.quad('paint', q[1], q[0], q[3], q[2], C.hull);
       }
@@ -125,7 +126,7 @@ const PARTS = {
   },
   deck({ B, w, at, C }) {
     // dark floor inside, seen through the porch and over the stern
-    const y = B.boatman.deck;
+    const y = B.stern.deck;
     const xs = [-B.length / 2 + 0.15, B.length / 2 - 0.2];
     const n = 8;
     for (let i = 0; i < n; i++) {
@@ -238,17 +239,6 @@ const PARTS = {
       }
     }
   },
-  boatman({ B, w, at, C }) {
-    // standing on the stern deck behind the cabin, facing the bow, an oar over the side (B1, B3, B4)
-    const M = B.boatman;
-    const y0 = M.deck, h = M.height;
-    const box = (cx, cy, cz, hx, hy, hz, color) => w.box('paint', at(cx, cy, cz), dirX(at, hx), [0, hy, 0], dirZ(at, hz), color);
-    box(M.x, y0 + h * 0.24, 0, 0.1, h * 0.24, 0.17, C.trousers);
-    box(M.x, y0 + h * 0.64, 0, 0.12, h * 0.16, 0.2, C.shirt);
-    box(M.x + 0.02, y0 + h * 0.88, 0, 0.1, h * 0.06, 0.09, C.skin);
-    // the oar: from his hands, out over the starboard quarter into the water
-    post(w, at, [M.x + 0.25, y0 + h * 0.62, 0.22], [M.x - 0.35, -0.4, halfBeam(B, M.x) + 0.55], 0.05, C.oar);
-  },
 };
 
 /** How far the roof has narrowed and flattened towards its upswept bow tip, 0 .. 1 (B1, B3). */
@@ -287,14 +277,6 @@ const norm = (a) => {
   const l = Math.hypot(...a) || 1;
   return a.map((c) => c / l);
 };
-const dirX = (at, k) => {
-  const o = at(0, 0, 0), p = at(1, 0, 0);
-  return [(p[0] - o[0]) * k, 0, (p[2] - o[2]) * k];
-};
-const dirZ = (at, k) => {
-  const o = at(0, 0, 0), p = at(0, 0, 1);
-  return [(p[0] - o[0]) * k, 0, (p[2] - o[2]) * k];
-};
 
 /**
  * Compiles a plan into the writer's 'paint' slot, placed at `place` = { x, z, ry } on water level
@@ -317,7 +299,6 @@ export function compileBoat(plan, w, place = { x: 0, z: 0, ry: 0 }, y = 0) {
   contract.range('roof at the front / roof over the middle (B3 traced: 2.0)', roofAt(B, R.front) / R.low, 1.8, 2.3);
   contract.range('roof length / boat length (B3 0.98)', (R.front - R.back) / B.length, 0.92, 1.04);
   contract.range('cabin length / boat length (B3 0.67)', (B.cabin.front - B.cabin.back) / B.length, 0.6, 0.74);
-  contract.range('boatman head above the water / roof over the middle (B3 1.95)', (B.boatman.deck + B.boatman.height) / R.low, 1.7, 2.2);
   contract.min('roof clears the gunwale everywhere along the cabin (m)', Math.min(...[B.cabin.back, 0, B.cabin.front].map((x) => roofAt(B, x) - sheerAt(B, x))), 0.3);
   contract.range('ridge rise / roof half-width (B3 fit 0.47; B1 about 0.75)', R.rise / (B.beam / 2 + R.overhang), 0.4, 0.9);
   contract.max('triangles', triangles, 1600);

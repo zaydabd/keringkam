@@ -111,7 +111,6 @@ const PLANT = {
 const WOOD = {
   trunk: '#5c5a34', // tree trunks and branches
   deck: '#6b5440', // boat decks
-  oar: '#a8875e',
 };
 
 // Boat paint, chosen from the photos: each river taxi is painted its own bright colours.
@@ -131,14 +130,6 @@ const PAINT = {
   },
 };
 
-const CLOTH = {
-  // what each boat's boatman wears (from the same photos)
-  red: { shirt: '#2aa58a', trousers: '#c9b79a' },
-  orange: { shirt: '#d8382e', trousers: '#3b3b44' },
-  green: { shirt: '#f0eee8', trousers: '#40404a' },
-};
-
-const PEOPLE = { skin: '#8a5a3c' };
 const GLASS = { cabin: '#1f2326' };
 const SHADE = { cabin: '#2a2220' }; // the dark inside of a boat's cabin
 
@@ -283,15 +274,11 @@ export const OUTSIDE_THEME = {
   // frond: the frond trees' crowns and their ringed trunks (pass e7; design choices, tuned in the window shot)
   trees: { trunk: WOOD.trunk, light: PLANT.foliageLight, mid: PLANT.foliageMid, dark: PLANT.foliageDark, frond: PLANT.fern, frondLight: PLANT.fernLight, frondTrunk: '#8c8064', frondRing: '#6e6450' },
 
-  // River taxis (boats.js): each scheme is one boat's paint and its boatman's clothes.
+  // River taxis (boats.js): each scheme is one boat's paint. No people aboard (pass e9).
   boats: {
-    schemes: {
-      red: { ...PAINT.red, ...CLOTH.red },
-      orange: { ...PAINT.orange, ...CLOTH.orange },
-      green: { ...PAINT.green, ...CLOTH.green },
-    },
+    schemes: { red: PAINT.red, orange: PAINT.orange, green: PAINT.green },
     // Shared by every boat.
-    shade: { inside: SHADE.cabin, glass: GLASS.cabin, deck: WOOD.deck, skin: PEOPLE.skin, oar: WOOD.oar },
+    shade: { inside: SHADE.cabin, glass: GLASS.cabin, deck: WOOD.deck },
   },
 
   // The State Legislative Assembly building (assembly.js), linear.

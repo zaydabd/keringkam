@@ -612,7 +612,7 @@ building, as agreed with the user. 9,226 triangles (limit 14,000).
 
 `src/lib/three/scene/outside/boats.js` replaces the old `buildBoat` in `index.js`. Same pattern as
 `assembly.js`: settings (`PENAMBANG`) -> plan (`planBoat`, parts in build order) -> part builders
-(hull, deck, cabin, porch, roof, hatch, boatman) -> `compileBoat` with a checks contract.
+(hull, deck, cabin, porch, roof, hatch; boatman removed in pass e9) -> `compileBoat` with a checks contract.
 
 Sourced: covered sampans carrying about 10-12 passengers
 ([Borneo Post, 2024-05-29](https://www.theborneopost.com/2024/05/29/iconic-sarawak-perahu-tambang-boats-embrace-modern-tech/),
@@ -630,7 +630,7 @@ Contract (each boat, values from the B3 broadside photo unless noted):
 | roof at the bow / roof over the middle | 2.0 (traced) | 2.0 |
 | roof length / boat length | 0.98 | 0.977 |
 | cabin length / boat length | 0.67 | 0.666 |
-| boatman's head / roof over the middle | 1.95 | 2.01 |
+| boatman's head / roof over the middle (boatman removed in pass e9) | 1.95 | 2.01 |
 | ridge rise / roof half-width | 0.47 (B3), ~0.75 (B1) | 0.53 |
 | roof clearance over the gunwale | >= 0.3 m | 0.59 m |
 | triangles | <= 1600 | 836 |
@@ -2118,3 +2118,20 @@ part of its frame.
   painting's look for the whole frame; changing it would mean a separate grade for the outside.
 - **Cost:** none. Triangles and draw calls are unchanged (window 521,830 / 49), measured in
   headless SwiftShader, **not a real GPU**.
+
+### Pass e9: boats turned towards the bridge, no people (2026-11-20, branch `boats-angle`)
+
+- **Request:** turn the boats more towards the bridge; no people. User choices: a three-quarter
+  view (not pointing straight at the bridge), and remove the oar with the boatman.
+- **Why not straight at the bridge:** from the window eye (-0.475, 1.5, -4.62), the bridge's
+  piers are about 6° from the line of sight to the near boat, so a bow aimed straight at them
+  would show the window only the stern.
+- **Change:**
+  - `site.js`: `ry` 0.3 → 2.45 (near boat) and 0.15 → 2.55 (far boat). Both bows now head left
+    and away, 40.7° off the line of sight (it was 82.5° and 96.8°, side-on to the right). The
+    angles are design choices.
+  - `boats.js`: the `boatman` part (body and oar) is removed. Its deck height is kept as
+    `stern.deck`, and the head-to-roof check is removed.
+  - `themes/outside.js`: the clothes, skin and oar colours are removed.
+- **Cost:** 836 → 788 triangles per boat. In the window view, 521,830 → 521,542 triangles, and
+  draw calls stay at 49 (headless SwiftShader, **not a real GPU**).

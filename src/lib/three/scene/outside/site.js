@@ -72,8 +72,11 @@ export const SITE = {
   bridge: [[-230, -95], [-50, -150], [-22, -140], [10, -200]],
   assembly: { x: 127, z: -225 }, // bearing +31, 254 m: where R3 has it, at the right edge of the window and about as big; the right curtain may cover part of it (agreed with the user)
   boats: [
-    { x: -6.5, z: -40, ry: 0.3, scheme: 'red' }, // the near boat, heading right (R3); colours of photo B1
-    { x: -19, z: -72, ry: 0.15, scheme: 'orange' }, // the far boat, left of it; colours of photo B3
+    // Both bows head left and away, towards the bridge, seen three-quarter from the window (pass
+    // e9, the user's choice): about 40° off the line of sight, so the side and the roof still
+    // show (pointing straight at the bridge would be nearly stern-on). Was ry 0.3 and 0.15.
+    { x: -6.5, z: -40, ry: 2.45, scheme: 'red' }, // the near boat; colours of photo B1
+    { x: -19, z: -72, ry: 2.55, scheme: 'orange' }, // the far boat, left of it; colours of photo B3
   ],
 };
 
