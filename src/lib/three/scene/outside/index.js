@@ -139,8 +139,9 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
     return g;
   };
   const hazeStyle = new THREE.Color(haze).getStyle().slice(4, -1);
+  const skySeed = (OUTSIDE_THEME.sky.seed ?? 0) + seed; // the sky's own seed (themes/outside.js sky.seed)
   const textures = {
-    sky: paintSoftSky(25 + seed, { ...OUTSIDE_THEME.sky[OUTSIDE_THEME.sky.style], haze: hazeStyle }),
+    sky: paintSoftSky(25 + skySeed, { ...OUTSIDE_THEME.sky[OUTSIDE_THEME.sky.style], haze: hazeStyle }),
   };
   if (w.slots.has('leaf')) textures.leaves = paintLeaves(43 + seed, OUTSIDE_THEME.textures.leaves); // the leaf atlas (leaves.js); cut-outs, so painted in every mode
   disposables.push(...Object.values(textures));
@@ -225,7 +226,7 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
     const skyMat = new THREE.MeshBasicMaterial({ map: mode === 'silhouette' || mode === 'clay' ? null : textures.sky, color: '#ffffff', side: THREE.BackSide, fog: false, depthWrite: false });
     skyMat.color.setScalar(mode === 'silhouette' ? light * 2 : light * SKY_KEY * (OUTSIDE_THEME.sky.gain ?? 1));
     const sky = new THREE.Mesh(new THREE.SphereGeometry(1300, 32, 16), skyMat);
-    sky.rotation.y = 1.1 + seed;
+    sky.rotation.y = 1.1 + skySeed;
     sky.renderOrder = -1;
     sky.name = 'sky';
     sky.layers.set(1);

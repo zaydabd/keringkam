@@ -2045,3 +2045,19 @@ part of its frame.
   under-wash (no measurable saving).
 - **Memory and geometry:** the texture is the same size (2048 x 1024), and triangles and draw
   calls are unchanged: window 494,104 / 49, the same as e5b.
+
+### Pass e6b: the seed-1 sky as the default (2026-11-20, branch `exterior-skies-seed`)
+
+- **Request:** the window-seed1 shot from the e6 gate looked better; make its sky the real one,
+  sky only.
+- **Why `?seed=1` changed everything:** the room splits its randomness one stream per job
+  (`interior/builder.js`, `dice(job, ...id)`, the SpeedTree / Blender Random Seed / Unreal PCG
+  way). The outside did not: one `seed` was added to every generator through fixed offsets
+  (`outside/index.js`: placement `51 + seed`, bank / bush / trees `seed`, sky `25 + seed`,
+  leaves `43 + seed`, dome turn `1.1 + seed`), and the room's wood, curtains and wash move with
+  it too. So no part could be picked alone.
+- **Change:** the sky now has its own seed, `OUTSIDE_THEME.sky.seed` (1), added to `?seed`. It
+  drives the sky paint and the dome turn only. With no `?seed` the sky is the old seed-1 sky;
+  everything else is unchanged; `?seed=n` still sweeps.
+- **Left as is:** the other outside parts still share the global seed; per-job seeds for them
+  would be a separate step.

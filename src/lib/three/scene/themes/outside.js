@@ -189,6 +189,9 @@ export const OUTSIDE_THEME = {
   // paintSoftSky; its horizon is air.daylight. style picks one of the two looks below.
   sky: {
     style: 'watercolour',
+    // The sky's own seed, added to ?seed (a per-job seed, like Blender's Random Seed field), so the
+    // sky can be picked without moving the banks, trees or room. 1 = the take picked from the e6 gate.
+    seed: 1,
     gain: 1.3, // the dome's brightness on top of air.skyKey: R4's blue and paper white come through the room's grade (pass e6)
     watercolour: { colours: SKY.watercolour, pattern: SKY.cloudMarks.watercolour },
     soft: { colours: SKY.soft, pattern: SKY.cloudMarks.soft },
