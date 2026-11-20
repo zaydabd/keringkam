@@ -213,6 +213,28 @@ export const OUTSIDE_THEME = {
     tick: PLANT.tick,
   },
 
+  // The Assembly's river front (forecourt.js), as vertex colours. Read off the photo (Horatio Wong,
+  // CC BY-SA 4.0; backlit, so tuned by eye in the window shot): a dark slate cascade with pale arch
+  // lines, white planters and plinth, pink flowers, the name in dark red. Flags: a design choice.
+  forecourt: {
+    cascade: '#5c6474',
+    cascadeRiser: '#4a5262',
+    pattern: '#d9dde0',
+    patternShade: '#b4bac0',
+    white: '#f2eee4',
+    whiteShade: '#d6d0c2',
+    whiteStep: '#e2ddd0',
+    flowers: '#e0788c',
+    flowersDeep: '#c85a6e',
+    leaves: '#5a7a48',
+    lattice: '#a8aaa6',
+    sign: '#8a3030',
+    pole: '#8a8c8a',
+    flagRed: '#c83a30',
+    flagWhite: '#f4f0e8',
+    flagYellow: '#f0c83a',
+  },
+
   // The bush at the water below the window (waterbush.js), as vertex colours. The leaf ramp
   // runs from a warm yellow-green in the sun to a cool blue-green in the shade: watercolour
   // shadows are cool, not grey (Homer, Sargent; research/INTERIOR-NOTES.md, pass e5). Design

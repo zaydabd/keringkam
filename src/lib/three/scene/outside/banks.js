@@ -10,6 +10,7 @@ import * as THREE from 'three';
 import { createContract } from './contract.js';
 import { SITE, sampleLine, smooth, mulberry32, rgbTable, vnoise, fbm } from './site.js';
 import { OUTSIDE_THEME } from '../themes/index.js';
+import { underForecourt } from './forecourt.js';
 
 const lerp = (a, b, t) => a + (b - a) * t;
 
@@ -271,7 +272,12 @@ export function buildFarBank(w, { seed = 0 } = {}) {
     const dir = [s.tx, s.tz];
     const cutO = sections[i][CUT_TOP][0];
     for (let k = 0; k < Math.round(len * 0.9); k++) stats.tufts += tuft(w, put(cutO + 0.3, F.rough - 0.5), dir, { height: 0.75, width: 1.1, colour: C.tuft, rand });
-    if (lawnAt(s) === 1) for (let k = 0; k < Math.round(len * 0.35); k++) stats.ticks += tuft(w, put(slopeLow, F.crest - 1), dir, { height: 0.42, width: 0.8, colour: C.tick, rand, blades: 2 });
+    if (lawnAt(s) === 1) {
+      for (let k = 0; k < Math.round(len * 0.35); k++) {
+        const p = put(slopeLow, F.crest - 1); // drawn either way, so the dice stay the same outside the river front
+        if (!underForecourt(s.x, (p[0] - s.x) * s.nx + (p[2] - s.z) * s.nz)) stats.ticks += tuft(w, p, dir, { height: 0.42, width: 0.8, colour: C.tick, rand, blades: 2 });
+      }
+    }
   }
   contract.min('every tuft roots above the water (m)', lowestPlant - S.water, 0.15);
   const tri = w.triangles();

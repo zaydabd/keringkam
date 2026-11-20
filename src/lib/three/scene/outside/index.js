@@ -11,6 +11,7 @@
 //
 // The view is built object by object, each after its skill in .claude/skills:
 //   farbank            banks.js     procedural-geometry (swept cross-sections, contracts)
+//   forecourt          forecourt.js procedural-architecture (the Assembly's river front; pass e7)
 //   waterbush          waterbush.js procedural-vegetation (pass e5: our bank removed, a bush in the water)
 //   trees              trees.js     procedural-vegetation
 //   river              water.js     water-optics
@@ -27,6 +28,7 @@ import * as THREE from 'three';
 import { paintSoftSky, paintLeaves } from '../paint.js';
 import { SlotWriter, createContract } from './contract.js';
 import { SITE } from './site.js';
+import { buildForecourt } from './forecourt.js';
 import { OUTSIDE_THEME } from '../themes/index.js';
 import { CLAY } from '../themes/clay.js';
 import { buildFarBank } from './banks.js';
@@ -52,7 +54,7 @@ export const LEAF_COVER = 0.25;
 export const coverOf = (uv, map, k = LEAF_COVER) =>
   `(1.0 + ${k.toFixed(3)} * max(0.0, 0.5 * log2(max(dot(dFdx(${uv} * vec2(textureSize(${map}, 0))), dFdx(${uv} * vec2(textureSize(${map}, 0)))), dot(dFdy(${uv} * vec2(textureSize(${map}, 0))), dFdy(${uv} * vec2(textureSize(${map}, 0))))))))`;
 
-export const OBJECTS = ['farbank', 'waterbush', 'trees', 'river', 'assembly', 'bridge', 'boats', 'sky'];
+export const OBJECTS = ['farbank', 'forecourt', 'waterbush', 'trees', 'river', 'assembly', 'bridge', 'boats', 'sky'];
 
 // The sky is keyed down like the rest of the outdoors, so its blue survives an exposure set for
 // the shaded room (themes/outside.js air.skyKey).
@@ -87,6 +89,7 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
 
   // --- The banks (banks.js) ---------------------------------------------------------------------
   if (want('farbank')) reports.farbank = buildFarBank(w, { seed });
+  if (want('forecourt')) reports.forecourt = buildForecourt(w); // the Assembly's river front on the embankment (pass e7)
   if (want('waterbush')) reports.waterbush = buildWaterBush(w, { seed }); // our side has no bank: a bush in the water below the window
 
   // --- Trees and bushes of the far bank (trees.js); they stand on the far bank's surface ---------
