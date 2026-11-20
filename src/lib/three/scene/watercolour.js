@@ -198,8 +198,11 @@ export const FINISH_SHADER = {
         c = (c - 0.5) * contrast + 0.5;
         c = mix(blackLift, paper, clamp(c, 0.0, 1.0)); // maps 0 → blackLift, 1 → paper
         c = mix(c, plain, fabric * fabricKeep); // the fabrics keep most of their photo's colour
-        // How blue the plain colour is: blue above both red and green (0 on wood, cream, greens).
-        float blue = smoothstep(0.12, 0.22, plain.b - max(plain.r, plain.g)); // open sky only: the clouds' grey-blue undersides stay graded
+        // How sky-blue the plain colour is: green clearly above red and blue above green (the sky
+        // and its reflection in the river). 0 on wood, cream and greens (blue under green), and
+        // on the clouds' lavender undersides (red about green), which a plain "blue above red and
+        // green" key tinted lilac (pass e10).
+        float blue = smoothstep(0.05, 0.11, plain.g - plain.r) * smoothstep(0.0, 0.04, plain.b - plain.g);
         c = mix(c, plain, blue * blueKeep * (1.0 - fabric * fabricKeep));
       }
       if (view > 1.5) c = vec3(fabric); // ?debug=fabric-mask

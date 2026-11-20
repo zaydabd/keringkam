@@ -184,7 +184,12 @@ export const OUTSIDE_THEME = {
     soft: { colours: SKY.soft, pattern: SKY.cloudMarks.soft },
   },
 
-  water: { body: WATER.river, film: WATER.film }, // water.js
+  // water.js. silt: how much of its hue the reflection loses; filmAmount: how much the silt film
+  // tints it. Both were 0.7 and 1 (R3's khaki river) until pass e10, when the user asked for the
+  // sky to show in the river.
+  // gain scales the Fresnel term (1 = physical; was 1.2) and bodyLight the lit body (was 1): the
+  // silty body had been brighter than the sky it reflects, so the sky never showed (pass e10).
+  water: { body: WATER.river, film: WATER.film, silt: 0.1, filmAmount: 0.25, gain: 2.2, bodyLight: 0.45 },
 
   // The far bank (banks.js), as vertex colours.
   farBank: {

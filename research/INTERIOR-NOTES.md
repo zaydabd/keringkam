@@ -2157,3 +2157,28 @@ part of its frame.
   - Room (seat view): only the sky in the windows changed (2.5% of pixels by more than
     8/255).
   - Cost: one smoothstep and one mix per pixel in a pass that already runs.
+- **Step 2, `river-sky`:** why the river showed no sky (`window` view, middle and near water,
+  solved from the `water-body`, `water-reflection` and ungraded captures; linear, approximate):
+  - the reflection lost 70% of its hue and was multiplied by the sandy film, so the sky came out
+    khaki (#7b703e);
+  - the lit silt body (about 0.83, 0.41, 0.11) was brighter than the sky it reflects (about 0.30,
+    0.56, 0.70), and the reflection made up only about 40–60% of the mix;
+  - the grade then greyed the pale blue that was left (#95b4c4 → #a5afa0), below step 1's key.
+- **Changes:**
+  - `water.js`: the hue loss, film amount and body light are now theme settings
+    (`themes/outside.js` water). silt 0.7 → 0.1, filmAmount 1 → 0.25, gain (on the Fresnel term)
+    1.2 → 2.2, bodyLight 1 → 0.45. These are paint controls, not physical values.
+  - `watercolour.js`: the blue key is now "green clearly above red, and blue above green". It
+    catches the sky and its paler reflection, but not the clouds' lavender undersides (red about
+    green) or the reflected trees (blue under green).
+- **After:**
+  - water, middle: #bca171 (hue 38) → #91a898 (hue 137, trees and sky mixed);
+  - water, near: #cead79 (hue 37) → #9ab1b5 (hue 187);
+  - open sky: #75bbdf (hue 201, saturation 0.47);
+  - clouds: #c8c6bd → #c7c6c0 (unchanged);
+  - seat view: 2.9% of pixels changed by more than 8/255, all in the windows.
+- **Divergence:** the river now reads like clear water reflecting the sky. The real Sarawak
+  River is brown with silt; the body colour still shows in the far water and between
+  reflections.
+- **Cost:** none measurable. Triangles and draw calls are unchanged (window 521,542 / 49; headless
+  SwiftShader, **not a real GPU**).

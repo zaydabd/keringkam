@@ -23,8 +23,9 @@
 //   - `gain` scales the Fresnel term and `chop` the reflected shift: paint controls, 1 = physical;
 //   - `shade` lets a reflection darker than the body show at steep angles, where Fresnel alone
 //     hides it (the painting draws a dark patch under each boat): a paint control, 0 = physical;
-//   - the reflection loses 70% of its own hue and is tinted by `film`, as R3 paints silty water
-//     (a clean surface reflects without a tint): a paint control, not physical;
+//   - the reflection loses `silt` of its own hue and is tinted by `film` (by `filmAmount`), as R3
+//     paints silty water (a clean surface reflects without a tint): paint controls, not physical.
+//     Pass e10 lowered both (0.7 and 1 before), so the sky's blue shows in the river;
 //   - no foam (a calm river); the pale dashes are the crest metric of the same waves;
 //   - below the surface only the Fresnel side changes: there is no underwater view.
 // view: 0 final, 1 normal, 2 Fresnel, 3 how much of the finest band survives the filter,
@@ -62,7 +63,7 @@ const f = (n) => n.toFixed(5);
  * The water material and its mirror. `level` is the water's height; `layer` is the layer the
  * mirrored camera draws (everything outside except the water itself).
  */
-export function createWater({ level, layer = 2, body = OUTSIDE_THEME.water.body, film = OUTSIDE_THEME.water.film, pale = OUTSIDE_THEME.air.daylight, sun = new THREE.Vector3(0, 1, 0), light = 1, key = 1, fog, gain = 1.2, chop = 0.45, shade = 0.8, reach = 14 }) {
+export function createWater({ level, layer = 2, body = OUTSIDE_THEME.water.body, film = OUTSIDE_THEME.water.film, silt = OUTSIDE_THEME.water.silt, filmAmount = OUTSIDE_THEME.water.filmAmount, bodyLight = OUTSIDE_THEME.water.bodyLight, pale = OUTSIDE_THEME.air.daylight, sun = new THREE.Vector3(0, 1, 0), light = 1, key = 1, fog, gain = OUTSIDE_THEME.water.gain, chop = 0.45, shade = 0.8, reach = 14 }) {
   const target = new THREE.WebGLRenderTarget(2, 2, { type: THREE.HalfFloatType });
   const textureMatrix = new THREE.Matrix4();
   const material = new THREE.ShaderMaterial({
@@ -76,7 +77,9 @@ export function createWater({ level, layer = 2, body = OUTSIDE_THEME.water.body,
       uPale: { value: new THREE.Color(pale).multiplyScalar(light) },
       uSun: { value: sun.clone().normalize() },
       uFilm: { value: new THREE.Color(film) },
-      uSunLight: { value: 5.6 * light }, // how bright the lit water body is
+      uSilt: { value: silt }, // how much of its own hue the reflection loses
+      uFilmAmount: { value: filmAmount }, // how much the film tints it
+      uSunLight: { value: 5.6 * light * bodyLight }, // how bright the lit water body is
       uGain: { value: gain },
       uShade: { value: shade },
       uChop: { value: chop },
@@ -100,7 +103,7 @@ export function createWater({ level, layer = 2, body = OUTSIDE_THEME.water.body,
     fragmentShader: /* glsl */ `
       uniform sampler2D uMirror;
       uniform mat4 uMirrorMatrix;
-      uniform float uMirrorOn, uTime, uEta, uSunLight, uGain, uShade, uChop, uReach, uFogNear, uFogFar, uView;
+      uniform float uSilt, uFilmAmount, uMirrorOn, uTime, uEta, uSunLight, uGain, uShade, uChop, uReach, uFogNear, uFogFar, uView;
       uniform vec3 uBody, uFilm, uPale, uSun, uFogColor;
       varying vec3 vWorld;
       varying float vDepth;
@@ -147,7 +150,7 @@ ${WAVES.map((w) => `        keep = band(p, dpx, dpy, vec2(${f(w.dir[0])}, ${f(w.
           vec3 up = vec3(0.0, spread, 0.0);
           refl = 0.5 * mirror(R) + 0.25 * mirror(normalize(R + up)) + 0.25 * mirror(normalize(R - up * 0.6));
         }
-        refl = mix(refl, vec3(dot(refl, vec3(0.2126, 0.7152, 0.0722))), 0.7) * uFilm; // the silt film: keeps the value, takes the water's hue
+        refl = mix(refl, vec3(dot(refl, vec3(0.2126, 0.7152, 0.0722))), uSilt) * mix(vec3(1.0), uFilm, uFilmAmount); // the silt film: keeps the value, takes some of the water's hue
 
         vec3 body = uBody * uSunLight * (0.55 + 0.45 * max(dot(n, uSun), 0.0));
         float lb = dot(body, vec3(0.2126, 0.7152, 0.0722));
