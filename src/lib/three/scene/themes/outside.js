@@ -168,10 +168,6 @@ const BUILT = {
   kioskGoldShade: [0.88, 0.66, 0.3],
   // The Darul Hana Bridge (linear).
   bridge: { steel: [0.93, 0.92, 0.88], pier: [0.78, 0.76, 0.7], cable: [0.86, 0.86, 0.84], shade: [0.97, 0.96, 0.92], truss: [0.84, 0.83, 0.78] },
-  // City skyline towers (R3): pale grey to grey-blue (linear). Each tower gets a random value
-  // tone = min + random * spread and a random blueness b (0-1); its colour is
-  // tone * [red[0] + red[1] * (1 - b), green, blue[0] + blue[1] * b].
-  skyline: { tone: { min: 0.66, spread: 0.18 }, red: [0.86, 0.08], green: 0.94, blue: [1.02, 0.1] },
 };
 
 // --- 2. The theme -----------------------------------------------------------------------------------
@@ -179,7 +175,7 @@ const BUILT = {
 export const OUTSIDE_THEME = {
   air: {
     daylight: AIR.daylight,
-    haze: { near: -100, far: 1500 }, // metres: clear air (R3). The Assembly, 330 m off, is about a sixth washed; the skyline a third
+    haze: { near: -100, far: 1500 }, // metres: clear air (R3). The Assembly, 330 m off, is about a sixth washed
     // The room is exposed for shade, so sunlit paint outside would burn out to white. The outdoor
     // paint is keyed down by this much instead, as a painter would, so it keeps its colour.
     key: 0.3,
@@ -280,5 +276,4 @@ export const OUTSIDE_THEME = {
   kiosk: { gold: BUILT.kioskGold, goldShade: BUILT.kioskGoldShade },
 
   bridge: BUILT.bridge, // bridge.js, linear
-  skyline: BUILT.skyline, // outside/index.js
 };

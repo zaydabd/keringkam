@@ -16,7 +16,8 @@
 //   river              water.js     water-optics
 //   assembly: rebuilt from the user's Sketchfab model (pass w5, research/INTERIOR-NOTES.md).
 //   boats: Kuching river taxis (penambang) in boats.js, gated against photos (pass w6).
-//   bridge, skyline: the first versions, moved to the new river; not rebuilt yet.
+//   bridge: the first version, moved to the new river; not rebuilt yet.
+//   skyline: removed in pass e7 (the user's far-bank renders and the river-front photo show trees there).
 // `stage` (a list of the names above, plus 'sky') builds only those, to look at one object alone.
 // The solids are on layer 0, so the ink pass outlines them like the room; the sky is on layer 1.
 // All solids share one flat paint material: a part is one colour, and the ink pass draws a seam
@@ -25,7 +26,7 @@
 import * as THREE from 'three';
 import { paintSoftSky, paintLeaves } from '../paint.js';
 import { SlotWriter, createContract } from './contract.js';
-import { SITE, mulberry32 } from './site.js';
+import { SITE } from './site.js';
 import { OUTSIDE_THEME } from '../themes/index.js';
 import { CLAY } from '../themes/clay.js';
 import { buildFarBank } from './banks.js';
@@ -51,12 +52,11 @@ export const LEAF_COVER = 0.25;
 export const coverOf = (uv, map, k = LEAF_COVER) =>
   `(1.0 + ${k.toFixed(3)} * max(0.0, 0.5 * log2(max(dot(dFdx(${uv} * vec2(textureSize(${map}, 0))), dFdx(${uv} * vec2(textureSize(${map}, 0)))), dot(dFdy(${uv} * vec2(textureSize(${map}, 0))), dFdy(${uv} * vec2(textureSize(${map}, 0))))))))`;
 
-export const OBJECTS = ['farbank', 'waterbush', 'trees', 'river', 'assembly', 'bridge', 'skyline', 'boats', 'sky'];
+export const OBJECTS = ['farbank', 'waterbush', 'trees', 'river', 'assembly', 'bridge', 'boats', 'sky'];
 
 // The sky is keyed down like the rest of the outdoors, so its blue survives an exposure set for
 // the shaded room (themes/outside.js air.skyKey).
 const SKY_KEY = OUTSIDE_THEME.air.skyKey;
-const SKYLINE = OUTSIDE_THEME.skyline;
 
 /**
  * Builds the outside. `fog` is the scene's fog (the daylight haze: the sky's horizon and the
@@ -68,7 +68,6 @@ const SKYLINE = OUTSIDE_THEME.skyline;
  * growth diagnostics.
  */
 export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME.air.daylight, light = 1, key = 1, sun, mode, stage, tint }) {
-  const rand = mulberry32(51 + seed);
   const group = new THREE.Group();
   const disposables = [];
   const S = SITE;
@@ -109,20 +108,6 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
     const steel = new SlotWriter();
     reports.bridge = buildBridge(steel, { points: S.bridge, water: S.water, bankY: S.ground });
     copy(steel.slot('steel'), 'paint');
-  }
-
-  // --- City skyline, far behind the trees (not rebuilt yet) ------------------------------------
-  if (want('skyline')) {
-    const K = S.skyline;
-    for (let i = 0; i < K.count; i++) {
-      const x = K.x0 + ((K.x1 - K.x0) * (i + rand() * 0.8)) / K.count;
-      // R3: slim towers, pale grey to grey-blue, a few much taller than the rest
-      const h = rand() < 0.3 ? 45 + rand() * 30 : 14 + rand() * 26;
-      const bw = 5 + rand() * 6;
-      const tone = SKYLINE.tone.min + rand() * SKYLINE.tone.spread;
-      const blue = rand();
-      w.box('paint', [x, S.lawn + h / 2, K.z - rand() * 60], [bw, 0, 0], [0, h / 2, 0], [0, 0, bw * (0.6 + rand() * 0.6)], [tone * (SKYLINE.red[0] + SKYLINE.red[1] * (1 - blue)), tone * SKYLINE.green, tone * (SKYLINE.blue[0] + SKYLINE.blue[1] * blue)]);
-    }
   }
 
   // --- Boats: Kuching river taxis (boats.js; planned, compiled, checked against photos) ---------

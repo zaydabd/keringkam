@@ -199,7 +199,7 @@ Every signal has one producer; every pass has a way to switch it off.
 | Trees | `trees.js` | `threejs-procedural-vegetation` | A species table for three branch levels, growth from a queue, children in stratified slots with shuffled directions, leaves along every twig with rounded normals. Two tiers: near (832 triangles) and far (448). |
 | Haze and sky | `index.js`, `paintSoftSky` | `threejs-atmosphere-aerial-perspective` | Small-scene tier: distance fog. The fog, the sky's horizon and the river's mirror of the sky share one colour and one brightness. |
 | Camera | `SHOTS` in `interior.js` | `threejs-camera-direction` | Two authored shots, each with a lens, pointer limits and exposure compensation. A move is one eased interpolation of position, direction and lens (2.2 s), with nothing smoothed on top. |
-| Banks, boats, skyline | `index.js` | – | Banks are profiles swept along the river; boats are lofted hulls with a canopy; the skyline is plain boxes far behind the trees. |
+| Banks, boats, skyline | `index.js` | – | Banks are profiles swept along the river; boats are lofted hulls with a canopy; the skyline was plain boxes far behind the trees (removed in pass e7). |
 
 Stated limits, as the skills require:
 
@@ -275,7 +275,7 @@ Two photos supplied by the user: P1 a front view from the river, P2 a raised vie
 
 ### Debug views
 
-`debug=flat`, `debug=silhouette` (outside as outline), `debug=water-normal`, `water-fresnel`, `water-filter`, `off=outside`, `seed=n` (trees, skyline, clouds, painted textures).
+`debug=flat`, `debug=silhouette` (outside as outline), `debug=water-normal`, `water-fresnel`, `water-filter`, `off=outside`, `seed=n` (trees, clouds, painted textures; the skyline was removed in pass e7).
 
 OUTSIDE_SIGNOFF
 
