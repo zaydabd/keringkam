@@ -205,3 +205,15 @@ streaks and small clouds low down; 6 granulation and paper grain.
 | 4: an uneven blue behind the clouds | [Skybox Skydays 3](https://sketchfab.com/3d-models/ec111b6006a14bfb91dee33a4646e80b) | JABAMI Production (Sketchfab) | Screenshot only; Free Standard |
 | 1: lobed masses as layered shapes | [Head in the Clouds](https://sketchfab.com/3d-models/7b338c7fecbd4acc99fa9a77e7c7a932) | Duznot (Sketchfab) | Screenshot only; CC BY |
 | The look avoided: round toon puffs | [Stylized clouds](https://sketchfab.com/3d-models/e326c36890364526910cba03c1393ebc) | lavakongen (Sketchfab) | Screenshot only; CC BY |
+
+# Window view: the far bank (2026-11-20, pass e7)
+
+Used to place and shape the Assembly's river front (`outside/forecourt.js`) and the trees beside
+it. None of these images is in the repo. Every size taken from them is an estimate.
+
+| Used for | Source | Author | Licence |
+| --- | --- | --- | --- |
+| Layout of the river front: cascade with pointed arches, white planters and side stairs, lattice plinth with the name, flagpoles (chosen by the user over their renders) | [Sarawak State Assembly Building.jpg](https://commons.wikimedia.org/wiki/File:Sarawak_State_Assembly_Building.jpg) | Horatio Wong | CC BY-SA 4.0 |
+| That the fountain stands in front of the building | [Darul Hana musical fountain in front of the state assembly building.jpg](https://commons.wikimedia.org/wiki/File:Darul_Hana_musical_fountain_in_front_of_the_state_assembly_building.jpg) | Cerevisae | CC BY-SA 4.0 |
+| Background on the building | [New Sarawak State Legislative Assembly Building](https://en.wikipedia.org/wiki/New_Sarawak_State_Legislative_Assembly_Building) | Wikipedia | CC BY-SA 4.0 (text) |
+| First layout guide (front, rear, left views); not followed where the photo differs | Four renders supplied by the user (they look generated; not real data) | The user | Not committed |

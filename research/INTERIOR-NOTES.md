@@ -2061,3 +2061,36 @@ part of its frame.
   everything else is unchanged; `?seed=n` still sweeps.
 - **Left as is:** the other outside parts still share the global seed; per-job seeds for them
   would be a separate step.
+
+### Pass e7: the far bank (2026-11-20, branches `farbank-clear`, `farbank-embankment`, `farbank-trees`)
+
+- **Request:** make the far bank better after four renders the user supplied; remove the houses
+  that are not needed; work only on what the window sees. User choices: no stilt houses and no
+  skyline blocks; the embankment with stairs; trees and palms; follow the real photo, not the
+  renders.
+- **Reference:** the photo by Horatio Wong (CC BY-SA 4.0, see CREDITS). The user's renders look
+  generated (the sign text cannot be read), so they are not real data and were used only as a
+  first layout guide. None of the images is in the repo.
+- **Step 1, `farbank-clear`:** the pale skyline blocks are removed (`site.js`, `index.js`,
+  `themes/outside.js`); the sky shows where they stood.
+- **Step 2, `farbank-embankment`:** new `outside/forecourt.js`, built after the far bank: a
+  12-tier cascade with pointed-arch cells, white stepped planters with flowers and narrow side
+  stairs, a lattice plinth with "DEWAN UNDANGAN NEGERI / SARAWAK", and three flagpoles. The bank's
+  ticks skip its footprint (the dice are still rolled, so the rest of the bank is unchanged).
+- **Step 3, `farbank-trees`:** a new tree type, the frond tree (`trees.js`, `FROND_TREE`): a
+  ringed, tapered trunk and a crown of arching fronds from `plants.js` `fern()`. Seven stand
+  between the bridge landing and the river front, and four single round trees stand on the lawn
+  at its sides. Contracts: nothing planted on the river front; frond trees 7–13 m high (now
+  7.6–12.6 m; the range is a design choice, not a cited one).
+- **Divergences (design choices, not data):**
+  - the river front is narrower than the real one and stands left of the building's axis, so
+    the window frame shows most of it;
+  - the gap from the plinth to the Assembly's kiosks is larger than in the photo;
+  - the flag colours are a design choice;
+  - the stair sizes are estimates: no stair code source could be confirmed (one page returned
+    403), so no riser or tread contract was added.
+- **Cost** (`window` view, headless Chromium with SwiftShader, **not a real GPU**):
+  - triangles 494,104 (before) → 501,412 (step 2) → 521,830 (step 3);
+  - draw calls 49 → 49 → 49 (the new parts merge into the existing 'paint' and 'leaf' slots).
+- **Gate sheets** (scratchpad only, not committed): `gate-e7b.png` (step 2), `gate-e7c.png`
+  (step 3).
