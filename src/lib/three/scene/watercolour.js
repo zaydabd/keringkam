@@ -156,6 +156,10 @@ export const FINISH_SHADER = {
     clarityRadius: { value: 14 }, // px (CSS): the size of the neighbourhood
     texel: { value: new THREE.Vector2(1, 1) }, // one CSS pixel in uv, set on resize
     fabricKeep: { value: 0 }, // on the fabrics (alpha 0): how much of the plain colour is kept, ungraded
+    // A hue-keyed secondary (a "keep the blues" key, as in an HSL qualifier): pixels that are
+    // clearly blue before the grade keep this much of their plain colour. The grade's low
+    // saturation and cream paper turned the sky grey-green (pass e10). 0 is off.
+    blueKeep: { value: 0 },
     view: { value: 0 },
   },
   vertexShader: VERTEX,
@@ -163,7 +167,7 @@ export const FINISH_SHADER = {
     #include <tonemapping_pars_fragment>
     uniform sampler2D tDiffuse;
     uniform vec3 blackLift, paper;
-    uniform float saturation, contrast, midLift, view, clarity, clarityRadius, fabricKeep;
+    uniform float saturation, contrast, midLift, view, clarity, clarityRadius, fabricKeep, blueKeep;
     uniform vec2 texel;
     varying vec2 vUv;
     // Tone map (multiplies by toneMappingExposure) and encode one linear sample.
@@ -194,6 +198,9 @@ export const FINISH_SHADER = {
         c = (c - 0.5) * contrast + 0.5;
         c = mix(blackLift, paper, clamp(c, 0.0, 1.0)); // maps 0 → blackLift, 1 → paper
         c = mix(c, plain, fabric * fabricKeep); // the fabrics keep most of their photo's colour
+        // How blue the plain colour is: blue above both red and green (0 on wood, cream, greens).
+        float blue = smoothstep(0.12, 0.22, plain.b - max(plain.r, plain.g)); // open sky only: the clouds' grey-blue undersides stay graded
+        c = mix(c, plain, blue * blueKeep * (1.0 - fabric * fabricKeep));
       }
       if (view > 1.5) c = vec3(fabric); // ?debug=fabric-mask
       gl_FragColor = vec4(c, 1.0);

@@ -280,5 +280,10 @@ export const INTERIOR_THEME = {
     midLift: 0.86, // gamma under 1 lifts the mid tones: R2 keeps dark wood readable
     clarity: 0, // local contrast (the HDR-photo look); 0 is off
     clarityRadius: 14, // px: the neighbourhood clarity compares against
+    // Clearly blue pixels (the sky, its reflection, a blue boat roof) keep this much of their
+    // ungraded colour. Measured in the window shot: the sky left the tone map as #90c3f2 (hue
+    // 209) and the grade made it #a9bcb8 (hue 170, saturation 0.10), greyer and greener than
+    // R4's #abc9d6 (hue 198, saturation 0.20). Pass e10, INTERIOR-NOTES.
+    blueKeep: 0.7,
   },
 };

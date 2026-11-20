@@ -2135,3 +2135,25 @@ part of its frame.
   - `themes/outside.js`: the clothes, skin and oar colours are removed.
 - **Cost:** 836 → 788 triangles per boat. In the window view, 521,830 → 521,542 triangles, and
   draw calls stay at 49 (headless SwiftShader, **not a real GPU**).
+
+### Pass e10: the sky blue, and the river reflecting it (2026-11-20, branches `sky-blue`, `river-sky`)
+
+- **Request:** the clouds are fine, but the blue sky is not blue; the river does not reflect
+  the sky.
+- **Measured** (`window` view; the bluest 30% of a sky crop; pixel checks, not real data):
+  - after the tone map, before the grade: #90c3f2 (hue 209, saturation 0.40);
+  - final: #a9bcb8 (hue 170, saturation 0.10). The room's grade (saturation 0.62, cream paper,
+    warm black lift; `themes/interior.js` grade) turned it grey-green;
+  - for scale: R4 (user-supplied, not in the repo) #abc9d6, hue 198, saturation 0.20; the
+    Horatio Wong photo #2389b9, hue 199, saturation 0.81.
+- **Step 1, `sky-blue`:** a hue-keyed "keep the blues" term in the finish pass
+  (`watercolour.js` `blueKeep`, `themes/interior.js` grade.blueKeep 0.7). A pixel whose blue is
+  more than 0.12 to 0.22 above both its red and green, before the grade, keeps 70% of its
+  ungraded colour. The fabrics keep their own rule.
+  - Open sky (the bluest 20% of the crop): #8eb4b4, hue 180, saturation 0.21 → #7ab9d7, hue
+    199, saturation 0.43.
+  - Clouds: #c8c6bd → #c6c7c8, nearly unchanged. A first try with a lower key (0.04 to 0.16)
+    tinted their undersides lilac (#c1c9e0), so the key was raised.
+  - Room (seat view): only the sky in the windows changed (2.5% of pixels by more than
+    8/255).
+  - Cost: one smoothstep and one mix per pixel in a pass that already runs.
