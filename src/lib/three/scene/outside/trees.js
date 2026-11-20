@@ -28,6 +28,8 @@ import { createContract } from './contract.js';
 import { SITE, WINDOW_EYE, mulberry32, rgbTable } from './site.js';
 import { OUTSIDE_THEME } from '../themes/index.js';
 import { LEAF_ATLAS, leafCard } from './leaves.js';
+import { fern } from './plants.js';
+import { underForecourt } from './forecourt.js';
 
 const UP = new THREE.Vector3(0, 1, 0);
 const AXIS_X = new THREE.Vector3(1, 0, 0);
@@ -332,6 +334,50 @@ export function emitTree(w, slot, tree, { at, scale = 1, yaw = 0, paint = TREE_P
   return { wood, leaf, cards: nCards };
 }
 
+// A frond tree (pass e7): a slim, ringed trunk that leans and curves a little, under a crown of
+// arching fronds, some drooping. The user's far-bank renders show them between the bridge and the
+// Assembly. Sizes are design choices read off those renders, not measured.
+export const FROND_TREE = {
+  height: [8, 11], // m, at scale 1
+  radius: [0.24, 0.17], // trunk radius at the foot and at the crown (m)
+  sections: 7,
+  radial: 6,
+  lean: [0.04, 0.1], // how far the top leans out, of the height
+  fronds: { up: [7, 9], droop: [4, 6], reach: [3.2, 4.2], width: 0.3, rise: [0.12, 0.18], fall: [-0.4, 0.2] }, // rise / fall: [from, + up to] (plants.js fern)
+};
+
+/** Grows a frond tree at `at` into 'paint' (trunk) and 'leaf' (fronds). Returns { tris, height }. */
+export function frondTree(w, at, { rand, scale = 1, paint = TREE_PAINT, spec = FROND_TREE }) {
+  const S = spec;
+  const h = (S.height[0] + rand() * (S.height[1] - S.height[0])) * scale;
+  const yaw = rand() * Math.PI * 2, lean = (S.lean[0] + rand() * (S.lean[1] - S.lean[0])) * h;
+  const dx = Math.cos(yaw), dz = Math.sin(yaw);
+  const centre = (t) => [at[0] + dx * lean * t * t, at[1] + h * t, at[2] + dz * lean * t * t];
+  const ring = (t) => {
+    const c = centre(t), r = (S.radius[0] + (S.radius[1] - S.radius[0]) * t) * scale;
+    return Array.from({ length: S.radial }, (_, j) => {
+      const a = (j / S.radial) * Math.PI * 2;
+      return [c[0] + Math.cos(a) * r, c[1], c[2] + Math.sin(a) * r];
+    });
+  };
+  let tris = 0, prev = ring(0);
+  for (let k = 1; k <= S.sections; k++) {
+    const cur = ring(k / S.sections), colour = k % 2 ? paint.frondTrunk : paint.frondRing; // the trunk's rings
+    for (let j = 0; j < S.radial; j++) {
+      const j1 = (j + 1) % S.radial;
+      w.quad('paint', prev[j], prev[j1], cur[j1], cur[j], colour);
+      tris += 2;
+    }
+    prev = cur;
+  }
+  const top = centre(1), F = S.fronds, P = { fern: paint.frond, fernLight: paint.frondLight };
+  const reach = (F.reach[0] + rand() * (F.reach[1] - F.reach[0])) * scale;
+  const count = (r) => r[0] + Math.floor(rand() * (r[1] - r[0] + 1));
+  tris += fern(w, top, { reach, rand, P, fronds: count(F.up), rise: F.rise, width: F.width });
+  tris += fern(w, [top[0], top[1] - 0.2 * scale, top[2]], { reach: reach * 0.9, rand, P, fronds: count(F.droop), rise: F.fall, width: F.width });
+  return { tris, height: h };
+}
+
 /**
  * Plants the far bank: the clump of tall trees left of the embankment (R3's centre), bushes at
  * their feet, the big tree and the wooded bank upstream, a far row behind the terrace.
@@ -393,6 +439,26 @@ export function buildTrees(w, { seed = 0, place, groundAt, tint } = {}) {
     }
   }
 
+  // Pass e7: frond trees and single lawn trees, after every row (so the rows' dice stay as they were).
+  const fr = { count: 0, tris: 0, heights: [Infinity, -Infinity] };
+  let underFront = 0;
+  for (const [xw, offset, scale] of T.frond) {
+    if (underForecourt(xw, offset)) { underFront++; continue; }
+    const out = frondTree(w, place(xw, offset), { rand, scale });
+    fr.count++;
+    fr.tris += out.tris;
+    fr.heights = [Math.min(fr.heights[0], +out.height.toFixed(1)), Math.max(fr.heights[1], +out.height.toFixed(1))];
+  }
+  for (const [xw, offset, scale] of T.lawn) {
+    if (underForecourt(xw, offset)) { underFront++; continue; }
+    plant('lawn', place(xw, offset), { species: pick({ round: 2, base: 1 }), tier: 'mid', scale, detail: 0 });
+  }
+  stats.frond = fr;
+  contract.is('nothing planted on the river front (pass e7)', underFront, 0);
+  contract.is('frond trees planted', fr.count, T.frond.length);
+  contract.range('frond trees: height (m), lowest', fr.heights[0], 7, 13);
+  contract.range('frond trees: height (m), highest', fr.heights[1], 7, 13);
+
   // The growth contract, measured on one tree of each tier and on three seeds.
   const L = BANK_TREE.levels;
   const near = growTree(1, BANK_TREE, 'near').report, mid = growTree(1, BANK_TREE, 'mid').report, far = growTree(1, BANK_TREE, 'far').report;
@@ -428,7 +494,7 @@ export function buildTrees(w, { seed = 0, place, groundAt, tint } = {}) {
   contract.range('round variant: height (m), highest', Math.max(...round.map((r) => r.height)), 8, 12);
   contract.min('rows: variants used', Object.keys(stats.variants).length, 5);
   contract.range('crown leaf cards (triangles)', stats.cards, 3000, 9000);
-  contract.range('triangles', stats.wood + stats.leaf, 60000, 130000); // was 8,000-34,000 before the sub-lobes (exterior step 4)
+  contract.range('triangles', stats.wood + stats.leaf + fr.tris, 60000, 130000); // was 8,000-34,000 before the sub-lobes (exterior step 4)
   stats.threeSeeds = three.map((t) => ({ seed: t.report.seed, height: t.report.height, width: t.report.width, clear: t.report.clear }));
   return { contract: contract.assert(), stats };
 }

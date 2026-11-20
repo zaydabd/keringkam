@@ -53,6 +53,11 @@ export const SITE = {
       { name: 'upstream', x0: -430, x1: -140, count: 9, offset: [10, 40], scale: [1, 1.5], detail: 0, groups: 3, mix: { base: 1, tall: 1, broad: 1 } },
       { name: 'behind', box: [10, 45, -300, -250], count: 7, scale: [0.5, 0.7], detail: 0, mix: { round: 2, tall: 1 } }, // left of the Assembly building, outside its brim
     ],
+    // Pass e7, after the user's far-bank renders (sizes design choices, not measured): frond trees
+    // between the bridge and the river front, and single trees on the lawn at its sides, both
+    // [x of the waterline, offset inland, scale]; trees.js keeps them off the river front.
+    frond: [[-24, 14, 1], [-19, 18, 1.15], [-15, 13, 0.9], [-8, 16, 1.1], [-3, 19, 1], [1, 15, 0.95], [2.5, 24, 1.1]],
+    lawn: [[2.5, 34, 0.7], [3.5, 41, 0.8], [24, 36, 0.75], [27, 42, 0.7]],
     clumpWidth: 0.6, // a clump's width, of its share of the row
     hue: [0.14, 0.1, 0.2], // each tree's colours are scaled by 1 ± half of these (r, g, b)
     cards: { near: 2, mid: 1 }, // leaf cards per sub-lobe, by tier

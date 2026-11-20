@@ -280,7 +280,8 @@ export const OUTSIDE_THEME = {
   },
 
   // Trees and bushes on the banks (trees.js).
-  trees: { trunk: WOOD.trunk, light: PLANT.foliageLight, mid: PLANT.foliageMid, dark: PLANT.foliageDark },
+  // frond: the frond trees' crowns and their ringed trunks (pass e7; design choices, tuned in the window shot)
+  trees: { trunk: WOOD.trunk, light: PLANT.foliageLight, mid: PLANT.foliageMid, dark: PLANT.foliageDark, frond: PLANT.fern, frondLight: PLANT.fernLight, frondTrunk: '#8c8064', frondRing: '#6e6450' },
 
   // River taxis (boats.js): each scheme is one boat's paint and its boatman's clothes.
   boats: {
