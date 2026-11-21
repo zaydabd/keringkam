@@ -2229,3 +2229,38 @@ part of its frame.
   160,000), 7 meshes. Drawn per frame: window 521,542 / 49 calls → 550,807 / 52; right
   537,384 / 53 → 566,649 / 56; phone 521,544 / 50 → 550,809 / 53; seat 587,102 / 82 →
   616,367 / 85.
+
+### Pass e11 step 2: the waterfront on the far bank (2026-11-21, branch `waterfront-far`)
+
+- **Request:** the plan's second step, the user's choice of both banks: the far bank's bare mud,
+  eroded step and rough grass become the same waterfront street and railing. The path, the
+  embankment, the lawn, the trees, the Assembly's river front and the bridge stay.
+- **Built** (`banks.js` buildFarBank, with the pieces of `waterfront.js`):
+  - from the water: the concrete edge face 0.6 m into the water, the kerb, the paving to 8 m
+    inland (SITE.far.rough; 7.6 m paved), level 1.5 m above the water (estimated, as on our side);
+    the swept cross-section now starts at the street's inner edge with the path;
+  - the railing: plain posts and the top rail only. At 120–150 m the lattice, the posts' feet and
+    the bottom rail are under 1 px (2 px rule), so they are left out (on our side too, the foot and
+    bottom rail are now built only with the lattice). It runs out to 330 m from the house. It
+    stops in front of the Assembly's river front (`underForecourt`; U2 shows a sloped edge and no
+    railing there) and within 5 m of the bridge's tower pier at the water.
+  - **Stylisation:** the far posts and top rail are drawn 0.14 m thick (real about 0.06–0.08 m,
+    estimated). At their real size they fell under a pixel and the railing broke into dashes in
+    the window shot; at 0.14 m it reads as one line.
+  - Removed: the mud and cut contracts, the reeds and the tufts of the rough grass, FAR_RELIEF mud
+    and cut, SITE.far.mud. The underwood row moved from 7–13 m to 8.6–13 m inland, off the street.
+  - Contract (throws at build): the path starts at the street's edge, level with it; street 1–1.6 m
+    above the water and 5–10 m wide; posts on the kerb; at least 100 bays and 2 gaps (built: 238
+    bays, 28 gaps over seeds 0–3).
+- **Gate** (window, left, right, phone, seed 1, seat; sheets in the scratchpad, not committed):
+  the river is now bounded by the street and railing on both banks; the far edge reads as a pale
+  concrete wall with its railing above, and its reflection shows in the water; the boats, the
+  bridge and the Assembly stay clear.
+- **Upstream:** the street runs the whole far waterline (cheap: 8 triangles a station), and the
+  railing stops at 330 m, where it would be under a pixel tall.
+- **Divergence:** the real waterfront runs along the south bank only (ours, by the plan's
+  layout). The far bank's street is the user's choice, not the real north bank.
+- **Cost** (headless SwiftShader, **not a real GPU**): far bank 11,612 triangles; outside built
+  155,196 (budget 160,000; 160,944 before the sub-pixel parts were dropped), 7 meshes. Drawn per
+  frame, step 1 → step 2: window 550,807 → 563,338 (52 calls); right 566,649 → 579,180 (56);
+  phone 550,809 → 563,340 (53); seat 616,367 → 628,898 (85).

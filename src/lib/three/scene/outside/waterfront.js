@@ -87,12 +87,14 @@ function arc(w, slot, c, u, v, r, a0, a1, width, segments, colour) {
 /**
  * The railing along `stations` (from sampleLine or nearStations): posts every R.spacing metres of
  * the waterline, R.inset inland, standing at `kerbY(station)`; rails and (with `lattice`) the
- * panel between each pair. `skip(station)` true leaves a gap (the far bank's forecourt and the
+ * panel between each pair (without it, plain posts and the top rail: the far bank). `skip(station)` true leaves a gap (the far bank's forecourt and the
  * bridge's landing). Posts and rails go to 'paint', the lattice to 'blade' (two-sided).
  * Returns { posts, bays, gaps, tris, footing } for the contract.
  */
-export function buildRailing(w, stations, { kerbY, lattice = true, skip = () => false, colour = FRONT_PAINT.iron }) {
-  const R = WATERFRONT.railing;
+export function buildRailing(w, stations, { kerbY, lattice = true, skip = () => false, colour = FRONT_PAINT.iron, minSize = 0 }) {
+  // minSize: the posts and the top rail are drawn at least this thick (the far bank: so they stay a
+  // pixel wide in the window shot and the railing reads as one line, not dashes; a stylisation)
+  const R = { ...WATERFRONT.railing, post: Math.max(WATERFRONT.railing.post, minSize), topRail: Math.max(WATERFRONT.railing.topRail, minSize) };
   // posts at even spacing along the line, interpolated between stations
   const posts = [];
   let next = stations[0].s;
@@ -122,7 +124,8 @@ export function buildRailing(w, stations, { kerbY, lattice = true, skip = () => 
     const q = posts[k + 1] ?? posts[k - 1];
     const along = q ? norm([q[0] - p[0], 0, q[2] - p[2]]) : [1, 0, 0];
     footing.push([p[1], p[1]]);
-    box(add(p, UP, R.foot[1] / 2), R.foot[0] / 2, R.foot[1] / 2, R.foot[0] / 2, along);
+    // the foot (0.1 m) and the bottom rail (0.035 m) are under 1 px tall on the far bank: only with the lattice
+    if (lattice) box(add(p, UP, R.foot[1] / 2), R.foot[0] / 2, R.foot[1] / 2, R.foot[0] / 2, along);
     box(add(p, UP, R.height / 2), R.post / 2, R.height / 2, R.post / 2, along);
     if (lattice) {
       box(add(p, UP, R.height + R.cap[1] / 2), R.cap[0] / 2, R.cap[1] / 2, R.cap[0] / 2, along);
@@ -150,8 +153,8 @@ export function buildRailing(w, stations, { kerbY, lattice = true, skip = () => 
       tris += 12;
     };
     railAt(yTop, R.topRail);
-    railAt(R.bottomRail[0], R.bottomRail[1]);
     if (!lattice) continue;
+    railAt(R.bottomRail[0], R.bottomRail[1]);
     // the panel (U3): a frame top and bottom, three uprights, a middle bar, full circles round
     // the first and third uprights' middles, half circles on the frame at the middle upright
     const n = [-u[2], 0, u[0]]; // the panel's plane normal (horizontal, across the railing)

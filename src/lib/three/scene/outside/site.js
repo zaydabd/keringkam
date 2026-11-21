@@ -21,8 +21,7 @@ export const SITE = {
   farLine: [[-900, -585], [-420, -360], [-260, -285], [-122, -207], [-27, -147], [3, -109], [19.6, -83.5], [30, -67], [34, -57], [40, -40], [52, -10], [70, 30], [85, 70]],
   // The far bank, as distances inland from its waterline (metres) and heights (y).
   far: {
-    mud: 1.5, // bare mud above the water
-    rough: 8, // rough grass up to here
+    rough: 8, // the waterfront street up to here (pass e11; was mud and rough grass)
     path: 10.5, // a worn path
     foot: 15, // foot of the mown embankment
     crest: 27, // its crest, at about the eye's height: the terrace behind it is seen edge-on
@@ -55,7 +54,7 @@ export const SITE = {
     rows: [
       { name: 'wood', x0: -135, x1: -30, count: 16, offset: [12, 26], scale: [1, 1.45], detail: 0, groups: 4, mix: { base: 2, tall: 2, broad: 2, round: 1 } },
       { name: 'wood behind', x0: -135, x1: -28, count: 8, offset: [34, 60], scale: [1.2, 1.6], detail: 0, groups: 3, mix: { base: 1, tall: 2, broad: 1 } },
-      { name: 'underwood', x0: -138, x1: -2, count: 20, offset: [7, 13], scale: [2, 3], detail: 0, bush: true },
+      { name: 'underwood', x0: -138, x1: -2, count: 20, offset: [8.6, 13], scale: [2, 3], detail: 0, bush: true },
       { name: 'low', x0: -28, x1: 0, count: 6, offset: [16, 44], scale: [0.55, 0.8], detail: 0, mix: { round: 2, broad: 1 } },
       { name: 'upstream', x0: -430, x1: -140, count: 9, offset: [10, 40], scale: [1, 1.5], detail: 0, groups: 3, mix: { base: 1, tall: 1, broad: 1 } },
       { name: 'behind', box: [10, 45, -300, -250], count: 7, scale: [0.5, 0.7], detail: 0, mix: { round: 2, tall: 1 } }, // left of the Assembly building, outside its brim

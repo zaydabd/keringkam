@@ -1,5 +1,8 @@
-// The far river bank (reference R3; our side has no bank since pass e5, see waterbush.js). After
-// .claude/skills/threejs-procedural-geometry: the bank is one cross-section (mud, grass, path,
+// The far river bank (reference R3; our side is the waterfront street since pass e11, see
+// waterfront.js). Since pass e11 (the user's choice) the far bank too starts with the Kuching
+// Waterfront's paved street and railing at the water (waterfront.js) in place of the bare mud, the
+// eroded step and the rough grass; the path, the embankment, the lawn and the land behind stay.
+// After .claude/skills/threejs-procedural-geometry: the bank is one cross-section (path, verge,
 // embankment) swept along its waterline (site.js), not a pile of boxes; the flat land behind it
 // is one triangulated polygon, so no two faces share a plane;
 // every band has one flat colour, which the ink pass reads as a part (toon.js); each builder
@@ -8,9 +11,10 @@
 
 import * as THREE from 'three';
 import { createContract } from './contract.js';
-import { SITE, sampleLine, smooth, mulberry32, rgbTable, vnoise, fbm } from './site.js';
+import { SITE, sampleLine, smooth, mulberry32, rgbTable, fbm } from './site.js';
 import { OUTSIDE_THEME } from '../themes/index.js';
 import { underForecourt } from './forecourt.js';
+import { WATERFRONT, FRONT_PAINT, buildRailing, paveQuad } from './waterfront.js';
 
 const lerp = (a, b, t) => a + (b - a) * t;
 
@@ -71,25 +75,6 @@ export function checkSweep(contract, w, slot, rows, stations, from = 0, { minAre
   contract.min('smallest ground triangle (m2; no sliver)', minArea, smallest);
 }
 
-/** A saw-tooth of upright blades along a line of points: reeds, grass at the water's edge. */
-function fringe(w, points, { height, width, colour, rand, lean = 0.25, gap = 0 }) {
-  let n = 0;
-  for (let i = 0; i < points.length - 1; i++) {
-    const a = points[i], b = points[i + 1];
-    const len = Math.hypot(b[0] - a[0], b[2] - a[2]);
-    const count = Math.max(1, Math.round(len / width));
-    for (let j = 0; j < count; j++) {
-      if (rand() < gap) continue; // a ragged edge has gaps
-      const t0 = j / count, t1 = (j + 1) / count, tm = (j + 0.2 + rand() * 0.6) / count;
-      const h = height[0] + rand() * (height[1] - height[0]);
-      const P = (t, up, side) => [lerp(a[0], b[0], t) + side * (b[0] - a[0]) / len, lerp(a[1], b[1], t) + up, lerp(a[2], b[2], t) + side * (b[2] - a[2]) / len];
-      w.tri('blade', P(t0, -0.05, 0), P(t1, -0.05, 0), P(tm, h, (rand() - 0.5) * 2 * lean * h), colour);
-      n++;
-    }
-  }
-  return n;
-}
-
 /** A tuft: a few blades fanned from one root. */
 function tuft(w, at, dir, { height, width, colour, rand, blades = 3 }) {
   for (let j = 0; j < blades; j++) {
@@ -109,18 +94,23 @@ function tuft(w, at, dir, { height, width, colour, rand, blades = 3 }) {
  */
 export const FAR_RELIEF = {
   stations: { rate: 0.03, min: 2.5, max: 40 }, // finer than before, so a bump of 10 m shows near the house
-  mud: { width: [0.9, 2.6], top: [0.25, 0.9], along: 13 }, // the mud strip: width inland (m), top above the water (m), wavelength along the bank (m)
-  cut: { run: 0.45, height: [0.15, 0.85], along: 8 }, // the eroded step from the mud up to the grass: its width (m) and height (m)
-  rough: { height: 0.35, along: 15, inland: 6 }, // ± on the rough grass, path and verge (m)
+  rough: { height: 0.35, along: 15, inland: 6 }, // ± on the path and verge (m)
   meadow: { height: [0.8, 2, 3], along: 42, inland: 34 }, // rolling ground left of the embankment: ± at its foot, crest and the terrace's distance (m)
   land: { columns: [33, 52, 70, 90], back: [135, 160] }, // extra columns between the crest and F.back; the gridded land behind fades flat by the last
 };
 
 /**
- * The far bank: mud at the water with an eroded step up to rough grass, a worn path, then on the
- * right the mown embankment the Assembly's grounds end in, with a pale retaining wall on its
- * terrace; on the left a natural bank rolling up to a meadow. Writes slots 'paint' (ground) and
- * 'blade' (reeds and tufts, two-sided).
+ * The far waterfront (pass e11; sizes ESTIMATED, as on our side, see waterfront.js): the street's
+ * top above the water, the railing's reach from the house (beyond it the railing is under a pixel
+ * tall in the window shot), and the gap round the bridge's tower pier, which stands at the water.
+ */
+export const FAR_FRONT = { rise: 1.5, reach: 330, pierClear: 5, drawn: 0.14 }; // drawn: the far posts and top rail are drawn this thick (real about 0.06-0.08 m), about 1 px at 120-150 m (a stylisation, e11 gate)
+
+/**
+ * The far bank: the waterfront street at the water (edge face, kerb, paving, railing), a worn
+ * path, then on the right the mown embankment the Assembly's grounds end in, with a pale
+ * retaining wall on its terrace; on the left a natural bank rolling up to a meadow. Writes slots
+ * 'paint' (ground, posts, rails), 'paving' and 'blade' (ticks on the slope, two-sided).
  */
 export function buildFarBank(w, { seed = 0 } = {}) {
   const S = SITE, F = S.far, C = BANK_PAINT, R = FAR_RELIEF;
@@ -130,7 +120,6 @@ export function buildFarBank(w, { seed = 0 } = {}) {
   const footY = F.roughY + 0.1;
   const slopeLow = lerp(F.foot, F.crest, 0.2);
   const landEnd = R.land.back[R.land.back.length - 1];
-  const unit = (v) => (v + 1) / 2; // -1..1 -> 0..1
   // Rolling ground: ± height at offset o inland, none on the embankment, fading out by landEnd.
   const [ampFoot, ampCrest, ampBack] = R.meadow.height;
   const rollAmp = (o) => {
@@ -144,20 +133,14 @@ export function buildFarBank(w, { seed = 0 } = {}) {
    * The cross-section at a station (or any point along the line: { x, s }): [offset inland, y] per
    * column, upstream to downstream the same count. The mesh, the plants and groundAt all read it.
    */
+  const top = S.water + FAR_FRONT.rise; // the street, level
   const cross = (st) => {
     const L = lawnAt(st);
-    const mudW = lerp(R.mud.width[0], R.mud.width[1], unit(vnoise(st.s / R.mud.along, 0.5, 421 + seed)));
-    const mudTop = S.water + lerp(R.mud.top[0], R.mud.top[1], unit(fbm(st.s / R.mud.along, 2.5, 423 + seed)));
-    const cutTop = mudTop + lerp(R.cut.height[0], R.cut.height[1], unit(fbm(st.s / R.cut.along, 4.5, 427 + seed)));
     const crestY = lerp(F.meadowY, F.crestY, L);
     const behind = (o) => lerp(crestY, F.backY, (o - F.crest) / (F.back - F.crest)) + roll(st, o, L);
     const fade = 1 - L; // the path and verge at the foot of the embankment stay level where it is built
     return [
-      [-4, S.water - 1.2],
-      [0, S.water],
-      [mudW, mudTop],
-      [mudW + R.cut.run, cutTop],
-      [F.rough, Math.max(cutTop - 0.2, F.roughY + rough(st, F.rough))],
+      [F.rough, top], // the street's inner edge: the street itself is built below, from the water to here
       [F.path, F.roughY + 0.05 + rough(st, F.path) * (0.4 + 0.6 * fade)],
       [F.foot, footY + roll(st, F.foot, L) * 0.5],
       [slopeLow, lerp(footY, crestY, 0.2) + roll(st, slopeLow, L)],
@@ -168,28 +151,25 @@ export function buildFarBank(w, { seed = 0 } = {}) {
       ...R.land.back.map((o) => [o, F.backY + roll(st, o, L)]),
     ].sort((a, b) => a[0] - b[0]);
   };
-  const WATERLINE = 1, MUD_TOP = 2, CUT_TOP = 3; // column indices
   const sections = stations.map(cross);
   const rows = stations.map((st, i) => sections[i].map(([o, y]) => [st.x + st.nx * o, y, st.z + st.nz * o]));
   const columns = sections[0].map(([o]) => o);
   const wallCol = sections[0].findIndex(([o]) => o === F.wall.offset);
-  // A band's paint by the offset its quads start at (the cut's face is mud too: one part for the ink pass).
+  // A band's paint by the offset its quads start at.
   const band = (k, o, L) => {
-    if (k === 0) return C.mudDark; // under water
-    if (k < CUT_TOP) return C.mud;
-    if (o < F.path) return C.rough;
-    if (o < F.foot) return k === CUT_TOP + 1 ? C.path : C.verge;
+    if (o < F.path) return C.path;
+    if (o < F.foot) return C.verge;
     if (o < slopeLow) return L > 0.5 ? C.lawnFoot : C.meadow;
     if (o < F.crest) return L > 0.5 ? C.lawn : C.meadow;
     return L > 0.5 ? C.terrace : C.meadowFar;
   };
-  const stats = { stations: stations.length, columns: columns.length, quads: 0, reeds: 0, tufts: 0, ticks: 0, wall: 0, land: 0, relief: {} };
+  const stats = { stations: stations.length, columns: columns.length, quads: 0, street: 0, ticks: 0, wall: 0, land: 0, relief: {} };
   sweep(w, 'paint', rows, (i, k) => band(k, columns[k], (lawnAt(stations[i]) + lawnAt(stations[i + 1])) / 2), false, stats);
 
   const contract = createContract('far bank');
   checkSweep(contract, w, 'paint', rows, stations);
   contract.is('every cross-section has the same columns', sections.every((c) => c.length === columns.length && c.every(([o], k) => k === 0 || o > c[k - 1][0])), true);
-  contract.near('waterline at the water level', Math.max(...sections.map((c) => Math.abs(c[WATERLINE][1] - S.water))), 0, 1e-6);
+  contract.near('the path starts at the street\'s inner edge, level with it (m)', Math.max(...sections.map((c) => Math.abs(c[0][1] - top) + Math.abs(c[0][0] - F.rough))), 0, 1e-9);
   contract.range('embankment slope (degrees)', THREE.MathUtils.radToDeg(Math.atan2(F.crestY - footY, F.crest - F.foot)), 10, 25);
   contract.range('embankment height above the path (m)', F.crestY - footY, 2.5, 5);
   // The built embankment stays straight: its foot, slope and crest have no relief where L = 1.
@@ -199,12 +179,6 @@ export function buildFarBank(w, { seed = 0 } = {}) {
     return Math.abs(y - (o === F.foot ? footY : o === slopeLow ? lerp(footY, F.crestY, 0.2) : F.crestY));
   }))));
   contract.max('embankment straight: relief on its foot, slope and crest (m)', bend, 1e-9);
-  const mudTops = sections.map((c) => c[MUD_TOP][1] - S.water), steps = sections.map((c) => c[CUT_TOP][1] - c[MUD_TOP][1]);
-  stats.relief.mudTop = [Math.min(...mudTops), Math.max(...mudTops)].map((v) => +v.toFixed(2));
-  stats.relief.cut = [Math.min(...steps), Math.max(...steps)].map((v) => +v.toFixed(2));
-  contract.range('mud top above the water (m), lowest', stats.relief.mudTop[0], 0.15, 0.5);
-  contract.range('mud top above the water (m), highest', stats.relief.mudTop[1], 0.4, 1);
-  contract.min('eroded step at the top of the mud (m), largest', stats.relief.cut[1], 0.3);
   const natural = stations.map((st, i) => [st, sections[i]]).filter(([st]) => lawnAt(st) === 0);
   const rolls = natural.map(([st, c]) => c[c.findIndex(([o]) => o === F.crest)][1] - F.meadowY);
   stats.relief.meadow = [Math.min(...rolls), Math.max(...rolls)].map((v) => +v.toFixed(2));
@@ -213,6 +187,35 @@ export function buildFarBank(w, { seed = 0 } = {}) {
   const right = built.length, left = natural.length;
   contract.min('stations on the embankment', right, 8);
   contract.min('stations on the natural bank', left, 8);
+
+  // The waterfront street, from the water to the path (waterfront.js; the same pieces as our
+  // side): the concrete edge face down into the water, the kerb, the paving.
+  const K = WATERFRONT.kerb, kerbY = top + K.rise;
+  const at = (st, o, y) => [st.x + st.nx * o, y, st.z + st.nz * o];
+  for (let i = 0; i < stations.length - 1; i++) {
+    const a = stations[i], b = stations[i + 1];
+    const deep = S.water - WATERFRONT.edgeDepth;
+    w.quad('paint', at(a, 0, deep), at(b, 0, deep), at(b, 0, kerbY), at(a, 0, kerbY), FRONT_PAINT.edge); // faces the river
+    w.quad('paint', at(a, 0, kerbY), at(b, 0, kerbY), at(b, K.width, kerbY), at(a, K.width, kerbY), FRONT_PAINT.kerb);
+    w.quad('paint', at(a, K.width, kerbY), at(b, K.width, kerbY), at(b, K.width, top), at(a, K.width, top), FRONT_PAINT.kerb);
+    paveQuad(w, at(a, K.width, top), at(b, K.width, top), at(b, F.rough, top), at(a, F.rough, top));
+    stats.street += 8;
+  }
+  // The railing, plain posts and the top rail (at 120 m and more its lattice, the posts' feet and
+  // the bottom rail would be under 2 px), out to
+  // FAR_FRONT.reach from the house; none in front of the Assembly's river front (it has a sloped
+  // edge and no railing, U2) or round the bridge's tower pier at the water.
+  const reach = (s) => Math.hypot(s.x, s.z + 5); // distance from the house
+  const pier = S.bridge[2];
+  const skip = (st) => underForecourt(st.x, F.foot) || Math.hypot(st.x - pier[0], st.z - pier[1]) < FAR_FRONT.pierClear;
+  const near = stations.filter((st) => reach(st) < FAR_FRONT.reach);
+  const railing = buildRailing(w, near, { kerbY: () => kerbY, lattice: false, skip, minSize: FAR_FRONT.drawn });
+  stats.railing = { posts: railing.posts, bays: railing.bays, gaps: railing.gaps };
+  contract.range('far street above the water (m), estimated', top - S.water, 1, 1.6);
+  contract.range('far street width (m), estimated', F.rough - K.width, 5, 10);
+  contract.max('far posts off the kerb (m)', Math.max(0, ...railing.footing.map(([y]) => Math.abs(y - kerbY))), 1e-9);
+  contract.min('far railing bays', railing.bays, 100);
+  contract.min('far railing gaps (the river front and the pier)', railing.gaps, 2);
 
   // The land beyond, to where the haze ends: one polygon at the terrace's height.
   const E = S.extent;
@@ -253,11 +256,7 @@ export function buildFarBank(w, { seed = 0 } = {}) {
     return st;
   };
 
-  // Reeds along the top of the eroded step; tufts in the rough grass; ticks on the mown slope.
-  const reach = (s) => Math.hypot(s.x, s.z + 5); // distance from the house
-  const reedLine = [];
-  for (let i = 0; i < stations.length; i++) if (reach(stations[i]) < 330) reedLine.push([...rows[i][CUT_TOP]]);
-  stats.reeds = fringe(w, reedLine, { height: [0.55, 1.25], width: 0.75, colour: C.reed, rand });
+  // Ticks on the mown slope (the reeds and tufts of the mud and the rough grass went with them, e11).
   let lowestPlant = Infinity;
   for (let i = 0; i < stations.length - 1; i++) {
     const s = stations[i], n = stations[i + 1];
@@ -270,8 +269,6 @@ export function buildFarBank(w, { seed = 0 } = {}) {
       return [st.x + st.nx * o, y, st.z + st.nz * o];
     };
     const dir = [s.tx, s.tz];
-    const cutO = sections[i][CUT_TOP][0];
-    for (let k = 0; k < Math.round(len * 0.9); k++) stats.tufts += tuft(w, put(cutO + 0.3, F.rough - 0.5), dir, { height: 0.75, width: 1.1, colour: C.tuft, rand });
     if (lawnAt(s) === 1) {
       for (let k = 0; k < Math.round(len * 0.35); k++) {
         const p = put(slopeLow, F.crest - 1); // drawn either way, so the dice stay the same outside the river front
@@ -279,9 +276,9 @@ export function buildFarBank(w, { seed = 0 } = {}) {
       }
     }
   }
-  contract.min('every tuft roots above the water (m)', lowestPlant - S.water, 0.15);
+  contract.min('every tick roots above the water (m)', lowestPlant - S.water, 0.15);
   const tri = w.triangles();
-  contract.range('triangles', (tri.paint ?? 0) + (tri.blade ?? 0), 4000, 16000);
+  contract.range('triangles', (tri.paint ?? 0) + (tri.blade ?? 0) + (tri.paving ?? 0), 4000, 20000); // 11,612 built (e11: the street and railing in place of the mud, reeds and tufts)
 
   /** Height of the bank at a point: the nearest station, moved along the line to the point. */
   const groundAt = (x, z) => {
