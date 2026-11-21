@@ -130,6 +130,19 @@ const PAINT = {
   },
 };
 
+// The Kuching Waterfront's street and railing (pass e11): pixel samples from the user's photos U1
+// and U3 in sun (not data), then tuned in the window shot.
+const STREET = {
+  brick: '#86705c', // the small dark bricks (warmer since the e11 gate: they read grey in the window)
+  brickDark: '#685444',
+  joint: '#463e36',
+  swirl: '#a6906f', // the paler bricks of the swirls
+  swirlLight: '#b49e7c',
+  kerb: '#b49e78', // the concrete strip at the edge
+  edge: '#9a8f7a', // the concrete edge face down to the water
+  iron: '#1c1a1a', // the cast-iron railing
+};
+
 const GLASS = { cabin: '#1f2326' };
 const SHADE = { cabin: '#2a2220' }; // the dark inside of a boat's cabin
 
@@ -248,8 +261,32 @@ export const OUTSIDE_THEME = {
     seedHead: PLANT.seedHead,
   },
 
+  // The Kuching Waterfront below the window (waterfront.js; pass e11): vertex colours; the street's
+  // tint is white, its colour is the texture's (textures.paving).
+  waterfront: {
+    paint: { kerb: STREET.kerb, edge: STREET.edge, iron: STREET.iron, grass: PLANT.rough, pavingTint: '#ffffff' },
+  },
+
   // Painted textures (paint.js).
   textures: {
+    // The street (paint.js paintPaving): one tile of `tile` metres at `perMetre` px. Sizes are
+    // estimates from the user's photos (bricks about 0.1 x 0.2 m; swirl bands about 0.3 m wide).
+    paving: {
+      colours: { brick: STREET.brick, brickDark: STREET.brickDark, joint: STREET.joint, swirl: STREET.swirl, swirlLight: STREET.swirlLight },
+      pattern: {
+        tile: 4,
+        perMetre: 192,
+        brick: { unit: 0.2, joint: 0.012 }, // a unit is two bricks side by side
+        swirl: {
+          band: 0.2, // m: about two rows of the small bricks (U3)
+          // at: the centre, of the tile; inner, outer: radii (m); turns; dir: 1 or -1; phase (rad); tail (m)
+          curls: [
+            { at: [0.28, 0.3], inner: 0.15, outer: 0.85, turns: 1.6, dir: 1, phase: 0.4, tail: 0.9 },
+            { at: [0.74, 0.76], inner: 0.12, outer: 0.7, turns: 1.4, dir: -1, phase: 2.2, tail: 0.8 },
+          ],
+        },
+      },
+    },
     // The leaf atlas (paint.js paintLeaves): light greys, the plant's vertex colour sets the green.
     // The edge line stands in for the ink the leaf cards do not get. Sizes are fractions of a cell.
     leaves: {

@@ -16,8 +16,8 @@ export const SITE = {
   ground: -1.85, // the house stands on 1.85 m stilts; the room's floor is y = 0
   water: -3.2,
   // The far waterline as [x, z], upstream (far left of the view) to downstream (right). The first
-  // point only carries the river out of sight. Our side has no bank: the river runs to the house
-  // (the bush at the water below the window is waterbush.js).
+  // point only carries the river out of sight. Our side is the waterfront street (`near` below;
+  // waterfront.js), with the bush below the window on its grass (waterbush.js).
   farLine: [[-900, -585], [-420, -360], [-260, -285], [-122, -207], [-27, -147], [3, -109], [19.6, -83.5], [30, -67], [34, -57], [40, -40], [52, -10], [70, 30], [85, 70]],
   // The far bank, as distances inland from its waterline (metres) and heights (y).
   far: {
@@ -34,6 +34,13 @@ export const SITE = {
     lawnFrom: [-3, 4], // x of the waterline where the embankment's sloped end starts and is at full height
     wall: { from: 12, offset: 40, height: 3 }, // pale retaining wall on the terrace (x of the waterline it starts at)
   },
+  // Our side (pass e11): the Kuching Waterfront's street and railing (waterfront.js), the user's
+  // choice. Its waterline runs straight along x; the street is level with the ground the house's
+  // stilts stand on. ESTIMATES, tuned in the window shot (no source gives the street's width): the
+  // edge 12.5 m out from the house's wall (z -5.5), so the window sees the street below the
+  // railing and the near boat clear above it; the street about 7 m wide; grass from it to under
+  // the house. x0..x1 reach past every window view.
+  near: { waterline: -18, width: 7, top: -1.85, house: -4, x0: -40, x1: 40, step: 4 },
   extent: { x0: -1100, x1: 900, z0: -1100, z1: 400 }, // the land and the water end here, in the haze
 
   // Trees of the far bank (trees.js). clump and big: [x, z, scale]; bushes: [x of the waterline,

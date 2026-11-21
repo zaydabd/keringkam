@@ -1,7 +1,9 @@
-// The bush at the water below the window (pass e5). The user removed our bank: the river runs to
-// the house, and one bush close to the window covers the lower left of the view and stands
-// straight in the water (reference R4, the user's image; not in the repo). Built after the
-// painterly references in research/CREDITS.md (pass e5):
+// The bush right below the window (pass e5; moved in pass e11). One bush close to the window covers
+// the lower left of the view (reference R4, the user's image; not in the repo). In e5 it stood in
+// the water 13-15 m out; the user wanted it near the window, so since e11 it stands on the grass
+// between the house and the waterfront's street (waterfront.js), 5-6 m out, scaled down by the
+// same ratio so its leaves keep their size in the frame, and tall enough to reach the ground.
+// Built after the painterly references in research/CREDITS.md (pass e5):
 //   - a row of overlapping blobs gives the mass; each has a dark lumpy core (blade slot) so the
 //     water and the sky do not show through;
 //   - wash leaf cards (leaves.js cell wash) cover the blobs' union, large inside and small at the
@@ -12,9 +14,9 @@
 //   - its colour runs along a ramp from a warm yellow-green on top to a cool blue-green in the
 //     shade: a depth term and smooth noise (pass e5b: blocky noise gave flat, toon-like patches),
 //     plus a hue jitter per card;
-//   - red flowers (cell flower) over its upper half, facing out; a fern clump reaching over the
-//     water at its right end and a smaller one at the left; grass tufts and a few bare stems
-//     where it meets the water.
+//   - red flowers (cell flower) over its upper half, facing out; a fern clump at its right end;
+//     grass tufts where it meets the ground (e11: the bare stems that dipped into the water went
+//     with the water, and the small fern at the left, which the sill now hides).
 // Its place comes from the window shot's sight lines (site.js WINDOW_EYE; the window opening in
 // interior/plan.js): BUSH.profile is R4's top edge, read off the painting, and the contract checks
 // the built bush against it. Sizes are design choices tuned in that shot, not measured.
@@ -73,35 +75,35 @@ function farWaterTan() {
 /**
  * The bush (design choices). `profile`: R4's top edge as [f, band], band the height from the sill
  * (0) to the far waterline (1), read off the painting (px, not real sizes). `blobs`: [f, distance
- * from the eye along -z (m), half-width, half-height, half-depth]; each blob is placed in its
- * column and raised until its top meets the profile. Cards, flowers and stems are counts and
- * sizes in metres.
+ * from the eye along -z (m), half-width, half-depth]; each blob is placed in its column, raised
+ * until its top meets the profile, and made tall enough to reach the ground (its half-height).
+ * Cards, flowers and ferns are counts and sizes in metres. Pass e11 moved the bush from 12.8-15 m
+ * out to 0.38 of that and scaled every size by the same 0.38, so it looks the same size in the
+ * window, as R4 has it.
  */
 export const BUSH = {
   profile: [[0, 1.0], [0.12, 0.73], [0.2, 0.64], [0.33, 0.37], [0.42, 0.46], [0.53, 0]],
   tolerance: 0.05, // of the opening's height: the contract on the top edge
   blobs: [
-    [-0.16, 15.0, 2.4, 2.4, 2.2],
-    [-0.02, 14.4, 2.0, 2.2, 1.9],
-    [0.08, 13.9, 1.7, 1.8, 1.7],
-    [0.17, 13.6, 1.6, 1.6, 1.6],
-    [0.25, 13.3, 1.5, 1.4, 1.5],
-    [0.32, 13.0, 1.3, 1.1, 1.3],
-    [0.39, 12.8, 1.0, 0.8, 1.1],
+    [-0.16, 5.3, 0.91, 0.8],
+    [-0.02, 5.1, 0.76, 0.7],
+    [0.08, 4.95, 0.65, 0.62],
+    [0.17, 4.85, 0.61, 0.58],
+    [0.25, 4.75, 0.55, 0.55],
+    [0.32, 4.65, 0.45, 0.47],
+    [0.38, 4.6, 0.34, 0.4],
   ],
-  sink: 0.3, // nothing goes deeper than this below the water
-  settle: 0.45, // the blobs sit this much (m) lower than their touching sight line: the leaf cards stand out of them
-  lumps: 0.22, // the shell's outline is pushed in and out by up to this (m), smooth noise of scale `block`
-  block: 0.9,
-  cards: { perSquareMetre: 5, length: [0.6, 0.95], edge: 0.6, loose: 0.08, float: 0.15 }, // edge: card size at the shell's outline, of the inner; loose: share that float up to `float` m outside
-  shade: { depth: 0.7, noise: 0.65, block: 0.6, jitter: [0.1, 0.08, 0.1] }, // the colour ramp's terms; jitter per card (r, g, b)
-  flowers: { count: 20, size: 0.32, upper: 0.45, out: 0.06 }, // upper: only above this height in the blob (of its half-height, from its centre)
+  sink: 0.15, // nothing goes deeper than this below the ground
+  settle: 0.17, // the blobs sit this much (m) lower than their touching sight line: the leaf cards stand out of them
+  lumps: 0.085, // the shell's outline is pushed in and out by up to this (m), smooth noise of scale `block`
+  block: 0.34,
+  cards: { perSquareMetre: 30, length: [0.23, 0.36], edge: 0.6, loose: 0.08, float: 0.06 }, // edge: card size at the shell's outline, of the inner; loose: share that float up to `float` m outside
+  shade: { depth: 0.7, noise: 0.65, block: 0.23, jitter: [0.1, 0.08, 0.1] }, // the colour ramp's terms; jitter per card (r, g, b)
+  flowers: { count: 20, size: 0.12, upper: 0.45, out: 0.025 }, // upper: only above this height in the blob (of its half-height, from its centre)
   ferns: [
-    { f: 0.44, dz: 11, reach: 1.8, fronds: 13, out: [0, 0, 1], rise: [1.0, 0.2], width: 0.22 }, // the upright clump at the right end, in front of the bush (R4); placed by a sweep over 8 seeds against the profile
-    { f: 0.02, dz: 12.6, reach: 1.4, fronds: 7, out: [0.3, 0, 0.95], rise: [0.35, 0.2], width: 0.26 }, // a smaller one at the left, in front
+    { f: 0.42, dz: 7.0, reach: 1.15, fronds: 13, out: [0, 0, 1], rise: [1.0, 0.2], width: 0.14 }, // the upright clump at the right end, behind the bush on the grass (R4); its top tuned against the profile
   ],
-  tufts: { count: 9, height: [0.45, 0.35], blades: 9 },
-  stems: { count: 6, length: [1.2, 0.8], radius: 0.025 },
+  tufts: { count: 9, height: [0.3, 0.2], blades: 9 },
 };
 
 /** Blocky value noise in 0..1: one value per cube of `size` m (Maznev's "blocky noise"). */
@@ -125,29 +127,33 @@ function smooth(p, size, seed) {
   return out;
 }
 
-/** The blobs in the world, each raised so its top meets the profile in its column. */
-function placeBlobs(profileTan) {
-  return BUSH.blobs.map(([f, dz, rx, ry, rz]) => {
+/** The blobs in the world, each raised so its top meets the profile in its column, and down to `ground`. */
+function placeBlobs(profileTan, ground) {
+  return BUSH.blobs.map(([f, dz, rx, rz]) => {
     const xw = lerp(OPENING.x0, OPENING.x1, f);
     const z = EYE[2] - dz;
     const x = EYE[0] + ((xw - EYE[0]) * dz) / (EYE[2] - OPENING.wall);
     // the silhouette's top is about where the sight line grazes the blob, a little in front of
     // its top: raise the centre so the grazing line has the profile's slope
     const t = profileTan(Math.max(0, f));
-    // the sight line y = eye + t dz touches the ellipse (half-height ry, half-depth rz) from above
-    const y = EYE[1] + t * dz - Math.hypot(ry, rz * t) - BUSH.settle;
+    // the sight line y = eye + t dz touches the ellipse (half-height ry, half-depth rz) from
+    // above; ry is chosen so the blob's foot is at the ground (two rounds of the fixed point)
+    const touch = EYE[1] + t * dz - BUSH.settle;
+    let ry = (touch - ground) / 2;
+    for (let k = 0; k < 2; k++) ry = (touch - Math.hypot(ry, rz * t) + ry - ground) / 2;
+    const y = touch - Math.hypot(ry, rz * t);
     return { c: [x, y, z], r: [rx, ry, rz] };
   });
 }
 
 /**
- * Builds the bush into `w`: 'blade' (cores, stems, grass), 'leaf' (cards, flowers, fronds).
+ * Builds the bush into `w`: 'blade' (cores, grass), 'leaf' (cards, flowers, fronds).
  * Returns { contract, stats, triangles }.
  */
 export function buildWaterBush(w, { seed = 0 } = {}) {
   const rand = mulberry32(83 + seed);
   const P = BUSH_PAINT;
-  const water = SITE.water, floor = water - BUSH.sink;
+  const ground = SITE.near.top, floor = ground - BUSH.sink;
   const farTan = farWaterTan();
   const profileTan = (f) => {
     const L = BUSH.profile;
@@ -157,7 +163,7 @@ export function buildWaterBush(w, { seed = 0 } = {}) {
     }
     return SILL_TAN;
   };
-  const blobs = placeBlobs(profileTan);
+  const blobs = placeBlobs(profileTan, ground - 0.1);
   // The blobby field: above 1 inside. Its gradient gives the shell's normals.
   const field = (p) => {
     let s = 0;
@@ -190,8 +196,8 @@ export function buildWaterBush(w, { seed = 0 } = {}) {
     const R = P.ramp, x = Math.min(0.999, Math.max(0, s)) * (R.length - 1), i = Math.floor(x);
     return lerp3(R[i], R[i + 1], x - i);
   };
-  const tris = { core: 0, cards: 0, flowers: 0, ferns: 0, tufts: 0, stems: 0 };
-  const stats = { cards: 0, loose: 0, maxFloat: 0, flowers: 0, belowWater: 0 };
+  const tris = { core: 0, cards: 0, flowers: 0, ferns: 0, tufts: 0 };
+  const stats = { cards: 0, loose: 0, maxFloat: 0, flowers: 0, belowGround: 0 };
   const leafTips = []; // every card corner, for the contract
 
   // --- Cores: a lumpy icosahedron per blob, a little inside the shell, cut off below the floor --
@@ -233,7 +239,7 @@ export function buildWaterBush(w, { seed = 0 } = {}) {
         const q = [(p[0] - o.c[0]) / o.r[0], (p[1] - o.c[1]) / o.r[1], (p[2] - o.c[2]) / o.r[2]];
         return dot(q, q) < 0.8;
       })())) continue;
-      if (p[1] < water - 0.05) continue; // under the water: never seen
+      if (p[1] < ground - 0.05) continue; // under the ground: never seen
       const n = shellNormal(p);
       p = add(p, n, BUSH.lumps * (2 * smooth(p, BUSH.block, seed + 1) - 1));
       shellPoints.push({ p, n, blob: bi });
@@ -270,7 +276,7 @@ export function buildWaterBush(w, { seed = 0 } = {}) {
     if (loose) stats.loose++, (stats.maxFloat = Math.max(stats.maxFloat, float));
     for (const q of corners) {
       leafTips.push(q);
-      if (q[1] < water) stats.belowWater = Math.max(stats.belowWater, water - q[1]);
+      if (q[1] < ground) stats.belowGround = Math.max(stats.belowGround, ground - q[1]);
     }
   }
 
@@ -289,49 +295,26 @@ export function buildWaterBush(w, { seed = 0 } = {}) {
     stats.flowers++;
   }
 
-  // --- Ferns, from just above the water at the bush's front --------------------------------------
+  // --- Ferns, from the ground --------------------------------------------------------------------
   const fernPaint = { fern: P.fern, fernLight: P.fernLight };
   const fernTops = [];
   for (const Q of BUSH.ferns) {
     const xw = lerp(OPENING.x0, OPENING.x1, Q.f);
-    const at = [EYE[0] + ((xw - EYE[0]) * Q.dz) / (EYE[2] - OPENING.wall), water + 0.1, EYE[2] - Q.dz];
+    const at = [EYE[0] + ((xw - EYE[0]) * Q.dz) / (EYE[2] - OPENING.wall), ground + 0.05, EYE[2] - Q.dz];
     const before = w.slot('leaf').position.length;
     tris.ferns += fern(w, at, { reach: Q.reach, rand, P: fernPaint, fronds: Q.fronds, out: norm(Q.out), rise: Q.rise, width: Q.width });
     const pos = w.slot('leaf').position;
     for (let i = before; i < pos.length; i += 3) fernTops.push([pos[i], pos[i + 1], pos[i + 2]]);
   }
 
-  // --- Where it meets the water: grass tufts along its front, and bare stems dipping in ---------
-  const front = shellPoints.filter(({ p, n }) => p[1] < water + 0.6 && dot(n, norm(sub(EYE, p))) > 0.2);
+  // --- Where it meets the ground: grass tufts along its front ------------------------------------
+  const front = shellPoints.filter(({ p, n }) => p[1] < ground + 0.4 && dot(n, norm(sub(EYE, p))) > 0.2);
   const T = BUSH.tufts;
   const grassPaint = { blade: P.blade, straw: P.straw, seedHead: P.seedHead };
   for (let k = 0; k < T.count && front.length; k++) {
     const { p, n } = front[Math.floor(rand() * front.length)];
-    const at = [p[0] + n[0] * 0.15, water, p[2] + n[2] * 0.15];
+    const at = [p[0] + n[0] * 0.06, ground, p[2] + n[2] * 0.06];
     tris.tufts += grassClump(w, at, { blades: T.blades, height: T.height[0] + rand() * T.height[1], spread: 0.12, lean: 0.5, out: norm([n[0], 0, n[2]]), heads: 0.1, rand, P: grassPaint });
-  }
-  const S = BUSH.stems;
-  const stemRoots = [], stemTips = [];
-  for (let k = 0; k < S.count && front.length; k++) {
-    const { p, n } = front[Math.floor(rand() * front.length)];
-    const root = add(p, n, -0.3); // inside the shell
-    const out = norm([n[0], 0, n[2]]);
-    const L = S.length[0] + rand() * S.length[1];
-    // an arc out over the water and down into it
-    const tip = [root[0] + out[0] * L * 0.8, water - 0.12, root[2] + out[2] * L * 0.8];
-    const ctrl = add(add(root, out, L * 0.6), UP, 0.25);
-    const pt = (t) => [0, 1, 2].map((i) => (1 - t) * (1 - t) * root[i] + 2 * (1 - t) * t * ctrl[i] + t * t * tip[i]);
-    const side = norm(cross(out, UP));
-    const segs = 5;
-    for (let j = 0; j < segs; j++) {
-      const t0 = j / segs, t1 = (j + 1) / segs, a = pt(t0), b = pt(t1);
-      const w0 = S.radius * (1 - 0.7 * t0), w1 = S.radius * (1 - 0.7 * t1);
-      facing(w, 'blade', add(a, side, -w0), add(a, side, w0), add(b, side, w1), P.stem, UP);
-      facing(w, 'blade', add(a, side, -w0), add(b, side, w1), add(b, side, -w1), P.stem, UP);
-      tris.stems += 2;
-    }
-    stemRoots.push(root);
-    stemTips.push(tip);
   }
 
   // --- Contract -----------------------------------------------------------------------------------
@@ -351,18 +334,18 @@ export function buildWaterBush(w, { seed = 0 } = {}) {
   c.max(`top edge off R4's profile, of the opening's height (worst at f ${worstAt.toFixed(2)})`, worst, BUSH.tolerance);
   // the near boat stays in view: nothing of the bush rises to its waterline in its column
   const boat = SITE.boats[0];
-  const boatAt = inShot([boat.x, water, boat.z]);
+  const boatAt = inShot([boat.x, SITE.water, boat.z]);
   const atBoat = visible.filter((v) => Math.abs(v.f - boatAt.f) < 0.04);
   c.max('bush top below the near boat\'s waterline (tan)', atBoat.length ? Math.max(...atBoat.map((v) => v.tan)) : SILL_TAN, boatAt.tan);
-  // the lower right of the frame is open water
+  // the lower right of the frame is the street and the river beyond the railing
+  stats.right = { leaves: Math.max(...leafTips.map(inShot).filter((v) => v.tan > SILL_TAN).map((v) => v.f)), ferns: Math.max(...fernTops.map(inShot).filter((v) => v.tan > SILL_TAN).map((v) => v.f)) };
   c.max('right edge of the bush in the opening (f)', Math.max(...visible.map((v) => v.f)), 0.62);
-  c.max('deepest leaf below the water (m)', stats.belowWater, BUSH.sink);
+  c.max('deepest leaf below the ground (m)', stats.belowGround, BUSH.sink);
+  c.max('the bush stays on the grass, short of the street (m past its inner edge)', Math.max(...leafTips.map((q) => SITE.near.waterline + SITE.near.width - q[2])), 0);
   c.max('loose cards float at most (m)', stats.maxFloat, BUSH.cards.float);
-  c.min('stems rooted inside the bush (all)', stemRoots.filter((r) => field(r) > 1).length, stemRoots.length);
-  c.min('stems that dip into the water (all)', stemTips.filter((t) => t[1] < water).length, stemTips.length);
-  c.range('leaf cards', stats.cards, 500, 1200); // 724-730 built (seeds 0-7)
+  c.range('leaf cards', stats.cards, 1000, 2200); // 1,537-1,552 built (seeds 0-7, e11)
   c.range('flowers', stats.flowers, 8, 30);
-  c.range('triangles, leaves (cards, flowers, ferns)', tris.cards + tris.flowers + tris.ferns, 1200, 3600); // 1,848-1,860 built (seeds 0-7)
-  c.range('triangles, cores, grass and stems', tris.core + tris.tufts + tris.stems, 1000, 3000); // 1,576-1,612 built (seeds 0-7)
+  c.range('triangles, leaves (cards, flowers, ferns)', tris.cards + tris.flowers + tris.ferns, 2500, 4500); // 3,348-3,378 built (seeds 0-7, e11)
+  c.range('triangles, cores and grass', tris.core + tris.tufts, 1000, 3000); // 1,680-1,698 built (seeds 0-7, e11)
   return { contract: c.assert(), stats: { ...stats, blobs: blobs.map((b) => b.c.map((v) => +v.toFixed(2))) }, triangles: tris };
 }

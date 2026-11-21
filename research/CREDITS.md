@@ -217,3 +217,17 @@ it. None of these images is in the repo. Every size taken from them is an estima
 | That the fountain stands in front of the building | [Darul Hana musical fountain in front of the state assembly building.jpg](https://commons.wikimedia.org/wiki/File:Darul_Hana_musical_fountain_in_front_of_the_state_assembly_building.jpg) | Cerevisae | CC BY-SA 4.0 |
 | Background on the building | [New Sarawak State Legislative Assembly Building](https://en.wikipedia.org/wiki/New_Sarawak_State_Legislative_Assembly_Building) | Wikipedia | CC BY-SA 4.0 (text) |
 | First layout guide (front, rear, left views); not followed where the photo differs | Four renders supplied by the user (they look generated; not real data) | The user | Not committed |
+
+# Window view: the Kuching Waterfront street and railing (2026-11-21, pass e11)
+
+Used for the street, its paving and the cast-iron railing on our bank (`outside/waterfront.js`,
+`paint.js` paintPaving). None of these images is in the repo. Every size taken from them is an
+estimate.
+
+| Used for | Source | Author | Licence |
+| --- | --- | --- | --- |
+| Main reference: the railing (square posts with cap and knob, round top rail, circle lattice), the basket-weave bricks with pale swirl bands, the kerb; colours sampled from them (pixel samples, not data) | Five photos supplied by the user (U1–U5; U5 looks like a rendering and was used least) | The user | Not committed |
+| The promenade's paving and railing in a long run | [Kuching Waterfront Panorama.jpg](https://commons.wikimedia.org/wiki/File:Kuching_Waterfront_Panorama.jpg) | Jin (Flickr) | CC BY 2.0 |
+| The railing along the river, posts and panels | [Kuching (3678642365).jpg](https://commons.wikimedia.org/wiki/File:Kuching_(3678642365).jpg) | Peter Gronemann | CC BY 2.0 |
+| The street's width and the railing seen along it | [Kuching Waterfront (17586892988).jpg](https://commons.wikimedia.org/wiki/File:Kuching_Waterfront_(17586892988).jpg) | Marufish | CC BY-SA 2.0 |
+| Where the waterfront is (south bank, opposite the Assembly) | [Kuching Waterfront](https://en.wikipedia.org/wiki/Kuching_Waterfront) | Wikipedia | CC BY-SA 4.0 (text) |

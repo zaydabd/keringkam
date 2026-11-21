@@ -5,14 +5,16 @@
 // muddy river curving past the house, a mown embankment and
 // trees on the far side, two roofed boats, the bridge on the left, the gold-roofed Assembly
 // building on the right, blue sky with cumulus. site.js holds the layout (estimates read off the
-// painting); sourced sizes are in assembly.js and bridge.js. Our own bank was removed (pass e5, R4,
-// the user's second image): the river runs to the house, and a bush in the water covers the lower
-// left of the view (waterbush.js).
+// painting); sourced sizes are in assembly.js and bridge.js. Our own bank is the Kuching
+// Waterfront's street and railing (pass e11, the user's choice and photos; waterfront.js), and a
+// bush on the grass right below the window covers the lower left of the view (waterbush.js; R4,
+// the user's second image).
 //
 // The view is built object by object, each after its skill in .claude/skills:
 //   farbank            banks.js     procedural-geometry (swept cross-sections, contracts)
 //   forecourt          forecourt.js procedural-architecture (the Assembly's river front; pass e7)
-//   waterbush          waterbush.js procedural-vegetation (pass e5: our bank removed, a bush in the water)
+//   waterfront         waterfront.js procedural-geometry (pass e11: our side's street and railing)
+//   waterbush          waterbush.js procedural-vegetation (pass e5; e11: on the grass right below the window)
 //   trees              trees.js     procedural-vegetation
 //   river              water.js     water-optics
 //   assembly: rebuilt from the user's Sketchfab model (pass w5, research/INTERIOR-NOTES.md).
@@ -25,7 +27,7 @@
 // where two colours meet (toon.js). The haze is the scene fog.
 
 import * as THREE from 'three';
-import { paintSoftSky, paintLeaves } from '../paint.js';
+import { paintSoftSky, paintLeaves, paintPaving } from '../paint.js';
 import { SlotWriter, createContract } from './contract.js';
 import { SITE } from './site.js';
 import { buildForecourt } from './forecourt.js';
@@ -33,6 +35,7 @@ import { OUTSIDE_THEME } from '../themes/index.js';
 import { CLAY } from '../themes/clay.js';
 import { buildFarBank } from './banks.js';
 import { buildWaterBush } from './waterbush.js';
+import { buildNearWaterfront } from './waterfront.js';
 import { buildTrees } from './trees.js';
 import { planAssembly, compileAssembly } from './assembly.js';
 import { PENAMBANG, planBoat, compileBoat } from './boats.js';
@@ -54,7 +57,7 @@ export const LEAF_COVER = 0.25;
 export const coverOf = (uv, map, k = LEAF_COVER) =>
   `(1.0 + ${k.toFixed(3)} * max(0.0, 0.5 * log2(max(dot(dFdx(${uv} * vec2(textureSize(${map}, 0))), dFdx(${uv} * vec2(textureSize(${map}, 0)))), dot(dFdy(${uv} * vec2(textureSize(${map}, 0))), dFdy(${uv} * vec2(textureSize(${map}, 0))))))))`;
 
-export const OBJECTS = ['farbank', 'forecourt', 'waterbush', 'trees', 'river', 'assembly', 'bridge', 'boats', 'sky'];
+export const OBJECTS = ['farbank', 'forecourt', 'waterfront', 'waterbush', 'trees', 'river', 'assembly', 'bridge', 'boats', 'sky'];
 
 // The sky is keyed down like the rest of the outdoors, so its blue survives an exposure set for
 // the shaded room (themes/outside.js air.skyKey).
@@ -90,7 +93,8 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
   // --- The banks (banks.js) ---------------------------------------------------------------------
   if (want('farbank')) reports.farbank = buildFarBank(w, { seed });
   if (want('forecourt')) reports.forecourt = buildForecourt(w); // the Assembly's river front on the embankment (pass e7)
-  if (want('waterbush')) reports.waterbush = buildWaterBush(w, { seed }); // our side has no bank: a bush in the water below the window
+  if (want('waterfront')) reports.waterfront = buildNearWaterfront(w); // our side: the waterfront's street and railing (pass e11)
+  if (want('waterbush')) reports.waterbush = buildWaterBush(w, { seed }); // the bush on the grass right below the window
 
   // --- Trees and bushes of the far bank (trees.js); they stand on the far bank's surface ---------
   if (want('trees')) {
@@ -132,6 +136,7 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
     sky: paintSoftSky(25 + skySeed, { ...OUTSIDE_THEME.sky[OUTSIDE_THEME.sky.style], haze: hazeStyle }),
   };
   if (w.slots.has('leaf')) textures.leaves = paintLeaves(43 + seed, OUTSIDE_THEME.textures.leaves); // the leaf atlas (leaves.js); cut-outs, so painted in every mode
+  if (w.slots.has('paving')) textures.paving = paintPaving(61, OUTSIDE_THEME.textures.paving); // the waterfront's street (pass e11)
   disposables.push(...Object.values(textures));
   // `alphaTest`: a cut-out (the leaf cards); its map is kept in every mode, for the shape.
   const toon = ({ map, side = THREE.FrontSide, alphaTest = 0 } = {}) => {
@@ -172,6 +177,8 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
     blade: toon({ side: THREE.DoubleSide }),
     gold: toon({ side: THREE.DoubleSide }), // the Assembly building's gold: plain paint; its folds come from the facets
   };
+  // The waterfront's street (pass e11): its colour is the painted map; flat and clay modes leave it plain.
+  if (textures.paving) materials.paving = toon({ map: mode ? null : textures.paving });
   // Leaf cards (leaves.js): two-sided, cut out by the atlas's alpha, which keeps its coverage when
   // the card is small (keepCover).
   if (textures.leaves) materials.leaf = keepCover(toon({ map: textures.leaves, side: THREE.DoubleSide, alphaTest: 0.5 }));
@@ -232,8 +239,8 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
     total += n;
   }
   const budget = createContract('outside budget');
-  budget.max('triangles', total, 160000); // was 95,000, then 140,000, 170,000 and 240,000 (the trees, step 4: 216,721 built); pass e5 removed the near bank and added the bush in the water: 133,303 built (the user set no limit; the cost is reported per step)
-  budget.max('meshes (draw calls)', group.children.length, 8); // 6 since pass e5 (the mud and turf meshes went with the near bank)
+  budget.max('triangles', total, 160000); // was 95,000, then 140,000, 170,000 and 240,000 (the trees, step 4: 216,721 built); pass e5 removed the near bank and added the bush in the water: 133,303 built (the user set no limit; the cost is reported per step; pass e11 the waterfront street and railing: 151,019 built)
+  budget.max('meshes (draw calls)', group.children.length, 8); // 6 since pass e5 (the mud and turf meshes went with the near bank); 7 since e11 (the paving)
   reports.budget = { contract: budget.assert() };
 
   return {

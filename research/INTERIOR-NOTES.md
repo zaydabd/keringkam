@@ -2182,3 +2182,50 @@ part of its frame.
   reflections.
 - **Cost:** none measurable. Triangles and draw calls are unchanged (window 521,542 / 49; headless
   SwiftShader, **not a real GPU**).
+
+### Pass e11 step 1: the Kuching Waterfront on our bank, and the bush below the window (2026-11-21, branch `waterfront-near`)
+
+- **Request:** the bush was meant to be near the window; the river seemed to be everywhere;
+  make our bank (and later the far bank) a waterfront after the Kuching Waterfront, with only its
+  paved street and black railing (no lamps, trees or shelters; the user's choice).
+- **Why the river filled the view** (geometry): eye y 1.5, sill 1.16, wall z -5.5, water -3.2.
+  The sill's sight line meets the water about 12 m out, and since e5 nothing stood between.
+- **Facts:** the waterfront is on the south bank of the Sarawak River, opposite the Assembly
+  building ([Wikipedia](https://en.wikipedia.org/wiki/Kuching_Waterfront)). The look of the
+  railing and paving is from the user's photos (U1–U5, not committed) and three Commons photos
+  (research/CREDITS.md, pass e11).
+- **Estimates (no source gives them), marked in code:** street 1.35 m above the water, about
+  7 m wide (6.6 m paved), waterline 12.5 m out from the house's wall; railing 1.05 m tall, posts
+  1.7 m apart, kerb 0.4 m wide. The street meets the ground the house's stilts stand on (-1.85).
+- **Built** (`outside/waterfront.js`, new; `site.js` SITE.near; `paint.js` paintPaving):
+  - an edge face down into the water, the kerb, the paved street, grass up to the house;
+  - the railing: posts with foot, cap and knob; top and bottom rails; a lattice of bars, full
+    circles and half circles per bay (after U1/U3/U4), in the 'blade' slot;
+  - the paving: a painted 4 m tile, basket-weave bricks with pale swirl bands, mapped in world
+    metres in its own mesh ('paving', the seventh outside mesh). The swirls are the same bricks in
+    pale colours cut to smooth bands, so the band's edge runs through the bricks as in U3; the
+    first try (whole bricks in the band) read blocky. Brick colours warmed after the gate
+    (#7a6c5c → #86705c); colours are pixel samples of U3, not data.
+  - The railing runs x -40..40 (80 m), past the edge of every window view (about 72° off the
+    view at the waterline). 120 m was tried first; it cost 3,964 more triangles for nothing seen.
+  - Contract (throws at build): street 1–1.6 m above the water, edge face 0.3 m below it, street
+    on the house's ground, width 5–10 m, every post on the kerb, no gaps, all bays built.
+- **The bush** (`waterbush.js`): moved from 12.8–15 m to 4.6–5.3 m from the eye (about 0.38 of
+  the distance), every size scaled by about the same ratio, so it keeps its size in the frame. Each
+  blob is now tall enough to reach the ground. The contract keeps R4's top-edge profile (worst
+  0.047 of the opening, seed 4, over seeds 0–7; accepted 0.05), the near boat clear and the right edge
+  ≤ 0.62; new: no leaf below the ground by more than 0.15 m, and none past the street's inner
+  edge. The stems that dipped into the water and the small left fern (now under the sill) are
+  gone; the right fern stands on the grass at 7 m. Cards 1,537–1,552 (were 724–730), smaller and
+  denser.
+- **Gate** (window, left, right, phone, seed 1, seat; sheets in the scratchpad, not committed):
+  the bush shows just above the sill on the left as in R4; the railing crosses below the near
+  boat; the street fills the lower right; the bridge, the Assembly and both boats stay clear.
+  No rectangles show round the lattice in the ink pass.
+- **Divergences:** the swirls are two repeating spirals per 4 m tile, simpler than the real
+  pattern; no lamps, benches or trees (the user's choice); the lattice is a simplified version of
+  the real panels.
+- **Cost** (headless SwiftShader, **not a real GPU**): outside built 151,019 triangles (budget
+  160,000), 7 meshes. Drawn per frame: window 521,542 / 49 calls → 550,807 / 52; right
+  537,384 / 53 → 566,649 / 56; phone 521,544 / 50 → 550,809 / 53; seat 587,102 / 82 →
+  616,367 / 85.

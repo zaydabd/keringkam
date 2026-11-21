@@ -1140,3 +1140,69 @@ export function paintLeaves(seed = 43, { colours: C, pattern: P }) {
   t.anisotropy = 4;
   return t;
 }
+
+/**
+ * The Kuching Waterfront's street (outside/waterfront.js; pass e11), one tile of `P.tile` metres
+ * that repeats: small bricks in a basket weave (pairs of bricks, each pair turned against its
+ * neighbours), with broad swirls of paler bricks set into them, after the user's photos U1, U3
+ * and U4. Painted in its own colours (the street's vertex colour is white). Sizes are estimates
+ * from the photos, not measurements.
+ */
+export function paintPaving(seed = 61, { colours: C, pattern: P }) {
+  const r = rng(seed);
+  const W = Math.round(P.tile * P.perMetre), m = P.perMetre;
+  const mix = (a, b, t) => {
+    const A = css(a).split(',').map(Number), B = css(b).split(',').map(Number);
+    return `rgb(${A.map((v, i) => Math.round(v + (B[i] - v) * t)).join(',')})`;
+  };
+  // the bricks: units of two bricks side by side, the units' direction alternating (basket weave)
+  const u = P.brick.unit * m, j = P.brick.joint * m;
+  const bricks = (g, a, b, shade) => {
+    g.fillStyle = C.joint;
+    g.fillRect(0, 0, W, W);
+    for (let y = 0; y < W; y += u) {
+      for (let x = 0; x < W; x += u) {
+        const across = ((x / u + y / u) | 0) % 2 === 0;
+        for (let k = 0; k < 2; k++) {
+          const bx = across ? x + (k * u) / 2 : x, by = across ? y : y + (k * u) / 2;
+          const bw = across ? u / 2 : u, bh = across ? u : u / 2;
+          g.fillStyle = mix(a, b, shade());
+          g.fillRect(bx + j / 2, by + j / 2, bw - j, bh - j);
+        }
+      }
+    }
+  };
+  const [c, g] = canvas(W, W);
+  bricks(g, C.brick, C.brickDark, () => r() * r() + 0.3 * r());
+  // the swirls: the same bricks in the pale colours, cut to smooth bands, so a band's edge runs
+  // through the bricks as it does in the photos (U3) instead of stepping brick by brick
+  const [sc, sg] = canvas(W, W);
+  bricks(sg, C.swirl, C.swirlLight, r);
+  sg.globalCompositeOperation = 'destination-in';
+  sg.strokeStyle = '#fff';
+  sg.lineCap = 'round';
+  sg.lineJoin = 'round';
+  sg.lineWidth = P.swirl.band * m;
+  sg.beginPath(); // one path for every curl: each stroke with 'destination-in' would clear the others
+  for (const s of P.swirl.curls) {
+    // drawn wrapped in both directions so the tile repeats
+    for (const dx of [-W, 0, W]) for (const dy of [-W, 0, W]) {
+      const cx = s.at[0] * W + dx, cy = s.at[1] * W + dy;
+      // an Archimedean spiral out from the centre, then a tail that sweeps off
+      const turns = s.turns * Math.PI * 2;
+      for (let t = 0; t <= turns; t += 0.04) {
+        const rr = (s.inner + (s.outer - s.inner) * (t / turns)) * m;
+        const x = cx + Math.cos(t * s.dir + s.phase) * rr, y = cy + Math.sin(t * s.dir + s.phase) * rr;
+        if (t === 0) sg.moveTo(x, y);
+        else sg.lineTo(x, y);
+      }
+      const end = turns * s.dir + s.phase, R0 = s.outer * m;
+      const ex = cx + Math.cos(end) * R0, ey = cy + Math.sin(end) * R0;
+      const tx = -Math.sin(end) * s.dir, ty = Math.cos(end) * s.dir; // on along the spiral
+      sg.bezierCurveTo(ex + tx * s.tail * m, ey + ty * s.tail * m, ex + tx * s.tail * m * 1.6 + ty * s.tail * m * 0.4, ey + ty * s.tail * m * 1.6 - tx * s.tail * m * 0.4, ex + tx * s.tail * m * 2.2, ey + ty * s.tail * m * 2.2);
+    }
+  }
+  sg.stroke();
+  g.drawImage(sc, 0, 0);
+  return texture(c, [1, 1], true);
+}
