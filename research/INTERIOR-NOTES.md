@@ -2297,3 +2297,8 @@ part of its frame.
   7,944, far bank 11,612). Window, left, right, phone, seed 1 and seat captures against step 2:
   only the moving water differs (the step 2 captures had the water running). Flat and silhouette
   captures of the outside taken.
+- **Shimmer** (the far railing while the view turns 0 to 0.125° in six steps, water stopped;
+  headless SwiftShader, **not a real GPU**): the share of columns where the far railing's line is
+  drawn moves by 1.9 points on the left (84.6–86.5%, x 270–640) and 1.0 point on the right
+  (95.2–96.2%, x 900–1005). The left band's 7–10 breaks include the planned gaps at the pier.
+  No fix needed.
