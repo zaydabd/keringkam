@@ -39,6 +39,7 @@ import { buildNearWaterfront } from './waterfront.js';
 import { buildTrees } from './trees.js';
 import { planAssembly, compileAssembly } from './assembly.js';
 import { PENAMBANG, planBoat, compileBoat } from './boats.js';
+import { checkBoats } from './placement.js';
 import { buildBridge } from './bridge.js';
 import { createWater, fresnelF0, WAVES } from './water.js';
 
@@ -118,7 +119,10 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
   }
 
   // --- Boats: Kuching river taxis (boats.js; planned, compiled, checked against photos) ---------
-  if (want('boats')) reports.boats = S.boats.map((b) => compileBoat(planBoat(PENAMBANG, b.scheme), w, b, S.water));
+  if (want('boats')) {
+    reports.boats = S.boats.map((b) => compileBoat(planBoat(PENAMBANG, b.scheme), w, b, S.water));
+    reports.boatPlacement = checkBoats(S.boats); // where they sit in the window shot (placement.js)
+  }
 
   // --- Geometry per material -------------------------------------------------------------------
   const geometry = (name) => {
