@@ -190,7 +190,9 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
       mesh.layers.set(1); // no ink of its own...
       mesh.layers.enable(LEAF_MASK_LAYER); // ...and it hides the ink behind its leaves
     }
-    mesh.layers.enable(MIRROR_LAYER);
+    // The paving is not mirrored: the river hides its reflection behind the kerb and the edge
+    // face (pass e11 tidy: 0.003% of the window shot's pixels change, under the 1% rule).
+    if (name !== 'paving') mesh.layers.enable(MIRROR_LAYER);
     group.add(mesh);
   }
 

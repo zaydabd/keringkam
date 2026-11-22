@@ -2264,3 +2264,36 @@ part of its frame.
   155,196 (budget 160,000; 160,944 before the sub-pixel parts were dropped), 7 meshes. Drawn per
   frame, step 1 → step 2: window 550,807 → 563,338 (52 calls); right 566,649 → 579,180 (56);
   phone 550,809 → 563,340 (53); seat 616,367 → 628,898 (85).
+
+### Pass e11 tidy: a best-practice review of the waterfront code (2026-11-22, branch `waterfront-tidy`)
+
+- **Request:** check that the e11 code follows the skills and notes (`threejs-procedural-geometry`,
+  `threejs-visual-validation`, `painting-to-scene`, `BEST_PRACTICES.md`, `PHOTO-TO-THREEJS.md`).
+- **Already fine:** svelte-check clean; the paving texture is mipmapped and disposed; one mesh per
+  material slot; every builder throws on a failed contract; estimates are marked; credits checked.
+- **Findings and fixes:**
+  - Contracts that tested nothing. "Posts off the kerb" compared each post's base with itself,
+    "edge face below the water" was a constant, and "gaps ≥ 2" did not say where the gaps were.
+    Now `buildRailing` records each post's place, base and footprint; `checkFooting` checks the
+    whole footprint lies on the kerb strip at the kerb's emitted top; the near edge-face check
+    measures the emitted face; the far gaps are checked against the emitted posts and the skipped
+    stations (none in front of the Assembly or at the pier, and every gap has one of those causes).
+    Planted defect (railing inset 0.5 m): both banks throw.
+  - Datums written twice. `SITE.near.top` repeated `SITE.ground`, and the far street's top
+    (`water + FAR_FRONT.rise`) matched `SITE.far.roughY` only by chance. Both removed: the near
+    street uses `SITE.ground`, the far street `SITE.far.roughY` (the path and the forecourt read it).
+  - The Commons photo of the concrete edge was cited but not credited: added to CREDITS.md
+    (StormChase, CC BY-SA 3.0).
+  - The lattice circles lay in the bars' plane (coplanar overlap): they now sit 2 mm in front of
+    it (`ARC_LIFT`, a named allowance), and a contract measures the separation.
+  - Left over: a debug stat in the bush contract, five unused far-bank theme keys and their
+    palette entries, three stale comments, and a run-on budget comment. Removed or fixed.
+  - The paving is no longer drawn in the river's mirror pass. With and without it, 0.003% of the
+    window shot's pixels differ by 8/255 or more (headless SwiftShader, **not a real GPU**), under
+    the 1% rule; the kerb and edge face hide its reflection.
+- **Kept as known compromises:** box faces that are never seen (a post's bottom on the kerb, about
+  2 triangles a box) and the small vector helpers copied per outside file (older than e11).
+- **Checks:** far bank seeds 0–7 pass (the sweep was 0–3); triangle counts unchanged (near railing
+  7,944, far bank 11,612). Window, left, right, phone, seed 1 and seat captures against step 2:
+  only the moving water differs (the step 2 captures had the water running). Flat and silhouette
+  captures of the outside taken.
