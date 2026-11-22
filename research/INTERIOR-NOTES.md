@@ -2297,3 +2297,27 @@ part of its frame.
   7,944, far bank 11,612). Window, left, right, phone, seed 1 and seat captures against step 2:
   only the moving water differs (the step 2 captures had the water running). Flat and silhouette
   captures of the outside taken.
+
+### Pass e12: the boats' place and scale (`boats-spacing`)
+
+- **Request:** the boats looked out of place and small, and the river, boats and railing together
+  looked uncanny. The user asked for our own judgement, not a match to R3.
+- **Judgement:** a boat far out on open water, with nothing in front of it, gives no clue to its
+  size and reads as a toy. On a real waterfront the nearest boats pass just beyond the railing,
+  and the railing (about waist high) crossing the hull sets the scale. So the near boat came in
+  behind the railing and the far one to about mid-river. The boats keep their size (6.2 m, read
+  off photos, **estimated**).
+- **Placement contract** (`outside/placement.js`, run with the boats in `index.js`; throws):
+  near boat at most 27 m from the eye, with both hull ends on water seen past the street's edge
+  and its roof ridge above the rail's top; far boat 45–65 m out, above the rail, clear of the
+  bridge pier's column; a gap across the opening between them; 10 m from both waterlines, 20 m
+  apart, headings 10° apart; both inside the curtains' gap. Every threshold is a design
+  allowance (**estimated**). Positions solved from the contract, not by eye.
+- **Result:** near (-6.5, -40) to (-0.5, -30): 35.9 to 25.4 m from the eye. Far (-19, -72,
+  ry 2.55) to (-14.5, -57.5, ry 2.63): 69.9 to 54.7 m. Both read about 1.4x and 1.3x bigger. The
+  old places and the R3-based ones from earlier in this pass both throw.
+- **Sources:** penambang carry 8–10 passengers on side benches and cross a river about 400 m
+  wide in almost 10 minutes (Zaini et al. 2024, ITJEMAST 15(4), https://tuengr.com/V15/15A4E.pdf,
+  pp. 3 and 8; no boat lengths, the drawings are not to scale). They cross between jetties
+  (https://www.theborneopost.com/2013/03/17/sungei-sarawak-as-a-tourist-draw/). Our river is about
+  119 m wide at the boats (**estimated**, narrower than the sourced 400 m; not changed in this pass).
