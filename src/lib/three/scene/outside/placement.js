@@ -1,12 +1,16 @@
-// Where the two river taxis sit in the window shot (pass e12). The painting (R3) decides the
-// layout: the far boat high in the water, just below the far bank and left of the bridge's pier;
-// the near boat lower, to its right, with open water below it. The photos decide the boats' size
-// (boats.js PENAMBANG), which stays real. After the painting-to-scene skill: measured in the shot
-// (waterbush.js inShot: the place across the opening, f, and the sight line's slope, tan), and
-// checked by a contract that throws.
+// Where the two river taxis sit in the window shot (pass e12). The user found the boats small and
+// the river, boats and railing uncanny together, and asked for our own judgement rather than a
+// match to R3. The judgement: a boat far out on open water, with nothing in front of it, gives no
+// clue to its size, so it reads as a toy. On a real waterfront the nearest boats pass just beyond
+// the railing: the railing (about waist high) crosses the hull and the roof rises over the top
+// rail, which sets the scale. So the near boat comes in behind the railing, the far one to about
+// mid-river. The boats keep their size (boats.js PENAMBANG: 6.2 m, read off photos, an estimate;
+// Zaini et al. 2024 give 8-10 passengers on side benches and no length,
+// https://tuengr.com/V15/15A4E.pdf).
 //
-// Every threshold is a named allowance, an ESTIMATE judged in the window shot, not a measurement.
-// R3's numbers are read off the painting by eye (pixel positions, not exact).
+// Measured in the shot (waterbush.js inShot: the place across the opening, f, and the slope of the
+// sight line, tan) and checked by a contract that throws. Every threshold is a named allowance, a
+// design choice judged in the window shot (ESTIMATED), not a measurement.
 
 import { createContract } from './contract.js';
 import { SITE, WINDOW_EYE } from './site.js';
@@ -15,22 +19,31 @@ import { WATERFRONT } from './waterfront.js';
 import { PENAMBANG } from './boats.js';
 
 export const BOAT_PLACE = {
-  band: { far: 0.15, near: 0.65, tol: 0.1 }, // each boat's waterline down the water band, far bank 0 to railing 1 (R3: about 0.14 and 0.66)
-  overRail: 0.045, // tan: both hull ends at least this high above the railing's top (about 40 px in the 1240 px shot)
+  nearMax: 27, // m from the eye: the near boat at most this far, so it reads at its size (was 35.9)
+  farRange: [45, 65], // m from the eye: the far boat about mid-river (was 69.9)
+  onWater: 0.01, // tan: both hull ends of the near boat this far beyond the street's edge, on water seen through the railing
+  overRail: 0.02, // tan: the near boat's roof ridge this far above the railing's top, so the cabin shows over the rail
+  farOverRail: 0.03, // tan: the far boat's whole hull above the railing's top
   apart: 0.04, // f: the gap across the opening between the two boats (about 40 px)
   pier: 0.04, // f: the far boat keeps this clear of the bridge pier's column on either side
-  bank: 15, // m: each boat at least this far from both waterlines
+  bank: 10, // m: each boat at least this far from both waterlines
   between: 20, // m: and from the other boat
   turn: 10, // degrees: the two headings differ by at least this, so they do not read as a queue
   open: [0.15, 0.9], // f: both hulls inside the part of the opening the curtains leave clear at the water
 };
 
 const EYE = WINDOW_EYE;
+const RIDGE = PENAMBANG.roof.low + PENAMBANG.roof.rise; // the roof's ridge above the water
 
 /** The railing's top line seen from the window (the slope of the sight line over it). */
 export function railTan() {
   const R = WATERFRONT.railing, K = WATERFRONT.kerb;
   return (SITE.ground + K.rise + R.height - EYE[1]) / (EYE[2] - (SITE.near.waterline + R.inset));
+}
+
+/** The street's edge at the water (the kerb's outer top edge): nearer water is hidden under it. */
+export function edgeTan() {
+  return (SITE.ground + WATERFRONT.kerb.rise - EYE[1]) / (EYE[2] - SITE.near.waterline);
 }
 
 /** Where the sight line from the eye through (x, z) meets the far waterline (SITE.farLine), in xz. */
@@ -50,19 +63,20 @@ export function farWaterline(x, z) {
   return best;
 }
 
-/** One boat in the shot: both hull ends, its centre, its place down the water band. */
+/** One boat in the shot: both hull ends, its roof ridge, its distances. */
 export function boatInShot(b) {
   const L = PENAMBANG.length / 2, bow = [Math.cos(b.ry), -Math.sin(b.ry)];
-  const ends = [1, -1].map((k) => inShot([b.x + bow[0] * L * k, SITE.water, b.z + bow[1] * L * k]));
+  const ends = [1, -1].map((k) => [b.x + bow[0] * L * k, b.z + bow[1] * L * k]);
+  const water = ends.map(([x, z]) => inShot([x, SITE.water, z]));
+  const ridge = Math.min(...ends.map(([x, z]) => inShot([x, SITE.water + RIDGE, z]).tan), inShot([b.x, SITE.water + RIDGE, b.z]).tan);
   const far = farWaterline(b.x, b.z);
-  const farTan = inShot([far.x, SITE.water, far.z]).tan, rail = railTan();
-  const centre = inShot([b.x, SITE.water, b.z]);
   return {
-    f: [Math.min(...ends.map((e) => e.f)), Math.max(...ends.map((e) => e.f))],
-    low: Math.min(...ends.map((e) => e.tan)), // the lower hull end's sight line
-    band: (farTan - centre.tan) / (farTan - rail),
+    f: [Math.min(...water.map((e) => e.f)), Math.max(...water.map((e) => e.f))],
+    low: Math.min(...water.map((e) => e.tan)), // the lower hull end's sight line at the water
+    ridge, // the lowest point of the ridge line's ends and middle
+    eye: Math.hypot(b.x - EYE[0], b.z - EYE[2]),
     toFar: Math.hypot(far.x - b.x, far.z - b.z),
-    toNear: b.z > SITE.near.waterline ? 0 : SITE.near.waterline - b.z,
+    toNear: SITE.near.waterline - Math.max(...ends.map((e) => e[1])),
   };
 }
 
@@ -71,17 +85,18 @@ export function checkBoats(boats = SITE.boats) {
   const P = BOAT_PLACE, c = createContract('boat placement');
   const [near, far] = boats.map(boatInShot);
   const rail = railTan(), pier = inShot([SITE.bridge[2][0], SITE.water, SITE.bridge[2][1]]).f;
-  c.near('far boat down the water band (0 far bank, 1 railing)', far.band, P.band.far, P.band.tol);
-  c.near('near boat down the water band', near.band, P.band.near, P.band.tol);
-  c.min('near boat above the railing top (tan)', near.low - rail, P.overRail);
-  c.min('far boat above the railing top (tan)', far.low - rail, P.overRail);
+  c.max('near boat from the eye (m)', near.eye, P.nearMax);
+  c.range('far boat from the eye (m)', far.eye, ...P.farRange);
+  c.min('near boat on water seen past the street\'s edge (tan)', near.low - edgeTan(), P.onWater);
+  c.min('near boat\'s roof ridge above the railing top (tan)', near.ridge - rail, P.overRail);
+  c.min('far boat above the railing top (tan)', far.low - rail, P.farOverRail);
   c.min('gap across the opening between the boats (f)', Math.max(near.f[0] - far.f[1], far.f[0] - near.f[1]), P.apart);
   c.min('far boat clear of the bridge pier\'s column (f)', Math.max(pier - far.f[1], far.f[0] - pier), P.pier);
   for (const [name, v] of [['near', near], ['far', far]]) {
     c.min(`${name} boat from our waterline (m)`, v.toNear, P.bank);
     c.min(`${name} boat from the far waterline (m)`, v.toFar, P.bank);
+    c.min(`${name} boat inside the curtains' gap (f, the nearer edge)`, Math.min(v.f[0] - P.open[0], P.open[1] - v.f[1]), 0);
   }
-  for (const [name, v] of [['near', near], ['far', far]]) c.min(`${name} boat inside the curtains' gap (f, the nearer edge)`, Math.min(v.f[0] - P.open[0], P.open[1] - v.f[1]), 0);
   c.min('between the boats (m)', Math.hypot(boats[0].x - boats[1].x, boats[0].z - boats[1].z), P.between);
   c.min('headings differ (degrees)', (Math.abs(boats[0].ry - boats[1].ry) * 180) / Math.PI, P.turn);
   return { contract: c.assert(), near, far, pier };

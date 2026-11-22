@@ -81,12 +81,13 @@ export const SITE = {
     // Both bows head left and away, towards the bridge, seen three-quarter from the window (pass
     // e9, the user's choice): about 40° off the line of sight, so the side and the roof still
     // show (pointing straight at the bridge would be nearly stern-on). Was ry 0.3 and 0.15.
-    // Placed by the contract in placement.js (pass e12), solved from its targets, not by eye: the
-    // railing (e11) hides the water nearer than about 27 m, so the near boat moved out to show
-    // water below it; the far boat sits high in the water as in R3, clear of the bridge pier, and
-    // turned 10° from the near one so they do not read as a queue. Was (-6.5, -40) and (-19, -72, 2.55).
-    { x: -4.5, z: -45, ry: 2.45, scheme: 'red' }, // the near boat; colours of photo B1
-    { x: -22, z: -92, ry: 2.63, scheme: 'orange' }, // the far boat, left of it; colours of photo B3
+    // Placed by the contract in placement.js (pass e12), solved from its targets, not by eye. The
+    // near boat comes in just beyond the railing (about 25 m from the eye, its hull seen through
+    // the lattice and its roof over the top rail), so the railing gives it a scale; the far boat
+    // sits about mid-river (about 55 m), clear of the bridge pier, turned 10° from the near one so
+    // they do not read as a queue. Was (-6.5, -40) and (-19, -72, 2.55).
+    { x: -0.5, z: -30, ry: 2.45, scheme: 'red' }, // the near boat; colours of photo B1
+    { x: -14.5, z: -57.5, ry: 2.63, scheme: 'orange' }, // the far boat, left of it; colours of photo B3
   ],
 };
 
