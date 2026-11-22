@@ -26,7 +26,7 @@ export const SITE = {
     foot: 15, // foot of the mown embankment
     crest: 27, // its crest, at about the eye's height: the terrace behind it is seen edge-on
     back: 110, // the terrace behind, as far as the swept part goes
-    roughY: -1.7, // the bank's face rises 1.5 m from the water to the rough grass (R3 shows a face, not a flat strip)
+    roughY: -1.7, // the far street's top, 1.5 m above the water (ESTIMATED; banks.js and forecourt.js footY read it)
     crestY: 1.4,
     backY: 1.9,
     meadowY: 0, // left of the embankment the bank is natural: this high at the crest distance
@@ -39,7 +39,7 @@ export const SITE = {
   // edge 12.5 m out from the house's wall (z -5.5), so the window sees the street below the
   // railing and the near boat clear above it; the street about 7 m wide; grass from it to under
   // the house. x0..x1 reach past every window view.
-  near: { waterline: -18, width: 7, top: -1.85, house: -4, x0: -40, x1: 40, step: 4 },
+  near: { waterline: -18, width: 7, house: -4, x0: -40, x1: 40, step: 4 },
   extent: { x0: -1100, x1: 900, z0: -1100, z1: 400 }, // the land and the water end here, in the haze
 
   // Trees of the far bank (trees.js). clump and big: [x, z, scale]; bushes: [x of the waterline,

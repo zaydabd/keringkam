@@ -9,7 +9,7 @@
 //     top rail and a bottom rail; between them a panel of straight bars and interlocking circles;
 //     it stands on a pale concrete kerb at the water's edge;
 //   - the street (U1, U3, U4): small dark bricks with broad sand-coloured swirls set into them
-//     (paint.js paintPaving), a vertical concrete edge down to the water (Commons m30).
+//     (paint.js paintPaving), a vertical concrete edge down to the water (Commons "Kuching, Sarawak, Malaysia 03.jpg").
 // No source gives the street's width, its height above the water, the railing's height or the
 // posts' spacing: every size below is an ESTIMATE judged from the photos (the people in U4 for
 // scale), not a measurement.
@@ -17,7 +17,9 @@
 // After .claude/skills/threejs-procedural-geometry: the pieces are swept along a waterline
 // (site.js sampleLine) and checked by a contract. Detail follows the size in the window shot (the
 // painting-to-scene skill's 2 px rule): the near railing gets its lattice, the far one only posts
-// and rails.
+// and the top rail. Known compromises: box faces that are never seen (a post's bottom on the kerb)
+// are still emitted, and the small vector helpers below are copied per file as in the other
+// outside builders.
 
 import { createContract } from './contract.js';
 import { SITE, rgbTable } from './site.js';
@@ -27,6 +29,7 @@ const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
 const add = (a, b, s = 1) => [a[0] + b[0] * s, a[1] + b[1] * s, a[2] + b[2] * s];
 const scale = (a, s) => [a[0] * s, a[1] * s, a[2] * s];
 const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
+const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
 const norm = (a) => {
   const l = Math.hypot(a[0], a[1], a[2]) || 1;
   return [a[0] / l, a[1] / l, a[2] / l];
@@ -64,6 +67,9 @@ export function nearStations() {
   return out;
 }
 
+/** The circles' offset in front of the lattice bars' plane (m): a named allowance, under 0.02 px from the window. */
+const ARC_LIFT = 0.002;
+
 /** A flat bar of `width` from p to q in the plane whose normal is n (double-sided slot). */
 function bar(w, slot, p, q, n, width, colour) {
   const across = scale(norm(cross(sub(q, p), n)), width / 2);
@@ -87,16 +93,18 @@ function arc(w, slot, c, u, v, r, a0, a1, width, segments, colour) {
 /**
  * The railing along `stations` (from sampleLine or nearStations): posts every R.spacing metres of
  * the waterline, R.inset inland, standing at `kerbY(station)`; rails and (with `lattice`) the
- * panel between each pair (without it, plain posts and the top rail: the far bank). `skip(station)` true leaves a gap (the far bank's forecourt and the
- * bridge's landing). Posts and rails go to 'paint', the lattice to 'blade' (two-sided).
- * Returns { posts, bays, gaps, tris, footing } for the contract.
+ * panel between each pair (without it, plain posts and the top rail: the far bank).
+ * `skip(station)` true leaves a gap (the far bank's river front and the bridge's pier). Posts and
+ * rails go to 'paint', the lattice to 'blade' (two-sided). Returns { posts, bays, gaps, tris,
+ * footing, skipped, coplanar } for the contract (checkFooting): footing is each post's place, base y
+ * and the inland offsets of its footprint's edges; skipped, the stations left out.
  */
 export function buildRailing(w, stations, { kerbY, lattice = true, skip = () => false, colour = FRONT_PAINT.iron, minSize = 0 }) {
   // minSize: the posts and the top rail are drawn at least this thick (the far bank: so they stay a
   // pixel wide in the window shot and the railing reads as one line, not dashes; a stylisation)
   const R = { ...WATERFRONT.railing, post: Math.max(WATERFRONT.railing.post, minSize), topRail: Math.max(WATERFRONT.railing.topRail, minSize) };
   // posts at even spacing along the line, interpolated between stations
-  const posts = [];
+  const posts = [], skipped = [];
   let next = stations[0].s;
   for (let i = 0; i < stations.length - 1; i++) {
     const a = stations[i], b = stations[i + 1];
@@ -106,12 +114,18 @@ export function buildRailing(w, stations, { kerbY, lattice = true, skip = () => 
       const l = Math.hypot(st.nx, st.nz) || 1;
       st.nx /= l;
       st.nz /= l;
-      posts.push(skip(st) ? null : [st.x + st.nx * R.inset, kerbY(st), st.z + st.nz * R.inset]);
+      if (skip(st)) {
+        posts.push(null);
+        skipped.push(st);
+      } else posts.push([st.x + st.nx * R.inset, kerbY(st), st.z + st.nz * R.inset]);
       next += R.spacing;
     }
   }
-  let tris = 0, bays = 0, gaps = 0;
-  const footing = []; // [post base y, kerb y under it]
+  let tris = 0, bays = 0, gaps = 0, coplanar = Infinity;
+  // what each post stands on: its base y and the inland offsets of its footprint (the foot, or the
+  // post itself without one), for checkFooting
+  const footHalf = (lattice ? R.foot[0] : R.post) / 2;
+  const footing = [];
   const box = (o, hx, hy, hz, ux) => {
     // a box whose x axis runs along ux (horizontal unit), y up
     const uz = [-ux[2], 0, ux[0]];
@@ -123,7 +137,7 @@ export function buildRailing(w, stations, { kerbY, lattice = true, skip = () => 
     if (!p) continue;
     const q = posts[k + 1] ?? posts[k - 1];
     const along = q ? norm([q[0] - p[0], 0, q[2] - p[2]]) : [1, 0, 0];
-    footing.push([p[1], p[1]]);
+    footing.push({ x: p[0], z: p[2], base: p[1], from: R.inset - footHalf, to: R.inset + footHalf });
     // the foot (0.1 m) and the bottom rail (0.035 m) are under 1 px tall on the far bank: only with the lattice
     if (lattice) box(add(p, UP, R.foot[1] / 2), R.foot[0] / 2, R.foot[1] / 2, R.foot[0] / 2, along);
     box(add(p, UP, R.height / 2), R.post / 2, R.height / 2, R.post / 2, along);
@@ -165,12 +179,27 @@ export function buildRailing(w, stations, { kerbY, lattice = true, skip = () => 
     tris += bar(w, 'blade', P(x0, y1), P(x1, y1), n, R.bar, colour);
     tris += bar(w, 'blade', P(x0, ym), P(x1, ym), n, R.bar, colour);
     for (const f of [0.25, 0.5, 0.75]) tris += bar(w, 'blade', P(L * f, y0), P(L * f, y1), n, R.bar, colour);
+    // the circles sit ARC_LIFT in front of the bars' plane, so where they cross no two faces share
+    // a plane (the geometry skill's coplanar rule); the separation is measured from the emitted centres
     const v = [0, 1, 0], uu = u;
-    for (const f of [0.25, 0.75]) tris += arc(w, 'blade', P(L * f, ym), uu, v, R.ring, 0, Math.PI * 2, R.bar, R.segments, colour);
-    tris += arc(w, 'blade', P(L / 2, y0), uu, v, R.ring, 0, Math.PI, R.bar, R.segments, colour);
-    tris += arc(w, 'blade', P(L / 2, y1), uu, v, R.ring, Math.PI, Math.PI * 2, R.bar, R.segments, colour);
+    const A = (x, y) => add(P(x, y), n, ARC_LIFT);
+    const centres = [A(L * 0.25, ym), A(L * 0.75, ym), A(L / 2, y0), A(L / 2, y1)];
+    for (const cc of centres) coplanar = Math.min(coplanar, Math.abs(dot(sub(cc, P(x0, y0)), n)));
+    for (const cc of centres.slice(0, 2)) tris += arc(w, 'blade', cc, uu, v, R.ring, 0, Math.PI * 2, R.bar, R.segments, colour);
+    tris += arc(w, 'blade', centres[2], uu, v, R.ring, 0, Math.PI, R.bar, R.segments, colour);
+    tris += arc(w, 'blade', centres[3], uu, v, R.ring, Math.PI, Math.PI * 2, R.bar, R.segments, colour);
   }
-  return { posts: posts.filter(Boolean).length, bays, gaps, tris, footing };
+  return { posts: posts.filter(Boolean).length, bays, gaps, tris, footing, skipped, coplanar };
+}
+
+/**
+ * The railing's footing checks (the geometry skill's support rule): every post's whole footprint
+ * on the kerb strip (inland offsets 0..kerbWidth) and its base at the kerb's emitted top.
+ */
+export function checkFooting(c, label, railing, kerbWidth, kerbTop) {
+  const off = railing.footing.map((f) => Math.max(0, -f.from, f.to - kerbWidth));
+  c.max(`${label} post footprint off the kerb strip (m)`, Math.max(0, ...off), 0);
+  c.max(`${label} post base off the kerb top (m)`, Math.max(0, ...railing.footing.map((f) => Math.abs(f.base - kerbTop))), 1e-9);
 }
 
 /**
@@ -191,32 +220,36 @@ export function paveQuad(w, a, b, c, d) {
  */
 export function buildNearWaterfront(w) {
   const N = SITE.near, K = WATERFRONT.kerb;
-  const top = N.top, zw = N.waterline;
+  const top = SITE.ground, zw = N.waterline; // the street is the house's ground: the stilts stand on it
+  const kerbTop = top + K.rise, deep = SITE.water - WATERFRONT.edgeDepth;
   const zKerb = zw + K.width, zIn = zw + N.width, zHouse = N.house;
   const tris = { edge: 0, kerb: 0, paving: 0, grass: 0 };
+  let edgeLow = Infinity;
   // along x in steps, so the paving's quads stay small enough for the fog and the lighting
   for (let x = N.x0; x < N.x1 - 1e-9; x += N.step) {
     const x1 = Math.min(N.x1, x + N.step);
     // the edge face, facing the river (-z)
-    w.quad('paint', [x1, SITE.water - WATERFRONT.edgeDepth, zw], [x, SITE.water - WATERFRONT.edgeDepth, zw], [x, top + K.rise, zw], [x1, top + K.rise, zw], FRONT_PAINT.edge);
+    const face = [[x1, deep, zw], [x, deep, zw], [x, kerbTop, zw], [x1, kerbTop, zw]];
+    w.quad('paint', ...face, FRONT_PAINT.edge);
+    edgeLow = Math.min(edgeLow, ...face.map((p) => p[1]));
     tris.edge += 2;
     // the kerb: its top, and the small step down to the paving
-    w.quad('paint', [x, top + K.rise, zw], [x, top + K.rise, zKerb], [x1, top + K.rise, zKerb], [x1, top + K.rise, zw], FRONT_PAINT.kerb);
-    w.quad('paint', [x, top + K.rise, zKerb], [x, top, zKerb], [x1, top, zKerb], [x1, top + K.rise, zKerb], FRONT_PAINT.kerb);
+    w.quad('paint', [x, kerbTop, zw], [x, kerbTop, zKerb], [x1, kerbTop, zKerb], [x1, kerbTop, zw], FRONT_PAINT.kerb);
+    w.quad('paint', [x, kerbTop, zKerb], [x, top, zKerb], [x1, top, zKerb], [x1, kerbTop, zKerb], FRONT_PAINT.kerb);
     tris.kerb += 4;
     tris.paving += paveQuad(w, [x, top, zKerb], [x, top, zIn], [x1, top, zIn], [x1, top, zKerb]);
     // grass from the street to under the house
     w.quad('paint', [x, top, zIn], [x, top, zHouse], [x1, top, zHouse], [x1, top, zIn], FRONT_PAINT.grass);
     tris.grass += 2;
   }
-  const railing = buildRailing(w, nearStations(), { kerbY: () => top + K.rise, lattice: true });
+  const railing = buildRailing(w, nearStations(), { kerbY: () => kerbTop, lattice: true });
 
   const c = createContract('near waterfront');
   c.range('street above the water (m)', top - SITE.water, 1, 1.6);
-  c.min('edge face below the water (m)', SITE.water - (SITE.water - WATERFRONT.edgeDepth), 0.3);
-  c.is('the street meets the house\'s ground (the stilts stand on it)', top, SITE.ground);
+  c.min('edge face below the water (m)', SITE.water - edgeLow, 0.3);
   c.range('street width (m), estimated', N.width - K.width, 5, 10);
-  c.max('posts off the kerb (m)', Math.max(0, ...railing.footing.map(([y, k]) => Math.abs(y - k))), 1e-9);
+  checkFooting(c, 'near', railing, K.width, kerbTop);
+  c.min('lattice circles off the bars\' plane (m)', railing.coplanar, 0.001);
   c.is('railing gaps (none on our side)', railing.gaps, 0);
   c.min('railing bays', railing.bays, Math.floor((N.x1 - N.x0) / WATERFRONT.railing.spacing) - 1);
   return { contract: c.assert(), stats: { posts: railing.posts, bays: railing.bays }, triangles: { ...tris, railing: railing.tris } };

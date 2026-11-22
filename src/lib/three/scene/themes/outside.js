@@ -79,13 +79,11 @@ const WATER = {
 
 const EARTH = {
   // far bank
-  mud: '#70522e',
-  mudDark: '#6e5234',
   path: '#a8905a',
 };
 
 const PLANT = {
-  // far bank grass, from the water up
+  // far bank grass, from the street up (rough: also our side's grass, waterfront.js)
   rough: '#74903a',
   verge: '#7c9434',
   lawnFoot: '#839a36',
@@ -93,8 +91,6 @@ const PLANT = {
   terrace: '#93a03a',
   meadow: '#6b822d',
   meadowFar: '#74883a',
-  reed: '#4e6a2c',
-  tuft: '#5c7630',
   tick: '#7c9030',
   // the bush at the water: grass blades and fern
   blades: ['#7aa63e', '#94b84e', '#5e8a36', '#a8c060'],
@@ -206,9 +202,6 @@ export const OUTSIDE_THEME = {
 
   // The far bank (banks.js), as vertex colours.
   farBank: {
-    mud: EARTH.mud,
-    mudDark: EARTH.mudDark,
-    rough: PLANT.rough,
     path: EARTH.path,
     verge: PLANT.verge,
     lawnFoot: PLANT.lawnFoot,
@@ -217,8 +210,6 @@ export const OUTSIDE_THEME = {
     meadow: PLANT.meadow,
     meadowFar: PLANT.meadowFar,
     wall: BUILT.riverWall,
-    reed: PLANT.reed,
-    tuft: PLANT.tuft,
     tick: PLANT.tick,
   },
 
@@ -244,7 +235,7 @@ export const OUTSIDE_THEME = {
     flagYellow: '#f0c83a',
   },
 
-  // The bush at the water below the window (waterbush.js), as vertex colours. The leaf ramp
+  // The bush below the window, on the grass behind our street (waterbush.js), as vertex colours. The leaf ramp
   // runs from a warm yellow-green in the sun to a cool blue-green in the shade: watercolour
   // shadows are cool, not grey (Homer, Sargent; research/INTERIOR-NOTES.md, pass e5). Design
   // choices, tuned in the window shot.

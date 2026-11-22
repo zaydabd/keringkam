@@ -14,7 +14,7 @@ import { createContract } from './contract.js';
 import { SITE, sampleLine, smooth, mulberry32, rgbTable, fbm } from './site.js';
 import { OUTSIDE_THEME } from '../themes/index.js';
 import { underForecourt } from './forecourt.js';
-import { WATERFRONT, FRONT_PAINT, buildRailing, paveQuad } from './waterfront.js';
+import { WATERFRONT, FRONT_PAINT, buildRailing, checkFooting, paveQuad } from './waterfront.js';
 
 const lerp = (a, b, t) => a + (b - a) * t;
 
@@ -100,11 +100,11 @@ export const FAR_RELIEF = {
 };
 
 /**
- * The far waterfront (pass e11; sizes ESTIMATED, as on our side, see waterfront.js): the street's
- * top above the water, the railing's reach from the house (beyond it the railing is under a pixel
- * tall in the window shot), and the gap round the bridge's tower pier, which stands at the water.
+ * The far waterfront (pass e11; sizes ESTIMATED, as on our side, see waterfront.js): the railing's
+ * reach from the house (beyond it the railing is under a pixel tall in the window shot), and the
+ * gap round the bridge's tower pier, which stands at the water. The street's top is SITE.far.roughY.
  */
-export const FAR_FRONT = { rise: 1.5, reach: 330, pierClear: 5, drawn: 0.14 }; // drawn: the far posts and top rail are drawn this thick (real about 0.06-0.08 m), about 1 px at 120-150 m (a stylisation, e11 gate)
+export const FAR_FRONT = { reach: 330, pierClear: 5, drawn: 0.14 }; // drawn: the far posts and top rail are drawn this thick (real about 0.06-0.08 m), about 1 px at 120-150 m (a stylisation, e11 gate)
 
 /**
  * The far bank: the waterfront street at the water (edge face, kerb, paving, railing), a worn
@@ -133,7 +133,7 @@ export function buildFarBank(w, { seed = 0 } = {}) {
    * The cross-section at a station (or any point along the line: { x, s }): [offset inland, y] per
    * column, upstream to downstream the same count. The mesh, the plants and groundAt all read it.
    */
-  const top = S.water + FAR_FRONT.rise; // the street, level
+  const top = F.roughY; // the street, level: the same datum as the path and the forecourt's foot
   const cross = (st) => {
     const L = lawnAt(st);
     const crestY = lerp(F.meadowY, F.crestY, L);
@@ -213,9 +213,14 @@ export function buildFarBank(w, { seed = 0 } = {}) {
   stats.railing = { posts: railing.posts, bays: railing.bays, gaps: railing.gaps };
   contract.range('far street above the water (m), estimated', top - S.water, 1, 1.6);
   contract.range('far street width (m), estimated', F.rough - K.width, 5, 10);
-  contract.max('far posts off the kerb (m)', Math.max(0, ...railing.footing.map(([y]) => Math.abs(y - kerbY))), 1e-9);
+  checkFooting(contract, 'far', railing, K.width, kerbY);
   contract.min('far railing bays', railing.bays, 100);
-  contract.min('far railing gaps (the river front and the pier)', railing.gaps, 2);
+  // the gaps: measured from the emitted posts and the skipped stations, not the skip rule's count
+  const inFront = (p) => underForecourt(p.x, F.foot), byPier = (p) => Math.hypot(p.x - pier[0], p.z - pier[1]) < FAR_FRONT.pierClear;
+  contract.is('far posts in front of the Assembly or at the pier', railing.footing.filter((p) => inFront(p) || byPier(p)).length, 0);
+  contract.is('far railing gaps with neither cause', railing.skipped.filter((p) => !inFront(p) && !byPier(p)).length, 0);
+  contract.min('far railing gap stations in front of the Assembly', railing.skipped.filter(inFront).length, 1);
+  contract.min('far railing gap stations at the pier', railing.skipped.filter(byPier).length, 1);
 
   // The land beyond, to where the haze ends: one polygon at the terrace's height.
   const E = S.extent;

@@ -1,7 +1,7 @@
 // Plant builders for the view outside: grass clumps and ferns, wound to face the window shot's
 // eye. Moved unchanged from the near bank (removed in pass e5; git history keeps its shrubs,
-// rosettes, clods and sticks); the fern gained `fronds`, `out`, `rise` and `width`. Used by the bush at the
-// water (waterbush.js). Sizes are design choices tuned in the window shot, not measured.
+// rosettes, clods and sticks); the fern gained `fronds`, `out`, `rise` and `width`. Used by the bush below
+// the window (waterbush.js). Sizes are design choices tuned in the window shot, not measured.
 
 import { WINDOW_EYE } from './site.js';
 import { LEAF_ATLAS, leafStrip } from './leaves.js';

@@ -153,7 +153,7 @@ function placeBlobs(profileTan, ground) {
 export function buildWaterBush(w, { seed = 0 } = {}) {
   const rand = mulberry32(83 + seed);
   const P = BUSH_PAINT;
-  const ground = SITE.near.top, floor = ground - BUSH.sink;
+  const ground = SITE.ground, floor = ground - BUSH.sink;
   const farTan = farWaterTan();
   const profileTan = (f) => {
     const L = BUSH.profile;
@@ -338,7 +338,6 @@ export function buildWaterBush(w, { seed = 0 } = {}) {
   const atBoat = visible.filter((v) => Math.abs(v.f - boatAt.f) < 0.04);
   c.max('bush top below the near boat\'s waterline (tan)', atBoat.length ? Math.max(...atBoat.map((v) => v.tan)) : SILL_TAN, boatAt.tan);
   // the lower right of the frame is the street and the river beyond the railing
-  stats.right = { leaves: Math.max(...leafTips.map(inShot).filter((v) => v.tan > SILL_TAN).map((v) => v.f)), ferns: Math.max(...fernTops.map(inShot).filter((v) => v.tan > SILL_TAN).map((v) => v.f)) };
   c.max('right edge of the bush in the opening (f)', Math.max(...visible.map((v) => v.f)), 0.62);
   c.max('deepest leaf below the ground (m)', stats.belowGround, BUSH.sink);
   c.max('the bush stays on the grass, short of the street (m past its inner edge)', Math.max(...leafTips.map((q) => SITE.near.waterline + SITE.near.width - q[2])), 0);

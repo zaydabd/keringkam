@@ -230,4 +230,5 @@ estimate.
 | The promenade's paving and railing in a long run | [Kuching Waterfront Panorama.jpg](https://commons.wikimedia.org/wiki/File:Kuching_Waterfront_Panorama.jpg) | Jin (Flickr) | CC BY 2.0 |
 | The railing along the river, posts and panels | [Kuching (3678642365).jpg](https://commons.wikimedia.org/wiki/File:Kuching_(3678642365).jpg) | Peter Gronemann | CC BY 2.0 |
 | The street's width and the railing seen along it | [Kuching Waterfront (17586892988).jpg](https://commons.wikimedia.org/wiki/File:Kuching_Waterfront_(17586892988).jpg) | Marufish | CC BY-SA 2.0 |
+| The vertical concrete edge from the street down to the water | [Kuching, Sarawak, Malaysia 03.jpg](https://commons.wikimedia.org/wiki/File:Kuching,_Sarawak,_Malaysia_03.jpg) | StormChase | CC BY-SA 3.0 |
 | Where the waterfront is (south bank, opposite the Assembly) | [Kuching Waterfront](https://en.wikipedia.org/wiki/Kuching_Waterfront) | Wikipedia | CC BY-SA 4.0 (text) |
