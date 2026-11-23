@@ -18,7 +18,7 @@
 // Inspection, all as URL parameters before the #:
 //   debug = nopost | flat | silhouette | paint-pigment | paint-edge | paint-bleed | gloss | meter | fabric-mask
 //           | water-normal | water-fresnel | water-filter | water-reflection | water-body
-//           | water-crest | water-lost | tree-level | tree-kind
+//           | water-crest | water-lost
 //   off   = ink, pigment, grade, aa, outside, ao, contact, gloss (comma-separated: switches those off),
 //           the lights: sun, sky, side, bounce, and skyshadow (the sky light casts no shadow)
 //   cam   = design (default) | near | far      look = x,y (fixes the pointer sway, -1..1)
@@ -440,7 +440,7 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
   // Outside: the Sarawak River at Kuching (outside/index.js). ?off=outside hides it (the windows
   // then show plain daylight). ?debug=flat and ?debug=silhouette also apply to it.
   const outsideAt = performance.now();
-  const landscape = createOutside({ gradientMap, seed, fog: scene.fog, haze: AIR.daylight, light: LIGHT, key: AIR.key, sun: sun.position.clone().sub(sun.target.position), mode: clay ? 'clay' : debug === 'flat' || debug === 'silhouette' ? debug : undefined, stage, tint: debug?.startsWith('tree-') ? debug : undefined });
+  const landscape = createOutside({ gradientMap, seed, fog: scene.fog, haze: AIR.daylight, light: LIGHT, key: AIR.key, sun: sun.position.clone().sub(sun.target.position), mode: clay ? 'clay' : debug === 'flat' || debug === 'silhouette' ? debug : undefined, stage });
   const outsideMs = performance.now() - outsideAt;
   if (clay) scene.fog = null; // no haze
   landscape.group.visible = !off.has('outside');

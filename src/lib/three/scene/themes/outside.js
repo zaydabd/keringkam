@@ -98,14 +98,9 @@ const PLANT = {
   seedHead: '#a89058', // the grasses' seed heads (design choice; R3 shows none this small)
   fern: '#5c9638',
   fernLight: '#84b44a',
-  // trees and bushes on the banks
-  foliageLight: '#74a845',
-  foliageMid: '#528c3c',
-  foliageDark: '#3a6c38',
 };
 
 const WOOD = {
-  trunk: '#5c5a34', // tree trunks and branches
   deck: '#6b5440', // boat decks
 };
 
@@ -302,10 +297,6 @@ export const OUTSIDE_THEME = {
       },
     },
   },
-
-  // Trees and bushes on the banks (trees.js).
-  // frond: the frond trees' crowns and their ringed trunks (pass e7; design choices, tuned in the window shot)
-  trees: { trunk: WOOD.trunk, light: PLANT.foliageLight, mid: PLANT.foliageMid, dark: PLANT.foliageDark, frond: PLANT.fern, frondLight: PLANT.fernLight, frondTrunk: '#8c8064', frondRing: '#6e6450' },
 
   // River taxis (boats.js): each scheme is one boat's paint. No people aboard (pass e9).
   boats: {

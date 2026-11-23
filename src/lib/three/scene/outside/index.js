@@ -2,8 +2,7 @@
 // Kuching, with the Darul Hana Bridge and the State Legislative Assembly building on the far bank.
 //
 // Reference R3 (a painting supplied by the user; not in the repo) gives the view and its look: a
-// muddy river curving past the house, a mown embankment and
-// trees on the far side, two roofed boats, the bridge on the left, the gold-roofed Assembly
+// muddy river curving past the house, a mown embankment on the far side, two roofed boats, the bridge on the left, the gold-roofed Assembly
 // building on the right, blue sky with cumulus. site.js holds the layout (estimates read off the
 // painting); sourced sizes are in assembly.js and bridge.js. Our own bank is the Kuching
 // Waterfront's street and railing (pass e11, the user's choice and photos; waterfront.js), and a
@@ -15,12 +14,13 @@
 //   forecourt          forecourt.js procedural-architecture (the Assembly's river front; pass e7)
 //   waterfront         waterfront.js procedural-geometry (pass e11: our side's street and railing)
 //   waterbush          waterbush.js procedural-vegetation (pass e5; e11: on the grass right below the window)
-//   trees              trees.js     procedural-vegetation
 //   river              water.js     water-optics
 //   assembly: rebuilt from the user's Sketchfab model (pass w5, research/INTERIOR-NOTES.md).
 //   boats: Kuching river taxis (penambang) in boats.js, gated against photos (pass w6).
 //   bridge: the first version, moved to the new river; not rebuilt yet.
 //   skyline: removed in pass e7 (the user's far-bank renders and the river-front photo show trees there).
+//   trees: the far bank's trees, palms and bushes (trees.js), removed in pass e14 (the user found them
+//     ugly; see git history before that pass).
 // `stage` (a list of the names above, plus 'sky') builds only those, to look at one object alone.
 // The solids are on layer 0, so the ink pass outlines them like the room; the sky is on layer 1.
 // All solids share one flat paint material: a part is one colour, and the ink pass draws a seam
@@ -36,7 +36,6 @@ import { CLAY } from '../themes/clay.js';
 import { buildFarBank } from './banks.js';
 import { buildWaterBush } from './waterbush.js';
 import { buildNearWaterfront } from './waterfront.js';
-import { buildTrees } from './trees.js';
 import { planAssembly, compileAssembly } from './assembly.js';
 import { PENAMBANG, planBoat, compileBoat } from './boats.js';
 import { checkBoats } from './placement.js';
@@ -58,7 +57,7 @@ export const LEAF_COVER = 0.25;
 export const coverOf = (uv, map, k = LEAF_COVER) =>
   `(1.0 + ${k.toFixed(3)} * max(0.0, 0.5 * log2(max(dot(dFdx(${uv} * vec2(textureSize(${map}, 0))), dFdx(${uv} * vec2(textureSize(${map}, 0)))), dot(dFdy(${uv} * vec2(textureSize(${map}, 0))), dFdy(${uv} * vec2(textureSize(${map}, 0))))))))`;
 
-export const OBJECTS = ['farbank', 'forecourt', 'waterfront', 'waterbush', 'trees', 'river', 'assembly', 'bridge', 'boats', 'sky'];
+export const OBJECTS = ['farbank', 'forecourt', 'waterfront', 'waterbush', 'river', 'assembly', 'bridge', 'boats', 'sky'];
 
 // The sky is keyed down like the rest of the outdoors, so its blue survives an exposure set for
 // the shaded room (themes/outside.js air.skyKey).
@@ -70,10 +69,9 @@ const SKY_KEY = OUTSIDE_THEME.air.skyKey;
  * lamps; `key` darkens the outdoor paint so it keeps its colour next to a room exposed for
  * shade; `mode` 'flat' or 'silhouette' are the checks the geometry skill asks for, 'clay' the
  * clay render of the clay theme (plain grey, no painted textures, no water shader); `stage` lists
- * the objects to build (default: all); `tint` 'tree-level' or 'tree-kind' paints the trees'
- * growth diagnostics.
+ * the objects to build (default: all).
  */
-export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME.air.daylight, light = 1, key = 1, sun, mode, stage, tint }) {
+export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME.air.daylight, light = 1, key = 1, sun, mode, stage }) {
   const group = new THREE.Group();
   const disposables = [];
   const S = SITE;
@@ -96,12 +94,6 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
   if (want('forecourt')) reports.forecourt = buildForecourt(w); // the Assembly's river front on the embankment (pass e7)
   if (want('waterfront')) reports.waterfront = buildNearWaterfront(w); // our side: the waterfront's street and railing (pass e11)
   if (want('waterbush')) reports.waterbush = buildWaterBush(w, { seed }); // the bush on the grass right below the window
-
-  // --- Trees and bushes of the far bank (trees.js); they stand on the far bank's surface ---------
-  if (want('trees')) {
-    const bank = reports.farbank ?? buildFarBank(new SlotWriter(), { seed });
-    reports.trees = buildTrees(w, { seed, place: bank.place, groundAt: bank.groundAt, tint });
-  }
 
   // --- Assembly building (planned, then compiled; measured on the user's Sketchfab model) -------
   if (want('assembly')) {
