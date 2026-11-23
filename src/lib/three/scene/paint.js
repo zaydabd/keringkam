@@ -1206,3 +1206,60 @@ export function paintPaving(seed = 61, { colours: C, pattern: P }) {
   g.drawImage(sc, 0, 0);
   return texture(c, [1, 1], true);
 }
+
+/**
+ * The Assembly building (outside/assembly.js; pass e15): one canvas of two halves, each `P.size`
+ * square. Left: one bay of the glazing behind the arcade, in its own colours (its vertex colour is
+ * white): dark brown glass, lighter at the top where it takes the sky, with mullions and transoms.
+ * Right: weathering for the cream concrete (columns, brim, podium), near white so the vertex
+ * colour sets the hue: rain streaks, a dirty foot, faint formwork joints. Each quad of the
+ * building maps the whole of one half (index.js), u round the building, v up. Sizes are estimates.
+ */
+export function paintAssembly(seed = 71, { colours: C, pattern: P }) {
+  const r = rng(seed);
+  const S = P.size;
+  const [c, g] = canvas(S * 2, S);
+  // the glazing
+  const glass = g.createLinearGradient(0, 0, 0, S);
+  glass.addColorStop(0, C.glassTop);
+  glass.addColorStop(1, C.glassBottom);
+  g.fillStyle = glass;
+  g.fillRect(0, 0, S, S);
+  const ys = [0, ...P.transoms.map((t) => (1 - t) * S), S]; // canvas y runs down, v up
+  const xs = Array.from({ length: P.mullions + 1 }, (_, i) => (i / P.mullions) * S);
+  for (let i = 0; i < xs.length - 1; i++) {
+    for (let k = 0; k < ys.length - 1; k++) {
+      // each pane a little lighter or darker: the glass catches the sky unevenly
+      g.fillStyle = `rgba(${css(C.pane)},${0.25 + r() * 0.35})`;
+      g.fillRect(xs[i], ys[k], xs[i + 1] - xs[i], ys[k + 1] - ys[k]);
+    }
+  }
+  const fw = P.frame * S;
+  g.fillStyle = C.frame;
+  for (const x of xs) g.fillRect(x - fw / 2, 0, fw, S); // the edges wrap: half a line at each side
+  for (const y of ys.slice(1, -1)) g.fillRect(0, y - fw / 3, S, (fw * 2) / 3);
+  // the concrete: white, then streaks, joints and the dirty foot laid over it
+  const x0 = S;
+  g.fillStyle = '#ffffff';
+  g.fillRect(x0, 0, S, S);
+  for (let i = 0; i < P.streaks; i++) {
+    const x = x0 + r() * S, w = 1 + r() * 4, top = r() * S * 0.6;
+    const a = vary(r, P.streakAlpha);
+    const s = g.createLinearGradient(0, top, 0, S);
+    s.addColorStop(0, `rgba(${css(C.stain)},0)`);
+    s.addColorStop(0.3, `rgba(${css(C.stain)},${a})`);
+    s.addColorStop(1, `rgba(${css(C.stain)},${a * 0.6})`);
+    g.fillStyle = s;
+    g.fillRect(x, top, w, S - top);
+  }
+  for (let j = 1; j <= P.joints; j++) {
+    g.fillStyle = `rgba(${css(C.stain)},0.1)`;
+    g.fillRect(x0, (j / (P.joints + 1)) * S, S, 1.5);
+  }
+  const foot = g.createLinearGradient(0, S * (1 - P.grime), 0, S);
+  foot.addColorStop(0, `rgba(${css(C.grime)},0)`);
+  foot.addColorStop(1, `rgba(${css(C.grime)},0.35)`);
+  g.fillStyle = foot;
+  g.fillRect(x0, S * (1 - P.grime), S, S * P.grime);
+  return texture(c, [1, 1], false);
+}

@@ -2356,3 +2356,30 @@ part of its frame.
   green embankment behind the street, with the bridge's whole deck and the Assembly clear of
   foliage. Nothing is left floating or gapped where trees stood.
 - **Checks:** svelte-check and the build are clean; far bank, bush and boat placement pass.
+
+### Pass e15: the Assembly less grey, with painted glass and concrete (`assembly-look`)
+
+- **Request:** the user found the far building too grey and asked for better textures and more
+  contrast. References: the Fabio Achilli Flickr set (CC BY 2.0, already in CREDITS.md), kept in
+  the scratchpad, not committed.
+- **Contrast:** the palette (`themes/outside.js` `BUILT.assembly`) now follows the photo's warm
+  creams. The creams are authored lower (white about 0.93 to 0.7) so sunlit faces stop running up
+  to near white in the tone map. The brim edge, soffit, rim and cone are darker and warm (the rim
+  and cone were neutral grey), and the floor bands are salmon. All are **estimated**, tuned by eye
+  in the window shot.
+- **Textures:** new `paintAssembly` (paint.js), one 512 x 256 canvas.
+  - Left half: one glazing bay (dark brown glass, lighter at the top, mullions and transoms).
+  - Right half: near-white weathering (rain streaks, formwork joints, a dirty foot) that the
+    vertex colours tint.
+  - The Assembly's concrete and glass moved from the shared `paint` mesh to their own `assembly`
+    mesh (draw calls 7 to 8, the budget's limit). Each quad maps one half of the map, inset
+    4 px so the halves do not bleed.
+  - At 254 m a bay is about 13 px wide, so only the frame lines are drawn (**estimated** sizes).
+- **Look** (window capture, headless SwiftShader, **not a real GPU**):
+  - the brim's front face went from #d7c6a3 to #a38a65;
+  - the median luma of the Assembly crop went from 192 to 172 (5th percentile 64 to 60);
+  - the glass reads as a grid of panes, not a flat dark fill.
+  - Still lighter and less saturated than the photo, which is lit by a low sun; the haze and the
+    room's grade lift it (pass e8).
+- **Checks:** svelte-check and the build are clean. The window, window-right and window-phone
+  captures show nothing broken.

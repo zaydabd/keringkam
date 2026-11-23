@@ -27,7 +27,7 @@
 // where two colours meet (toon.js). The haze is the scene fog.
 
 import * as THREE from 'three';
-import { paintSoftSky, paintLeaves, paintPaving } from '../paint.js';
+import { paintSoftSky, paintLeaves, paintPaving, paintAssembly } from '../paint.js';
 import { SlotWriter, createContract } from './contract.js';
 import { SITE } from './site.js';
 import { buildForecourt } from './forecourt.js';
@@ -99,8 +99,20 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
   if (want('assembly')) {
     const building = new SlotWriter();
     reports.assembly = compileAssembly(planAssembly(), building);
-    const slotOf = { gold: 'gold', rib: 'paint', glass: 'paint', stone: 'paint' }; // scene materials by role
-    for (const [name, s] of building.slots) copy(s, slotOf[name], S.assembly.x, S.lawn, S.assembly.z);
+    // Scene materials by role. Since pass e15 the concrete and glass have their own painted map
+    // (paint.js paintAssembly): each quad's 0..1 uv goes into the left half (glass) or the right
+    // (concrete), inset so the halves do not bleed into each other.
+    const slotOf = { gold: 'gold', rib: 'assembly', glass: 'assembly', stone: 'assembly' };
+    const inset = 4 / 512;
+    const half = { glass: 0, rib: 0.5, stone: 0.5 };
+    for (const [name, s] of building.slots) {
+      if (name in half) {
+        const uv = s.uv.map((v, i) => (i % 2 === 0 ? half[name] + inset + v * (0.5 - 2 * inset) : inset * 2 + v * (1 - 4 * inset)));
+        s.uv.length = 0;
+        s.uv.push(...uv);
+      }
+      copy(s, slotOf[name], S.assembly.x, S.lawn, S.assembly.z);
+    }
   }
 
   // --- Bridge (checked against its contract; not rebuilt yet) ----------------------------------
@@ -133,6 +145,7 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
   };
   if (w.slots.has('leaf')) textures.leaves = paintLeaves(43 + seed, OUTSIDE_THEME.textures.leaves); // the leaf atlas (leaves.js); cut-outs, so painted in every mode
   if (w.slots.has('paving')) textures.paving = paintPaving(61, OUTSIDE_THEME.textures.paving); // the waterfront's street (pass e11)
+  if (w.slots.has('assembly')) textures.assembly = paintAssembly(71, OUTSIDE_THEME.textures.assembly); // the Assembly's glass and concrete (pass e15)
   disposables.push(...Object.values(textures));
   // `alphaTest`: a cut-out (the leaf cards); its map is kept in every mode, for the shape.
   const toon = ({ map, side = THREE.FrontSide, alphaTest = 0 } = {}) => {
@@ -175,6 +188,8 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
   };
   // The waterfront's street (pass e11): its colour is the painted map; flat and clay modes leave it plain.
   if (textures.paving) materials.paving = toon({ map: mode ? null : textures.paving });
+  // The Assembly's concrete and glass (pass e15): vertex colours times the painted map.
+  if (textures.assembly) materials.assembly = toon({ map: mode ? null : textures.assembly });
   // Leaf cards (leaves.js): two-sided, cut out by the atlas's alpha, which keeps its coverage when
   // the card is small (keepCover).
   if (textures.leaves) materials.leaf = keepCover(toon({ map: textures.leaves, side: THREE.DoubleSide, alphaTest: 0.5 }));
@@ -240,7 +255,7 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
   // 155,196 built (pass e11, both waterfronts). The user set no limit; the history of this number
   // (95,000 to 240,000 and back) is in research/INTERIOR-NOTES.md, pass by pass.
   budget.max('triangles', total, 160000);
-  budget.max('meshes (draw calls)', group.children.length, 8); // 6 since pass e5 (the mud and turf meshes went with the near bank); 7 since e11 (the paving)
+  budget.max('meshes (draw calls)', group.children.length, 8); // 6 since pass e5 (the mud and turf meshes went with the near bank); 7 since e11 (the paving); 8 since e15 (the Assembly's painted concrete and glass)
   reports.budget = { contract: budget.assert() };
 
   return {

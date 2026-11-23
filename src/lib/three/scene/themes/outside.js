@@ -143,21 +143,25 @@ const BUILT = {
   assembly: {
     gold: [0.92, 0.63, 0.08], // authored deep: the haze and the room's grade lift it to the photos' yellow gold
     goldShade: [0.66, 0.41, 0.04], // every other roof facet: the ink pass draws the folds
-    band: [0.86, 0.8, 0.62],
-    rim: [0.74, 0.74, 0.75],
-    rimShade: [0.6, 0.6, 0.62],
+    band: [0.8, 0.64, 0.36], // the neck's light bands, warm (pass e15; was 0.86, 0.8, 0.62)
+    rim: [0.62, 0.49, 0.29], // the zigzag rim at the eave: warm, not grey (photo; pass e15; was 0.74, 0.74, 0.75)
+    rimShade: [0.46, 0.35, 0.19], // (pass e15; was 0.6, 0.6, 0.62)
     bowl: [0.17, 0.11, 0.07], // authored very dark and warm: dark like the model, brown like the painting once hazed
     bowlShade: [0.25, 0.17, 0.1],
-    cone: [0.3, 0.29, 0.3],
-    coneShade: [0.42, 0.4, 0.4],
+    cone: [0.16, 0.11, 0.06], // the ribbed cone: dark bronze (photo; pass e15; was grey 0.3, 0.29, 0.3)
+    coneShade: [0.26, 0.18, 0.1], // (pass e15; was 0.42, 0.4, 0.4)
     bronze: [0.78, 0.56, 0.28], // the side kiosks' spires
-    white: [0.9, 0.78, 0.56], // warm cream, after the photo's columns #d1bb92 (pass e15, the user: too grey; was 0.93, 0.94, 0.96)
-    brim: [0.84, 0.74, 0.56], // the same cream as the columns (pass e15; was 0.85, 0.86, 0.88)
-    brimEdge: [0.62, 0.5, 0.34], // a shade darker than the columns, so they read against it (pass e15; was 0.72, 0.73, 0.76)
-    soffit: [0.3, 0.22, 0.14], // the brim's shaded underside (pass e15; was 0.52, 0.48, 0.43)
-    infill: [0.045, 0.03, 0.015], // the glazing: near black and warm, the photo's windows #292012 (pass e15; e8 had 0.05, 0.05, 0.06)
-    floor: [0.66, 0.34, 0.2], // the salmon floor bands across the façade behind the arcade (photo; pass e15; was 0.24, 0.17, 0.13)
-    stone: [0.84, 0.74, 0.56], // the podium, cream like the columns (pass e15; was 0.86, 0.87, 0.89)
+    // Pass e15 (the user: too grey, more contrast). The creams are authored lower so the sunlit
+    // faces stop running up to near white in the tone map, and the shaded parts darker so they
+    // stay dark through the haze. Tuned in the window shot against the photo (Fabio Achilli,
+    // Flickr, CC BY 2.0; research/CREDITS.md).
+    white: [0.7, 0.54, 0.28], // warm cream, after the photo's columns (was 0.93, 0.94, 0.96)
+    brim: [0.68, 0.53, 0.29], // the same cream as the columns (was 0.85, 0.86, 0.88)
+    brimEdge: [0.42, 0.31, 0.18], // darker than the columns, so they read against it (was 0.72, 0.73, 0.76)
+    soffit: [0.13, 0.085, 0.045], // the brim's shaded underside (was 0.52, 0.48, 0.43)
+    glassTint: [1, 1, 1], // the glazing's colour is its painted map (textures.assembly); white here
+    floor: [0.62, 0.27, 0.13], // the salmon floor bands across the façade behind the arcade (photo; was 0.24, 0.17, 0.13)
+    stone: [0.68, 0.54, 0.31], // the podium, cream like the columns (was 0.86, 0.87, 0.89)
   },
   kioskGold: [1.0, 0.8, 0.42], // the small kiosks' roofs: a lighter gold than the main roof (linear)
   kioskGoldShade: [0.88, 0.66, 0.3],
@@ -271,6 +275,24 @@ export const OUTSIDE_THEME = {
             { at: [0.74, 0.76], inner: 0.12, outer: 0.7, turns: 1.4, dir: -1, phase: 2.2, tail: 0.8 },
           ],
         },
+      },
+    },
+    // The Assembly building (paint.js paintAssembly; pass e15): one canvas, two halves. Left: one
+    // bay of the glazing behind the arcade (a 90th of the ring, about 3.7 m wide, one floor about
+    // 7.8 m high), in its own colours, after the photo's dark brown glass. Right: weathering for the
+    // cream concrete, near white so the vertex colour keeps the hue. Sizes are estimates; at 254 m
+    // a bay is about 13 px wide in the window shot, so only the mullions and transoms are drawn.
+    assembly: {
+      colours: { glassTop: '#3c3329', glassBottom: '#1f1810', pane: '#2e261d', frame: '#8c7a5c', stain: '#6a5c48', grime: '#4a3e30' },
+      pattern: {
+        size: 256, // px, each half 256 x 256
+        mullions: 3, // per bay (the bay's edges and two between)
+        transoms: [0.34, 0.68], // heights, of the floor
+        frame: 0.035, // line width, of the bay
+        streaks: 26, // vertical rain streaks per tile
+        streakAlpha: [0.05, 0.12],
+        grime: 0.12, // the dirty band at the foot of a face, of its height
+        joints: 4, // faint horizontal formwork joints
       },
     },
     // The leaf atlas (paint.js paintLeaves): light greys, the plant's vertex colour sets the green.

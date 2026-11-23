@@ -18,7 +18,10 @@
 //   - a grey zigzag rim at the eave (52.5-58.5 m) and the gold folded roof, 18 folds, rising
 //     concave to a gold neck (89.5-96.8 m), a dark ribbed cone (96.8-109 m) and a needle;
 //   - kiosks on a terrace in front and at the sides (placed after the painting, not the model).
-// Colours follow the painting (R3): gold roof, cream columns, dark underside.
+// Placement and framing follow the painting (R3); colours follow the photos (Fabio Achilli, Flickr,
+// CC BY 2.0; research/CREDITS.md): gold roof, warm cream columns, dark brown glass, salmon floor
+// bands, a dark underside (pass e15). The glass and the concrete's weathering are painted
+// (paint.js paintAssembly); each quad here maps a whole half of that map (u round, v up).
 
 import { createContract } from './contract.js';
 import { OUTSIDE_THEME } from '../themes/index.js';
@@ -359,14 +362,15 @@ const MODULES = {
     writer.box('stone', [0, T.height / 2, T.z], [T.halfX, 0, 0], [0, T.height / 2, 0], [0, 0, T.halfZ], C.stone);
   },
   infill({ s, C, writer, shape }) {
-    // dark red-brown glass and spandrels with lighter floor bands (painting, user photos)
+    // dark brown glass (its colour and mullions are painted: paint.js paintAssembly) with salmon
+    // floor bands in the concrete's slot (photo; pass e15)
     const A = s.arcade;
     const y0 = s.podium.height;
     const step = (A.top - y0) / A.floors;
     for (let f = 0; f < A.floors; f++) {
       const yb = y0 + f * step;
-      band(writer, 'glass', 90, shape.infill, yb, shape.infill, yb + step - 1, C.infill);
-      band(writer, 'glass', 90, shape.infill, yb + step - 1, shape.infill, yb + step, C.floor);
+      band(writer, 'glass', 90, shape.infill, yb, shape.infill, yb + step - 1, C.glassTint);
+      band(writer, 'stone', 90, shape.infill, yb + step - 1, shape.infill, yb + step, C.floor);
     }
   },
   brim({ s, C, writer, shape }) {
