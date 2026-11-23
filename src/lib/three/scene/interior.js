@@ -54,7 +54,7 @@ import { buildCurtains } from './interior/curtains.js';
 import { buildSeat, furnitureOverlaps, buildTable } from './interior/furniture.js';
 import { buildHangings } from './interior/hangings.js';
 import { buildVines } from './interior/vines.js';
-import { floraMode, windowVineLayout, vineMarkers, buildFloraBlockout, showFloraLegend } from './flora-layout.js';
+import { floraMode, windowVineLayout, vineMarkers, buildFloraBlockout, showFloraLegend, windowHangingProposal } from './flora-layout.js';
 import { shadeWalls, glossBoards, buildContactShadows } from './interior/surfaces.js';
 import { drapeAll, fabricGeometry, partColour, fabricIndex } from './interior/fabrics.js';
 import { createTextureStore, fabrics as FABRIC_PHOTOS } from '../common.js';
@@ -454,7 +454,7 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
   scene.add(landscape.group);
   let vineBlockout = null, removeLegend = null;
   if (flora) {
-    vineBlockout = buildFloraBlockout(vineMarkers(windowVineLayout(PLAN)), { opacity: flora === 'both' ? 0.55 : 1, firstColour: landscape.flora?.length ?? 0 });
+    vineBlockout = buildFloraBlockout([...vineMarkers(windowVineLayout(PLAN)), ...windowHangingProposal(PLAN)], { opacity: flora === 'both' ? 0.55 : 1, firstColour: landscape.flora?.length ?? 0 });
     vineBlockout.group.visible = !stage;
     scene.add(vineBlockout.group);
     const legend = [...(landscape.flora ?? []), ...vineBlockout.legend];

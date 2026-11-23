@@ -191,3 +191,29 @@ export function farBankProposal({ place, forecourt: [f0, f1], rand }) {
   for (let x = f1 + 12; x < f1 + 46; x += 11) for (let i = 0; i < 3; i++) add('proposed: embankment foot bushes', 'bush', place(x + i * 1.6, 15.6 + rand() * 0.6), 1.2 + rand() * 0.5, 1.8 + rand() * 0.6);
   return out;
 }
+
+/**
+ * PROPOSED (markers only, design guesses): plants hanging on the windows and growing into the
+ * room. At each back window a creeper comes in over the window's head (a band along it, just
+ * inside the wall), strands trail down from it inside, and a basket hangs from the head's
+ * middle. The side window gets the band and strands too.
+ */
+export function windowHangingProposal(PLAN) {
+  const { z0, x1 } = PLAN.room, head = PLAN.window.y1;
+  const out = [];
+  const inside = 0.12; // m in from the wall
+  PLAN.backWindows.forEach((w, i) => {
+    const span = w.x1 - w.x0, z = z0 + inside;
+    out.push({ group: 'proposed: creeper over the window head', kind: 'vine', at: [(w.x0 + w.x1) / 2, head - 0.12, z], width: span + 0.2, height: 0.22, yaw: 0 });
+    const strands = span > 0.8 ? 3 : 2;
+    for (let k = 0; k < strands; k++) {
+      const x = w.x0 + (span * (k + 0.5)) / strands, drop = [0.9, 0.55, 0.75][(i + k) % 3];
+      out.push({ group: 'proposed: strands trailing inside', kind: 'vine', at: [x, head - 0.12 - drop, z + 0.04], width: 0.09, height: drop, yaw: 0 });
+    }
+    if (span > 0.8) out.push({ group: 'proposed: hanging basket', kind: 'bush', at: [(w.x0 + w.x1) / 2, head - 0.75, z + 0.25], width: 0.4, height: 0.3, yaw: 0 });
+  });
+  const s = PLAN.sideWindow, x = x1 - inside, zc = (s.z0 + s.z1) / 2, span = s.z1 - s.z0;
+  out.push({ group: 'proposed: creeper over the window head', kind: 'vine', at: [x, head - 0.12, zc], width: span + 0.2, height: 0.22, yaw: Math.PI / 2 });
+  for (const [f, drop] of [[0.25, 0.7], [0.75, 1.0]]) out.push({ group: 'proposed: strands trailing inside', kind: 'vine', at: [x - 0.04, head - 0.12 - drop, s.z0 + span * f], width: 0.09, height: drop, yaw: Math.PI / 2 });
+  return out;
+}
