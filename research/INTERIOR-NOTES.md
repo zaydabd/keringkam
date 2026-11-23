@@ -2384,16 +2384,22 @@ part of its frame.
 - **Checks:** svelte-check and the build are clean. The window, window-right and window-phone
   captures show nothing broken.
 
-### Pass e15b: the Assembly yellow-gold (`assembly-look`)
+### Pass e15b: the Assembly's roof yellow-gold (`assembly-look`)
 
-- **Request:** the user still found the colours grey and asked for more yellow-gold.
-- **Change:**
-  - The columns, brim, podium, rim and neck bands are now authored close to the roof's gold
-    (white [0.92, 0.66, 0.08]; was [0.7, 0.54, 0.28]).
-  - The weathering streaks and dirty foot are warm brown and fainter.
-  - All values are **estimated**, tuned by eye.
-- **Why so strong:** the haze, the warm sun and the room's grade take about a third of the
-  saturation. A cream authored at about 0.6 saturation rendered at 0.34.
-- **Look** (window capture, lit warm pixels of the Assembly, headless SwiftShader, **not a real
-  GPU**): saturation 0.34 to 0.43, hue 40° to 43°, value 0.75 to 0.78.
+- **Request:** the user found the colours grey and asked for more yellow-gold. A first try made
+  the walls gold too; the user meant the roof only, so the walls are back to their e15 cream.
+- **Change** (all **estimated**, tuned by eye):
+  - Roof folds and pyramids: gold [1.0, 0.72, 0.05] (was [0.92, 0.63, 0.08]); the shaded facets
+    are [0.8, 0.53, 0.02].
+  - The roof's underside (the bowl) was dark brown. It is now gold in shade, as in the photo.
+  - The ribbed cone at the top was grey, then dark bronze in e15. It is now gold.
+  - The rim at the eave is gold and the neck bands are pale gold.
+  - The concrete's weathering is warm brown and fainter.
+- **Look** (a new close view of the Assembly, `eye=0,30,-120&yaw=50&pitch=9&fov=40`, headless
+  SwiftShader, **not a real GPU**):
+  - roof fold #c4a14d to #c4a346 (saturation 0.60 to 0.64);
+  - underside #382717 to #6b542a.
+  - For reference, the photo's roof averages #9c824a (saturation 0.53).
+- **Why the changes look small in numbers:** the haze, the warm sun and the room's grade compress
+  the colours. A cream authored at about 0.6 saturation rendered at 0.34.
 - **Checks:** the build is clean.

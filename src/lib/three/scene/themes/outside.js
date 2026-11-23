@@ -141,27 +141,27 @@ const BUILT = {
   riverWall: '#efe7d1', // the far bank's wall
   // The State Legislative Assembly building (linear).
   assembly: {
-    gold: [0.92, 0.63, 0.08], // authored deep: the haze and the room's grade lift it to the photos' yellow gold
-    goldShade: [0.66, 0.41, 0.04], // every other roof facet: the ink pass draws the folds
-    band: [0.92, 0.64, 0.08], // the neck's light bands, gold (pass e15b, the user: more yellow-gold; e15 0.8, 0.64, 0.36)
+    gold: [1.0, 0.72, 0.05], // brighter, more yellow (pass e15b, the user: the roof grey, more yellow-gold; was 0.92, 0.63, 0.08)
+    goldShade: [0.8, 0.53, 0.02], // every other roof facet: the ink pass draws the folds (pass e15b; was 0.66, 0.41, 0.04)
+    band: [0.95, 0.8, 0.4], // the neck's light bands, pale gold (pass e15b; was 0.86, 0.8, 0.62)
     rim: [0.78, 0.5, 0.04], // the zigzag rim at the eave: gold, not grey (pass e15b; e15 0.62, 0.49, 0.29; was 0.74, 0.74, 0.75)
     rimShade: [0.58, 0.35, 0.03], // (pass e15b; e15 0.46, 0.35, 0.19; was 0.6, 0.6, 0.62)
-    bowl: [0.17, 0.11, 0.07], // authored very dark and warm: dark like the model, brown like the painting once hazed
-    bowlShade: [0.25, 0.17, 0.1],
-    cone: [0.16, 0.11, 0.06], // the ribbed cone: dark bronze (photo; pass e15; was grey 0.3, 0.29, 0.3)
-    coneShade: [0.26, 0.18, 0.1], // (pass e15; was 0.42, 0.4, 0.4)
+    bowl: [0.6, 0.38, 0.02], // the roof's underside: gold in shade, as in the photo (pass e15b; was dark brown 0.17, 0.11, 0.07)
+    bowlShade: [0.76, 0.5, 0.03], // (pass e15b; was 0.25, 0.17, 0.1)
+    cone: [0.62, 0.43, 0.08], // the ribbed cone: gold like the roof, as in the photo (pass e15b; e15 dark bronze; was grey 0.3, 0.29, 0.3)
+    coneShade: [0.78, 0.55, 0.1], // (pass e15b; was 0.42, 0.4, 0.4)
     bronze: [0.78, 0.56, 0.28], // the side kiosks' spires
     // Pass e15 (the user: too grey, more contrast). The creams are authored lower so the sunlit
     // faces stop running up to near white in the tone map, and the shaded parts darker so they
     // stay dark through the haze. Tuned in the window shot against the photo (Fabio Achilli,
     // Flickr, CC BY 2.0; research/CREDITS.md).
-    white: [0.92, 0.66, 0.08], // yellow gold, near the roof's (pass e15b, the user: still grey; the haze and grade take about a third of the saturation; e15 0.7, 0.54, 0.28; was 0.93, 0.94, 0.96)
-    brim: [0.88, 0.61, 0.07], // the same as the columns (pass e15b; e15 0.68, 0.53, 0.29; was 0.85, 0.86, 0.88)
-    brimEdge: [0.55, 0.33, 0.03], // darker than the columns, so they read against it (pass e15b; e15 0.42, 0.31, 0.18; was 0.72, 0.73, 0.76)
-    soffit: [0.16, 0.09, 0.02], // the brim's shaded underside (pass e15b; e15 0.13, 0.085, 0.045; was 0.52, 0.48, 0.43)
+    white: [0.7, 0.54, 0.28], // warm cream, after the photo's columns (pass e15; the user wanted only the roof gold in e15b; was 0.93, 0.94, 0.96)
+    brim: [0.68, 0.53, 0.29], // the same cream as the columns (pass e15; was 0.85, 0.86, 0.88)
+    brimEdge: [0.42, 0.31, 0.18], // darker than the columns, so they read against it (pass e15; was 0.72, 0.73, 0.76)
+    soffit: [0.13, 0.085, 0.045], // the brim's shaded underside (pass e15; was 0.52, 0.48, 0.43)
     glassTint: [1, 1, 1], // the glazing's colour is its painted map (textures.assembly); white here
     floor: [0.62, 0.27, 0.13], // the salmon floor bands across the façade behind the arcade (photo; was 0.24, 0.17, 0.13)
-    stone: [0.86, 0.61, 0.1], // the podium, like the columns (pass e15b; e15 0.68, 0.54, 0.31; was 0.86, 0.87, 0.89)
+    stone: [0.68, 0.54, 0.31], // the podium, cream like the columns (pass e15; was 0.86, 0.87, 0.89)
   },
   kioskGold: [1.0, 0.8, 0.42], // the small kiosks' roofs: a lighter gold than the main roof (linear)
   kioskGoldShade: [0.88, 0.66, 0.3],
