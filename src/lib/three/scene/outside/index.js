@@ -33,7 +33,8 @@ import { SITE } from './site.js';
 import { buildForecourt } from './forecourt.js';
 import { OUTSIDE_THEME } from '../themes/index.js';
 import { CLAY } from '../themes/clay.js';
-import { buildFarBank } from './banks.js';
+import { buildFarBank, BANK_PAINT } from './banks.js';
+import { bladePatches, dropTriangles, buildFloraBlockout } from '../flora-layout.js';
 import { buildWaterBush } from './waterbush.js';
 import { buildNearWaterfront } from './waterfront.js';
 import { planAssembly, compileAssembly } from './assembly.js';
@@ -71,7 +72,7 @@ const SKY_KEY = OUTSIDE_THEME.air.skyKey;
  * clay render of the clay theme (plain grey, no painted textures, no water shader); `stage` lists
  * the objects to build (default: all).
  */
-export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME.air.daylight, light = 1, key = 1, sun, mode, stage }) {
+export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME.air.daylight, light = 1, key = 1, sun, mode, stage, flora = null }) {
   const group = new THREE.Group();
   const disposables = [];
   const S = SITE;
@@ -90,10 +91,22 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
   };
 
   // --- The banks (banks.js) ---------------------------------------------------------------------
+  // ?flora=blockout|both (flora-layout.js): where the plants stand, as markers. In blockout the
+  // plants are still grown (same contracts, same random draws) but not drawn.
+  const floraEntries = [];
+  const bladeFrom = w.slot('blade').triangles;
   if (want('farbank')) reports.farbank = buildFarBank(w, { seed });
+  if (flora && want('farbank')) {
+    const ticks = { 'far slope ticks': BANK_PAINT.tick };
+    floraEntries.push(...bladePatches(w.slot('blade'), bladeFrom, ticks));
+    if (flora === 'blockout') dropTriangles(w.slot('blade'), bladeFrom, ticks);
+  }
   if (want('forecourt')) reports.forecourt = buildForecourt(w); // the Assembly's river front on the embankment (pass e7)
   if (want('waterfront')) reports.waterfront = buildNearWaterfront(w); // our side: the waterfront's street and railing (pass e11)
-  if (want('waterbush')) reports.waterbush = buildWaterBush(w, { seed }); // the bush on the grass right below the window
+  if (want('waterbush')) {
+    reports.waterbush = buildWaterBush(flora === 'blockout' ? new SlotWriter() : w, { seed }); // the bush on the grass right below the window
+    if (flora) floraEntries.push(...reports.waterbush.layout);
+  }
 
   // --- Assembly building (planned, then compiled; measured on the user's Sketchfab model) -------
   if (want('assembly')) {
@@ -257,11 +270,18 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
   budget.max('triangles', total, 160000);
   budget.max('meshes (draw calls)', group.children.length, 8); // 6 since pass e5 (the mud and turf meshes went with the near bank); 7 since e11 (the paving); 8 since e15 (the Assembly's painted concrete and glass)
   reports.budget = { contract: budget.assert() };
+  const stats = { triangles: total, meshes: group.children.length, perMesh: triangles };
+
+  // The flora markers come after the budget: they are a layout aid, not part of the view.
+  const blockout = flora ? buildFloraBlockout(floraEntries, { opacity: flora === 'both' ? 0.55 : 1, layer: MIRROR_LAYER }) : null;
+  if (blockout) group.add(blockout.group);
 
   return {
     group,
     reports,
-    stats: { triangles: total, meshes: group.children.length, perMesh: triangles },
+    stats,
+    /** ?flora: the markers' legend ([{ group, kind, count, colour }]), or null. */
+    flora: blockout?.legend ?? null,
     /** For the ink pass (toon.js createOutline `mask`): the leaf cards' layer and atlas. */
     inkMasks: textures.leaves ? [{ layer: LEAF_MASK_LAYER, map: textures.leaves, cover: LEAF_COVER }] : [],
     /** Moves the water. t in seconds. */
@@ -278,6 +298,7 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
     dispose() {
       group.traverse((o) => o.geometry?.dispose());
       for (const d of disposables) d.dispose();
+      blockout?.dispose();
     },
   };
 }

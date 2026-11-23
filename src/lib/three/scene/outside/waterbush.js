@@ -298,10 +298,12 @@ export function buildWaterBush(w, { seed = 0 } = {}) {
   // --- Ferns, from the ground --------------------------------------------------------------------
   const fernPaint = { fern: P.fern, fernLight: P.fernLight };
   const fernTops = [];
+  const layout = blobs.map((b, i) => ({ group: 'bush blobs', kind: 'bush', at: [b.c[0], b.c[1] - b.r[1], b.c[2]], width: 2 * Math.max(b.r[0], b.r[2]), height: 2 * b.r[1], name: `blob ${i + 1}` }));
   for (const Q of BUSH.ferns) {
     const xw = lerp(OPENING.x0, OPENING.x1, Q.f);
     const at = [EYE[0] + ((xw - EYE[0]) * Q.dz) / (EYE[2] - OPENING.wall), ground + 0.05, EYE[2] - Q.dz];
     const before = w.slot('leaf').position.length;
+    layout.push({ group: 'bush fern', kind: 'fern', at, width: 2 * Q.reach, height: Q.reach });
     tris.ferns += fern(w, at, { reach: Q.reach, rand, P: fernPaint, fronds: Q.fronds, out: norm(Q.out), rise: Q.rise, width: Q.width });
     const pos = w.slot('leaf').position;
     for (let i = before; i < pos.length; i += 3) fernTops.push([pos[i], pos[i + 1], pos[i + 2]]);
@@ -314,7 +316,9 @@ export function buildWaterBush(w, { seed = 0 } = {}) {
   for (let k = 0; k < T.count && front.length; k++) {
     const { p, n } = front[Math.floor(rand() * front.length)];
     const at = [p[0] + n[0] * 0.06, ground, p[2] + n[2] * 0.06];
-    tris.tufts += grassClump(w, at, { blades: T.blades, height: T.height[0] + rand() * T.height[1], spread: 0.12, lean: 0.5, out: norm([n[0], 0, n[2]]), heads: 0.1, rand, P: grassPaint });
+    const height = T.height[0] + rand() * T.height[1];
+    layout.push({ group: 'bush grass tufts', kind: 'patch', at, width: 0.24, height });
+    tris.tufts += grassClump(w, at, { blades: T.blades, height, spread: 0.12, lean: 0.5, out: norm([n[0], 0, n[2]]), heads: 0.1, rand, P: grassPaint });
   }
 
   // --- Contract -----------------------------------------------------------------------------------
@@ -346,5 +350,5 @@ export function buildWaterBush(w, { seed = 0 } = {}) {
   c.range('flowers', stats.flowers, 8, 30);
   c.range('triangles, leaves (cards, flowers, ferns)', tris.cards + tris.flowers + tris.ferns, 2500, 4500); // 3,348-3,378 built (seeds 0-7, e11)
   c.range('triangles, cores and grass', tris.core + tris.tufts, 1000, 3000); // 1,680-1,698 built (seeds 0-7, e11)
-  return { contract: c.assert(), stats: { ...stats, blobs: blobs.map((b) => b.c.map((v) => +v.toFixed(2))) }, triangles: tris };
+  return { contract: c.assert(), stats: { ...stats, blobs: blobs.map((b) => b.c.map((v) => +v.toFixed(2))) }, triangles: tris, layout };
 }

@@ -54,6 +54,7 @@ import { buildCurtains } from './interior/curtains.js';
 import { buildSeat, furnitureOverlaps, buildTable } from './interior/furniture.js';
 import { buildHangings } from './interior/hangings.js';
 import { buildVines } from './interior/vines.js';
+import { floraMode, windowVineLayout, vineMarkers, buildFloraBlockout, showFloraLegend } from './flora-layout.js';
 import { shadeWalls, glossBoards, buildContactShadows } from './interior/surfaces.js';
 import { drapeAll, fabricGeometry, partColour, fabricIndex } from './interior/fabrics.js';
 import { createTextureStore, fabrics as FABRIC_PHOTOS } from '../common.js';
@@ -153,6 +154,9 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
   // it. ?exposure=n sets the exposure instead of metering (the stage uses the window shot's 1.85).
   const stage = params.get('stage')?.split(',').filter((n) => OBJECTS.includes(n)) ?? null;
   const exposureParam = num('exposure') ?? (stage ? 1.85 : null);
+  // ?flora=blockout draws a flat marker where each plant stands instead of the plant; ?flora=both
+  // draws the markers over the plants (flora-layout.js). For trying a layout before replanting.
+  const flora = floraMode(params);
   // No MSAA on the screen under post-processing: the scene is drawn into the composer's own
   // (single-sample) buffers and only the last full-screen pass reaches the screen, so screen MSAA
   // would smooth nothing and still cost its memory and resolve. ?debug=nopost draws straight to
@@ -328,7 +332,7 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
   const overlaps = furnitureOverlaps();
   if (overlaps.length) console.warn('furniture overlaps:', overlaps.join('; '));
   buildHangings(b.as('hangings'));
-  buildVines(b.as('vines'));
+  if (flora !== 'blockout') buildVines(b.as('vines'));
   const room = new THREE.Group();
   room.add(...b.build(materials));
   // The lattice is cut out by its texture: give its shadow the same holes, and keep it out of the
@@ -440,7 +444,7 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
   // Outside: the Sarawak River at Kuching (outside/index.js). ?off=outside hides it (the windows
   // then show plain daylight). ?debug=flat and ?debug=silhouette also apply to it.
   const outsideAt = performance.now();
-  const landscape = createOutside({ gradientMap, seed, fog: scene.fog, haze: AIR.daylight, light: LIGHT, key: AIR.key, sun: sun.position.clone().sub(sun.target.position), mode: clay ? 'clay' : debug === 'flat' || debug === 'silhouette' ? debug : undefined, stage });
+  const landscape = createOutside({ gradientMap, seed, fog: scene.fog, haze: AIR.daylight, light: LIGHT, key: AIR.key, sun: sun.position.clone().sub(sun.target.position), mode: clay ? 'clay' : debug === 'flat' || debug === 'silhouette' ? debug : undefined, stage, flora });
   const outsideMs = performance.now() - outsideAt;
   if (clay) scene.fog = null; // no haze
   landscape.group.visible = !off.has('outside');
@@ -448,6 +452,15 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
   scene.traverse((o) => o.isLight && o.layers.enable(MIRROR_LAYER)); // the river's mirror is lit like the view itself
   landscape.group.userData.noAO = true; // the view outside is too far for AO, and it moves
   scene.add(landscape.group);
+  let vineBlockout = null, removeLegend = null;
+  if (flora) {
+    vineBlockout = buildFloraBlockout(vineMarkers(windowVineLayout(PLAN)), { opacity: flora === 'both' ? 0.55 : 1, firstColour: landscape.flora?.length ?? 0 });
+    vineBlockout.group.visible = !stage;
+    scene.add(vineBlockout.group);
+    const legend = [...(landscape.flora ?? []), ...vineBlockout.legend];
+    console.info('[flora]', JSON.stringify(legend.map(({ group, kind, count }) => ({ group, kind, count }))));
+    removeLegend = showFloraLegend(legend, `?flora=${flora}`);
+  }
   if (debug) {
     console.info('outside', JSON.stringify(landscape.stats));
     for (const [name, r] of Object.entries(landscape.reports)) {
@@ -858,6 +871,8 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
       contact.core.dispose();
       contact.foot.dispose();
       landscape.dispose();
+      vineBlockout?.dispose();
+      removeLegend?.();
       gradientMap.dispose();
       outline.dispose();
       pigment.dispose();

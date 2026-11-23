@@ -3,10 +3,10 @@
 import * as THREE from 'three';
 import { PLAN } from './plan.js';
 import { M, dice } from './builder.js';
+import { windowVineLayout } from '../flora-layout.js';
 
 /** Trailing vines beside the windows: small leaf cards along a gently swinging line. */
 export function buildVines(b) {
-  const { z0, x1 } = PLAN.room;
   let v = 0; // the vine's number
   const vine = (x, z, yTop, yBottom, alongX) => {
     const id = v++;
@@ -23,10 +23,5 @@ export function buildVines(b) {
       k++;
     }
   };
-  const [w1, w2, w3] = PLAN.backWindows;
-  vine(w1.x1 + 0.2, z0, 2.3, 1.45, true);
-  vine(w2.x0 - 0.16, z0, 2.3, 1.7, true);
-  vine(w3.x1 + 0.08, z0, 2.45, 1.25, true);
-  vine(w3.x1 + 0.03, z0 + 0.15, 2.4, 1.6, true);
-  vine(x1, PLAN.sideWindow.z0 - 0.2, 2.35, 1.0, false);
+  for (const l of windowVineLayout(PLAN)) vine(l.x, l.z, l.yTop, l.yBottom, l.alongX); // where: flora-layout.js
 }
