@@ -146,8 +146,8 @@ const BUILT = {
     band: [0.95, 0.8, 0.4], // the neck's light bands, pale gold (pass e15b; was 0.86, 0.8, 0.62)
     rim: [0.78, 0.5, 0.04], // the zigzag rim at the eave: gold, not grey (pass e15b; e15 0.62, 0.49, 0.29; was 0.74, 0.74, 0.75)
     rimShade: [0.58, 0.35, 0.03], // (pass e15b; e15 0.46, 0.35, 0.19; was 0.6, 0.6, 0.62)
-    bowl: [0.6, 0.38, 0.02], // the roof's underside: gold in shade, as in the photo (pass e15b; was dark brown 0.17, 0.11, 0.07)
-    bowlShade: [0.76, 0.5, 0.03], // (pass e15b; was 0.25, 0.17, 0.1)
+    bowl: [0.12, 0.08, 0.03], // the roof's underside: dark, so the gold struts over it read as in the photos (pass e15c; e15b was gold 0.6, 0.38, 0.02; before that 0.17, 0.11, 0.07)
+    bowlShade: [0.17, 0.11, 0.04], // (pass e15c; e15b 0.76, 0.5, 0.03; before that 0.25, 0.17, 0.1)
     cone: [0.62, 0.43, 0.08], // the ribbed cone: gold like the roof, as in the photo (pass e15b; e15 dark bronze; was grey 0.3, 0.29, 0.3)
     coneShade: [0.78, 0.55, 0.1], // (pass e15b; was 0.42, 0.4, 0.4)
     bronze: [0.78, 0.56, 0.28], // the side kiosks' spires
@@ -163,8 +163,8 @@ const BUILT = {
     floor: [0.62, 0.27, 0.13], // the salmon floor bands across the façade behind the arcade (photo; was 0.24, 0.17, 0.13)
     stone: [0.68, 0.54, 0.31], // the podium, cream like the columns (pass e15; was 0.86, 0.87, 0.89)
   },
-  kioskGold: [1.0, 0.8, 0.42], // the small kiosks' roofs: a lighter gold than the main roof (linear)
-  kioskGoldShade: [0.88, 0.66, 0.3],
+  kioskGold: [1.0, 0.72, 0.05], // the small kiosks' roofs: the main roof's gold (pass e15c, the user; was a paler 1.0, 0.8, 0.42) (linear)
+  kioskGoldShade: [0.8, 0.53, 0.02], // (pass e15c; was 0.88, 0.66, 0.3)
   // The Darul Hana Bridge (linear).
   bridge: { steel: [0.93, 0.92, 0.88], pier: [0.78, 0.76, 0.7], cable: [0.86, 0.86, 0.84], shade: [0.97, 0.96, 0.92], truss: [0.84, 0.83, 0.78] },
 };

@@ -2403,3 +2403,22 @@ part of its frame.
 - **Why the changes look small in numbers:** the haze, the warm sun and the room's grade compress
   the colours. A cream authored at about 0.6 saturation rendered at 0.34.
 - **Checks:** the build is clean.
+
+### Pass e15c: gold gazebo roofs and struts under the main roof (`assembly-look`)
+
+- **Request:** the user asked for the small gazebos' roofs to be gold too, and for the structure
+  beneath the main roof to be fixed.
+- **Gazebos:** `kioskGold` is now the main roof's gold, [1.0, 0.72, 0.05] (was a paler
+  [1.0, 0.8, 0.42]). **Estimated.**
+- **Under the roof:** the photos (Fabio Achilli, CC BY 2.0) show an open ring of gold struts
+  crossing in an X lattice over a dark interior, carrying the eave. Ours was a plain bowl, made
+  gold in e15b.
+  - The bowl is dark again ([0.12, 0.08, 0.03]).
+  - `ASSEMBLY.struts` adds the struts. From every roof fold's tip, one strut turns a fold's width
+    left and one right as it climbs from the brim (y 32.6 m) to the fascia (y 52.5 m), standing
+    0.7 m in front of the bowl. A rib runs up each tip. They are 0.9 x 0.6 m beams in the gold slot.
+  - All sizes are **estimated** from the photos.
+- **Look** (`assembly-roof` capture, headless SwiftShader, **not a real GPU**): the tier reads as
+  gold struts over a dark ground, as in the photos. The photos' struts are thinner and more
+  numerous.
+- **Checks:** the build is clean, and the assembly contract (including its triangle limit) passes.

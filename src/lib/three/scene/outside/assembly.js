@@ -14,7 +14,8 @@
 //   - an arcade of white "tree" columns whose arms flare out to carry the brim (0-28.4 m);
 //   - a thick star-shaped brim (28.4-32.6 m) with a raised edge, its points about 70 m out;
 //   - nine gold pyramids on it, one per point of the star, about 24 m square, 41.5 m high;
-//   - a deep dark bowl, the roof's underside, from the brim (r 29.5 m) out to the eave (r 47 m);
+//   - a deep dark bowl, the roof's underside, from the brim (r 29.5 m) out to the eave (r 47 m),
+//     with gold struts crossing over it to carry the eave (pass e15c, photos);
 //   - a grey zigzag rim at the eave (52.5-58.5 m) and the gold folded roof, 18 folds, rising
 //     concave to a gold neck (89.5-96.8 m), a dark ribbed cone (96.8-109 m) and a needle;
 //   - kiosks on a terrace in front and at the sides (placed after the painting, not the model).
@@ -37,6 +38,10 @@ export const ASSEMBLY = {
   pyramid: { radius: 42.5, base: 24, apex: 41.5 }, // square, edges along and across the radius
   // the bowl under the roof: its outline at the fold tips, (radius, height), bottom to top
   bowl: { profile: [[29.5, 32.6], [29.5, 34.5], [33.6, 37.8], [37.9, 41.2], [42.3, 45.6], [46, 50]], valleyRatio: [0.95, 0.87] },
+  // gold struts over the dark bowl, carrying the eave (pass e15c, after the photos: two crossing
+  // struts per roof fold, an X lattice, and a rib up each fold's tip). ESTIMATES from the photos:
+  // width and depth (m), how far they stand out from the bowl (m), straight pieces per strut.
+  struts: { perFold: 2, width: 0.9, depth: 0.6, out: 0.7, segments: 6, posts: true },
   roof: {
     folds: 18,
     tip: [42.5, 56], // where a fold's tip meets the rim: radius, height
@@ -315,7 +320,7 @@ const MODULES = {
     const { s, C, writer } = ctx;
     const K = s.kiosk;
     const k = p.scale;
-    const light = { ...C, ...OUTSIDE_THEME.kiosk }; // a lighter gold than the main roof
+    const light = { ...C, ...OUTSIDE_THEME.kiosk }; // the kiosks' own gold (themes/outside.js kioskGold; the main roof's since pass e15c)
     if (p.scale > 1) {
       // the two at the sides: small copies of the main roof on four legs, with a spire (P1, P2)
       const y = 0;
@@ -398,6 +403,37 @@ const MODULES = {
     });
     rings.push(ctxRim(R).fasciaBottom);
     for (let k = 0; k < rings.length - 1; k++) loft(writer, 'stone', rings[k], rings[k + 1], (i) => (i % 2 ? C.bowlShade : C.bowl));
+    // The struts: from every fold tip at the bowl's foot, one strut turns a fold's width left and
+    // one right as it climbs to the fascia's lower edge, so neighbours cross half way (the X
+    // lattice of the photos); a rib runs straight up each tip. They follow the bowl's outline at
+    // the tips, `out` in front of it.
+    const T = s.struts;
+    const outline = [...W.profile, [R.tip[0] + R.rim, R.tip[1] - R.fascia]]; // (radius, height) at the tips, bottom to top
+    const y0 = outline[0][1], y1 = outline.at(-1)[1];
+    const radius = (y) => {
+      for (let k = 0; k < outline.length - 1; k++) {
+        const [ra, ya] = outline[k], [rb, yb] = outline[k + 1];
+        if (y <= yb) return ra + ((rb - ra) * (y - ya)) / (yb - ya || 1);
+      }
+      return outline.at(-1)[0];
+    };
+    const fold = (Math.PI * 2) / R.folds;
+    const strut = (a0, turn, col) => {
+      const at = (t) => {
+        const y = y0 + (y1 - y0) * t;
+        return { a: a0 + turn * t, p: P(a0 + turn * t, radius(y) + T.out, y) };
+      };
+      for (let k = 0; k < T.segments; k++) {
+        const u = at(k / T.segments), v = at((k + 1) / T.segments);
+        const m = (u.a + v.a) / 2;
+        beam(writer, 'gold', u.p, v.p, [Math.sin(m), 0, Math.cos(m)], T.width, T.depth, col);
+      }
+    };
+    for (let i = 0; i < R.folds; i++) {
+      const a = i * fold;
+      for (let j = 0; j < T.perFold; j++) strut(a, (j % 2 ? -1 : 1) * fold, j % 2 ? C.goldShade : C.gold);
+      if (T.posts) strut(a, 0, C.gold);
+    }
   },
   payung({ s, C, writer }) {
     const R = s.roof;
