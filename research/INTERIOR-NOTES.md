@@ -2344,3 +2344,15 @@ part of its frame.
   about 25 px above it). The e12 places throw under the lower river.
 - **Checks:** placement, near waterfront, far bank seeds 0–7, bush seeds 0–7, bridge (towers 48 m
   above the water, clearance 12.3 m) and trees pass; svelte-check and the build are clean.
+
+### Pass e14: no trees on the far bank (`no-far-trees`)
+
+- **Request:** the user found the far bank's trees ugly and asked for all of them to go.
+- **Change:** the far bank's trees, frond trees and bushes are gone. `trees.js`, its layout
+  (`SITE.trees`), its palette (`OUTSIDE_THEME.trees` and four unused plant and wood colours) and
+  the `tree-level` / `tree-kind` debug tints are removed; git history before this pass keeps
+  them. The bush below the window (waterbush.js) and the grass ticks on the far slope stay.
+- **Look** (window capture, headless SwiftShader, **not a real GPU**): the far bank reads as a
+  green embankment behind the street, with the bridge's whole deck and the Assembly clear of
+  foliage. Nothing is left floating or gapped where trees stood.
+- **Checks:** svelte-check and the build are clean; far bank, bush and boat placement pass.
