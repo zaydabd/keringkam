@@ -193,27 +193,28 @@ export function farBankProposal({ place, forecourt: [f0, f1], rand }) {
 }
 
 /**
- * PROPOSED (markers only, design guesses): plants hanging on the windows and growing into the
- * room. At each back window a creeper comes in over the window's head (a band along it, just
- * inside the wall), strands trail down from it inside, and a basket hangs from the head's
- * middle. The side window gets the band and strands too.
+ * PROPOSED (markers only, design guesses): plants on the window ledges that hang into the room.
+ * On each back window's lattice rail (room.js: top at window.lattice + 0.06, its face 1.5 cm into
+ * the room) a trailing plant sits in a low pot, and strands spill over the rail's room side and
+ * hang down the lattice. The side window's sill (y0) gets a pot whose strands reach the floor.
  */
 export function windowHangingProposal(PLAN) {
-  const { z0, x1 } = PLAN.room, head = PLAN.window.y1;
+  const { z0, x1 } = PLAN.room;
+  const ledge = PLAN.window.lattice + 0.06, face = z0 + 0.015;
   const out = [];
-  const inside = 0.12; // m in from the wall
   PLAN.backWindows.forEach((w, i) => {
-    const span = w.x1 - w.x0, z = z0 + inside;
-    out.push({ group: 'proposed: creeper over the window head', kind: 'vine', at: [(w.x0 + w.x1) / 2, head - 0.12, z], width: span + 0.2, height: 0.22, yaw: 0 });
-    const strands = span > 0.8 ? 3 : 2;
-    for (let k = 0; k < strands; k++) {
-      const x = w.x0 + (span * (k + 0.5)) / strands, drop = [0.9, 0.55, 0.75][(i + k) % 3];
-      out.push({ group: 'proposed: strands trailing inside', kind: 'vine', at: [x, head - 0.12 - drop, z + 0.04], width: 0.09, height: drop, yaw: 0 });
-    }
-    if (span > 0.8) out.push({ group: 'proposed: hanging basket', kind: 'bush', at: [(w.x0 + w.x1) / 2, head - 0.75, z + 0.25], width: 0.4, height: 0.3, yaw: 0 });
+    const span = w.x1 - w.x0;
+    const pots = span > 0.8 ? [0.3, 0.72] : [0.5];
+    pots.forEach((f, j) => {
+      const x = w.x0 + span * f;
+      out.push({ group: 'proposed: ledge plants', kind: 'bush', at: [x, ledge, z0 - 0.02], width: 0.28, height: 0.24, yaw: 0 });
+      // strands over the room side of the rail, either side of the pot
+      for (const [dx, drop] of [[-0.08, [0.55, 0.8, 0.4][(i + j) % 3]], [0.07, [0.35, 0.6, 0.75][(i + j) % 3]]])
+        out.push({ group: 'proposed: strands over the ledge', kind: 'vine', at: [x + dx, ledge + 0.04 - drop, face + 0.02], width: 0.08, height: drop, yaw: 0 });
+    });
   });
-  const s = PLAN.sideWindow, x = x1 - inside, zc = (s.z0 + s.z1) / 2, span = s.z1 - s.z0;
-  out.push({ group: 'proposed: creeper over the window head', kind: 'vine', at: [x, head - 0.12, zc], width: span + 0.2, height: 0.22, yaw: Math.PI / 2 });
-  for (const [f, drop] of [[0.25, 0.7], [0.75, 1.0]]) out.push({ group: 'proposed: strands trailing inside', kind: 'vine', at: [x - 0.04, head - 0.12 - drop, s.z0 + span * f], width: 0.09, height: drop, yaw: Math.PI / 2 });
+  const s = PLAN.sideWindow, sill = s.y0 + 0.02, x = x1 - 0.06, z = s.z0 + (s.z1 - s.z0) * 0.35;
+  out.push({ group: 'proposed: ledge plants', kind: 'bush', at: [x, sill, z], width: 0.3, height: 0.26, yaw: 0 });
+  out.push({ group: 'proposed: strands over the ledge', kind: 'vine', at: [x - 0.1, 0, z], width: 0.08, height: sill + 0.04, yaw: Math.PI / 2 });
   return out;
 }
