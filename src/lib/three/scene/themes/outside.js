@@ -151,13 +151,13 @@ const BUILT = {
     cone: [0.3, 0.29, 0.3],
     coneShade: [0.42, 0.4, 0.4],
     bronze: [0.78, 0.56, 0.28], // the side kiosks' spires
-    white: [0.93, 0.94, 0.96], // a little cool: the warm sun and the room's grade bring it back to the photo's near-neutral #dbdbd2 (pass e8; was 0.97, 0.94, 0.87)
-    brim: [0.85, 0.86, 0.88],
-    brimEdge: [0.72, 0.73, 0.76], // a shade darker than the columns, so they read against it
-    soffit: [0.52, 0.48, 0.43],
-    infill: [0.05, 0.05, 0.06], // the glazing: near black, so it lands near the photo's #363737 (pass e8; was 0.27, 0.17, 0.14)
-    floor: [0.24, 0.17, 0.13],
-    stone: [0.86, 0.87, 0.89],
+    white: [0.9, 0.78, 0.56], // warm cream, after the photo's columns #d1bb92 (pass e15, the user: too grey; was 0.93, 0.94, 0.96)
+    brim: [0.84, 0.74, 0.56], // the same cream as the columns (pass e15; was 0.85, 0.86, 0.88)
+    brimEdge: [0.62, 0.5, 0.34], // a shade darker than the columns, so they read against it (pass e15; was 0.72, 0.73, 0.76)
+    soffit: [0.3, 0.22, 0.14], // the brim's shaded underside (pass e15; was 0.52, 0.48, 0.43)
+    infill: [0.045, 0.03, 0.015], // the glazing: near black and warm, the photo's windows #292012 (pass e15; e8 had 0.05, 0.05, 0.06)
+    floor: [0.66, 0.34, 0.2], // the salmon floor bands across the façade behind the arcade (photo; pass e15; was 0.24, 0.17, 0.13)
+    stone: [0.84, 0.74, 0.56], // the podium, cream like the columns (pass e15; was 0.86, 0.87, 0.89)
   },
   kioskGold: [1.0, 0.8, 0.42], // the small kiosks' roofs: a lighter gold than the main roof (linear)
   kioskGoldShade: [0.88, 0.66, 0.3],
