@@ -2383,3 +2383,17 @@ part of its frame.
     room's grade lift it (pass e8).
 - **Checks:** svelte-check and the build are clean. The window, window-right and window-phone
   captures show nothing broken.
+
+### Pass e15b: the Assembly yellow-gold (`assembly-look`)
+
+- **Request:** the user still found the colours grey and asked for more yellow-gold.
+- **Change:**
+  - The columns, brim, podium, rim and neck bands are now authored close to the roof's gold
+    (white [0.92, 0.66, 0.08]; was [0.7, 0.54, 0.28]).
+  - The weathering streaks and dirty foot are warm brown and fainter.
+  - All values are **estimated**, tuned by eye.
+- **Why so strong:** the haze, the warm sun and the room's grade take about a third of the
+  saturation. A cream authored at about 0.6 saturation rendered at 0.34.
+- **Look** (window capture, lit warm pixels of the Assembly, headless SwiftShader, **not a real
+  GPU**): saturation 0.34 to 0.43, hue 40° to 43°, value 0.75 to 0.78.
+- **Checks:** the build is clean.

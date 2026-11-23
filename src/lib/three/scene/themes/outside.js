@@ -143,9 +143,9 @@ const BUILT = {
   assembly: {
     gold: [0.92, 0.63, 0.08], // authored deep: the haze and the room's grade lift it to the photos' yellow gold
     goldShade: [0.66, 0.41, 0.04], // every other roof facet: the ink pass draws the folds
-    band: [0.8, 0.64, 0.36], // the neck's light bands, warm (pass e15; was 0.86, 0.8, 0.62)
-    rim: [0.62, 0.49, 0.29], // the zigzag rim at the eave: warm, not grey (photo; pass e15; was 0.74, 0.74, 0.75)
-    rimShade: [0.46, 0.35, 0.19], // (pass e15; was 0.6, 0.6, 0.62)
+    band: [0.92, 0.64, 0.08], // the neck's light bands, gold (pass e15b, the user: more yellow-gold; e15 0.8, 0.64, 0.36)
+    rim: [0.78, 0.5, 0.04], // the zigzag rim at the eave: gold, not grey (pass e15b; e15 0.62, 0.49, 0.29; was 0.74, 0.74, 0.75)
+    rimShade: [0.58, 0.35, 0.03], // (pass e15b; e15 0.46, 0.35, 0.19; was 0.6, 0.6, 0.62)
     bowl: [0.17, 0.11, 0.07], // authored very dark and warm: dark like the model, brown like the painting once hazed
     bowlShade: [0.25, 0.17, 0.1],
     cone: [0.16, 0.11, 0.06], // the ribbed cone: dark bronze (photo; pass e15; was grey 0.3, 0.29, 0.3)
@@ -155,13 +155,13 @@ const BUILT = {
     // faces stop running up to near white in the tone map, and the shaded parts darker so they
     // stay dark through the haze. Tuned in the window shot against the photo (Fabio Achilli,
     // Flickr, CC BY 2.0; research/CREDITS.md).
-    white: [0.7, 0.54, 0.28], // warm cream, after the photo's columns (was 0.93, 0.94, 0.96)
-    brim: [0.68, 0.53, 0.29], // the same cream as the columns (was 0.85, 0.86, 0.88)
-    brimEdge: [0.42, 0.31, 0.18], // darker than the columns, so they read against it (was 0.72, 0.73, 0.76)
-    soffit: [0.13, 0.085, 0.045], // the brim's shaded underside (was 0.52, 0.48, 0.43)
+    white: [0.92, 0.66, 0.08], // yellow gold, near the roof's (pass e15b, the user: still grey; the haze and grade take about a third of the saturation; e15 0.7, 0.54, 0.28; was 0.93, 0.94, 0.96)
+    brim: [0.88, 0.61, 0.07], // the same as the columns (pass e15b; e15 0.68, 0.53, 0.29; was 0.85, 0.86, 0.88)
+    brimEdge: [0.55, 0.33, 0.03], // darker than the columns, so they read against it (pass e15b; e15 0.42, 0.31, 0.18; was 0.72, 0.73, 0.76)
+    soffit: [0.16, 0.09, 0.02], // the brim's shaded underside (pass e15b; e15 0.13, 0.085, 0.045; was 0.52, 0.48, 0.43)
     glassTint: [1, 1, 1], // the glazing's colour is its painted map (textures.assembly); white here
     floor: [0.62, 0.27, 0.13], // the salmon floor bands across the façade behind the arcade (photo; was 0.24, 0.17, 0.13)
-    stone: [0.68, 0.54, 0.31], // the podium, cream like the columns (was 0.86, 0.87, 0.89)
+    stone: [0.86, 0.61, 0.1], // the podium, like the columns (pass e15b; e15 0.68, 0.54, 0.31; was 0.86, 0.87, 0.89)
   },
   kioskGold: [1.0, 0.8, 0.42], // the small kiosks' roofs: a lighter gold than the main roof (linear)
   kioskGoldShade: [0.88, 0.66, 0.3],
@@ -283,14 +283,14 @@ export const OUTSIDE_THEME = {
     // cream concrete, near white so the vertex colour keeps the hue. Sizes are estimates; at 254 m
     // a bay is about 13 px wide in the window shot, so only the mullions and transoms are drawn.
     assembly: {
-      colours: { glassTop: '#3c3329', glassBottom: '#1f1810', pane: '#2e261d', frame: '#8c7a5c', stain: '#6a5c48', grime: '#4a3e30' },
+      colours: { glassTop: '#3c3329', glassBottom: '#1f1810', pane: '#2e261d', frame: '#8c7a5c', stain: '#7a5a28', grime: '#5a4020' },
       pattern: {
         size: 256, // px, each half 256 x 256
         mullions: 3, // per bay (the bay's edges and two between)
         transoms: [0.34, 0.68], // heights, of the floor
         frame: 0.035, // line width, of the bay
         streaks: 26, // vertical rain streaks per tile
-        streakAlpha: [0.05, 0.12],
+        streakAlpha: [0.03, 0.08], // pass e15b: lighter and warm, so the gold is not greyed (was 0.05 + up to 0.12)
         grime: 0.12, // the dirty band at the foot of a face, of its height
         joints: 4, // faint horizontal formwork joints
       },
