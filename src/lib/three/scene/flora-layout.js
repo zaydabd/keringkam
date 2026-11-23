@@ -199,7 +199,7 @@ export function farBankProposal({ place, forecourt: [f0, f1], rand }) {
  * hang down the lattice. The side window's sill (y0) gets a pot whose strands reach the floor.
  */
 export function windowHangingProposal(PLAN) {
-  const { z0, x1 } = PLAN.room;
+  const { z0 } = PLAN.room;
   const ledge = PLAN.window.lattice + 0.06, face = z0 + 0.015;
   const out = [];
   PLAN.backWindows.forEach((w, i) => {
@@ -213,8 +213,5 @@ export function windowHangingProposal(PLAN) {
         out.push({ group: 'proposed: strands over the ledge', kind: 'vine', at: [x + dx, ledge + 0.04 - drop, face + 0.02], width: 0.08, height: drop, yaw: 0 });
     });
   });
-  const s = PLAN.sideWindow, sill = s.y0 + 0.02, x = x1 - 0.06, z = s.z0 + (s.z1 - s.z0) * 0.35;
-  out.push({ group: 'proposed: ledge plants', kind: 'bush', at: [x, sill, z], width: 0.3, height: 0.26, yaw: 0 });
-  out.push({ group: 'proposed: strands over the ledge', kind: 'vine', at: [x - 0.1, 0, z], width: 0.08, height: sill + 0.04, yaw: Math.PI / 2 });
   return out;
 }
