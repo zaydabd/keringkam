@@ -2326,3 +2326,21 @@ part of its frame.
   pp. 3 and 8; no boat lengths, the drawings are not to scale). They cross between jetties
   (https://www.theborneopost.com/2013/03/17/sungei-sarawak-as-a-tourist-draw/). Our river is about
   119 m wide at the boats (**estimated**, narrower than the sourced 400 m; not changed in this pass).
+
+### Pass e13: the river 1 m lower (`river-lower`)
+
+- **Request:** with the near boat that close, the river looked too high. Realism (the river's
+  sourced 400 m width) is not wanted. The user chose 1 m lower out of 0.5, 1 and 1.5 m.
+- **Change:** `SITE.water` -3.2 to -4.2 (**estimated**, the user's choice). The street stays at
+  the house's ground, so the water is now 2.35 m below our street and 2.5 m below the far one;
+  both banks' street-height ranges move to 2–2.8 m (named allowances, **estimated**). The river
+  plane, its mirror, the concrete edge faces (1 m taller), the bridge's piers and the boats follow
+  `SITE.water`.
+- **Boats:** the street's edge now hides water nearer than about 23 m from the eye (was 19 m), and
+  the room for the whole near boat between the street's edge and the top rail closed up. The rule
+  that its roof clears the top rail became "the roof at most 0.01 tan (about 9 px) above the top
+  rail", and the near boat moved 1 m out (z -30 to -31, 26.4 m from the eye) so its waterline
+  still shows past the street's edge. Its roof ridge is now about 6 px under the top rail (was
+  about 25 px above it). The e12 places throw under the lower river.
+- **Checks:** placement, near waterfront, far bank seeds 0–7, bush seeds 0–7, bridge (towers 48 m
+  above the water, clearance 12.3 m) and trees pass; svelte-check and the build are clean.
