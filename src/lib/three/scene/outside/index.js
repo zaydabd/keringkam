@@ -29,12 +29,12 @@
 import * as THREE from 'three';
 import { paintSoftSky, paintLeaves, paintPaving, paintAssembly } from '../paint.js';
 import { SlotWriter, createContract } from './contract.js';
-import { SITE } from './site.js';
-import { buildForecourt } from './forecourt.js';
+import { SITE, mulberry32 } from './site.js';
+import { buildForecourt, forecourtFrame } from './forecourt.js';
 import { OUTSIDE_THEME } from '../themes/index.js';
 import { CLAY } from '../themes/clay.js';
 import { buildFarBank, BANK_PAINT } from './banks.js';
-import { bladePatches, dropTriangles, buildFloraBlockout } from '../flora-layout.js';
+import { bladePatches, dropTriangles, buildFloraBlockout, farBankProposal } from '../flora-layout.js';
 import { buildWaterBush } from './waterbush.js';
 import { buildNearWaterfront } from './waterfront.js';
 import { planAssembly, compileAssembly } from './assembly.js';
@@ -100,6 +100,11 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
     const ticks = { 'far slope ticks': BANK_PAINT.tick };
     floraEntries.push(...bladePatches(w.slot('blade'), bladeFrom, ticks));
     if (flora === 'blockout') dropTriangles(w.slot('blade'), bladeFrom, ticks);
+  }
+  // Proposed far-bank planting (flora-layout.js): markers only, a composition to judge.
+  if (flora && want('farbank')) {
+    const { place } = reports.farbank;
+    floraEntries.push(...farBankProposal({ place, forecourt: forecourtFrame().xRange, rand: mulberry32(613 + seed) }));
   }
   if (want('forecourt')) reports.forecourt = buildForecourt(w); // the Assembly's river front on the embankment (pass e7)
   if (want('waterfront')) reports.waterfront = buildNearWaterfront(w); // our side: the waterfront's street and railing (pass e11)

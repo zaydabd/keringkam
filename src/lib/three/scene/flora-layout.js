@@ -159,3 +159,35 @@ export function showFloraLegend(legend, title) {
   document.body.append(el);
   return () => el.remove();
 }
+
+/**
+ * PROPOSED planting for the far bank (not in the scene yet; markers only, under ?flora): a
+ * composition to try before the plants are made. Every position and size is a design guess,
+ * not taken from a photo or survey. `place(xWater, offset)` comes from the far bank (banks.js);
+ * `forecourt` is the x range of the waterline the Assembly's river front stands on, kept clear.
+ *  - a tree line on the natural bank left of the embankment, in clumps with gaps, behind the
+ *    bridge: it gives the flat meadow a skyline;
+ *  - a pair of tall trees each side of the forecourt, framing its stairs;
+ *  - street trees along the far path, evenly spaced, both sides of the forecourt;
+ *  - trees on the terrace behind the crest, their crowns showing over it, either side of the Assembly;
+ *  - low bushes at the foot of the embankment, right of the forecourt.
+ */
+export function farBankProposal({ place, forecourt: [f0, f1], rand }) {
+  const out = [];
+  const add = (group, kind, at, height, width) => out.push({ group, kind, at, height, width, yaw: rand() * Math.PI * 2 });
+  // Tree line on the meadow: clumps of 3-5 along the crest distance, gaps between them.
+  for (let x = -150; x < -12; ) {
+    const n = 3 + Math.floor(rand() * 3);
+    for (let i = 0; i < n; i++, x += 4 + rand() * 3) add('proposed: meadow tree line', 'tree', place(x, 28 + rand() * 18), 9 + rand() * 6, 6 + rand() * 3);
+    x += 12 + rand() * 14;
+  }
+  // Framing pairs either side of the forecourt, on the slope above the path.
+  for (const [x, o] of [[f0 - 3, 17], [f0 - 6.5, 21], [f1 + 3, 17], [f1 + 6.5, 21]]) add('proposed: forecourt framing trees', 'tree', place(x, o), 12 + rand() * 2, 7);
+  // Street trees on the far path, every 12 m, clear of the forecourt and the bridge's pier.
+  for (let x = -66; x <= 66; x += 12) if ((x < f0 - 10 || x > f1 + 10) && Math.abs(x + 22) > 6) add('proposed: far street trees', 'tree', place(x, 9.3), 6 + rand() * 1.5, 4);
+  // Terrace trees behind the crest, either side of the Assembly.
+  for (const x of [f1 + 20, f1 + 28, f1 + 40, 60, 72]) add('proposed: terrace trees', 'tree', place(x, 48 + rand() * 20), 11 + rand() * 4, 7 + rand() * 2);
+  // Bushes along the embankment's foot, right of the forecourt, in threes.
+  for (let x = f1 + 12; x < f1 + 46; x += 11) for (let i = 0; i < 3; i++) add('proposed: embankment foot bushes', 'bush', place(x + i * 1.6, 15.6 + rand() * 0.6), 1.2 + rand() * 0.5, 1.8 + rand() * 0.6);
+  return out;
+}
