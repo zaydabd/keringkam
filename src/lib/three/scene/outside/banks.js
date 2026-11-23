@@ -211,7 +211,7 @@ export function buildFarBank(w, { seed = 0 } = {}) {
   const near = stations.filter((st) => reach(st) < FAR_FRONT.reach);
   const railing = buildRailing(w, near, { kerbY: () => kerbY, lattice: false, skip, minSize: FAR_FRONT.drawn });
   stats.railing = { posts: railing.posts, bays: railing.bays, gaps: railing.gaps };
-  contract.range('far street above the water (m), estimated', top - S.water, 1, 1.6);
+  contract.range('far street above the water (m), estimated', top - S.water, 2, 2.8); // 2.5 m (pass e13; was 1.5)
   contract.range('far street width (m), estimated', F.rough - K.width, 5, 10);
   checkFooting(contract, 'far', railing, K.width, kerbY);
   contract.min('far railing bays', railing.bays, 100);

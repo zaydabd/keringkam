@@ -2,10 +2,11 @@
 // the river, boats and railing uncanny together, and asked for our own judgement rather than a
 // match to R3. The judgement: a boat far out on open water, with nothing in front of it, gives no
 // clue to its size, so it reads as a toy. On a real waterfront the nearest boats pass just beyond
-// the railing: the railing (about waist high) crosses the hull and the roof rises over the top
-// rail, which sets the scale. So the near boat comes in behind the railing, the far one to about
-// mid-river. The boats keep their size (boats.js PENAMBANG: 6.2 m, read off photos, an estimate;
-// Zaini et al. 2024 give 8-10 passengers on side benches and no length,
+// the railing, and the railing (about waist high) in front of it sets the scale. So the near boat
+// comes in behind the railing, the far one to about mid-river. Pass e13 lowered the river 1 m (the
+// user: a boat that close should sit lower), so the near boat now sits down behind the railing, its
+// roof at about the top rail's line. The boats keep their size (boats.js PENAMBANG: 6.2 m, read off
+// photos, an estimate; Zaini et al. 2024 give 8-10 passengers on side benches and no length,
 // https://tuengr.com/V15/15A4E.pdf).
 //
 // Measured in the shot (waterbush.js inShot: the place across the opening, f, and the slope of the
@@ -22,7 +23,7 @@ export const BOAT_PLACE = {
   nearMax: 27, // m from the eye: the near boat at most this far, so it reads at its size (was 35.9)
   farRange: [45, 65], // m from the eye: the far boat about mid-river (was 69.9)
   onWater: 0.01, // tan: both hull ends of the near boat this far beyond the street's edge, on water seen through the railing
-  overRail: 0.02, // tan: the near boat's roof ridge this far above the railing's top, so the cabin shows over the rail
+  atRail: 0.01, // tan: the near boat's roof ridge at most this far above the railing's top (about 9 px), so the boat sits down behind the railing (pass e13; was at least 0.02 above it)
   farOverRail: 0.03, // tan: the far boat's whole hull above the railing's top
   apart: 0.04, // f: the gap across the opening between the two boats (about 40 px)
   pier: 0.04, // f: the far boat keeps this clear of the bridge pier's column on either side
@@ -88,7 +89,7 @@ export function checkBoats(boats = SITE.boats) {
   c.max('near boat from the eye (m)', near.eye, P.nearMax);
   c.range('far boat from the eye (m)', far.eye, ...P.farRange);
   c.min('near boat on water seen past the street\'s edge (tan)', near.low - edgeTan(), P.onWater);
-  c.min('near boat\'s roof ridge above the railing top (tan)', near.ridge - rail, P.overRail);
+  c.max('near boat\'s roof ridge above the railing top (tan)', near.ridge - rail, P.atRail);
   c.min('far boat above the railing top (tan)', far.low - rail, P.farOverRail);
   c.min('gap across the opening between the boats (f)', Math.max(near.f[0] - far.f[1], far.f[0] - near.f[1]), P.apart);
   c.min('far boat clear of the bridge pier\'s column (f)', Math.max(pier - far.f[1], far.f[0] - pier), P.pier);

@@ -2,8 +2,9 @@
 //
 // Every number here is an estimate read off reference R3 (a painting supplied by the user; not
 // in the repo), not a surveyed fact. The painting was back-projected from the window shot
-// (interior.js SHOTS.window: eye 4.7 m above the water, 54 degree lens, horizon a little below
-// the middle), so a point of the painting gets a place in metres. The painting is not to scale
+// (interior.js SHOTS.window: eye then 4.7 m above the water, 5.7 m since the river was lowered in
+// pass e13; 54 degree lens, horizon a little below the middle), so a point of the painting gets a
+// place in metres. The painting is not to scale
 // (its river is far narrower than the real Sarawak River at Kuching); the scene follows the
 // painting's composition.
 
@@ -14,7 +15,7 @@ export const WINDOW_EYE = [-0.475, 1.5, -4.62];
 
 export const SITE = {
   ground: -1.85, // the house stands on 1.85 m stilts; the room's floor is y = 0
-  water: -3.2,
+  water: -4.2, // pass e13: 1 m lower (was -3.2), the user's choice, so the near boat sits lower behind the railing (ESTIMATED)
   // The far waterline as [x, z], upstream (far left of the view) to downstream (right). The first
   // point only carries the river out of sight. Our side is the waterfront street (`near` below;
   // waterfront.js), with the bush below the window on its grass (waterbush.js).
@@ -26,7 +27,7 @@ export const SITE = {
     foot: 15, // foot of the mown embankment
     crest: 27, // its crest, at about the eye's height: the terrace behind it is seen edge-on
     back: 110, // the terrace behind, as far as the swept part goes
-    roughY: -1.7, // the far street's top, 1.5 m above the water (ESTIMATED; banks.js and forecourt.js footY read it)
+    roughY: -1.7, // the far street's top, 2.5 m above the water (ESTIMATED; banks.js and forecourt.js footY read it)
     crestY: 1.4,
     backY: 1.9,
     meadowY: 0, // left of the embankment the bank is natural: this high at the crest distance
@@ -82,11 +83,13 @@ export const SITE = {
     // e9, the user's choice): about 40° off the line of sight, so the side and the roof still
     // show (pointing straight at the bridge would be nearly stern-on). Was ry 0.3 and 0.15.
     // Placed by the contract in placement.js (pass e12), solved from its targets, not by eye. The
-    // near boat comes in just beyond the railing (about 25 m from the eye, its hull seen through
-    // the lattice and its roof over the top rail), so the railing gives it a scale; the far boat
+    // near boat comes in just beyond the railing (about 26 m from the eye, its hull seen through
+    // the lattice), so the railing gives it a scale; the far boat
     // sits about mid-river (about 55 m), clear of the bridge pier, turned 10° from the near one so
-    // they do not read as a queue. Was (-6.5, -40) and (-19, -72, 2.55).
-    { x: -0.5, z: -30, ry: 2.45, scheme: 'red' }, // the near boat; colours of photo B1
+    // they do not read as a queue. Was (-6.5, -40) and (-19, -72, 2.55). Pass e13 lowered the
+    // river 1 m: the near boat moved 1 m out (from z -30) so its waterline still shows past the street's
+    // edge, and its roof now sits about at the top rail's line.
+    { x: -0.5, z: -31, ry: 2.45, scheme: 'red' }, // the near boat; colours of photo B1
     { x: -14.5, z: -57.5, ry: 2.63, scheme: 'orange' }, // the far boat, left of it; colours of photo B3
   ],
 };

@@ -245,7 +245,7 @@ export function buildNearWaterfront(w) {
   const railing = buildRailing(w, nearStations(), { kerbY: () => kerbTop, lattice: true });
 
   const c = createContract('near waterfront');
-  c.range('street above the water (m)', top - SITE.water, 1, 1.6);
+  c.range('street above the water (m), estimated', top - SITE.water, 2, 2.8); // 2.35 m (pass e13; was 1.35)
   c.min('edge face below the water (m)', SITE.water - edgeLow, 0.3);
   c.range('street width (m), estimated', N.width - K.width, 5, 10);
   checkFooting(c, 'near', railing, K.width, kerbTop);
