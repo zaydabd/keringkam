@@ -16,6 +16,9 @@
 //   - stem count, leaves per stem, leaf angles, droop, the two-ranked leaf turn, petiole/blade
 //     ratio, ring scars on the bare stem, the variegation layout and all colours;
 //   - no pot, no flowers.
+//   - the look: leaves textured in code after Cyprien Witkowski's foliage study (see
+//     aglaonema/leaf-texture.js): a "sculpted" normal map and a painted albedo; hue-shifted
+//     cel tones, a rim light and light through the undersides are our interpretation.
 // Nothing is copied from any model, texture or image.
 //
 // create({ seed, lod, size }): size is 'floor' or 'table'. Without it, seeds divisible by 3 give
@@ -28,6 +31,7 @@ import { mulberry32, range, stratified } from '../rng.js';
 import { addTube, createMeshWriter } from '../tube.js';
 import { UP } from '../grow.js';
 import { CEL_RAMP_GLSL, FOLIAGE_SUN, toneUniforms } from '../cel-foliage.js';
+import { createLeafTextures } from './aglaonema/leaf-texture.js';
 
 // Sizes in metres (guess except where noted above).
 const SIZES = {
@@ -36,53 +40,90 @@ const SIZES = {
 };
 
 // Variegation palettes, one picked per seed (all are colours the source lists; shades are guesses).
+// deep: leaf base and margin, green: blade, tip: brighter tip, light: variegation, rib: midrib.
 const PALETTES = [
-  { name: 'silver', green: '#2f5a2c', light: '#c9d6c2', rib: '#a9c39a', petiole: '#c8d4b8' },
-  { name: 'cream', green: '#33612a', light: '#dfe3b0', rib: '#d2d99a', petiole: '#e3e2c4' },
-  { name: 'pink', green: '#3a6232', light: '#e6a3a8', rib: '#d9707c', petiole: '#e8b5b5' },
+  { name: 'silver', deep: '#103a1e', green: '#237a2e', tip: '#6cbf3a', light: '#d3e6c6', rib: '#c3dbad', petiole: '#c8d8b4' },
+  { name: 'cream', deep: '#123c1c', green: '#2a7e2c', tip: '#78c23c', light: '#ece9a6', rib: '#e0e29a', petiole: '#e3e2c0' },
+  { name: 'pink', deep: '#163c20', green: '#2d7a30', tip: '#74b840', light: '#f3a4b8', rib: '#e8728f', petiole: '#eeb4bf' },
 ];
-const STEM = { base: '#7f9476', blotch: '#c6cdbd', ring: '#4f5e45' };
+const STEM = { base: '#71886a', blotch: '#c3cbb8', ring: '#46553f' };
+const UNDERSIDE = '#9cc47f'; // paler underside (guess)
 
-// Cel tones as multipliers on the paint: shadow, mid, light (guess).
-const TONES = ['#44505c', '#b4bdb6', '#ffffff'];
+// Cel tones as multipliers on the painted texture: shadow, mid, light. Hue-shifted (cool shadow,
+// warm light) for the vibrant look of the foliage study (guess).
+const TONES = ['#33506a', '#a6c6ae', '#fff4dc'];
 
-function createMaterial() {
+function createMaterial(map, normalMap) {
   return new THREE.ShaderMaterial({
-    uniforms: toneUniforms(TONES),
+    uniforms: { ...toneUniforms(TONES), map: { value: map }, normalMap: { value: normalMap }, underside: { value: new THREE.Color(UNDERSIDE) } },
     vertexColors: true,
     vertexShader: /* glsl */ `
-      attribute vec3 paint2;
-      attribute float vari;
+      attribute vec3 tanU;
+      attribute vec3 tanV;
+      attribute vec3 face;
+      attribute float leafMask;
       attribute float ao;
       varying vec3 vNormal;
-      varying vec3 vPaint;
-      varying vec3 vPaint2;
-      varying float vVari;
+      varying vec3 vTanU;
+      varying vec3 vTanV;
+      varying vec3 vFace;
+      varying vec3 vColor;
+      varying vec3 vViewPos;
+      varying vec2 vUv;
+      varying float vLeaf;
       varying float vAo;
       void main() {
         vNormal = normalize(normalMatrix * normal);
-        vPaint = color;
-        vPaint2 = paint2;
-        vVari = vari;
+        vTanU = normalMatrix * tanU;
+        vTanV = normalMatrix * tanV;
+        vFace = normalMatrix * face;
+        vColor = color;
+        vUv = uv;
+        vLeaf = leafMask;
         vAo = ao;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        vViewPos = mv.xyz;
+        gl_Position = projectionMatrix * mv;
       }`,
     fragmentShader: /* glsl */ `
       uniform vec3 sunDir;
+      uniform sampler2D map;
+      uniform sampler2D normalMap;
+      uniform vec3 underside;
       ${CEL_RAMP_GLSL}
       varying vec3 vNormal;
-      varying vec3 vPaint;
-      varying vec3 vPaint2;
-      varying float vVari;
+      varying vec3 vTanU;
+      varying vec3 vTanV;
+      varying vec3 vFace;
+      varying vec3 vColor;
+      varying vec3 vViewPos;
+      varying vec2 vUv;
+      varying float vLeaf;
       varying float vAo;
       void main() {
+        vec3 V = normalize(-vViewPos);
         vec3 L = normalize((viewMatrix * vec4(sunDir, 0.0)).xyz);
-        float shade = max(dot(normalize(vNormal), L), 0.0) * vAo;
-        // The variegation is a scalar per vertex, cut sharply here, so the pattern has crisp
-        // feathered edges like the cel bands.
-        float w = fwidth(vVari) * 0.75 + 0.01;
-        vec3 paint = mix(vPaint, vPaint2, smoothstep(0.5 - w, 0.5 + w, vVari));
-        gl_FragColor = vec4(celRamp(shade) * paint, 1.0);
+        vec3 N = normalize(vNormal);
+        vec3 albedo = vColor;
+        if (vLeaf > 0.5) {
+          // Painted texture and "sculpted" relief (normal map in the blade's u/v frame).
+          albedo = texture2D(map, vUv).rgb;
+          vec3 nm = texture2D(normalMap, vUv).xyz * 2.0 - 1.0;
+          N = normalize(N + normalize(vTanU) * nm.x + normalize(vTanV) * nm.y);
+          // Seen from below: flip and use the paler underside.
+          if (dot(normalize(vFace), V) < 0.0) {
+            N = reflect(N, normalize(vFace));
+            albedo = mix(albedo, underside, 0.6);
+          }
+        }
+        float shade = max(dot(N, L), 0.0) * vAo;
+        // Leaves let light through: a seen-from-below blade never drops to the darkest tone (guess).
+        if (vLeaf > 0.5 && dot(normalize(vFace), V) < 0.0) shade = max(shade, 0.4 * vAo);
+        vec3 col = celRamp(shade) * albedo;
+        // Rim light, for the glowing edges of the foliage study (guess).
+        float rim = pow(1.0 - abs(dot(N, V)), 3.0) * vAo;
+        col += rim * 0.2 * mix(albedo, vec3(1.0, 0.95, 0.8), 0.5);
+        gl_FragColor = vec4(col, 1.0);
         #include <colorspace_fragment>
       }`,
     side: THREE.DoubleSide,
@@ -92,19 +133,36 @@ function createMaterial() {
 /** Extra per-vertex attributes beside the tube writer's. */
 function createWriter() {
   const w = createMeshWriter();
-  w.paint2 = [];
-  w.vari = [];
+  w.tanU = [];
+  w.tanV = [];
+  w.face = [];
+  w.leafMask = [];
   w.ao = [];
   return w;
 }
 
-/** Pads paint2/vari/ao for vertices written by addTube. */
-function fillExtra(w, from, paint2, vari, ao) {
+/** Pads the extra attributes for vertices written by addTube (not textured). */
+function fillExtra(w, from, ao) {
   for (let i = from; i < w.vertexCount; i++) {
-    w.paint2.push(paint2.r, paint2.g, paint2.b);
-    w.vari.push(typeof vari === 'function' ? vari(i) : vari);
+    w.tanU.push(0, 0, 0);
+    w.tanV.push(0, 0, 0);
+    w.face.push(w.normals[i * 3], w.normals[i * 3 + 1], w.normals[i * 3 + 2]);
+    w.leafMask.push(0);
     w.ao.push(typeof ao === 'function' ? ao(i) : ao);
   }
+}
+
+/** One textured blade vertex. */
+function pushLeafVertex(w, pos, nrm, u, v, tu, tv, face, ao) {
+  w.positions.push(pos.x, pos.y, pos.z);
+  w.normals.push(nrm.x, nrm.y, nrm.z);
+  w.uvs.push(u, v);
+  w.colors.push(1, 1, 1);
+  w.tanU.push(tu.x, tu.y, tu.z);
+  w.tanV.push(tv.x, tv.y, tv.z);
+  w.face.push(face.x, face.y, face.z);
+  w.leafMask.push(1);
+  w.ao.push(ao);
 }
 
 const hash = (a, b) => {
@@ -207,20 +265,6 @@ function bladeFrame(leaf, start, dir0, out, rows) {
 // Oblong-lanceolate: cuneate base, widest a bit below the middle, acute tip.
 const widthAt = (t) => Math.sin(Math.PI * Math.pow(t, 0.72)) ** 0.85 * (1 - 0.15 * t * t);
 
-/** Variegation scalar (>0.5 = light paint) at blade (t, s). Guess pattern after the source's
- *  "banded ... along primary veins": light feathers along curved lateral veins, a light midrib,
- *  green margin and tip. */
-function variegation(t, s, veins, phase, amount) {
-  const a = Math.abs(s);
-  const vein = Math.cos(Math.PI * 2 * ((t - 0.32 * a) * veins + phase));
-  // Edge of the light core, in |s|: it swings out along each vein, so the boundary feathers.
-  const edge = coreEdge(amount) + 0.12 * vein;
-  const ends = THREE.MathUtils.smoothstep(t, 0.03, 0.14) * (1 - THREE.MathUtils.smoothstep(t, 0.72, 0.95));
-  let v = (0.5 + (edge - a) * 3) * ends;
-  if (a < 0.06 && t > 0.03 && t < 0.92) v = Math.max(v, 0.8);
-  return THREE.MathUtils.clamp(v, 0, 1);
-}
-
 // AO after the anime-foliage guide: dark low and inside, plus a gradient darkening the side away
 // from the sun (weights are guesses).
 const _a = new THREE.Vector3();
@@ -232,9 +276,7 @@ function aoAt(p, centre, height, young) {
   return 0.45 + 0.3 * h + 0.15 * out + 0.12 * toward + 0.05 * young;
 }
 
-const coreEdge = (amount) => 0.15 + 0.4 * amount;
-
-function emitBlade(w, leaf, start, dir0, out, pal, opts, centre, height) {
+function emitBlade(w, leaf, start, dir0, out, opts, centre, height) {
   const { rows, cols } = opts;
   const f = bladeFrame(leaf, start, dir0, out, rows);
   const W = f.L * leaf.width * 0.5;
@@ -255,20 +297,12 @@ function emitBlade(w, leaf, start, dir0, out, pal, opts, centre, height) {
       // V fold along the midrib (edges lift) and a soft wave along the margin (guess).
       const lift = opts.fold * Math.abs(s) * half + 0.06 * half * Math.sin(t * 9 + s * 2) * Math.abs(s);
       pos.copy(f.spine[i]).addScaledVector(sideT, s * half).addScaledVector(faceN, lift);
-      w.positions.push(pos.x, pos.y, pos.z);
-      // Fold normal, then blended with the clump's sphere normal so the plant shades as one mass.
+      // Fold normal, blended with the clump's sphere normal (normal transfer) so the plant
+      // shades as one mass; the normal map adds the sculpted relief on top.
       nrm.copy(faceN).addScaledVector(sideT, -Math.sign(s) * opts.fold * 0.9).normalize();
       proxy.subVectors(pos, centre).normalize();
-      nrm.lerp(proxy, 0.7).normalize();
-      w.normals.push(nrm.x, nrm.y, nrm.z);
-      w.uvs.push(j / cols, t);
-      const v = variegation(t, s, opts.veins, opts.phase, opts.amount);
-      const g = pal.green;
-      w.colors.push(g.r, g.g, g.b);
-      const l = Math.abs(s) < 0.08 ? pal.rib : pal.light;
-      w.paint2.push(l.r, l.g, l.b);
-      w.vari.push(v);
-      w.ao.push(aoAt(pos, centre, height, leaf.young));
+      nrm.lerp(proxy, 0.6).normalize();
+      pushLeafVertex(w, pos, nrm, j / cols, t, sideT, f.dirs[i], faceN, aoAt(pos, centre, height, leaf.young));
     }
   }
   const ring = cols + 1;
@@ -283,43 +317,38 @@ function emitBlade(w, leaf, start, dir0, out, pal, opts, centre, height) {
   return tris;
 }
 
-/** Far blade: a folded lance of 8 triangles plus one sliver to the node standing in for the petiole. */
-function emitFarLeaf(w, leaf, node, start, dir0, out, pal, opts, centre, height) {
+/** Far blade: a folded lance of 8 triangles plus one sliver to the node standing in for the
+ *  petiole. Same texture, so the colours match near. */
+function emitFarLeaf(w, leaf, node, start, dir0, out, opts, centre, height) {
   const f = bladeFrame(leaf, start, dir0, out, 3);
   const W = f.L * leaf.width * 0.5;
   const pos = new THREE.Vector3();
   const nrm = new THREE.Vector3();
   const proxy = new THREE.Vector3();
   const base = w.vertexCount;
-  const push = (p, n, v, light) => {
-    w.positions.push(p.x, p.y, p.z);
+  const push = (p, n, u, v) => {
     proxy.subVectors(p, centre).normalize();
-    nrm.copy(n).lerp(proxy, 0.45).normalize();
-    w.normals.push(nrm.x, nrm.y, nrm.z);
-    w.uvs.push(0, 0);
-    w.colors.push(pal.green.r, pal.green.g, pal.green.b);
-    w.paint2.push(light.r, light.g, light.b);
-    w.vari.push(v);
-    w.ao.push(aoAt(p, centre, height, leaf.young));
+    nrm.copy(n).lerp(proxy, 0.6).normalize();
+    pushLeafVertex(w, p, nrm, u, v, f.side, f.dirs[Math.min(3, Math.round(v * 3))], n, aoAt(p, centre, height, leaf.young));
   };
   const faceAt = (i) => {
     const n = new THREE.Vector3().crossVectors(f.side, f.dirs[i]).normalize();
     return n.y < 0 ? n.negate() : n;
   };
   const pw = W * 0.12;
-  push(node, faceAt(0), 0, pal.light); // 0: node
-  push(node.clone().addScaledVector(f.side, pw), faceAt(0), 0, pal.light); // 1: node, offset
-  push(f.spine[0], faceAt(0), 0.7, pal.rib); // 2: blade base
+  // The petiole sliver samples the pale midrib at the blade base.
+  push(node, faceAt(0), 0.5, 0.02); // 0: node
+  push(node.clone().addScaledVector(f.side, pw), faceAt(0), 0.5, 0.02); // 1: node, offset
+  push(f.spine[0], faceAt(0), 0.5, 0); // 2: blade base
   for (const i of [1, 2]) {
     const n = faceAt(i);
     const half = W * widthAt(i / 3);
     for (const s of [-1, 0, 1]) {
       pos.copy(f.spine[i]).addScaledVector(f.side, s * half).addScaledVector(n, opts.fold * Math.abs(s) * half);
-      // Far colour: the light core of the near pattern, on the midrib only.
-      push(pos, n, s === 0 ? opts.farLight : 0, pal.light);
+      push(pos, n, (s + 1) / 2, i / 3);
     }
   }
-  push(f.spine[3], faceAt(3), 0, pal.light); // 9: tip
+  push(f.spine[3], faceAt(3), 0.5, 1); // 9: tip
   const b = base;
   // Petiole sliver, then rows [3,4,5] (t=1/3) and [6,7,8] (t=2/3).
   w.indices.push(b, b + 1, b + 2);
@@ -335,7 +364,8 @@ export function createAglaonema({ seed = 1, lod = 'near', size } = {}) {
   const rand = mulberry32(seed * 7919 + 13);
   const palRaw = PALETTES[Math.floor(rand() * PALETTES.length)];
   const pal = Object.fromEntries(Object.entries(palRaw).map(([k, v]) => [k, k === 'name' ? v : new THREE.Color(v)]));
-  const pattern = { veins: Math.round(range(rand, 5, 8)), phase: range(rand, 0, 1), amount: range(rand, 0.35, 0.75) };
+  const pattern = { veins: Math.round(range(rand, 5, 8)), phase: range(rand, 0, 1), amount: range(rand, 0.2, 0.5) };
+  const { map, normalMap } = createLeafTextures(seed, pal, pattern);
   const stems = layout(rand, S);
   const near = lod !== 'far';
 
@@ -358,17 +388,15 @@ export function createAglaonema({ seed = 1, lod = 'near', size } = {}) {
     const radii = st.points.map((_, k) => st.radius * (1 - 0.35 * (k / (st.points.length - 1))));
     const pts = near ? st.points : [st.points[0], st.points[3], st.points[6]];
     const rr = near ? radii : [radii[0], radii[3], radii[6]];
-    const vVals = [];
     stats.triangles.stems += addTube(w, pts, rr, {
       radial: near ? 6 : 3,
       colorAt: (v, u, t) => {
         const ring = near && t < 0.45 && (v / internode) % 1 < 0.14;
-        vVals.push(near ? hash(Math.floor(v / (internode * 0.5)) + si * 7, Math.floor(u * 3)) * 0.9 : 0);
-        return tmp.copy(ring ? stemRing : stemBase);
+        const blotch = near ? hash(Math.floor(v / (internode * 0.5)) + si * 7, Math.floor(u * 3)) : 0.3;
+        return tmp.copy(stemBase).lerp(stemBlotch, blotch > 0.55 ? 0.8 : 0.15).lerp(stemRing, ring ? 0.85 : 0);
       },
     });
-    let k = 0;
-    fillExtra(w, from, stemBlotch, () => vVals[k++] ?? 0, (i) => 0.4 + 0.4 * THREE.MathUtils.clamp(w.positions[i * 3 + 1] / height, 0, 1));
+    fillExtra(w, from, (i) => 0.65 + 0.35 * THREE.MathUtils.clamp(w.positions[i * 3 + 1] / height, 0, 1));
 
     for (const leaf of st.leaves) {
       const path = petiolePath(st, leaf, near ? 4 : 2);
@@ -377,19 +405,21 @@ export function createAglaonema({ seed = 1, lod = 'near', size } = {}) {
         const pf = w.vertexCount;
         const pr = path.pts.map((_, i) => st.radius * (0.42 - 0.18 * (i / (path.pts.length - 1))));
         stats.triangles.stems += addTube(w, path.pts, pr, { radial: 3, color: pal.petiole });
-        fillExtra(w, pf, pal.petiole, 0, 0.8);
-        stats.triangles.leaves += emitBlade(w, leaf, path.end, path.dir, path.out, pal, { rows: 18, cols: 8, fold: 0.14, ...pattern }, centre, height);
+        fillExtra(w, pf, 0.8);
+        stats.triangles.leaves += emitBlade(w, leaf, path.end, path.dir, path.out, { rows: 14, cols: 6, fold: 0.14 }, centre, height);
       } else {
-        stats.triangles.leaves += emitFarLeaf(w, leaf, path.pts[0], path.end, path.dir, path.out, pal, { fold: 0.14, farLight: 0.5 / (1 - coreEdge(pattern.amount)) }, centre, height);
+        stats.triangles.leaves += emitFarLeaf(w, leaf, path.pts[0], path.end, path.dir, path.out, { fold: 0.14 }, centre, height);
       }
     }
   }
 
   const geometry = w.toGeometry();
-  geometry.setAttribute('paint2', new THREE.Float32BufferAttribute(w.paint2, 3));
-  geometry.setAttribute('vari', new THREE.Float32BufferAttribute(w.vari, 1));
+  geometry.setAttribute('tanU', new THREE.Float32BufferAttribute(w.tanU, 3));
+  geometry.setAttribute('tanV', new THREE.Float32BufferAttribute(w.tanV, 3));
+  geometry.setAttribute('face', new THREE.Float32BufferAttribute(w.face, 3));
+  geometry.setAttribute('leafMask', new THREE.Float32BufferAttribute(w.leafMask, 1));
   geometry.setAttribute('ao', new THREE.Float32BufferAttribute(w.ao, 1));
-  const material = createMaterial();
+  const material = createMaterial(map, normalMap);
   const mesh = new THREE.Mesh(geometry, material);
   mesh.name = `aglaonema ${near ? 'near' : 'far'}`;
   const group = new THREE.Group();
@@ -406,6 +436,8 @@ export function createAglaonema({ seed = 1, lod = 'near', size } = {}) {
     dispose() {
       geometry.dispose();
       material.dispose();
+      map.dispose();
+      normalMap.dispose();
     },
   };
 }
@@ -415,7 +447,7 @@ export const plant = {
   label: 'Chinese evergreen',
   create: createAglaonema,
   switchAt: 8, // guess; tune in the scene
-  target: [0, 0.45, 0],
+  target: [0, 0.36, 0],
   distance: 2,
   background: '#e4e8e2',
 };
