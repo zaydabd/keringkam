@@ -179,19 +179,19 @@ export function farBankProposal({ place, forecourt: [f0, f1], rand }) {
   // Tree line on the meadow: clumps of 3-5 along the crest distance, gaps between them.
   for (let x = -240; x < -12; ) {
     const n = 3 + Math.floor(rand() * 3);
-    for (let i = 0; i < n; i++, x += 4 + rand() * 3) add('proposed: bungor (Lagerstroemia speciosa)', 'tree', place(x, 28 + rand() * 18), 9 + rand() * 6, 6 + rand() * 3);
+    for (let i = 0; i < n; i++, x += 4 + rand() * 3) add('proposed: rain tree (meadow line)', 'tree', place(x, 28 + rand() * 18), 9 + rand() * 6, 6 + rand() * 3);
     x += 6 + rand() * 8;
   }
   // Left of the bridge (upstream), the user's ask: a taller back row behind the line, and loose
   // groups nearer the water, so that side reads wooded.
-  for (let x = -230; x < -20; x += 9 + rand() * 6) add('proposed: rain tree (Samanea saman)', 'tree', place(x, 55 + rand() * 30), 12 + rand() * 6, 8 + rand() * 3);
+  for (let x = -230; x < -20; x += 9 + rand() * 6) add('proposed: rain tree (meadow back)', 'tree', place(x, 55 + rand() * 30), 12 + rand() * 6, 8 + rand() * 3);
   for (let x = -210; x < -35; x += 14 + rand() * 12) for (let i = 0; i < 2; i++) add('proposed: pedada (Sonneratia caseolaris)', 'tree', place(x + i * 4.5, 12 + rand() * 8), 7 + rand() * 4, 5 + rand() * 2);
   // Framing pairs either side of the forecourt, on the slope above the path.
-  for (const [x, o] of [[f0 - 3, 17], [f0 - 6.5, 21], [f1 + 3, 17], [f1 + 6.5, 21]]) add('proposed: angsana (Pterocarpus indicus)', 'tree', place(x, o), 12 + rand() * 2, 7);
+  for (const [x, o] of [[f0 - 3, 17], [f0 - 6.5, 21], [f1 + 3, 17], [f1 + 6.5, 21]]) add('proposed: rain tree (forecourt)', 'tree', place(x, o), 12 + rand() * 2, 7);
   // Street trees on the far path, every 12 m, clear of the forecourt and the bridge's pier.
-  for (let x = -66; x <= 66; x += 12) if ((x < f0 - 10 || x > f1 + 10) && Math.abs(x + 22) > 6) add('proposed: khaya (Khaya senegalensis)', 'tree', place(x, 9.3), 6 + rand() * 1.5, 4);
+  for (let x = -66; x <= 66; x += 12) if ((x < f0 - 10 || x > f1 + 10) && Math.abs(x + 22) > 6) add('proposed: rain tree (street)', 'tree', place(x, 9.3), 6 + rand() * 1.5, 4);
   // Terrace trees behind the crest, either side of the Assembly.
-  for (const x of [f1 + 20, f1 + 28, f1 + 40, 60, 72]) add('proposed: trumpet tree (Tabebuia rosea)', 'tree', place(x, 48 + rand() * 20), 11 + rand() * 4, 7 + rand() * 2);
+  for (const x of [f1 + 20, f1 + 28, f1 + 40, 60, 72]) add('proposed: rain tree (terrace)', 'tree', place(x, 48 + rand() * 20), 11 + rand() * 4, 7 + rand() * 2);
   // Bushes along the embankment's foot, right of the forecourt, in threes.
   for (let x = f1 + 12; x < f1 + 46; x += 11) for (let i = 0; i < 3; i++) add('proposed: nipah palm (Nypa fruticans)', 'bush', place(x + i * 1.6, 15.6 + rand() * 0.6), 1.2 + rand() * 0.5, 1.8 + rand() * 0.6);
   return out;
@@ -215,14 +215,14 @@ export function roomPlantsProposal(PLAN) {
   // Upright floor plant on the wall between the left window and the settee.
   const gapX = (w0.x1 + (PLAN.settee.x - PLAN.settee.w / 2)) / 2;
   out.push({ group: 'proposed: floor pot (upright)', kind: 'planter', at: [gapX, 0, z0 + 0.3], width: 0.28, height: 0.3, yaw: 0 });
-  out.push({ group: 'proposed: Chinese evergreen (Aglaonema)', kind: 'fern', at: [gapX, 0.25, z0 + 0.3], width: 0.38, height: 0.75, yaw: 0 });
+  out.push({ group: 'proposed: Chinese evergreen (floor)', kind: 'fern', at: [gapX, 0.25, z0 + 0.3], width: 0.38, height: 0.75, yaw: 0 });
   // Tall upright plant in the back-left corner, clear of the window.
   out.push({ group: 'proposed: floor pot (upright)', kind: 'planter', at: [w0.x0 - 0.5, 0, z0 + 0.4], width: 0.4, height: 0.4, yaw: 0 });
   out.push({ group: 'proposed: rubber plant (Ficus elastica)', kind: 'fern', at: [w0.x0 - 0.5, 0.35, z0 + 0.4], width: 0.6, height: 1.2, yaw: 0 });
   // A small upright pot on the back low table.
   const tx = table.x0 + 0.3, tz = (table.z0 + table.z1) / 2;
   out.push({ group: 'proposed: table pot (small upright)', kind: 'planter', at: [tx, table.h, tz], width: 0.14, height: 0.12, yaw: 0 });
-  out.push({ group: 'proposed: Peperomia (table)', kind: 'bush', at: [tx, table.h + 0.1, tz], width: 0.18, height: 0.18, yaw: 0 });
+  out.push({ group: 'proposed: Chinese evergreen (table)', kind: 'bush', at: [tx, table.h + 0.1, tz], width: 0.18, height: 0.18, yaw: 0 });
   // A low plant stand about 0.9 m in front of the left window (below its rail, so the view stays
   // open), its trailer spilling down the front: repeats the troughs. On the right it would hide
   // behind the front armchair.
@@ -243,9 +243,9 @@ export function windowHangingProposal(PLAN) {
   [...PLAN.backWindows].sort((a, b) => a.x0 - b.x0).slice(0, 2).forEach((w, i) => {
     const span = w.x1 - w.x0, len = span * 0.5, x = w.x0 + 0.05 + len / 2; // left end of the ledge
     out.push({ group: 'proposed: ledge trough', kind: 'planter', at: [x, ledge, zc], width: len, height: tall, depth, yaw: 0 });
-    out.push({ group: 'proposed: Hoya (ledge)', kind: 'bush', at: [x, ledge + tall - 0.04, zc], width: len * 1.1, height: 0.22, depth: depth * 1.5, yaw: 0 });
+    out.push({ group: 'proposed: satin pothos (ledge)', kind: 'bush', at: [x, ledge + tall - 0.04, zc], width: len * 1.1, height: 0.22, depth: depth * 1.5, yaw: 0 });
     const drop = [0.3, 0.38][i];
-    out.push({ group: 'proposed: Hoya trailing', kind: 'vine', at: [x, ledge + tall - drop, front + 0.02], width: len * 0.7, height: drop, depth: 0.15, yaw: 0 });
+    out.push({ group: 'proposed: satin pothos trailing (ledge)', kind: 'vine', at: [x, ledge + tall - drop, front + 0.02], width: len * 0.7, height: drop, depth: 0.15, yaw: 0 });
   });
   return out;
 }
