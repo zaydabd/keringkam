@@ -29,7 +29,8 @@
 //   perf  (or perf=n: n seconds per shot) a timed run from the seat to the window (perf.js)
 //   dpr   = n (draws at this pixel ratio and never steps it down; default: the device's, up to 3)
 // Keys: with Walk on (the button beside Graphics; setWalk), W/S or up/down move forward/back and
-//   A/D or left/right slide sideways; Shift: faster. Choosing a view from the menu goes back to that
+//   A/D or left/right slide sideways; Shift: faster. Dragging on the view (mouse or touch) turns it
+//   all the way round, at any time. Choosing a view from the menu goes back to that
 //   view. No collision: it can pass through walls.
 //   theme = original (default) | detailed | clay: the theme (themes/index.js). clay is the clay render, the
 //           scene without its look (themes/clay.js); theme=off still means clay. The theme
@@ -657,6 +658,33 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
   window.addEventListener('keydown', onKey);
   window.addEventListener('keyup', onKey);
   window.addEventListener('blur', onBlur);
+  // Drag to look (the user: "my mouse doesnt move the camera"; the pointer sway alone turns a few
+  // degrees): dragging on the view adds to the shot's yaw and pitch. 0.005 rad a pixel is a design
+  // choice; the pitch stops short of straight up and down.
+  const turn = new THREE.Vector2(); // x: yaw, y: pitch, radians
+  const DRAG_SPEED = 0.005;
+  let drag = null;
+  function onDragStart(e) {
+    if (e.button !== 0) return;
+    drag = { id: e.pointerId, x: e.clientX, y: e.clientY };
+    canvas.setPointerCapture(e.pointerId);
+  }
+  function onDragMove(e) {
+    if (!drag || e.pointerId !== drag.id) return;
+    turn.x += (e.clientX - drag.x) * DRAG_SPEED;
+    turn.y = THREE.MathUtils.clamp(turn.y - (e.clientY - drag.y) * DRAG_SPEED, -1.3, 1.3);
+    drag.x = e.clientX;
+    drag.y = e.clientY;
+  }
+  function onDragEnd(e) {
+    if (drag && e.pointerId === drag.id) drag = null;
+  }
+  canvas.style.touchAction = 'none'; // a touch drag turns the view instead of scrolling the page
+  canvas.style.cursor = 'grab';
+  canvas.addEventListener('pointerdown', onDragStart);
+  canvas.addEventListener('pointermove', onDragMove);
+  canvas.addEventListener('pointerup', onDragEnd);
+  canvas.addEventListener('pointercancel', onDragEnd);
   const fwd = new THREE.Vector3(), rightward = new THREE.Vector3();
   function stepWalk(dt) {
     if (!held.size) return;
@@ -685,8 +713,8 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
     const at = seat || (stage && eyeGiven) ? eye : V(...sh.eye);
     // A shot aims either by its pitch (and faces -z) or at a point (`at`).
     const aim = sh.at ? [Math.atan2(sh.at[0] - at.x, at.z - sh.at[2]), Math.atan2(sh.at[1] - at.y, Math.hypot(sh.at[0] - at.x, sh.at[2] - at.z))] : [0, THREE.MathUtils.degToRad(seat ? C.pitch : sh.pitch)];
-    const yaw = aim[0] + (free ? yawParam : 0) - look.x * sh.look[0];
-    const pitch = aim[1] + (free ? pitchParam : 0) - look.y * sh.look[1];
+    const yaw = aim[0] + (free ? yawParam : 0) - look.x * sh.look[0] + turn.x;
+    const pitch = THREE.MathUtils.clamp(aim[1] + (free ? pitchParam : 0) - look.y * sh.look[1] + turn.y, -1.4, 1.4);
     into.position.copy(at).add(walk);
     target.set(into.position.x + Math.sin(yaw) * Math.cos(pitch), into.position.y + Math.sin(pitch), into.position.z - Math.cos(yaw) * Math.cos(pitch));
     into.lookAt(target);
@@ -729,7 +757,8 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
     move.from.quaternion.copy(camera.quaternion);
     move.from.fov = camera.fov;
     shot = name;
-    walk.set(0, 0, 0); // a view from the menu starts where that view stands
+    walk.set(0, 0, 0); // a view from the menu starts where that view stands, facing its way
+    turn.set(0, 0);
     move.t = immediate ? 1 : 0;
     if (SHOTS[name].fabric) showFull(SHOTS[name].fabric);
     if (width) meterFor(name); // start adapting now, so the light changes during the move, not after it
@@ -913,6 +942,10 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
       window.removeEventListener('keydown', onKey);
       window.removeEventListener('keyup', onKey);
       window.removeEventListener('blur', onBlur);
+      canvas.removeEventListener('pointerdown', onDragStart);
+      canvas.removeEventListener('pointermove', onDragMove);
+      canvas.removeEventListener('pointerup', onDragEnd);
+      canvas.removeEventListener('pointercancel', onDragEnd);
       scene.traverse((o) => {
         if (o.geometry) o.geometry.dispose();
       });
