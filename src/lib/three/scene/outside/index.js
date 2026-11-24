@@ -34,7 +34,8 @@ import { buildForecourt, forecourtFrame } from './forecourt.js';
 import { OUTSIDE_THEME } from '../themes/index.js';
 import { CLAY } from '../themes/clay.js';
 import { buildFarBank, BANK_PAINT } from './banks.js';
-import { buildFarGrass, FAR_GRASS_GROUND } from './grass.js';
+import { FAR_GRASS_GROUND } from './grass.js';
+import { buildFarFur } from './fur.js';
 import { bladePatches, dropTriangles, buildFloraBlockout, farBankProposal } from '../flora-layout.js';
 import { buildWaterBush } from './waterbush.js';
 import { buildFloraStylised } from '../flora-stylised.js';
@@ -108,8 +109,6 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
     const { place } = reports.farbank;
     floraEntries.push(...farBankProposal({ place, forecourt: forecourtFrame().xRange, rand: mulberry32(613 + seed), stepPlanting: flora === 'stylised' }));
   }
-  // ?flora=stylised: short grass with patches of tall grass on the far bank (grass.js)
-  if (flora === 'stylised' && want('farbank')) reports.farGrass = { stats: buildFarGrass(w, reports.farbank, { seed }) };
   if (want('forecourt')) reports.forecourt = buildForecourt(w); // the Assembly's river front on the embankment (pass e7)
   if (want('waterfront')) reports.waterfront = buildNearWaterfront(w); // our side: the waterfront's street and railing (pass e11)
   if (want('waterbush')) {
@@ -295,6 +294,17 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
   // ?flora=stylised: the approved plants at the same entries (flora-stylised.js), also after the budget.
   const stylised = flora === 'stylised' ? buildFloraStylised(floraEntries, { eye: WINDOW_EYE, layer: MIRROR_LAYER }) : null;
   if (stylised) group.add(stylised.group);
+  // ?flora=stylised: the far bank covered in grass like fur (fur.js), over its dark-green ground
+  // (grass.js FAR_GRASS_GROUND). One instanced draw, after the budget like the plants. Layer 1: the
+  // ink pass would outline every blade.
+  if (flora === 'stylised' && want('farbank')) {
+    const fur = buildFarFur(reports.farbank, { seed, material: toon({ side: THREE.DoubleSide }) });
+    fur.mesh.layers.set(1);
+    fur.mesh.layers.enable(MIRROR_LAYER);
+    disposables.push(fur.mesh.geometry);
+    group.add(fur.mesh);
+    reports.farFur = { stats: fur.stats };
+  }
 
   return {
     group,
