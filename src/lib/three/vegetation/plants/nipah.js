@@ -12,8 +12,7 @@
 // Guesses (stylised choices, not sourced): fronds per clump (7–10), lengths used (5–8 m),
 // lean and bend of each frond, bare petiole share (22%), 46 leaflets per side (fewer than the
 // source's up-to-100, to keep the triangle count down), leaflet angle and droop, leaflets shorter
-// at both ends of the rachis, leaflet width drawn about twice the real 5–8 cm so it reads at
-// distance, rachis radius, all colours, and the far level's crossed strips.
+// at both ends of the rachis, leaflet width drawn about three times the real 5–8 cm (toon look), rachis radius, all colours, and the far level's crossed strips.
 //
 // near: rachis tubes (one draw call) + real leaflet strips with a midrib fold, cel shaded (one).
 // far:  thin rachis tubes (one) + per frond a folded strip in the leaflet plane and a narrow
@@ -21,7 +20,7 @@
 
 import * as THREE from 'three';
 import { addTube, createMeshWriter } from '../tube.js';
-import { CEL_RAMP_GLSL, FOLIAGE_SUN, toneUniforms } from '../cel-foliage.js';
+import { FOLIAGE_SUN, toneUniforms } from '../cel-foliage.js';
 import { mulberry32, range } from '../rng.js';
 
 const NIPAH = {
@@ -32,13 +31,14 @@ const NIPAH = {
   petiole: 0.22, // bare share of the rachis (guess)
   sections: 18,
   radius: [0.09, 0.012], // rachis base → tip, m (guess)
-  leaflets: 46, // per side (guess; source: up to 100)
+  leaflets: 30, // per side, fewer and chunkier for the toon look (guess; source: up to 100)
   leafletLength: [0.6, 1.3], // m (source)
-  leafletWidth: 0.13, // m, drawn wider than the real 5–8 cm (guess)
+  leafletWidth: 0.2, // m, drawn ~3× the real 5–8 cm for a bold toon shape (guess)
   leafletAngle: [0.75, 0.95], // rad between leaflet and rachis tip direction (guess)
   droop: [0.15, 0.45], // rad down out of the frond plane (guess)
-  tones: ['#1d4520', '#4c8a2c', '#b8d86a'], // cel ramp, shadow → mid → light (guess)
-  rachis: ['#5f5a2a', '#7f8a3a'], // base → tip (guess)
+  tones: ['#1c5552', '#3fa33f', '#d2f065'], // toon ramp: teal shadow → green → warm light (guess)
+  rachis: ['#6b5a2a', '#8fa23c'], // base → tip (guess)
+  outline: '#12302e', // painted leaflet outline (guess)
 };
 
 const UP = new THREE.Vector3(0, 1, 0);
@@ -55,13 +55,15 @@ const UP = new THREE.Vector3(0, 1, 0);
  *  - a painted leaflet in place of a texture: lighter midrib, darker edges and base
  *    (exaggerated veins + colour variation, after
  *    https://cfringerwtcc.itch.io/hexbreaker/devlog/544906/hexbreaker-how-to-create-foliage).
- * Ramp: the shared 3-tone celRamp; craftzdog's Ghibli shader uses the same hard N·L bands
- * (https://github.com/craftzdog/ghibli-style-shader). All amounts are design choices (guess).
+ * Toon look: hard steps between the 3 tones (no soft blend), as in craftzdog's Ghibli shader's
+ * thresholded N·L bands (https://github.com/craftzdog/ghibli-style-shader); a dark outline painted
+ * along each leaflet edge (in the shader, so no extra draw call); light noise only.
+ * All amounts are design choices (guess).
  * uv.x: -1..1 across a leaflet (0 = midrib); uv.y: 0 base .. 1 tip.
  */
-function createNipahMaterial(tones, proxyWeight = 0.7) {
+function createNipahMaterial(tones, outline, proxyWeight = 0.75) {
   return new THREE.ShaderMaterial({
-    uniforms: { ...toneUniforms(tones), proxyWeight: { value: proxyWeight } },
+    uniforms: { ...toneUniforms(tones), proxyWeight: { value: proxyWeight }, outline: { value: new THREE.Color(outline) } },
     vertexColors: true,
     vertexShader: /* glsl */ `
       attribute vec3 proxyNormal;
@@ -83,7 +85,16 @@ function createNipahMaterial(tones, proxyWeight = 0.7) {
       }`,
     fragmentShader: /* glsl */ `
       uniform vec3 sunDir;
-      ${CEL_RAMP_GLSL}
+      uniform vec3 tone0;
+      uniform vec3 tone1;
+      uniform vec3 tone2;
+      uniform vec3 outline;
+      // Hard toon steps (thresholds are design choices).
+      vec3 toonRamp(float shade) {
+        float w = 0.008;
+        vec3 col = mix(tone0, tone1, smoothstep(0.2 - w, 0.2 + w, shade));
+        return mix(col, tone2, smoothstep(0.58 - w, 0.58 + w, shade));
+      }
       varying vec3 vNormal;
       varying vec3 vTint;
       varying vec3 vWorld;
@@ -101,13 +112,15 @@ function createNipahMaterial(tones, proxyWeight = 0.7) {
       void main() {
         vec3 L = normalize((viewMatrix * vec4(sunDir, 0.0)).xyz);
         float noise = blocky(vWorld * 1.4);
-        float shade = max(dot(normalize(vNormal), L), 0.0) * vAo * (0.84 + 0.32 * noise);
-        // Painted leaflet.
+        float shade = max(dot(normalize(vNormal), L), 0.0) * vAo * (0.92 + 0.16 * noise);
+        // Painted leaflet: flat colour, a light midrib stripe, a darker base, a hard dark outline.
         float across = abs(vUv.x);
-        float paint = mix(0.82, 1.04, smoothstep(0.0, 0.6, vUv.y));      // darker base
-        paint *= 1.0 + 0.2 * (1.0 - smoothstep(0.0, 0.14, across));      // light midrib
-        paint *= 1.0 - 0.16 * smoothstep(0.6, 1.0, across);              // darker edges
-        gl_FragColor = vec4(celRamp(shade) * vTint * paint, 1.0);
+        float aa = fwidth(across) * 1.2;
+        vec3 col = toonRamp(shade) * vTint;
+        col *= mix(0.86, 1.0, step(0.25, vUv.y));                        // base band
+        col = mix(col, col * 1.22, 1.0 - smoothstep(0.1 - aa, 0.1 + aa, across)); // midrib
+        col = mix(col, outline, smoothstep(0.66 - aa, 0.66 + aa, across)); // outline
+        gl_FragColor = vec4(col, 1.0);
         #include <colorspace_fragment>
       }`,
     side: THREE.DoubleSide,
@@ -326,15 +339,15 @@ export function createNipah({ seed = 1, lod = 'near', species = NIPAH } = {}) {
             .addScaledVector(s, side * reach * Math.cos(down))
             .addScaledVector(n, -reach * Math.sin(down));
           // uv: the strip's edge is the leaflet tips, the rachis their bases.
-          if (side < 0) leaves.vertex(edge, n, tint, ao, [0.5, 1], { n, s, lateral: -1 });
+          if (side < 0) leaves.vertex(edge, n, tint, ao, [-1, 1], { n, s, lateral: -1 });
           else {
-            leaves.vertex(p, n, tint, ao, [0.5, 0.15], { n, s, lateral: 0 });
-            leaves.vertex(edge, n, tint, ao, [0.5, 1], { n, s, lateral: 1 });
+            leaves.vertex(p, n, tint, ao, [0, 0.4], { n, s, lateral: 0 });
+            leaves.vertex(edge, n, tint, ao, [1, 1], { n, s, lateral: 1 });
           }
         }
         // Crossed strip: below the rachis, as the drooping leaflets seen edge on.
-        leaves.vertex(p, s, tint, ao * 0.9, [0.5, 0.15], { n, s, lateral: 0.6 });
-        leaves.vertex(p.clone().addScaledVector(n, -leafletLength(S, q) * 0.4), s, tint, ao * 0.9, [0.5, 1], { n, s, lateral: 1 });
+        leaves.vertex(p, s, tint, ao * 0.9, [0, 0.4], { n, s, lateral: 0.6 });
+        leaves.vertex(p.clone().addScaledVector(n, -leafletLength(S, q) * 0.4), s, tint, ao * 0.9, [1, 1], { n, s, lateral: 1 });
       }
       for (let k = 0; k < segs; k++) {
         const a = base + k * 5;
@@ -350,12 +363,12 @@ export function createNipah({ seed = 1, lod = 'near', species = NIPAH } = {}) {
   const group = new THREE.Group();
   group.name = `nipah ${lod}`;
   const stemGeometry = stems.toGeometry();
-  const stemMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8 });
+  const stemMaterial = new THREE.MeshToonMaterial({ vertexColors: true });
   const stemMesh = new THREE.Mesh(stemGeometry, stemMaterial);
   stemMesh.name = 'rachis';
   group.add(stemMesh);
   const leafGeometry = leaves.toGeometry();
-  const leafMaterial = createNipahMaterial(S.tones);
+  const leafMaterial = createNipahMaterial(S.tones, S.outline);
   const leafMesh = new THREE.Mesh(leafGeometry, leafMaterial);
   leafMesh.name = far ? 'frond strips' : 'leaflets';
   group.add(leafMesh);
