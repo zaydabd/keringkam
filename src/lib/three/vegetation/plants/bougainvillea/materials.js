@@ -1,5 +1,5 @@
-// Cel materials for the bougainvillea: one shader draws both leaf cards and bract cards
-// (one draw call), choosing the green or the magenta 3-tone ramp per card (`kind`).
+// Cel materials for the bougainvillea: one shader draws leaf and bract cards, near and far
+// (one draw call per level), choosing the green or the magenta 3-tone ramp per card (`kind`).
 // The ramp is CEL_RAMP_GLSL from cel-foliage.js; the bract ramp is the same steps on a second
 // set of tones. Card normals follow tree.js: per corner from the clump centre, blended with
 // the crown normal. All colours are design choices (guess); magenta is the sourced common colour.
@@ -24,60 +24,89 @@ function uniforms(leafTones, bractTones) {
 
 const FLOWER = 'vec3(0.96, 0.94, 0.82)';
 
+// Unit shapes in cell coordinates (-0.5..0.5). Each returns a tone (0..1) or -1 outside.
+function leafAt(u, v) {
+  // Broadly ovate, widest below the middle, short point (VT: "broadly ovate to nearly round").
+  const t = (v + 0.44) / 0.88;
+  if (t <= 0 || t >= 1) return -1;
+  const width = 0.34 * Math.sin(Math.PI * t ** 0.75) ** 0.9 * (1 - 0.35 * t ** 3);
+  const d = Math.abs(u);
+  if (d >= width) return -1;
+  const vein = d < 0.012 && t < 0.9 ? 0.82 : 1;
+  return (0.88 + 0.12 * (1 - d / Math.max(width, 1e-3))) * vein;
+}
+
+/** Three papery bracts at 120° with pale flowers in the middle (VT: 3 bracts, small white flowers). */
+function bractAt(u, v) {
+  const r = Math.hypot(u, v);
+  if (r < 0.06) return { tone: 1, flower: true };
+  const ang = Math.atan2(v, u);
+  let tone = -1;
+  for (let k = 0; k < 3; k++) {
+    const a = ang - (Math.PI / 2 + (k * 2 * Math.PI) / 3);
+    const s = (r * Math.cos(a)) / 0.46;
+    const lv = r * Math.sin(a);
+    if (s <= 0 || s >= 1) continue;
+    const half = 0.2 * Math.sin(Math.PI * s ** 0.8) ** 0.8;
+    if (Math.abs(lv) < half) tone = Math.max(tone, (0.8 + 0.2 * s) * (Math.abs(lv) < 0.01 ? 0.85 : 1));
+  }
+  return { tone, flower: false };
+}
+
+/** A fixed spray of small shapes in a disc, for the far cards (layout is a design choice). */
+function spray(count, scale, seed) {
+  let a = seed;
+  const rnd = () => ((a = (a * 16807) % 2147483647) - 1) / 2147483646;
+  return Array.from({ length: count }, () => {
+    const r = 0.36 * Math.sqrt(rnd());
+    const t = rnd() * Math.PI * 2;
+    return { x: r * Math.cos(t), y: r * Math.sin(t), rot: rnd() * Math.PI * 2, s: scale * (0.8 + 0.4 * rnd()) };
+  });
+}
+
 /**
- * Atlas, two cells side by side (original procedural shapes, no downloaded texture):
- *   left:  one leaf, broadly ovate with a short point (VT: "broadly ovate to nearly round");
- *   right: one cluster of 3 papery bracts at 120° (VT: "subtended by 3 very showy papery
- *          bracts") with small pale flowers in the middle (VT: "small and white").
- * R = tone (lighter centre, darker vein), G = flower flag, A = cut-out.
+ * Atlas of four cells side by side (original procedural shapes, no downloaded texture):
+ *   0 one leaf, 1 one bract cluster   (near cards);
+ *   2 a spray of leaves, 3 a spray of bract clusters   (far cards: one card stands for many).
+ * Odd cells use the magenta ramp. R = tone, G = flower flag, A = cut-out.
  */
+export const CELLS = 4;
 export function createAtlas(size = 128) {
-  const W = size * 2;
+  const W = size * CELLS;
   const data = new Uint8Array(W * size * 4);
-  const put = (x, y, tone, flower, a) => {
+  const put = (x, y, tone, flower) => {
     const i = (y * W + x) * 4;
-    data[i] = Math.max(0, Math.min(255, 255 * tone));
+    const on = tone >= 0;
+    data[i] = on ? Math.min(255, 255 * tone) : 0;
     data[i + 1] = flower ? 255 : 0;
-    data[i + 2] = 0;
-    data[i + 3] = a ? 255 : 0;
+    data[i + 3] = on ? 255 : 0;
+  };
+  const leaves = spray(14, 0.3, 11);
+  const bracts = spray(9, 0.34, 23);
+  const inSpray = (els, u, v, shape) => {
+    let best = { tone: -1, flower: false };
+    for (const e of els) {
+      const c = Math.cos(e.rot);
+      const s = Math.sin(e.rot);
+      const du = (u - e.x) / e.s;
+      const dv = (v - e.y) / e.s;
+      const res = shape(du * c + dv * s, -du * s + dv * c);
+      const r = typeof res === 'number' ? { tone: res, flower: false } : res;
+      if (r.tone >= 0) best = r; // later elements draw on top
+    }
+    return best;
   };
   for (let y = 0; y < size; y++) {
     for (let x = 0; x < size; x++) {
-      // Leaf: v from base (-) to tip (+); widest below the middle; slight acuminate tip.
       const u = (x + 0.5) / size - 0.5;
       const v = (y + 0.5) / size - 0.5;
-      const t = (v + 0.44) / 0.88;
-      let inside = false;
-      let tone = 0;
-      if (t > 0 && t < 1) {
-        const width = 0.34 * Math.sin(Math.PI * t ** 0.75) ** 0.9 * (1 - 0.35 * t ** 3);
-        const d = Math.abs(u);
-        inside = d < width;
-        const vein = d < 0.012 && t < 0.9 ? 0.82 : 1;
-        tone = (0.88 + 0.12 * (1 - d / Math.max(width, 1e-3))) * vein;
-      }
-      put(x, y, tone, false, inside);
-
-      // Bract cluster: three ovate petal-like bracts around the centre, with a vein each.
-      const r = Math.hypot(u, v);
-      const ang = Math.atan2(v, u);
-      let bin = false;
-      let btone = 0;
-      for (let k = 0; k < 3; k++) {
-        const a = ang - (Math.PI / 2 + (k * 2 * Math.PI) / 3);
-        const lu = r * Math.cos(a); // along the bract
-        const lv = r * Math.sin(a);
-        const s = lu / 0.46;
-        if (s <= 0 || s >= 1) continue;
-        const half = 0.2 * Math.sin(Math.PI * s ** 0.8) ** 0.8;
-        if (Math.abs(lv) < half) {
-          bin = true;
-          const vein = Math.abs(lv) < 0.01 ? 0.85 : 1;
-          btone = Math.max(btone, (0.8 + 0.2 * s) * vein);
-        }
-      }
-      const flower = r < 0.06;
-      put(x + size, y, btone, flower, bin || flower);
+      put(x, y, leafAt(u, v), false);
+      const b = bractAt(u, v);
+      put(x + size, y, b.tone, b.flower);
+      const ls = inSpray(leaves, u, v, leafAt);
+      put(x + size * 2, y, ls.tone, false);
+      const bs = inSpray(bracts, u, v, bractAt);
+      put(x + size * 3, y, bs.tone, bs.flower);
     }
   }
   const tex = new THREE.DataTexture(data, W, size, THREE.RGBAFormat);
@@ -109,7 +138,7 @@ export function createCardMaterial(map, leafTones, bractTones) {
         gl_Position = projectionMatrix * mv;
         vec3 c = (modelViewMatrix * vec4(centre, 1.0)).xyz;
         vNormal = normalize(normalize(mv.xyz - c) * 0.75 + normalize(normalMatrix * normal) * 0.25);
-        vUv = vec2((uv.x + kind) * 0.5, uv.y);
+        vUv = vec2((uv.x + kind) / ${CELLS}.0, uv.y);
         vTint = color;
         vAo = ao;
         vKind = kind;
@@ -129,44 +158,11 @@ export function createCardMaterial(map, leafTones, bractTones) {
         if (tex.a < 0.5) discard;
         vec3 L = normalize((viewMatrix * vec4(sunDir, 0.0)).xyz);
         float shade = max(dot(normalize(vNormal), L), 0.0) * vAo;
-        vec3 col = (vKind > 0.5 ? bractRamp(shade) : celRamp(shade)) * vTint * tex.r;
+        vec3 col = (mod(vKind + 0.5, 2.0) > 1.0 ? bractRamp(shade) : celRamp(shade)) * vTint * tex.r;
         if (tex.g > 0.5) col = ${FLOWER} * (0.6 + 0.4 * shade);
         gl_FragColor = vec4(col, 1.0);
         #include <colorspace_fragment>
       }`,
     side: THREE.DoubleSide,
-  });
-}
-
-/** Low-poly crown blobs (far level): mesh normals, per-vertex `kind` blended to crisp patches. */
-export function createBlobMaterial(leafTones, bractTones) {
-  return new THREE.ShaderMaterial({
-    uniforms: uniforms(leafTones, bractTones),
-    vertexShader: /* glsl */ `
-      attribute float kind;
-      attribute float ao;
-      varying vec3 vNormal;
-      varying float vKind;
-      varying float vAo;
-      void main() {
-        vNormal = normalize(normalMatrix * normal);
-        vKind = kind;
-        vAo = ao;
-        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-      }`,
-    fragmentShader: /* glsl */ `
-      uniform vec3 sunDir;
-      ${CEL_RAMP_GLSL}
-      ${BRACT_RAMP_GLSL}
-      varying vec3 vNormal;
-      varying float vKind;
-      varying float vAo;
-      void main() {
-        vec3 L = normalize((viewMatrix * vec4(sunDir, 0.0)).xyz);
-        float shade = max(dot(normalize(vNormal), L), 0.0) * vAo;
-        float k = smoothstep(0.42, 0.58, vKind);
-        gl_FragColor = vec4(mix(celRamp(shade), bractRamp(shade), k), 1.0);
-        #include <colorspace_fragment>
-      }`,
   });
 }
