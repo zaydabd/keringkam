@@ -160,7 +160,7 @@ function leafPaint(u, v) {
 // Atlas for the pot mesh. Regions (u, v): pot [0, .5]×[.25, 1], soil [0, .5]×[0, .25],
 // petiole [.5, .875]×[0, 1], plain white [.875, 1]×[0, 1].
 const ATLAS = { pot: [0, 0.25, 0.5, 1], soil: [0, 0, 0.5, 0.25], petiole: [0.5, 0, 0.875, 1], white: [0.875, 0, 1, 1] };
-const PLASTIC = hex('#3c4556');
+const PLASTIC = hex('#45474b'); // neutral charcoal (was slate blue)
 const SOIL = hex('#5a4231');
 
 const potArc = (() => {
@@ -583,12 +583,12 @@ function createSchismatoglottis({ seed = 1, lod = 'near' } = {}) {
   group.name = `schismatoglottis (${near ? 'near' : 'far'})`;
   const potGeometry = withOutline(sw.toGeometry());
   // Plastic pot: cool shadows, a crisp highlight band and rim light (stylised).
-  const potMaterial = createCelMaterial({ map: atlas, tones: ['#3f4d6a', '#c2c8d2', '#fff4e2'], rim: 0.5, spec: [0.9, 0.905, 0.25], backLift: 1, outlineWidth: near ? 0.0022 : 0.006, outlineColor: '#0c0f16' });
+  const potMaterial = createCelMaterial({ map: atlas, tones: ['#46484c', '#c6c6c4', '#fff4e2'], rim: 0.5, spec: [0.9, 0.905, 0.25], backLift: 1, outlineWidth: near ? 0.0022 : 0.006, outlineColor: '#0c0f16' });
   const potMesh = new THREE.Mesh(potGeometry, potMaterial);
   potMesh.name = 'pot and petioles';
   group.add(potMesh);
 
-  const leafMaterial = createCelMaterial({ map: leafTex, tones: ['#2f4f6a', '#b9cbb9', '#fff3d8'], crown, crownPull: 0.7, rim: 0.3, spec: [0.955, 0.96, 0.14], backLift: 1.12, outlineWidth: near ? 0.0016 : 0.005, outlineColor: '#0e2a1c' });
+  const leafMaterial = createCelMaterial({ map: leafTex, tones: ['#30563a', '#bccbb4', '#fff3d8'] /* shadow tone green, not blue: the user saw the plant as blue */, crown, crownPull: 0.7, rim: 0.3, spec: [0.955, 0.96, 0.14], backLift: 1.12, outlineWidth: near ? 0.0016 : 0.005, outlineColor: '#0e2a1c' });
   const leafMesh = new THREE.Mesh(leafGeometry, leafMaterial);
   leafMesh.name = 'leaves';
   group.add(leafMesh);

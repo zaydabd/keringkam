@@ -211,18 +211,23 @@ export function farBankProposal({ place, forecourt: [f0, f1], rand, stepPlanting
   else
     for (const [d, o, kind, h] of STEP_PLANTING)
       for (const x of [f0 + d, f1 - d]) add(`proposed: step planting (${kind})`, 'bush', place(x, o + rand() * 0.4), h * (0.9 + rand() * 0.2), h * 1.3);
-  // The trees nearest the stairs turn their lit side to the window (the user's ask: "make it face
-  // us more"); flora-stylised.js sets the turn from the eye. The 45 m reach is a design choice.
-  if (stepPlanting) {
-    const stairs = [place(f0, 14), place(f1, 14)];
-    for (const e of out) if (e.kind === 'tree' && stairs.some((s) => Math.hypot(e.at[0] - s[0], e.at[2] - s[2]) < 45)) e.faceEye = true;
-  }
   // Street trees on the far path, every 12 m, clear of the forecourt and the bridge's pier.
   for (let x = -66; x <= 66; x += 12) if ((x < f0 - 10 || x > f1 + 10) && Math.abs(x + 22) > 6) add('proposed: rain tree (street)', 'tree', place(x, 9.3), 6 + rand() * 1.5, 4);
   // Terrace trees behind the crest, either side of the Assembly.
   for (const x of [f1 + 20, f1 + 28, f1 + 40, 60, 72]) add('proposed: rain tree (terrace)', 'tree', place(x, 48 + rand() * 20), 11 + rand() * 4, 7 + rand() * 2);
   // Bushes along the embankment's foot, right of the forecourt, in threes.
   for (let x = f1 + 12; x < f1 + 46; x += 11) for (let i = 0; i < 3; i++) add('proposed: nipah palm (Nypa fruticans)', 'bush', place(x + i * 1.6, 15.6 + rand() * 0.6), 1.2 + rand() * 0.5, 1.8 + rand() * 0.6);
+  if (stepPlanting) {
+    // More trees left of the stairs (the user's ask: "put bit more trees there"), between the
+    // stair planting and the meadow line: [waterline x from the forecourt's left end, offset].
+    // Last, with their own random stream, so the plants above keep their places and sizes.
+    const r = mulberry32(7717);
+    for (const [dx, o] of [[-6, 19], [-9.5, 24], [-5, 27], [-13, 21], [-12, 30]]) add('proposed: rain tree (by the stairs)', 'tree', place(f0 + dx, o + r() * 2), 10 + r() * 4, 7);
+    // The trees nearest the stairs turn their lit side to the window (the user's ask: "make it
+    // face us more"); flora-stylised.js sets the turn from the eye. The 45 m reach is a design choice.
+    const stairs = [place(f0, 14), place(f1, 14)];
+    for (const e of out) if (e.kind === 'tree' && stairs.some((s) => Math.hypot(e.at[0] - s[0], e.at[2] - s[2]) < 45)) e.faceEye = true;
+  }
   return out;
 }
 

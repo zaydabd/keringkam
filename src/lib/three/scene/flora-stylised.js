@@ -1,7 +1,7 @@
 // `?flora=stylised`: the approved stylised plants (vegetation/plants/*.js) stand at the proposed
 // layout entries (flora-layout.js) instead of the markers. Each entry gets one copy of its plant,
 // based at the entry's `at`, turned by its `yaw` and scaled so its height matches the entry's
-// (satin pothos and the table's Schismatoglottis keep their modelled size).
+// (satin pothos, the table's Schismatoglottis and the bougainvillea keep their modelled size).
 // The level of detail is picked once per copy, by its distance from `eye` against the plant's
 // `switchAt` (the camera stays near the window, so a static pick is enough). Copies of the same
 // plant, seed and level are baked into one mesh per material, so each costs no extra draw call.
@@ -36,7 +36,10 @@ const PLANT_OF = [
   [/^proposed: step planting \(oak bush\)$/, oakBush], // by the Assembly's side stairs
   [/^proposed: step planting \(bougainvillea\)$/, bougainvillea],
 ];
-const NATURAL_SIZE = new Set([satinPothos.id, schismatoglottis.id]);
+// Drawn at the size their session modelled them, not scaled to the entry's height. Scaling also
+// scales the leaf and bract cards: the bougainvillea's 11 cm bracts (its session's own size) grew
+// to 18 cm, which the user saw as roses too big.
+const NATURAL_SIZE = new Set([satinPothos.id, schismatoglottis.id, bougainvillea.id]);
 // Plants that bring their own pot: they stand on the named planter's base, and its box is not drawn.
 const OWN_POT = [[/^proposed: Chinese evergreen \(table\)$/, /^proposed: table pot/]];
 // A `faceEye` entry is turned so its lit side (the plants shade the side towards FOLIAGE_SUN
