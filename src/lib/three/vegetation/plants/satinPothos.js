@@ -6,111 +6,172 @@
 //   - "tropical evergreen climbing vine"; indoors "1.5 to 3 feet tall", or it may "trail downward
 //     from a hanging basket or pot" → trailing strands over the pot rim.
 //   - juvenile leaves "ovate with entire margins and a heart-shaped base", "3 to 4 inches long"
-//     (7.6–10 cm) → smooth ovate blade, heart base, blade ≈ 8–10 cm near the pot.
-//   - "matte green to dark green" with a "satin texture" and "silver-grayish blotches"; the
-//     underside is paler and unmarked → matte cel tones, silver blotches on the front only,
-//     a paler, plain back.
-// Guesses (stylistic, not sourced): pot rim radius 0.13 m; mound height 0.08–0.22 m; strand
-// lengths 0.35–0.95 m; 7 strands; leaf spacing 4.8 cm; leaves alternate and shrink to the tips;
-// the exact greens and silver; blotch size and coverage; stem colour; switchAt 8 m.
-// Units: metres. Origin: centre of the soil surface. No pot (the scene supplies troughs / pots).
+//     (7.6–10 cm) → smooth ovate leaf cut-out with a heart base; card ≈ 9 cm.
+//   - "matte green to dark green" with a "satin texture" and "silver-grayish blotches" → matte
+//     dark-green cel tones with silver blotches in the leaf cut-out.
 //
-// Reuses growHanging/pointAt/taper (grow.js), addTube/createMeshWriter (tube.js),
-// createLeafGeometry (leaf.js), createCelLeafMaterial/setCelLeafAttributes (cel-foliage.js) and
-// rng.js. Two draw calls per level: stems, and instanced leaves.
+// Foliage follows the same stylised method as tree.js (research/CREDITS.md, "Stylised foliage
+// method", the Substack anime-foliage pipeline), copied here because tree.js does not export it:
+//   - foliage is round clumps of camera-facing leaf cards (card ≈ one leaf);
+//   - card count per clump = density · 4πr² / card²; most cards on the shell, a sparse fill inside;
+//   - per-corner normals from the clump centre, blended with the crown normal (normal transfer);
+//   - diffuse N·L → 3-tone colour ramp, × AO (deep clumps and the side away from the sun darker);
+//   - a single alpha cut-out (here: an ovate, heart-based leaf with silver blotches); no translucency.
+// Guesses (stylistic, not sourced): pot rim radius 0.13 m; mound height 0.06–0.2 m; 7 strands of
+// 0.35–0.95 m; clump sizes and spacing; the greens and silver; blotch size; switchAt 8 m.
+// Units: metres. Origin: centre of the soil surface. No pot (the scene supplies troughs / pots).
+// Near: stems + cards (2 draw calls). Far: bigger, fewer cards on fewer clumps, no stems (1 call).
 
 import * as THREE from 'three';
 import { mulberry32, range, shuffled, stratified } from '../rng.js';
 import { addTube, createMeshWriter } from '../tube.js';
-import { createLeafGeometry } from '../leaf.js';
-import { createCelLeafMaterial, setCelLeafAttributes } from '../cel-foliage.js';
+import { bladeRadius } from '../leaf.js';
+import { CEL_RAMP_GLSL, FOLIAGE_SUN, toneUniforms } from '../cel-foliage.js';
 import { UP, growHanging, pointAt, taper } from '../grow.js';
 
-// Ovate blade, heart-shaped base, entire margin, short pointed tip (shape table is a guess).
+// Ovate blade, heart-shaped base, entire margin (shape table: guess, in leaf.js's format).
 const SATIN_LEAF_SHAPE = {
-  petiole: 0.16,
   lobes: [
-    { angle: 0, reach: 1, width: 0.42 },
-    { angle: 1.95, reach: 0.7, width: 0.85 },
-    { angle: -1.95, reach: 0.7, width: 0.85 },
+    { angle: 0, reach: 1, width: 0.5 },
+    { angle: 2.0, reach: 0.72, width: 0.9 },
+    { angle: -2.0, reach: 0.72, width: 0.9 },
   ],
-  body: 0.56,
-  notch: 0.28,
+  body: 0.6,
+  notch: 0.3,
   teeth: 0,
   toothDepth: 0,
-  cup: 0.1,
-  fold: 0.1,
-  segments: 20,
 };
 
-// Colours are guesses after "matte green to dark green" with "silver-grayish blotches".
-const PAINT = {
-  edge: new THREE.Color('#1f4026'),
-  blade: new THREE.Color('#27502e'),
-  vein: new THREE.Color('#33603a'),
-  petiole: new THREE.Color('#5c7a45'),
-};
-const GREEN_TONES = ['#10261a', '#1f4a2c', '#3a7048']; // shadow → mid → light
-const SILVER_TONES = ['#3d4c48', '#7f918b', '#b9c8c2'];
-const STEM = new THREE.Color('#5d7c46');
+const TONES = ['#12301e', '#2e6a3f', '#74ad7c']; // shadow → mid → light (guess)
+const SILVER = ['#45574f', '#8ea79c', '#d3e2da']; // silver blotches, same ramp steps (guess)
+const STEM = new THREE.Color('#4f7440');
 
 const SPEC = {
   rim: 0.13,
-  mound: { stems: 11, height: [0.06, 0.2], leaves: 52, size: [0.11, 0.14] },
+  mound: { stems: 11, height: [0.06, 0.2] },
   strand: { count: 7, length: [0.35, 0.95], gravity: 0.3, wander: 0.1, step: 0.02, radius: 0.0032, tip: 0.0015 },
-  leaf: { spacing: 0.048, size: [0.07, 0.13] },
-  near: { radial: 5, stride: 1, segments: 20, leafScale: 1, spacing: 1, moundLeaves: 1 },
-  // Far: coarse stems, few big low-poly leaves along the same strands.
-  far: { radial: 3, stride: 12, segments: 7, leafScale: 1.6, spacing: 3.6, moundLeaves: 0.25 },
+  // mound: dome clumps at the mound stem tips (tree.js's clump rule: count = density·4πr²/card²).
+  // strand: one small clump per leaf node, `spacing` metres apart, `cards` leaves per node from the
+  // top to the tip, card size from the top to the tip. All values: guesses.
+  near: {
+    stems: true,
+    mound: { radius: 0.09, merge: 0.9, density: 1.6, card: 0.11, minCards: 10 },
+    strand: { radius: 0.02, spacing: 0.065, cards: [3, 1.5], card: [0.1, 0.055] },
+  },
+  far: {
+    stems: false,
+    mound: { radius: 0.11, merge: 1.6, density: 0.8, card: 0.17, minCards: 6 },
+    strand: { radius: 0.025, spacing: 0.1, cards: [2.2, 1.2], card: [0.14, 0.09] },
+  },
 };
 
-// Adds silver blotches (front faces only) and a paler, plain underside to the shared cel leaf
-// material. Blotches come from value noise in leaf space, offset per leaf by `instanceSeed`, so
-// every leaf differs without extra draw calls. The 3 silver tones use the same ramp steps.
-function createSatinLeafMaterial() {
-  const material = createCelLeafMaterial({ tones: GREEN_TONES, paintRef: PAINT.blade });
-  const [s0, s1, s2] = SILVER_TONES.map((c) => new THREE.Color(c));
-  Object.assign(material.uniforms, { silver0: { value: s0 }, silver1: { value: s1 }, silver2: { value: s2 } });
-  material.vertexShader = material.vertexShader
-    .replace('attribute float instanceAo;', 'attribute float instanceAo;\n      attribute float instanceSeed;\n      varying vec2 vLocal;\n      varying float vSeed;')
-    .replace('vAo = instanceAo;', 'vAo = instanceAo;\n        vLocal = position.xy;\n        vSeed = instanceSeed;');
-  material.fragmentShader = material.fragmentShader
-    .replace(
-      'varying float vAo;',
-      /* glsl */ `varying float vAo;
-      varying vec2 vLocal;
-      varying float vSeed;
+// ---- Leaf cut-out atlas (2×2 variants). R: tone, G: silver blotch, A: cut-out. Original and
+// procedural, like tree.js's stroke mask: no downloaded texture.
+function createLeafAtlas(seed, cell = 128) {
+  const size = cell * 2;
+  const data = new Uint8Array(size * size * 4);
+  const rand = mulberry32(seed * 31 + 5);
+  const hash = (x, y, k) => {
+    const s = Math.sin(x * 127.1 + y * 311.7 + k * 74.7) * 43758.5453;
+    return s - Math.floor(s);
+  };
+  const noise = (x, y, k) => {
+    const ix = Math.floor(x);
+    const iy = Math.floor(y);
+    let fx = x - ix;
+    let fy = y - iy;
+    fx = fx * fx * (3 - 2 * fx);
+    fy = fy * fy * (3 - 2 * fy);
+    const a = THREE.MathUtils.lerp(hash(ix, iy, k), hash(ix + 1, iy, k), fx);
+    const b = THREE.MathUtils.lerp(hash(ix, iy + 1, k), hash(ix + 1, iy + 1, k), fx);
+    return THREE.MathUtils.lerp(a, b, fy);
+  };
+  for (let k = 0; k < 4; k++) {
+    const ox = (k % 2) * cell;
+    const oy = Math.floor(k / 2) * cell;
+    const shift = [range(rand, 0, 50), range(rand, 0, 50)];
+    for (let y = 0; y < cell; y++) {
+      for (let x = 0; x < cell; x++) {
+        // Leaf space: tip towards +v, blade centre a little below the cell centre.
+        const u = ((x + 0.5) / cell - 0.5) / 0.44;
+        const v = ((y + 0.5) / cell - 0.46) / 0.44;
+        const r = Math.hypot(u, v);
+        const phi = Math.atan2(u, v);
+        const rb = bladeRadius(phi, SATIN_LEAF_SHAPE).r;
+        const inside = r < rb;
+        const edge = r / Math.max(rb, 1e-3);
+        const midrib = Math.abs(u) < 0.025 && v > -0.6 ? 0.1 : 0;
+        const tone = 0.84 + 0.16 * (1 - edge) + midrib;
+        const n = noise(u * 4.5 + shift[0], v * 4.5 + shift[1], k) * 0.65 + noise(u * 10 + shift[1], v * 10 + shift[0], k) * 0.35;
+        const blot = inside && edge < 0.9 && Math.abs(u) > 0.04 && n > 0.66;
+        const i = ((oy + y) * size + ox + x) * 4;
+        data[i] = Math.min(255, 255 * tone);
+        data[i + 1] = blot ? 255 : 0;
+        data[i + 2] = 0;
+        data[i + 3] = inside ? 255 : 0;
+      }
+    }
+  }
+  const tex = new THREE.DataTexture(data, size, size, THREE.RGBAFormat);
+  tex.magFilter = THREE.LinearFilter;
+  tex.minFilter = THREE.LinearMipmapLinearFilter;
+  tex.generateMipmaps = true;
+  tex.needsUpdate = true;
+  return tex;
+}
+
+// ---- Clump card material: tree.js's createClumpMaterial plus the silver ramp for the blotches.
+function createClumpMaterial(map) {
+  const [s0, s1, s2] = SILVER.map((c) => new THREE.Color(c));
+  return new THREE.ShaderMaterial({
+    uniforms: { map: { value: map }, ...toneUniforms(TONES), silver0: { value: s0 }, silver1: { value: s1 }, silver2: { value: s2 } },
+    vertexShader: /* glsl */ `
+      attribute vec2 corner;
+      attribute vec3 centre;
+      attribute vec3 color;
+      attribute float ao;
+      varying vec2 vUv;
+      varying vec3 vNormal;
+      varying vec3 vTint;
+      varying float vAo;
+      void main() {
+        vec4 mv = modelViewMatrix * vec4(position, 1.0);
+        mv.xy += corner;
+        gl_Position = projectionMatrix * mv;
+        // Per-corner normal: from the clump centre to this corner, blended with the crown normal.
+        vec3 c = (modelViewMatrix * vec4(centre, 1.0)).xyz;
+        vNormal = normalize(normalize(mv.xyz - c) * 0.75 + normalize(normalMatrix * normal) * 0.25);
+        vUv = uv;
+        vTint = color;
+        vAo = ao;
+      }`,
+    fragmentShader: /* glsl */ `
+      uniform sampler2D map;
+      uniform vec3 sunDir;
       uniform vec3 silver0;
       uniform vec3 silver1;
       uniform vec3 silver2;
-      float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
-      float vnoise(vec2 p) {
-        vec2 i = floor(p);
-        vec2 f = fract(p);
-        f = f * f * (3.0 - 2.0 * f);
-        return mix(mix(hash(i), hash(i + vec2(1, 0)), f.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.x), f.y);
-      }
+      ${CEL_RAMP_GLSL}
       vec3 silverRamp(float shade) {
         float w = 0.04;
         vec3 col = mix(silver0, silver1, smoothstep(0.22 - w, 0.22 + w, shade));
         return mix(col, silver2, smoothstep(0.6 - w, 0.6 + w, shade));
+      }
+      varying vec2 vUv;
+      varying vec3 vNormal;
+      varying vec3 vTint;
+      varying float vAo;
+      void main() {
+        vec4 tex = texture2D(map, vUv);
+        if (tex.a < 0.5) discard;
+        vec3 L = normalize((viewMatrix * vec4(sunDir, 0.0)).xyz);
+        float shade = max(dot(normalize(vNormal), L), 0.0) * vAo;
+        vec3 col = mix(celRamp(shade), silverRamp(shade), step(0.5, tex.g));
+        gl_FragColor = vec4(col * vTint * tex.r, 1.0);
+        #include <colorspace_fragment>
       }`,
-    )
-    .replace(
-      'gl_FragColor = vec4(celRamp(shade) * vPaint, 1.0);',
-      /* glsl */ `vec3 col = celRamp(shade) * vPaint;
-        if (gl_FrontFacing) {
-          vec2 q = vLocal * vec2(9.0, 7.0) + vec2(vSeed * 17.0, vSeed * 31.0);
-          float n = vnoise(q) * 0.65 + vnoise(q * 2.3) * 0.35;
-          // No blotches on the petiole.
-          float blot = smoothstep(0.6, 0.64, n) * step(0.22, vLocal.y);
-          col = mix(col, silverRamp(shade) * vPaint, blot);
-        } else {
-          col = mix(col, silverRamp(shade) * vec3(0.75, 0.95, 0.8), 0.35);
-        }
-        gl_FragColor = vec4(col, 1.0);`,
-    );
-  return material;
+    side: THREE.DoubleSide,
+  });
 }
 
 /** Stem paths, shared by both levels so far keeps near's silhouette. */
@@ -154,117 +215,141 @@ function build({ seed = 1, lod = 'near' } = {}) {
   const Q = SPEC[lod] ?? SPEC.near;
   const stemPaths = growStems(seed);
   const rand = mulberry32(seed * 7919 + 13);
-  const writer = createMeshWriter();
-  const stats = { seed, lod, triangles: { stems: 0, leaves: 0 }, leaves: 0, strands: 0 };
-
-  for (const s of stemPaths) {
-    const pts = s.points.filter((_, i) => i % Q.stride === 0 || i === s.points.length - 1);
-    const radii = taper(pts.length, s.radii[0], s.radii[s.radii.length - 1]);
-    stats.triangles.stems += addTube(writer, pts, radii, { radial: Q.radial, color: STEM });
-    if (s.kind === 'strand') stats.strands++;
-  }
-
-  // ---- Leaves (placement after hanging-vine.js: blade along y, facing along z).
-  const leaves = [];
-  const basis = new THREE.Matrix4();
-  const x = new THREE.Vector3();
-  const y = new THREE.Vector3();
-  const z = new THREE.Vector3();
-  const moundCentre = new THREE.Vector3(0, 0.1, 0);
-  const place = (root, blade, facing, size, proxy, depth) => {
-    y.copy(blade).normalize();
-    z.copy(facing).addScaledVector(y, -facing.dot(y));
-    if (z.lengthSq() < 1e-4) z.set(0, 0, 1);
-    z.normalize();
-    x.crossVectors(y, z);
-    basis.makeBasis(x, y, z);
-    const bright = range(rand, 0.85, 1.08);
-    leaves.push({
-      position: root.clone(),
-      quaternion: new THREE.Quaternion().setFromRotationMatrix(basis),
-      scale: size * Q.leafScale,
-      tint: new THREE.Color(bright, bright, bright * range(rand, 0.94, 1.02)),
-      proxy: proxy.normalize(),
-      depth,
-      seed: rand(),
-    });
-  };
-
-  for (const s of stemPaths) {
-    const pts = s.points;
-    if (s.kind === 'mound') {
-      // Leaves on the upper part of each mound stem, blades out and up, faces up and out.
-      const n = Math.max(1, Math.round((SPEC.mound.leaves / SPEC.mound.stems) * Q.moundLeaves));
-      for (let k = 0; k < n; k++) {
-        const t = THREE.MathUtils.lerp(0.6, 1, (k + rand()) / n);
-        const at = pointAt(pts, t);
-        const side = new THREE.Vector3(range(rand, -0.6, 0.6), 0, range(rand, -0.6, 0.6));
-        // Faces out and up, blade outward, so the mound reads as a dome.
-        const facing = s.out.clone().addScaledVector(UP, range(rand, 0.5, 1.1));
-        const blade = s.out.clone().multiplyScalar(range(rand, 0.7, 1)).add(side).addScaledVector(UP, range(rand, -0.35, 0.45));
-        const proxy = at.point.clone().sub(moundCentre).addScaledVector(UP, 0.05);
-        place(at.point, blade, facing, range(rand, ...SPEC.mound.size), proxy, Math.min(1, 0.4 + t * 0.6));
-      }
-      continue;
-    }
-    let length = 0;
-    for (let i = 1; i < pts.length; i++) length += pts[i].distanceTo(pts[i - 1]);
-    const spacing = SPEC.leaf.spacing * Q.spacing;
-    let side = rand() < 0.5 ? -1 : 1;
-    for (let d = range(rand, 0.03, spacing); d < length * 0.98; d += spacing * range(rand, 0.8, 1.2)) {
-      const t = d / length;
-      side = -side; // alternate (guess)
-      const at = pointAt(pts, t);
-      const across = new THREE.Vector3().crossVectors(at.tangent, s.out).normalize();
-      // Over the rim the blade points out; down the strand it hangs and fans to the sides.
-      const hang = THREE.MathUtils.smoothstep(at.point.y, 0.05, -0.1);
-      const blade = s.out.clone().multiplyScalar(0.7 - hang * 0.4).addScaledVector(across, side * range(rand, 0.4, 0.9)).addScaledVector(UP, -0.2 - hang * 0.8);
-      const facing = s.out.clone().addScaledVector(UP, range(rand, 0.2, 0.6));
-      const size = THREE.MathUtils.lerp(SPEC.leaf.size[1], SPEC.leaf.size[0], t ** 0.9) * range(rand, 0.88, 1.12);
-      const proxy = s.out.clone().addScaledVector(across, side * 0.4).addScaledVector(UP, 0.3);
-      place(at.point, blade, facing, size, proxy, 0.85);
-    }
-  }
-
-  // ---- Meshes (2 draw calls).
+  const stats = { seed, lod, triangles: { stems: 0, leaves: 0 }, leaves: 0, clumps: 0 };
   const group = new THREE.Group();
   group.name = `satin pothos (${lod})`;
-  const stemGeometry = writer.toGeometry();
-  const stemMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85 });
-  const stemMesh = new THREE.Mesh(stemGeometry, stemMaterial);
-  stemMesh.name = 'stems';
-  group.add(stemMesh);
+  const disposables = [];
 
-  const leafGeometry = createLeafGeometry({ ...SATIN_LEAF_SHAPE, segments: Q.segments }, PAINT);
-  setCelLeafAttributes(leafGeometry, leaves);
-  leafGeometry.setAttribute('instanceSeed', new THREE.InstancedBufferAttribute(Float32Array.from(leaves, (l) => l.seed), 1));
-  const leafMaterial = createSatinLeafMaterial();
-  const leafMesh = new THREE.InstancedMesh(leafGeometry, leafMaterial, leaves.length);
+  // ---- Stems (near only: at far they are under a pixel wide).
+  if (Q.stems) {
+    const writer = createMeshWriter();
+    for (const s of stemPaths) {
+      stats.triangles.stems += addTube(writer, s.points, s.radii, { radial: 4, color: STEM });
+    }
+    const geometry = writer.toGeometry();
+    const material = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85 });
+    const mesh = new THREE.Mesh(geometry, material);
+    mesh.name = 'stems';
+    group.add(mesh);
+    disposables.push(geometry, material);
+  }
+
+  // ---- Clump centres: one at each mound stem tip (close ones merge), and a chain down each
+  // strand that shrinks towards the tip, pushed a little outward (leaves face away from the pot).
+  const clumps = [];
+  const M = Q.mound;
+  for (const s of stemPaths) {
+    if (s.kind !== 'mound') continue;
+    const c = s.points[s.points.length - 1].clone().addScaledVector(UP, M.radius * 0.2);
+    const r = M.radius * range(rand, 0.85, 1.15);
+    if (clumps.some((o) => o.c.distanceTo(c) < (o.r + r) * 0.5 * M.merge)) continue;
+    const count = Math.max(M.minCards, Math.round((M.density * 4 * Math.PI * r * r) / (M.card * M.card)));
+    clumps.push({ c, r, count, card: M.card, hang: false });
+  }
+  for (const s of stemPaths) {
+    if (s.kind !== 'strand') continue;
+    const pts = s.points;
+    let length = 0;
+    for (let i = 1; i < pts.length; i++) length += pts[i].distanceTo(pts[i - 1]);
+    const N = Q.strand;
+    for (let d = range(rand, 0.02, N.spacing); d < length; d += N.spacing * range(rand, 0.8, 1.2)) {
+      const t = d / length;
+      const at = pointAt(pts, t);
+      const count = Math.max(1, Math.round(THREE.MathUtils.lerp(N.cards[0], N.cards[1], t) + range(rand, -0.5, 0.5)));
+      const card = THREE.MathUtils.lerp(N.card[0], N.card[1], t ** 0.8);
+      // Leaves sit a little outward of the strand (they face away from the pot).
+      clumps.push({ c: at.point.clone().addScaledVector(s.out, card * 0.25), r: N.radius, count, card, hang: true });
+    }
+  }
+
+  // ---- Cards (tree.js method).
+  const crown = new THREE.Box3();
+  for (const { c, r } of clumps) crown.expandByPoint(c.clone().addScalar(r)).expandByPoint(c.clone().subScalar(r));
+  const crownCentre = crown.getCenter(new THREE.Vector3());
+  const half = crown.getSize(new THREE.Vector3()).multiplyScalar(0.5);
+  const positions = [];
+  const normals = [];
+  const uvs = [];
+  const corners = [];
+  const centreAttr = [];
+  const colors = [];
+  const aos = [];
+  const indices = [];
+  const p = new THREE.Vector3();
+  const n = new THREE.Vector3();
+  const cn = new THREE.Vector3();
+  const q = new THREE.Vector3();
+  const CORNERS = [[-0.5, -0.5], [0.5, -0.5], [0.5, 0.5], [-0.5, 0.5]];
+  let cards = 0;
+  for (const { c, r, count, card, hang } of clumps) {
+    const hue = range(rand, 0.92, 1.06);
+    cn.copy(c).sub(crownCentre).divide(half);
+    const depth = Math.min(1, cn.length());
+    const away = cn.lengthSq() > 1e-6 ? cn.normalize().dot(FOLIAGE_SUN) * 0.5 + 0.5 : 0.5;
+    const clumpAo = 0.6 + 0.25 * depth + 0.15 * away;
+    for (let k = 0; k < count; k++) {
+      const zz = range(rand, -1, 1);
+      const az = range(rand, 0, Math.PI * 2);
+      const sn = Math.sqrt(1 - zz * zz);
+      n.set(sn * Math.cos(az), zz, sn * Math.sin(az));
+      const shell = rand() < 0.85 ? range(rand, 0.82, 1) : range(rand, 0.3, 0.82);
+      p.copy(c).addScaledVector(n, r * shell);
+      // Strand leaves hang tip-down (roll ≈ π); mound leaves point any way but mostly up and out.
+      const roll = hang ? Math.PI + range(rand, -0.9, 0.9) : range(rand, -1.6, 1.6);
+      const cr = Math.cos(roll);
+      const sr = Math.sin(roll);
+      const size = card * range(rand, 0.8, 1.2);
+      const tint = hue * range(rand, 0.93, 1.07);
+      const ao = clumpAo * (0.7 + 0.3 * shell);
+      const variant = Math.floor(rand() * 4);
+      const u0 = (variant % 2) * 0.5;
+      const v0 = Math.floor(variant / 2) * 0.5;
+      const base = positions.length / 3;
+      q.copy(p).sub(crownCentre).divide(half).normalize();
+      for (const [u, v] of CORNERS) {
+        positions.push(p.x, p.y, p.z);
+        corners.push((u * cr - v * sr) * size, (u * sr + v * cr) * size);
+        centreAttr.push(c.x, c.y, c.z);
+        normals.push(q.x, q.y, q.z);
+        uvs.push(u0 + (u + 0.5) * 0.5, v0 + (v + 0.5) * 0.5);
+        colors.push(tint, tint, tint);
+        aos.push(ao);
+      }
+      indices.push(base, base + 1, base + 2, base, base + 2, base + 3);
+      cards++;
+    }
+  }
+
+  const leafGeometry = new THREE.BufferGeometry();
+  leafGeometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  leafGeometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
+  leafGeometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  leafGeometry.setAttribute('corner', new THREE.Float32BufferAttribute(corners, 2));
+  leafGeometry.setAttribute('centre', new THREE.Float32BufferAttribute(centreAttr, 3));
+  leafGeometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  leafGeometry.setAttribute('ao', new THREE.Float32BufferAttribute(aos, 1));
+  leafGeometry.setIndex(indices);
+  leafGeometry.computeBoundingSphere();
+  leafGeometry.boundingSphere.radius += M.card * 1.7;
+  const atlas = createLeafAtlas(seed);
+  const leafMaterial = createClumpMaterial(atlas);
+  const leafMesh = new THREE.Mesh(leafGeometry, leafMaterial);
   leafMesh.name = 'leaves';
-  const m = new THREE.Matrix4();
-  const sc = new THREE.Vector3();
-  leaves.forEach((leaf, i) => {
-    leafMesh.setMatrixAt(i, m.compose(leaf.position, leaf.quaternion, sc.setScalar(leaf.scale)));
-    leafMesh.setColorAt(i, leaf.tint);
-  });
-  leafMesh.computeBoundingSphere();
   group.add(leafMesh);
+  disposables.push(leafGeometry, leafMaterial, atlas);
 
-  stats.leaves = leaves.length;
-  stats.triangles.leaves = (leafGeometry.index.count / 3) * leaves.length;
+  stats.leaves = cards;
+  stats.clumps = clumps.length;
+  stats.triangles.leaves = indices.length / 3;
   stats.triangles.total = stats.triangles.stems + stats.triangles.leaves;
-  stats.drawCalls = 2;
+  stats.drawCalls = group.children.length;
   stats.bounds = new THREE.Box3().setFromObject(group).getSize(new THREE.Vector3()).toArray().map((v) => +v.toFixed(3));
 
   return {
     group,
     stats,
     dispose() {
-      stemGeometry.dispose();
-      stemMaterial.dispose();
-      leafGeometry.dispose();
-      leafMaterial.dispose();
-      leafMesh.dispose();
+      for (const d of disposables) d.dispose();
     },
   };
 }
