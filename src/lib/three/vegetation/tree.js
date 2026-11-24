@@ -116,6 +116,7 @@ function perpendiculars(t) {
  * `elbow` (0..1, optional per level): the branch leaves that much closer to its parent's
  * direction `from`, then turns to its own direction over the first `elbowLen` of its sections,
  * so it curves out of the fork instead of leaving at a hard angle. No extra random numbers.
+ * `kink` (radians-ish, optional): sharp sideways turns at a `kinkRate` share of the sections.
  */
 function growBranch(rand, origin, dir, length, spec, from) {
   const points = [origin.clone()];
@@ -131,6 +132,13 @@ function growBranch(rand, origin, dir, length, spec, from) {
     kick.set(range(rand, -1, 1), range(rand, -1, 1), range(rand, -1, 1));
     bend.multiplyScalar(0.6).addScaledVector(kick, spec.gnarl);
     if (i < k) d.lerp(target, 1 / (k - i)).normalize();
+    // Kinks (optional per level): now and then the branch turns sharply sideways, the zigzag
+    // of an old rain tree limb. Extra random numbers only for levels that set `kink`.
+    if (spec.kink && i > 0 && rand() < (spec.kinkRate ?? 0.35)) {
+      kick.set(range(rand, -1, 1), range(rand, -0.5, 0.5), range(rand, -1, 1));
+      kick.addScaledVector(d, -kick.dot(d));
+      if (kick.lengthSq() > 1e-6) d.addScaledVector(kick.normalize(), spec.kink).normalize();
+    }
     d.add(bend).addScaledVector(UP, spec.up).normalize();
     p.addScaledVector(d, step);
     points.push(p.clone());
@@ -264,9 +272,24 @@ export function growBranches(rand, species) {
     const spec = L[job.level + 1];
     if (!spec) continue;
     // Stratified heights; angular slots spread around the parent then shuffled.
-    const heights = stratified(rand, spec.count, ...spec.emerge);
+    let heights = stratified(rand, spec.count, ...spec.emerge);
     const turn = range(rand, 0, Math.PI * 2);
-    const azimuths = shuffled(rand, heights.map((_, i) => turn + (i / spec.count) * Math.PI * 2 + range(rand, -0.3, 0.3)));
+    let azimuths = shuffled(rand, heights.map((_, i) => turn + (i / spec.count) * Math.PI * 2 + range(rand, -0.3, 0.3)));
+    if (spec.whorl) {
+      // Whorls (optional): `whorl` children at each of count/whorl heights, evenly spaced round
+      // the parent, each tier turned from the last (the kapok's tiers of horizontal branches).
+      const tiers = Math.max(1, Math.round(spec.count / spec.whorl));
+      const tierT = stratified(rand, tiers, ...spec.emerge);
+      heights = [];
+      azimuths = [];
+      tierT.forEach((t, j) => {
+        const spin = range(rand, 0, Math.PI * 2);
+        for (let w = 0; w < spec.whorl; w++) {
+          heights.push(t);
+          azimuths.push(spin + (w / spec.whorl) * Math.PI * 2 + range(rand, -0.25, 0.25));
+        }
+      });
+    }
     heights.forEach((t, i) => {
       const at = pointAndRadius(job.points, job.radii, t);
       perpendiculars(at.tangent);

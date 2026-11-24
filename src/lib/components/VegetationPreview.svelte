@@ -4,6 +4,7 @@
 
   // #/vegetation?plant=vine&seed=1&lod=near&az=0&el=4&d=2.6 (the fixed views use these)
   // lod: near | far | auto (auto switches at the plant's switchAt distance); leaves: leaf-clump factor (rain tree)
+  // bare: hide the leaves (branches only); variant: a named design variant, where the plant has them
   const params = new URLSearchParams(location.hash.split('?')[1] ?? '');
   const num = (k, d) => (params.has(k) ? Number(params.get(k)) : d);
 
@@ -20,6 +21,8 @@
       seed,
       lod: params.get('lod') ?? 'near',
       leaves: params.has('leaves') ? num('leaves', 1) : undefined,
+      bare: params.has('bare'),
+      variant: params.get('variant') ?? undefined,
       azimuth: num('az', 0),
       elevation: num('el', 4),
       onStats: (s) => (stats = s),

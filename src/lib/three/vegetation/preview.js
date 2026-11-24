@@ -26,14 +26,15 @@ export const PLANTS = {
 
 // lod: 'near' | 'far' builds one level; 'auto' builds both behind a THREE.LOD at def.switchAt.
 // leaves: the leaf-clump factor, for plants that take one (rain tree); undefined → the plant's own.
-function build(def, seed, lod, leaves) {
+// variant: a named design variant, for plants that have them (rain tree branch studies).
+function build(def, seed, lod, leaves, variant) {
   if (lod === 'auto' && def.switchAt) {
-    return makeLOD(def.create({ seed, lod: 'near', leaves }), def.create({ seed, lod: 'far' }), def.switchAt);
+    return makeLOD(def.create({ seed, lod: 'near', leaves, variant }), def.create({ seed, lod: 'far', variant }), def.switchAt);
   }
-  return def.create({ seed, lod: lod === 'far' ? 'far' : 'near', leaves });
+  return def.create({ seed, lod: lod === 'far' ? 'far' : 'near', leaves, variant });
 }
 
-export function init(canvas, { plant = 'vine', seed = 1, lod = 'near', leaves, azimuth = 0, elevation = 4, onStats } = {}) {
+export function init(canvas, { plant = 'vine', seed = 1, lod = 'near', leaves, bare = false, variant, azimuth = 0, elevation = 4, onStats } = {}) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, preserveDrawingBuffer: true });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -75,7 +76,9 @@ export function init(canvas, { plant = 'vine', seed = 1, lod = 'near', leaves, a
       scene.remove(current.group);
       current.dispose();
     }
-    current = build(def, s, lod, leaves);
+    current = build(def, s, lod, leaves, variant);
+    // bare: branches only (leaf and crown meshes hidden), to judge the skeleton.
+    if (bare) current.group.traverse((o) => o.isMesh && /leaves|crown|bracts/.test(o.name) && (o.visible = false));
     scene.add(current.group);
     onStats?.(current.stats);
     render();
