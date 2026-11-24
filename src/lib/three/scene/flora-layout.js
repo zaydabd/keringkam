@@ -173,7 +173,16 @@ export function showFloraLegend(legend, title) {
  *  - trees on the terrace behind the crest, their crowns showing over it, either side of the Assembly;
  *  - low bushes at the foot of the embankment, right of the forecourt.
  */
-export function farBankProposal({ place, forecourt: [f0, f1], rand }) {
+// Oak bushes and bougainvillea round each side stair (design guesses): a low row along the foot
+// of the planter beside the stair, and a loose drift up the slope outside it, taller at the back.
+const STEP_PLANTING = [
+  [0.6, 13.8, 'bougainvillea', 1.6], [1.9, 13.6, 'oak bush', 1.1], [3.1, 13.9, 'bougainvillea', 1.4],
+  [-1.0, 15.6, 'oak bush', 1.4], [-2.4, 16.4, 'bougainvillea', 2.0], [-1.3, 18.6, 'oak bush', 1.6],
+  [-3.6, 19.2, 'oak bush', 1.3], [-1.8, 21.6, 'bougainvillea', 2.4], [-3.2, 23.4, 'oak bush', 1.8],
+  [-1.2, 25.2, 'bougainvillea', 2.2],
+];
+
+export function farBankProposal({ place, forecourt: [f0, f1], rand, stepPlanting = false }) {
   const out = [];
   const add = (group, kind, at, height, width) => out.push({ group, kind, at, height, width, yaw: rand() * Math.PI * 2 });
   // Tree line on the meadow: clumps of 3-5 along the crest distance, gaps between them.
@@ -187,7 +196,13 @@ export function farBankProposal({ place, forecourt: [f0, f1], rand }) {
   for (let x = -230; x < -20; x += 9 + rand() * 6) add('proposed: rain tree (meadow back)', 'tree', place(x, 55 + rand() * 30), 12 + rand() * 6, 8 + rand() * 3);
   for (let x = -210; x < -35; x += 14 + rand() * 12) for (let i = 0; i < 2; i++) add('proposed: pedada (Sonneratia caseolaris)', 'tree', place(x + i * 4.5, 12 + rand() * 8), 7 + rand() * 4, 5 + rand() * 2);
   // Framing pairs either side of the forecourt, on the slope above the path.
-  for (const [x, o] of [[f0 - 3, 17], [f0 - 6.5, 21], [f1 + 3, 17], [f1 + 6.5, 21]]) add('proposed: rain tree (forecourt)', 'tree', place(x, o), 12 + rand() * 2, 7);
+  // (stepPlanting, the user's choice under ?flora=stylised: oak bushes and bougainvillea round the
+  // side stairs in place of the trees. [d, offset, plant, height]: d metres along the waterline
+  // from the forecourt's end, outwards when negative; the same pattern mirrored on the right.)
+  if (!stepPlanting) for (const [x, o] of [[f0 - 3, 17], [f0 - 6.5, 21], [f1 + 3, 17], [f1 + 6.5, 21]]) add('proposed: rain tree (forecourt)', 'tree', place(x, o), 12 + rand() * 2, 7);
+  else
+    for (const [d, o, kind, h] of STEP_PLANTING)
+      for (const x of [f0 + d, f1 - d]) add(`proposed: step planting (${kind})`, 'bush', place(x, o + rand() * 0.4), h * (0.9 + rand() * 0.2), h * 1.3);
   // Street trees on the far path, every 12 m, clear of the forecourt and the bridge's pier.
   for (let x = -66; x <= 66; x += 12) if ((x < f0 - 10 || x > f1 + 10) && Math.abs(x + 22) > 6) add('proposed: rain tree (street)', 'tree', place(x, 9.3), 6 + rand() * 1.5, 4);
   // Terrace trees behind the crest, either side of the Assembly.
@@ -233,14 +248,16 @@ export function roomPlantsProposal(PLAN) {
   return out;
 }
 
-export function windowHangingProposal(PLAN) {
+export function windowHangingProposal(PLAN, { skipMiddle = false } = {}) {
   const { z0 } = PLAN.room;
   const ledge = PLAN.window.lattice + 0.06;
   const depth = 0.14, front = z0 + 0.05; // overhangs the rail's room face by 3.5 cm
   const zc = front - depth / 2, tall = 0.14;
   const out = [];
   // Only the two left windows (lowest x); each trough covers about half its ledge, at the left end.
+  // skipMiddle (?flora=stylised, the user's choice): the middle window keeps its ledge bare.
   [...PLAN.backWindows].sort((a, b) => a.x0 - b.x0).slice(0, 2).forEach((w, i) => {
+    if (skipMiddle && i === 1) return;
     const span = w.x1 - w.x0, len = span * 0.5, x = w.x0 + 0.05 + len / 2; // left end of the ledge
     out.push({ group: 'proposed: ledge trough', kind: 'planter', at: [x, ledge, zc], width: len, height: tall, depth, yaw: 0 });
     out.push({ group: 'proposed: satin pothos (ledge)', kind: 'bush', at: [x, ledge + tall - 0.04, zc], width: len * 1.1, height: 0.22, depth: depth * 1.5, yaw: 0 });

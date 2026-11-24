@@ -455,7 +455,7 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
   scene.add(landscape.group);
   let vineBlockout = null, removeLegend = null;
   if (flora === 'stylised') {
-    vineBlockout = buildFloraStylised([...windowHangingProposal(PLAN), ...roomPlantsProposal(PLAN)]);
+    vineBlockout = buildFloraStylised([...windowHangingProposal(PLAN, { skipMiddle: true }), ...roomPlantsProposal(PLAN)]);
     vineBlockout.group.visible = !stage;
     scene.add(vineBlockout.group);
     console.info('[flora] stylised', JSON.stringify({ outside: landscape.floraStats, room: vineBlockout.stats }));

@@ -105,7 +105,7 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
   // Proposed far-bank planting (flora-layout.js): markers only, a composition to judge.
   if (flora && want('farbank')) {
     const { place } = reports.farbank;
-    floraEntries.push(...farBankProposal({ place, forecourt: forecourtFrame().xRange, rand: mulberry32(613 + seed) }));
+    floraEntries.push(...farBankProposal({ place, forecourt: forecourtFrame().xRange, rand: mulberry32(613 + seed), stepPlanting: flora === 'stylised' }));
   }
   if (want('forecourt')) reports.forecourt = buildForecourt(w); // the Assembly's river front on the embankment (pass e7)
   if (want('waterfront')) reports.waterfront = buildNearWaterfront(w); // our side: the waterfront's street and railing (pass e11)
@@ -113,6 +113,13 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
     // the bush on the grass right below the window; under ?flora=stylised its blobs give way to the bougainvillea
     reports.waterbush = buildWaterBush(flora === 'blockout' ? new SlotWriter() : w, { seed, body: flora === 'stylised' ? new SlotWriter() : undefined });
     if (flora) floraEntries.push(...reports.waterbush.layout);
+  }
+  // ?flora=stylised, the user's choice: a tall bougainvillea just outside the middle window, a
+  // little left of it, its top showing over the sill from the seat; and a young nipah on the grass
+  // to the right of the window view. Places and sizes are design guesses, tuned by eye.
+  if (flora === 'stylised' && want('waterbush')) {
+    floraEntries.push({ group: 'proposed: bougainvillea (middle window)', kind: 'bush', at: [-2.5, S.ground, -7.3], height: 3.9, width: 3.3, squash: 0.5, yaw: 0.3 });
+    floraEntries.push({ group: 'proposed: nipah (window right)', kind: 'bush', at: [1.6, S.ground, -9.5], height: 3, width: 5, yaw: 1.1 });
   }
 
   // --- Assembly building (planned, then compiled; measured on the user's Sketchfab model) -------

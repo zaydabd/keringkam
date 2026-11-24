@@ -15,6 +15,10 @@ import { plant as nipah } from '../vegetation/plants/nipah.js';
 import { plant as satinPothos } from '../vegetation/plants/satinPothos.js';
 import { plant as aglaonema } from '../vegetation/plants/aglaonema.js';
 import { plant as bougainvillea } from '../vegetation/plants/bougainvillea.js';
+import { createTree } from '../vegetation/tree.js';
+
+// The oak bush preset (vegetation/tree.js) as a plant: one level of detail, used near and far.
+const oakBush = { id: 'oakBush', label: 'Oak bush', create: ({ seed }) => createTree({ seed, kind: 'oakBush' }), switchAt: Infinity };
 
 // Layout group → plant. Groups not listed (the rubber plant, trailing markers, grass, fern, the
 // window vines that already exist) get nothing.
@@ -26,6 +30,9 @@ const PLANT_OF = [
   [/^proposed: Chinese evergreen \(floor\)$/, aglaonema],
   [/^proposed: Chinese evergreen \(table\)$/, bougainvillea], // the user's choice: bougainvillea on the table
   [/^proposed: satin pothos \((stand|ledge)\)$/, satinPothos],
+  [/^proposed: bougainvillea/, bougainvillea], // outside the middle window (outside/index.js)
+  [/^proposed: step planting \(oak bush\)$/, oakBush], // by the Assembly's side stairs
+  [/^proposed: step planting \(bougainvillea\)$/, bougainvillea],
 ];
 const NATURAL_SIZE = new Set([satinPothos.id]);
 const SEEDS = 3; // seeds per plant, reused round the copies
@@ -65,19 +72,19 @@ function copiesOf(entries) {
       const n = Math.max(1, Math.round(e.width / POTHOS_SPACING));
       for (let i = 0; i < n; i++) {
         const dx = (i - (n - 1) / 2) * (e.width / n);
-        out.push({ plant, at: [e.at[0] + dx, e.at[1], e.at[2]], yaw: (index + i) * 2.1, height: e.height, index: index + i });
+        out.push({ plant, at: [e.at[0] + dx, e.at[1], e.at[2]], yaw: (index + i) * 2.1, height: e.height, squash: 1, index: index + i });
       }
       return;
     }
     const height = HEIGHT_OF.find(([re]) => re.test(e.group))?.[1] ?? e.height;
-    out.push({ plant, at: e.at, yaw: e.yaw ?? index * 2.1, height, index });
+    out.push({ plant, at: e.at, yaw: e.yaw ?? index * 2.1, height, squash: e.squash ?? 1, index });
   });
   if (blobs.length) {
     // One bougainvillea over the bush's blobs: centred on them, as tall as the tallest.
     const x0 = Math.min(...blobs.map((b) => b.at[0] - b.width / 2)), x1 = Math.max(...blobs.map((b) => b.at[0] + b.width / 2));
     const z0 = Math.min(...blobs.map((b) => b.at[2] - b.width / 2)), z1 = Math.max(...blobs.map((b) => b.at[2] + b.width / 2));
     const y0 = Math.min(...blobs.map((b) => b.at[1])), y1 = Math.max(...blobs.map((b) => b.at[1] + b.height));
-    out.push({ plant: bougainvillea, at: [(x0 + x1) / 2, y0, (z0 + z1) / 2], yaw: 0.6, height: y1 - y0, index: 0 });
+    out.push({ plant: bougainvillea, at: [(x0 + x1) / 2, y0, (z0 + z1) / 2], yaw: 0.6, height: y1 - y0, squash: 1, index: 0 });
   }
   return out;
 }
@@ -117,7 +124,8 @@ export function buildFloraStylised(entries, { eye = null, layer } = {}) {
       const baked = list.map((c) => {
         const s = NATURAL_SIZE.has(id) ? 1 : c.height / top;
         q.setFromAxisAngle(up, c.yaw);
-        m.compose(new THREE.Vector3(...c.at), q, new THREE.Vector3(s, s, s)).multiply(part.matrixWorld);
+        // `squash` narrows a copy across (x, z) without lowering it; card corners follow the height.
+        m.compose(new THREE.Vector3(...c.at), q, new THREE.Vector3(s * c.squash, s, s * c.squash)).multiply(part.matrixWorld);
         rot.setFromMatrix4(new THREE.Matrix4().makeRotationFromQuaternion(q).multiply(new THREE.Matrix4().extractRotation(part.matrixWorld)));
         return bake(part.geometry, m, rot, s);
       });
