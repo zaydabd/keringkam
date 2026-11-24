@@ -32,11 +32,11 @@ import { UP, growHanging, pointAt, taper } from '../grow.js';
 // Ovate blade, heart-shaped base, entire margin (shape table: guess, in leaf.js's format).
 const SATIN_LEAF_SHAPE = {
   lobes: [
-    { angle: 0, reach: 1, width: 0.5 },
-    { angle: 2.0, reach: 0.72, width: 0.9 },
-    { angle: -2.0, reach: 0.72, width: 0.9 },
+    { angle: 0, reach: 1, width: 0.36 },
+    { angle: 2.1, reach: 0.6, width: 0.8 },
+    { angle: -2.1, reach: 0.6, width: 0.8 },
   ],
-  body: 0.6,
+  body: 0.48,
   notch: 0.3,
   teeth: 0,
   toothDepth: 0,
@@ -55,13 +55,13 @@ const SPEC = {
   // top to the tip, card size from the top to the tip. All values: guesses.
   near: {
     stems: true,
-    mound: { radius: 0.09, merge: 0.9, density: 1.6, card: 0.11, minCards: 10 },
-    strand: { radius: 0.02, spacing: 0.065, cards: [3, 1.5], card: [0.1, 0.055] },
+    mound: { radius: 0.07, merge: 1.1, density: 1.1, card: 0.095, minCards: 7 },
+    strand: { radius: 0.004, spacing: 0.055, cards: [1, 1], card: [0.085, 0.045] },
   },
   far: {
     stems: false,
-    mound: { radius: 0.11, merge: 1.6, density: 0.8, card: 0.17, minCards: 6 },
-    strand: { radius: 0.025, spacing: 0.1, cards: [2.2, 1.2], card: [0.14, 0.09] },
+    mound: { radius: 0.09, merge: 1.6, density: 0.7, card: 0.14, minCards: 5 },
+    strand: { radius: 0.006, spacing: 0.085, cards: [1, 1], card: [0.11, 0.07] },
   },
 };
 
@@ -252,13 +252,17 @@ function build({ seed = 1, lod = 'near' } = {}) {
     let length = 0;
     for (let i = 1; i < pts.length; i++) length += pts[i].distanceTo(pts[i - 1]);
     const N = Q.strand;
+    let side = rand() < 0.5 ? -1 : 1;
     for (let d = range(rand, 0.02, N.spacing); d < length; d += N.spacing * range(rand, 0.8, 1.2)) {
       const t = d / length;
       const at = pointAt(pts, t);
       const count = Math.max(1, Math.round(THREE.MathUtils.lerp(N.cards[0], N.cards[1], t) + range(rand, -0.5, 0.5)));
       const card = THREE.MathUtils.lerp(N.card[0], N.card[1], t ** 0.8);
-      // Leaves sit a little outward of the strand (they face away from the pot).
-      clumps.push({ c: at.point.clone().addScaledVector(s.out, card * 0.25), r: N.radius, count, card, hang: true });
+      // Alternate leaves (guess), one each side of the strand, a little outward (away from the pot).
+      side = -side;
+      const across = new THREE.Vector3().crossVectors(at.tangent, s.out).normalize();
+      const c = at.point.clone().addScaledVector(across, side * card * 0.3).addScaledVector(s.out, card * 0.15);
+      clumps.push({ c, r: N.radius, count, card, hang: true, side });
     }
   }
 
@@ -281,7 +285,7 @@ function build({ seed = 1, lod = 'near' } = {}) {
   const q = new THREE.Vector3();
   const CORNERS = [[-0.5, -0.5], [0.5, -0.5], [0.5, 0.5], [-0.5, 0.5]];
   let cards = 0;
-  for (const { c, r, count, card, hang } of clumps) {
+  for (const { c, r, count, card, hang, side = 0 } of clumps) {
     const hue = range(rand, 0.92, 1.06);
     cn.copy(c).sub(crownCentre).divide(half);
     const depth = Math.min(1, cn.length());
@@ -295,7 +299,7 @@ function build({ seed = 1, lod = 'near' } = {}) {
       const shell = rand() < 0.85 ? range(rand, 0.82, 1) : range(rand, 0.3, 0.82);
       p.copy(c).addScaledVector(n, r * shell);
       // Strand leaves hang tip-down (roll ≈ π); mound leaves point any way but mostly up and out.
-      const roll = hang ? Math.PI + range(rand, -0.9, 0.9) : range(rand, -1.6, 1.6);
+      const roll = hang ? Math.PI + side * range(rand, 0.2, 0.8) : range(rand, -1.6, 1.6);
       const cr = Math.cos(roll);
       const sr = Math.sin(roll);
       const size = card * range(rand, 0.8, 1.2);
