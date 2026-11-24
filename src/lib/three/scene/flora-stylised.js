@@ -35,7 +35,7 @@ const PLANT_OF = [
   [/^proposed: step planting \(bougainvillea\)$/, bougainvillea],
 ];
 const NATURAL_SIZE = new Set([satinPothos.id]);
-const SEEDS = 3; // seeds per plant, reused round the copies
+const SEEDS = 5; // seeds per plant, reused round the copies: each a different branching and leaf spread
 const POTHOS_SPACING = 0.35; // m between pothos along a ledge trough
 // Heights that differ from the entry's marker (design guesses, tuned by eye): the table marker is
 // 0.18 m, which leaves a bougainvillea as bare twigs.

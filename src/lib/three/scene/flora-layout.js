@@ -5,6 +5,7 @@
 // before the plants are replaced. The plants themselves do not move.
 
 import * as THREE from 'three';
+import { mulberry32 } from './outside/site.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
 /** The `?flora=` flag: 'blockout', 'both', 'stylised' (the stylised plants, flora-stylised.js) or null. */
@@ -184,7 +185,14 @@ const STEP_PLANTING = [
 
 export function farBankProposal({ place, forecourt: [f0, f1], rand, stepPlanting = false }) {
   const out = [];
-  const add = (group, kind, at, height, width) => out.push({ group, kind, at, height, width, yaw: rand() * Math.PI * 2 });
+  // Each plant gets its own size and shape (the user's ask: randomise height, width, leaves): a
+  // height jitter and `squash` (width over a uniform scale) from a second stream, so the places
+  // above stay as they were. Ranges are design choices.
+  const vary = mulberry32(4441);
+  const add = (group, kind, at, height, width) => {
+    const h = height * (0.85 + vary() * 0.3), squash = 0.78 + vary() * 0.44;
+    out.push({ group, kind, at, height: h, width: width * squash, squash, yaw: rand() * Math.PI * 2 });
+  };
   // Tree line on the meadow: clumps of 3-5 along the crest distance, gaps between them.
   for (let x = -240; x < -12; ) {
     const n = 3 + Math.floor(rand() * 3);

@@ -45,7 +45,7 @@ export function facing(w, slot, a, b, c, colour, n) {
  * mud or the water). `heads` is the share of blades that are seed stalks: thin, straighter, taller,
  * with a seed head at the top.
  */
-export function grassClump(w, at, { blades, height, spread = 0.08, lean = 0.35, arch = PLANTS.tussock.arch, out = null, heads = 0, rand, P, simple = false }) {
+export function grassClump(w, at, { blades, height, spread = 0.08, lean = 0.35, arch = PLANTS.tussock.arch, out = null, heads = 0, rand, P, simple = false, wide = 1 }) {
   const main = P.blade[Math.floor(rand() * P.blade.length)];
   const Tq = PLANTS.tussock;
   const segs = simple ? 1 : Tq.segments[EYE[2] - at[2] > Tq.near ? 1 : 0];
@@ -58,7 +58,7 @@ export function grassClump(w, at, { blades, height, spread = 0.08, lean = 0.35, 
     const tilt = lean * (0.3 + 0.9 * rand()) * (stalk ? 0.4 : 1);
     const h = height * (0.5 + 0.65 * rand()) * (stalk ? 1.35 : 1);
     const bend = stalk ? 0.06 : arch[0] + rand() * arch[1];
-    const wd = Math.min(0.026, Math.max(0.01, h * 0.055)) * (stalk ? 0.45 : 1);
+    const wd = Math.min(0.026, Math.max(0.01, h * 0.055)) * (stalk ? 0.45 : 1) * wide; // wide: drawn wider far away (far-bank grass)
     const root = add(at, [Math.cos(a), 0, Math.sin(a)], spread * Math.sqrt(rand()));
     root[1] -= 0.02;
     // A quadratic curve: root, a control point straight up, the tip out and bent down.
