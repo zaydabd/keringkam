@@ -3,7 +3,7 @@
 // based at the entry's `at`, turned by its `yaw` and scaled so its height matches the entry's
 // (satin pothos, the table's Schismatoglottis and the bougainvillea keep their modelled size).
 // The level of detail is picked once per copy, by its distance from `eye` against the plant's
-// `switchAt` (the camera stays near the window, so a static pick is enough). Copies of the same
+// `switchAt` (the camera stays near the window, so a static pick is enough), unless the entry names its own `lod`. Copies of the same
 // plant, seed and level are baked into one mesh per material, so each costs no extra draw call.
 // Sizes, seeds and the bush's footprint are design choices, tuned by eye.
 
@@ -89,7 +89,7 @@ function copiesOf(entries, eye) {
     const at = pot ? [e.at[0], pot.at[1], e.at[2]] : e.at;
     let yaw = e.yaw ?? index * 2.1;
     if (e.faceEye && eye) yaw = Math.atan2(eye[0] - at[0], eye[2] - at[2]) - SUN_YAW + (((yaw % 1) + 1) % 1 - 0.5) * 2 * FACE_SPREAD;
-    out.push({ plant, at, yaw, height: e.height, squash: e.squash ?? 1, index });
+    out.push({ plant, at, yaw, height: e.height, squash: e.squash ?? 1, index, lod: e.lod, leaves: e.leaves });
   });
   if (blobs.length) {
     // One bougainvillea over the bush's blobs: centred on them, as tall as the tallest.
@@ -109,14 +109,14 @@ function copiesOf(entries, eye) {
 export function buildFloraStylised(entries, { eye = null, layer } = {}) {
   const root = new THREE.Group();
   root.name = 'flora-stylised';
-  const models = new Map(); // `${id}|${seed}|${lod}` → { result, height, list: [copy] }
+  const models = new Map(); // `${id}|${seed}|${lod}|${leaves}` → { result, height, list: [copy] }
   const eyeV = eye && new THREE.Vector3(...eye);
   for (const c of copiesOf(entries, eye)) {
-    const lod = eyeV && eyeV.distanceTo(new THREE.Vector3(...c.at)) > c.plant.switchAt ? 'far' : 'near';
+    const lod = c.lod ?? (eyeV && eyeV.distanceTo(new THREE.Vector3(...c.at)) > c.plant.switchAt ? 'far' : 'near'); // an entry's own `lod` wins
     const seed = 1 + (c.index % SEEDS);
-    const key = `${c.plant.id}|${seed}|${lod}`;
+    const key = `${c.plant.id}|${seed}|${lod}|${c.leaves ?? 1}`;
     if (!models.has(key)) {
-      const result = c.plant.create({ seed, lod });
+      const result = c.plant.create({ seed, lod, leaves: c.leaves }); // `leaves`: a factor on the leaf clumps' size, where the plant takes one
       result.group.updateMatrixWorld(true);
       const box = new THREE.Box3().setFromObject(result.group);
       models.set(key, { result, top: box.max.y, list: [] });

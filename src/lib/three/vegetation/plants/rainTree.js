@@ -212,9 +212,13 @@ function createFar(seed, species) {
 export const plant = {
   id: 'rainTree',
   label: 'Rain tree',
-  create: ({ seed = 1, lod = 'near' } = {}) => {
+  // `leaves`: a factor on the near crown's leaf clumps (their radius and card size), e.g. 0.65 for
+  // smaller, less ball-like clumps on trees seen up close. Default 1.
+  create: ({ seed = 1, lod = 'near', leaves = 1 } = {}) => {
     if (lod === 'far') return createFar(seed, RAIN_TREE_SPECIES);
-    const tree = createTree({ seed, kind: 'rainTree', species: RAIN_TREE_SPECIES });
+    const F = RAIN_TREE_SPECIES.foliage;
+    const species = leaves === 1 ? RAIN_TREE_SPECIES : { ...RAIN_TREE_SPECIES, foliage: { ...F, radius: F.radius * leaves, card: F.card * leaves } };
+    const tree = createTree({ seed, kind: 'rainTree', species });
     tree.group.name = 'rain tree (near)';
     tree.stats.lod = 'near';
     return tree;
