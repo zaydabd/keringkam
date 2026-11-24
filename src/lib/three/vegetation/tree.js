@@ -134,7 +134,7 @@ function growBranch(rand, origin, dir, length, spec, from) {
     if (i < k) d.lerp(target, 1 / (k - i)).normalize();
     // Kinks (optional per level): now and then the branch turns sharply sideways, the zigzag
     // of an old rain tree limb. Extra random numbers only for levels that set `kink`.
-    if (spec.kink && i > 0 && rand() < (spec.kinkRate ?? 0.35)) {
+    if (spec.kink && i >= Math.max(1, Math.round(spec.sections * 0.25)) && rand() < (spec.kinkRate ?? 0.35)) {
       kick.set(range(rand, -1, 1), range(rand, -0.5, 0.5), range(rand, -1, 1));
       kick.addScaledVector(d, -kick.dot(d));
       if (kick.lengthSq() > 1e-6) d.addScaledVector(kick.normalize(), spec.kink).normalize();
@@ -348,7 +348,7 @@ function distances(points) {
  *   - dome: a thick trunk top is rounded off above its last limbs instead of cut flat.
  * Extra rings are added only where a flare needs them. Per-level options (species levels):
  * `flare` (0..1, default 0.6 on levels ≥ 1 except the last), `collar` (default 0.35); trunk `base`:
- * { flare, height, lobes, lobe }. All the amounts are design choices.
+ * { flare, height, lobes, lobe, sharp }. All the amounts are design choices.
  * `detail` (default 1): 0 skips the extra rings (the far levels).
  */
 export function shapeBranches(branches, species, { detail = 1 } = {}) {
@@ -379,7 +379,7 @@ export function shapeBranches(branches, species, { detail = 1 } = {}) {
     if (b.level === 0) {
       const B = spec.base;
       if (B) {
-        if (detail) densify(b, B.height, B.height / 4);
+        if (detail) densify(b, B.height, B.height / (B.sharp ? 10 : 4));
         const d = distances(b.points);
         b.radii = b.radii.map((r, i) => r * (1 + B.flare * Math.exp(-d[i] / (B.height * 0.45))));
         b.baseLobes = { ...B, d };
@@ -440,7 +440,15 @@ export function writeBranches(writer, branches, species, { radial } = {}) {
     const spec = species.levels[b.level];
     const lobes = b.baseLobes;
     const shape = lobes && lobes.lobes
-      ? (i, ang) => 1 + lobes.lobe * Math.exp(-lobes.d[i] / (lobes.height * 0.35)) * (Math.max(0, Math.cos(lobes.lobes * ang + 0.7)) ** 2 - 0.3)
+      ? (i, ang) => {
+          // Buttress fins: `sharp` narrows each lobe into a plank (kapok); each fin its own size.
+          const fin = Math.max(0, Math.cos(lobes.lobes * ang + 0.7)) ** (lobes.sharp ?? 2);
+          const size = 0.65 + 0.35 * Math.sin(Math.round((lobes.lobes * ang + 0.7) / (2 * Math.PI)) * 2.4 + 1.3);
+          // Height profile: plank fins run up the trunk and die out at `height`; round lobes fade fast.
+          const h = lobes.d[i] / lobes.height;
+          const rise = lobes.sharp ? Math.max(0, 1 - h) ** 2.2 : Math.exp(-h / 0.35);
+          return 1 + lobes.lobe * rise * (fin * size - 0.3 / (lobes.sharp ?? 2));
+        }
       : undefined;
     tris += addTube(writer, b.points, b.radii, {
       radial: radial ? radial(b.level) : spec.radial,
