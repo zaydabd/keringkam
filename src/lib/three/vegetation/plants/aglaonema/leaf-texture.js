@@ -70,26 +70,27 @@ export function createLeafTextures(seed, pal, pattern) {
 
       // ---- "Sculpt": sunken veins and midrib, puffed panels, margin rolled down.
       const puff = Math.sin(Math.PI * dv * 2) * 0.5 * (1 - a * a);
-      height[y * W + x] = 0.55 * puff - 0.5 * veinLine - 0.35 * rib - 0.9 * Math.pow(a, 5) + 0.15 * fine(u, t);
+      height[y * W + x] = 0.55 * puff - 0.5 * veinLine - 0.35 * rib - 0.9 * Math.pow(a, 5) + 0.04 * fine(u, t);
 
-      // ---- "Paint": deep green at the base, brighter towards the tip and along the light side.
-      c.copy(pal.deep).lerp(pal.green, smooth(0, 0.35, t)).lerp(pal.tip, smooth(0.55, 1, t) * 0.55);
-      // Variegation: a light core whose edge swings out along each vein, with ragged painted edges.
+      // ---- "Paint", stylised: flat colour zones with hard (1-pixel antialiased) edges, no
+      // gradients or brush noise. Bands: deep base, green blade, lighter tip (guess).
+      const px = 1.5 / W; // edge softness: about one texel
+      const band = (e, x) => smooth(e - px, e + px, x);
+      c.copy(pal.deep).lerp(pal.green, band(0.12 + 0.03 * (noise(u, 0.1) - 0.5), t)).lerp(pal.tip, band(0.78 + 0.04 * (noise(u, 0.9) - 0.5), t) * 0.6);
+      // Variegation: a light core whose edge steps out along each vein; a slight wobble keeps it
+      // hand-drawn rather than mechanical.
       const vein = Math.cos(Math.PI * 2 * p);
-      const ends = smooth(0.03, 0.14, t) * (1 - smooth(0.72, 0.95, t));
-      const edge = core + 0.12 * vein + 0.08 * (noise(u, t) - 0.5) + 0.03 * (fine(u, t) - 0.5);
-      const light = smooth(-0.02, 0.02, edge - a) * ends;
-      c.lerp(pal.light, light * 0.92);
-      // A few light specks outside the core ("spotted", source).
-      if (fine(u * 1.7, t * 1.3) > 0.8 && a > core && a < 0.85) c.lerp(pal.light, 0.5 * ends);
-      // Veins: green veins through the light core, light midrib.
-      c.lerp(pal.green, veinLine * light * 0.45);
-      c.lerp(pal.rib, rib * 0.85 * smooth(0, 0.05, t) * (1 - smooth(0.85, 1, t)));
-      // Painted margin: a thin darker outline.
-      c.lerp(pal.deep, smooth(0.9, 0.98, a) * 0.7);
-      // Low-frequency brush variation (±8 %).
-      const k = 0.92 + 0.16 * noise(u * 0.7 + 0.3, t * 0.7);
-      c.multiplyScalar(k);
+      const ends = band(0.08, t) * (1 - band(0.86, t));
+      const edge = core + 0.13 * Math.sign(vein) * Math.pow(Math.abs(vein), 0.5) + 0.04 * (noise(u, t) - 0.5);
+      const light = band(0, edge - a) * ends;
+      c.lerp(pal.light, light);
+      // Veins as clean lines through the light core.
+      const veinInk = band(0.5, Math.exp(-((dv / 0.045) ** 2)) * (1 - 0.7 * a) * band(0.06, a));
+      c.lerp(pal.green, veinInk * light * 0.7);
+      // Midrib: a pale line along the whole blade.
+      c.lerp(pal.rib, band(0.5, rib) * band(0.02, t) * (1 - band(0.9, t)));
+      // Inked margin: a thin dark outline.
+      c.lerp(pal.deep, band(0.93, a));
 
       const i = (y * W + x) * 4;
       const srgb = c.clone().convertLinearToSRGB();
@@ -102,7 +103,7 @@ export function createLeafTextures(seed, pal, pattern) {
 
   // Height → tangent-space normal (x across = u, y along = v).
   const normal = new Uint8Array(W * H * 4);
-  const strength = 2.2;
+  const strength = 1.2; // softer relief: it only shapes the cel bands
   const hAt = (x, y) => height[Math.min(H - 1, Math.max(0, y)) * W + Math.min(W - 1, Math.max(0, x))];
   const n = new THREE.Vector3();
   for (let y = 0; y < H; y++) {

@@ -30,7 +30,7 @@ import * as THREE from 'three';
 import { mulberry32, range, stratified } from '../rng.js';
 import { addTube, createMeshWriter } from '../tube.js';
 import { UP } from '../grow.js';
-import { CEL_RAMP_GLSL, FOLIAGE_SUN, toneUniforms } from '../cel-foliage.js';
+import { FOLIAGE_SUN, toneUniforms } from '../cel-foliage.js';
 import { createLeafTextures } from './aglaonema/leaf-texture.js';
 
 // Sizes in metres (guess except where noted above).
@@ -51,7 +51,7 @@ const UNDERSIDE = '#9cc47f'; // paler underside (guess)
 
 // Cel tones as multipliers on the painted texture: shadow, mid, light. Hue-shifted (cool shadow,
 // warm light) for the vibrant look of the foliage study (guess).
-const TONES = ['#33506a', '#a6c6ae', '#fff4dc'];
+const TONES = ['#2b4766', '#86ae9c', '#fff3d6'];
 
 function createMaterial(map, normalMap) {
   return new THREE.ShaderMaterial({
@@ -90,7 +90,9 @@ function createMaterial(map, normalMap) {
       uniform sampler2D map;
       uniform sampler2D normalMap;
       uniform vec3 underside;
-      ${CEL_RAMP_GLSL}
+      uniform vec3 tone0;
+      uniform vec3 tone1;
+      uniform vec3 tone2;
       varying vec3 vNormal;
       varying vec3 vTanU;
       varying vec3 vTanV;
@@ -119,10 +121,18 @@ function createMaterial(map, normalMap) {
         float shade = max(dot(N, L), 0.0) * vAo;
         // Leaves let light through: a seen-from-below blade never drops to the darkest tone (guess).
         if (vLeaf > 0.5 && dot(normalize(vFace), V) < 0.0) shade = max(shade, 0.4 * vAo);
-        vec3 col = celRamp(shade) * albedo;
-        // Rim light, for the glowing edges of the foliage study (guess).
-        float rim = pow(1.0 - abs(dot(N, V)), 3.0) * vAo;
-        col += rim * 0.2 * mix(albedo, vec3(1.0, 0.95, 0.8), 0.5);
+        // Hard cel steps (about one pixel wide), not the soft shared ramp.
+        float aa = fwidth(shade) + 0.002;
+        vec3 col = mix(tone0, tone1, smoothstep(0.3 - aa, 0.3 + aa, shade));
+        col = mix(col, tone2, smoothstep(0.64 - aa, 0.64 + aa, shade)) * albedo;
+        // Rim: one solid band on the lit side of the silhouette.
+        float rim = (1.0 - abs(dot(N, V))) * (0.4 + 0.6 * max(dot(N, L), 0.0));
+        float ra = fwidth(rim) + 0.002;
+        col += smoothstep(0.62 - ra, 0.62 + ra, rim) * 0.22 * mix(albedo, vec3(1.0, 0.96, 0.85), 0.6);
+        // Hard specular dab on the glossy upper side (leaves only).
+        float sp = max(dot(reflect(-L, N), V), 0.0);
+        float sa = fwidth(sp) + 0.002;
+        col += vLeaf * smoothstep(0.93 - sa, 0.93 + sa, sp) * 0.18 * vAo;
         gl_FragColor = vec4(col, 1.0);
         #include <colorspace_fragment>
       }`,
