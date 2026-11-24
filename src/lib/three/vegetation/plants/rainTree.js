@@ -65,16 +65,18 @@ export const RAIN_TREE_SPECIES = {
   foliage: { radius: 1.7, merge: 1.1, density: 1.1, card: 0.42, mask: { curve: 0.04 }, tones: ['#223b1f', '#4c7a33', '#a8c962'] },
 };
 
-/** Cel material for the far crown blobs: per-vertex normal → the same 3-tone ramp, times AO. */
+/** Cel material for the far crown blobs: per-vertex normal → the same 3-tone ramp, times AO, with flecks. */
 function createBlobMaterial(tones) {
   return new THREE.ShaderMaterial({
     uniforms: toneUniforms(tones),
     vertexShader: /* glsl */ `
       attribute float ao;
       varying vec3 vNormal;
+      varying vec3 vWorld;
       varying float vAo;
       void main() {
         vNormal = normalize(normalMatrix * normal);
+        vWorld = (modelMatrix * vec4(position, 1.0)).xyz;
         vAo = ao;
         gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
       }`,
@@ -82,10 +84,18 @@ function createBlobMaterial(tones) {
       uniform vec3 sunDir;
       ${CEL_RAMP_GLSL}
       varying vec3 vNormal;
+      varying vec3 vWorld;
       varying float vAo;
+      float hash(vec3 p) { return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
       void main() {
         vec3 L = normalize((viewMatrix * vec4(sunDir, 0.0)).xyz);
-        float shade = max(dot(normalize(vNormal), L), 0.0) * vAo;
+        // Leaf flecks: a value per ~0.4 m cell (about one near leaf card) nudges the shade, so the
+        // ramp bands break up into flecks the way the near cards do. Cell size and amount: by eye.
+        // Two grids at odd angles, averaged, so the cells read as irregular patches, not squares.
+        const mat3 A = mat3(0.80, 0.36, -0.48, -0.48, 0.86, -0.16, 0.36, 0.36, 0.86);
+        const mat3 B = mat3(0.36, -0.80, 0.48, 0.86, 0.48, 0.16, -0.36, 0.36, 0.86);
+        float fleck = 0.6 * hash(floor(A * vWorld / 0.38)) + 0.4 * hash(floor(B * vWorld / 0.29) + 7.0) - 0.5;
+        float shade = max(dot(normalize(vNormal), L), 0.0) * vAo + fleck * 0.38;
         gl_FragColor = vec4(celRamp(shade), 1.0);
         #include <colorspace_fragment>
       }`,
@@ -109,7 +119,7 @@ function createFar(seed, species) {
   }
 
   // Greedy clusters of the clump centres; each cluster is one blob that covers its clumps.
-  const R = F.radius * 1.9;
+  const R = F.radius * 1.3;
   const clusters = [];
   for (const c of centres) {
     const near = clusters.find((k) => k.seed.distanceTo(c) < R);
@@ -135,18 +145,21 @@ function createFar(seed, species) {
     c.divideScalar(k.members.length);
     let spread = 0;
     for (const m of k.members) spread = Math.max(spread, m.distanceTo(c));
-    const r = spread * 0.5 + F.radius * 0.92;
+    const r = spread * 0.55 + F.radius * 0.95;
     const sx = r * range(rand, 0.95, 1.1);
     const sy = r * 0.95;
+    const ph = range(rand, 0, Math.PI * 2);
     const sz = r * range(rand, 0.95, 1.1);
     cn.copy(c).sub(crownCentre).divide(half);
     const depth = Math.min(1, cn.length());
     const away = cn.lengthSq() > 1e-6 ? cn.clone().normalize().dot(FOLIAGE_SUN) * 0.5 + 0.5 : 0.5;
-    // 0.84: the near cards are a little darker overall (tint, leaf-stroke tone, inner cards); by eye.
-    const ao = (0.6 + 0.25 * depth + 0.15 * away) * 0.84;
+    // 0.78: the near cards are a little darker overall (tint, leaf-stroke tone, inner cards); by eye.
+    const ao = (0.6 + 0.25 * depth + 0.15 * away) * 0.78;
     for (let i = 0; i < icoPos.count; i++) {
       n.fromBufferAttribute(icoPos, i);
-      p.set(c.x + n.x * sx, c.y + n.y * sy, c.z + n.z * sz);
+      // Lumpy surface: a smooth function of direction (shared corners move together), phase per blob.
+      const lump = 1 + 0.13 * Math.sin(n.x * 5.1 + ph) * Math.sin(n.y * 4.3 + ph * 1.7) * Math.sin(n.z * 4.7 + ph * 0.6);
+      p.set(c.x + n.x * sx * lump, c.y + n.y * sy * lump, c.z + n.z * sz * lump);
       // Blob normal blended with the crown normal, as the near cards do.
       q.copy(p).sub(crownCentre).divide(half).normalize();
       n.set(n.x / sx, n.y / sy, n.z / sz).normalize().multiplyScalar(0.75).addScaledVector(q, 0.25).normalize();
