@@ -112,8 +112,8 @@ export const FAR_FRONT = { reach: 330, pierClear: 5, drawn: 0.14 }; // drawn: th
  * retaining wall on its terrace; on the left a natural bank rolling up to a meadow. Writes slots
  * 'paint' (ground, posts, rails), 'paving' and 'blade' (ticks on the slope, two-sided).
  */
-export function buildFarBank(w, { seed = 0 } = {}) {
-  const S = SITE, F = S.far, C = BANK_PAINT, R = FAR_RELIEF;
+export function buildFarBank(w, { seed = 0, paint = null } = {}) {
+  const S = SITE, F = S.far, C = paint ? { ...BANK_PAINT, ...paint } : BANK_PAINT, R = FAR_RELIEF; // paint: overrides (grass.js FAR_GRASS_GROUND)
   const rand = mulberry32(211 + seed);
   const stations = sampleLine(S.farLine, { landOnLeft: false, ...R.stations });
   const lawnAt = (s) => smooth(F.lawnFrom[0], F.lawnFrom[1], s.x); // 0 natural bank, 1 embankment

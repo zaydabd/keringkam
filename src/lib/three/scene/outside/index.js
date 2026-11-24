@@ -34,7 +34,7 @@ import { buildForecourt, forecourtFrame } from './forecourt.js';
 import { OUTSIDE_THEME } from '../themes/index.js';
 import { CLAY } from '../themes/clay.js';
 import { buildFarBank, BANK_PAINT } from './banks.js';
-import { buildFarGrass } from './grass.js';
+import { buildFarGrass, FAR_GRASS_GROUND } from './grass.js';
 import { bladePatches, dropTriangles, buildFloraBlockout, farBankProposal } from '../flora-layout.js';
 import { buildWaterBush } from './waterbush.js';
 import { buildFloraStylised } from '../flora-stylised.js';
@@ -97,7 +97,7 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
   // plants are still grown (same contracts, same random draws) but not drawn.
   const floraEntries = [];
   const bladeFrom = w.slot('blade').triangles;
-  if (want('farbank')) reports.farbank = buildFarBank(w, { seed });
+  if (want('farbank')) reports.farbank = buildFarBank(w, { seed, paint: flora === 'stylised' ? FAR_GRASS_GROUND : null });
   if (flora && want('farbank')) {
     const ticks = { 'far slope ticks': BANK_PAINT.tick };
     floraEntries.push(...bladePatches(w.slot('blade'), bladeFrom, ticks));
