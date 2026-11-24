@@ -179,21 +179,21 @@ export function farBankProposal({ place, forecourt: [f0, f1], rand }) {
   // Tree line on the meadow: clumps of 3-5 along the crest distance, gaps between them.
   for (let x = -240; x < -12; ) {
     const n = 3 + Math.floor(rand() * 3);
-    for (let i = 0; i < n; i++, x += 4 + rand() * 3) add('proposed: meadow tree line', 'tree', place(x, 28 + rand() * 18), 9 + rand() * 6, 6 + rand() * 3);
+    for (let i = 0; i < n; i++, x += 4 + rand() * 3) add('proposed: bungor (Lagerstroemia speciosa)', 'tree', place(x, 28 + rand() * 18), 9 + rand() * 6, 6 + rand() * 3);
     x += 6 + rand() * 8;
   }
   // Left of the bridge (upstream), the user's ask: a taller back row behind the line, and loose
   // groups nearer the water, so that side reads wooded.
-  for (let x = -230; x < -20; x += 9 + rand() * 6) add('proposed: meadow back trees', 'tree', place(x, 55 + rand() * 30), 12 + rand() * 6, 8 + rand() * 3);
-  for (let x = -210; x < -35; x += 14 + rand() * 12) for (let i = 0; i < 2; i++) add('proposed: meadow riverside trees', 'tree', place(x + i * 4.5, 12 + rand() * 8), 7 + rand() * 4, 5 + rand() * 2);
+  for (let x = -230; x < -20; x += 9 + rand() * 6) add('proposed: rain tree (Samanea saman)', 'tree', place(x, 55 + rand() * 30), 12 + rand() * 6, 8 + rand() * 3);
+  for (let x = -210; x < -35; x += 14 + rand() * 12) for (let i = 0; i < 2; i++) add('proposed: pedada (Sonneratia caseolaris)', 'tree', place(x + i * 4.5, 12 + rand() * 8), 7 + rand() * 4, 5 + rand() * 2);
   // Framing pairs either side of the forecourt, on the slope above the path.
-  for (const [x, o] of [[f0 - 3, 17], [f0 - 6.5, 21], [f1 + 3, 17], [f1 + 6.5, 21]]) add('proposed: forecourt framing trees', 'tree', place(x, o), 12 + rand() * 2, 7);
+  for (const [x, o] of [[f0 - 3, 17], [f0 - 6.5, 21], [f1 + 3, 17], [f1 + 6.5, 21]]) add('proposed: angsana (Pterocarpus indicus)', 'tree', place(x, o), 12 + rand() * 2, 7);
   // Street trees on the far path, every 12 m, clear of the forecourt and the bridge's pier.
-  for (let x = -66; x <= 66; x += 12) if ((x < f0 - 10 || x > f1 + 10) && Math.abs(x + 22) > 6) add('proposed: far street trees', 'tree', place(x, 9.3), 6 + rand() * 1.5, 4);
+  for (let x = -66; x <= 66; x += 12) if ((x < f0 - 10 || x > f1 + 10) && Math.abs(x + 22) > 6) add('proposed: khaya (Khaya senegalensis)', 'tree', place(x, 9.3), 6 + rand() * 1.5, 4);
   // Terrace trees behind the crest, either side of the Assembly.
-  for (const x of [f1 + 20, f1 + 28, f1 + 40, 60, 72]) add('proposed: terrace trees', 'tree', place(x, 48 + rand() * 20), 11 + rand() * 4, 7 + rand() * 2);
+  for (const x of [f1 + 20, f1 + 28, f1 + 40, 60, 72]) add('proposed: trumpet tree (Tabebuia rosea)', 'tree', place(x, 48 + rand() * 20), 11 + rand() * 4, 7 + rand() * 2);
   // Bushes along the embankment's foot, right of the forecourt, in threes.
-  for (let x = f1 + 12; x < f1 + 46; x += 11) for (let i = 0; i < 3; i++) add('proposed: embankment foot bushes', 'bush', place(x + i * 1.6, 15.6 + rand() * 0.6), 1.2 + rand() * 0.5, 1.8 + rand() * 0.6);
+  for (let x = f1 + 12; x < f1 + 46; x += 11) for (let i = 0; i < 3; i++) add('proposed: nipah palm (Nypa fruticans)', 'bush', place(x + i * 1.6, 15.6 + rand() * 0.6), 1.2 + rand() * 0.5, 1.8 + rand() * 0.6);
   return out;
 }
 
