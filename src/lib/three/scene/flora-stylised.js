@@ -17,6 +17,7 @@ import { plant as aglaonema } from '../vegetation/plants/aglaonema.js';
 import { plant as bougainvillea } from '../vegetation/plants/bougainvillea.js';
 import { plant as schismatoglottis } from '../vegetation/plants/schismatoglottis.js';
 import { createTree } from '../vegetation/tree.js';
+import { FOLIAGE_SUN } from '../vegetation/cel-foliage.js';
 
 // The oak bush preset (vegetation/tree.js) as a plant: one level of detail, used near and far.
 const oakBush = { id: 'oakBush', label: 'Oak bush', create: ({ seed }) => createTree({ seed, kind: 'oakBush' }), switchAt: Infinity };
@@ -38,6 +39,10 @@ const PLANT_OF = [
 const NATURAL_SIZE = new Set([satinPothos.id, schismatoglottis.id]);
 // Plants that bring their own pot: they stand on the named planter's base, and its box is not drawn.
 const OWN_POT = [[/^proposed: Chinese evergreen \(table\)$/, /^proposed: table pot/]];
+// A `faceEye` entry is turned so its lit side (the plants shade the side towards FOLIAGE_SUN
+// lighter, in model space) faces the eye, give or take FACE_SPREAD radians (design choice).
+const FACE_SPREAD = 0.35;
+const SUN_YAW = Math.atan2(FOLIAGE_SUN.x, FOLIAGE_SUN.z);
 const SEEDS = 5; // seeds per plant, reused round the copies: each a different branching and leaf spread
 const POTHOS_SPACING = 0.35; // m between pothos along a ledge trough
 
@@ -60,7 +65,7 @@ function bake(geometry, matrix, rotation, scale) {
 }
 
 /** Turns layout entries into copies: [{ plant, at, yaw, height, index }]. */
-function copiesOf(entries) {
+function copiesOf(entries, eye) {
   const out = [];
   const blobs = [];
   entries.forEach((e, index) => {
@@ -79,7 +84,9 @@ function copiesOf(entries) {
     const potRe = OWN_POT.find(([re]) => re.test(e.group))?.[1];
     const pot = potRe && entries.find((p) => p.kind === 'planter' && potRe.test(p.group));
     const at = pot ? [e.at[0], pot.at[1], e.at[2]] : e.at;
-    out.push({ plant, at, yaw: e.yaw ?? index * 2.1, height: e.height, squash: e.squash ?? 1, index });
+    let yaw = e.yaw ?? index * 2.1;
+    if (e.faceEye && eye) yaw = Math.atan2(eye[0] - at[0], eye[2] - at[2]) - SUN_YAW + (((yaw % 1) + 1) % 1 - 0.5) * 2 * FACE_SPREAD;
+    out.push({ plant, at, yaw, height: e.height, squash: e.squash ?? 1, index });
   });
   if (blobs.length) {
     // One bougainvillea over the bush's blobs: centred on them, as tall as the tallest.
@@ -101,7 +108,7 @@ export function buildFloraStylised(entries, { eye = null, layer } = {}) {
   root.name = 'flora-stylised';
   const models = new Map(); // `${id}|${seed}|${lod}` → { result, height, list: [copy] }
   const eyeV = eye && new THREE.Vector3(...eye);
-  for (const c of copiesOf(entries)) {
+  for (const c of copiesOf(entries, eye)) {
     const lod = eyeV && eyeV.distanceTo(new THREE.Vector3(...c.at)) > c.plant.switchAt ? 'far' : 'near';
     const seed = 1 + (c.index % SEEDS);
     const key = `${c.plant.id}|${seed}|${lod}`;

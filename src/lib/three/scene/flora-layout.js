@@ -211,6 +211,12 @@ export function farBankProposal({ place, forecourt: [f0, f1], rand, stepPlanting
   else
     for (const [d, o, kind, h] of STEP_PLANTING)
       for (const x of [f0 + d, f1 - d]) add(`proposed: step planting (${kind})`, 'bush', place(x, o + rand() * 0.4), h * (0.9 + rand() * 0.2), h * 1.3);
+  // The trees nearest the stairs turn their lit side to the window (the user's ask: "make it face
+  // us more"); flora-stylised.js sets the turn from the eye. The 45 m reach is a design choice.
+  if (stepPlanting) {
+    const stairs = [place(f0, 14), place(f1, 14)];
+    for (const e of out) if (e.kind === 'tree' && stairs.some((s) => Math.hypot(e.at[0] - s[0], e.at[2] - s[2]) < 45)) e.faceEye = true;
+  }
   // Street trees on the far path, every 12 m, clear of the forecourt and the bridge's pier.
   for (let x = -66; x <= 66; x += 12) if ((x < f0 - 10 || x > f1 + 10) && Math.abs(x + 22) > 6) add('proposed: rain tree (street)', 'tree', place(x, 9.3), 6 + rand() * 1.5, 4);
   // Terrace trees behind the crest, either side of the Assembly.
