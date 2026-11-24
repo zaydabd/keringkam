@@ -43,9 +43,13 @@ const _d = new THREE.Vector3();
  * Adds a tapered tube. `points` are THREE.Vector3, `radii` one per point. A tip whose radius is
  * under `closeBelow` ends in a point vertex; a thicker end gets a flat cap with its own normal.
  * `colorAt(v, u, t)` (optional) returns a colour per vertex: v in metres, u around, t 0..1 along.
+ * `uRepeat` (integer, default 1) multiplies the around coordinate of the UVs, so a bark pattern
+ * can keep about the same width in metres on thick and thin stems without a seam.
+ * `shape(i, angle)` (optional) returns a factor on ring i's radius at that angle (0..2π), e.g.
+ * buttress lobes at a trunk base.
  * Returns the number of triangles written.
  */
-export function addTube(writer, points, radii, { radial = 6, color, colorAt, closeStart = false } = {}) {
+export function addTube(writer, points, radii, { radial = 6, color, colorAt, closeStart = false, uRepeat = 1, shape } = {}) {
   const n = points.length;
   if (n < 2) return 0;
   const base = writer.vertexCount;
@@ -80,10 +84,10 @@ export function addTube(writer, points, radii, { radial = 6, color, colorAt, clo
       const s = Math.sin(ang);
       _d.set(_n.x * c + _b.x * s, _n.y * c + _b.y * s, _n.z * c + _b.z * s);
       const p = points[i];
-      const r = radii[i];
+      const r = shape ? radii[i] * shape(i, ang) : radii[i];
       writer.positions.push(p.x + _d.x * r, p.y + _d.y * r, p.z + _d.z * r);
       writer.normals.push(_d.x, _d.y, _d.z);
-      writer.uvs.push(k / radial, along);
+      writer.uvs.push((k / radial) * uRepeat, along);
       const col = colorAt ? colorAt(along, k / radial, i / (n - 1)) : color;
       writer.colors.push(col.r, col.g, col.b);
     }
