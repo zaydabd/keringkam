@@ -62,10 +62,11 @@ export function init(canvas, { plant = 'vine', seed = 1, lod = 'near', leaves, b
   };
   controls.addEventListener('change', render);
 
-  function setView(az, el, distance = def.distance) {
+  // ty (optional): the height the camera looks at, instead of the plant's own target.
+  function setView(az, el, distance = def.distance, ty) {
     const a = THREE.MathUtils.degToRad(az);
     const e = THREE.MathUtils.degToRad(el);
-    controls.target.set(...def.target);
+    controls.target.set(def.target[0], ty ?? def.target[1], def.target[2]);
     camera.position.set(Math.sin(a) * Math.cos(e), Math.sin(e), Math.cos(a) * Math.cos(e)).multiplyScalar(distance).add(controls.target);
     controls.update();
     render();
