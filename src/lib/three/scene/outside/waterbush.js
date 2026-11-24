@@ -148,9 +148,11 @@ function placeBlobs(profileTan, ground) {
 
 /**
  * Builds the bush into `w`: 'blade' (cores, grass), 'leaf' (cards, flowers, fronds).
- * Returns { contract, stats, triangles }.
+ * `body` takes the blobs (cores, cards, flowers) instead of `w`: ?flora=stylised drops them for the
+ * bougainvillea and keeps the fern and the grass.
+ * Returns { contract, stats, triangles, layout }.
  */
-export function buildWaterBush(w, { seed = 0 } = {}) {
+export function buildWaterBush(w, { seed = 0, body = w } = {}) {
   const rand = mulberry32(83 + seed);
   const P = BUSH_PAINT;
   const ground = SITE.ground, floor = ground - BUSH.sink;
@@ -217,7 +219,7 @@ export function buildWaterBush(w, { seed = 0 } = {}) {
       const a = at(unit[i]), b = at(unit[i + 1]), d = at(unit[i + 2]);
       if (Math.max(a[1], b[1], d[1]) <= floor + 1e-6) continue;
       const n = [unit[i], unit[i + 1], unit[i + 2]].map((u) => norm([u[0] / r[0], u[1] / r[1], u[2] / r[2]]));
-      w.smoothTri('blade', [a, b, d], n, null, P.core);
+      body.smoothTri('blade', [a, b, d], n, null, P.core);
       tris.core++;
     }
   }
@@ -271,7 +273,7 @@ export function buildWaterBush(w, { seed = 0 } = {}) {
     const corners = [add(base, side, -width / 2), add(base, side, width / 2), add(add(base, up, len), side, width / 2), add(add(base, up, len), side, -width / 2)];
     if (Math.min(...corners.map((q) => q[1])) < floor) continue; // nothing deeper than the floor
     const normals = corners.map((q) => shellNormal(q));
-    tris.cards += leafCard(w, base, up, side, { length: len, width, cell: LEAF_ATLAS.cell.wash, normal: normals, colour, eye: EYE });
+    tris.cards += leafCard(body, base, up, side, { length: len, width, cell: LEAF_ATLAS.cell.wash, normal: normals, colour, eye: EYE });
     stats.cards++;
     if (loose) stats.loose++, (stats.maxFloat = Math.max(stats.maxFloat, float));
     for (const q of corners) {
@@ -291,7 +293,7 @@ export function buildWaterBush(w, { seed = 0 } = {}) {
     let side = norm(cross(UP, face));
     if (Math.hypot(...side) < 0.1) side = [1, 0, 0];
     const up = norm(cross(face, side));
-    tris.flowers += leafCard(w, add(centre, up, -size / 2), up, side, { length: size, width: size, cell: LEAF_ATLAS.cell.flower, normal: face, colour: lerp3(P.flowerDeep, P.flower, rand()), eye: EYE });
+    tris.flowers += leafCard(body, add(centre, up, -size / 2), up, side, { length: size, width: size, cell: LEAF_ATLAS.cell.flower, normal: face, colour: lerp3(P.flowerDeep, P.flower, rand()), eye: EYE });
     stats.flowers++;
   }
 

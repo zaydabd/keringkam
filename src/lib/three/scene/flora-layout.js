@@ -7,10 +7,10 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
-/** The `?flora=` flag: 'blockout', 'both' or null. */
+/** The `?flora=` flag: 'blockout', 'both', 'stylised' (the stylised plants, flora-stylised.js) or null. */
 export function floraMode(params) {
   const f = params.get('flora');
-  return f === 'blockout' || f === 'both' ? f : null;
+  return f === 'blockout' || f === 'both' || f === 'stylised' ? f : null;
 }
 
 /** The vines beside the windows (interior/vines.js): anchor, top and bottom of each. */

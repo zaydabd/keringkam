@@ -29,13 +29,14 @@
 import * as THREE from 'three';
 import { paintSoftSky, paintLeaves, paintPaving, paintAssembly } from '../paint.js';
 import { SlotWriter, createContract } from './contract.js';
-import { SITE, mulberry32 } from './site.js';
+import { SITE, WINDOW_EYE, mulberry32 } from './site.js';
 import { buildForecourt, forecourtFrame } from './forecourt.js';
 import { OUTSIDE_THEME } from '../themes/index.js';
 import { CLAY } from '../themes/clay.js';
 import { buildFarBank, BANK_PAINT } from './banks.js';
 import { bladePatches, dropTriangles, buildFloraBlockout, farBankProposal } from '../flora-layout.js';
 import { buildWaterBush } from './waterbush.js';
+import { buildFloraStylised } from '../flora-stylised.js';
 import { buildNearWaterfront } from './waterfront.js';
 import { planAssembly, compileAssembly } from './assembly.js';
 import { PENAMBANG, planBoat, compileBoat } from './boats.js';
@@ -109,7 +110,8 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
   if (want('forecourt')) reports.forecourt = buildForecourt(w); // the Assembly's river front on the embankment (pass e7)
   if (want('waterfront')) reports.waterfront = buildNearWaterfront(w); // our side: the waterfront's street and railing (pass e11)
   if (want('waterbush')) {
-    reports.waterbush = buildWaterBush(flora === 'blockout' ? new SlotWriter() : w, { seed }); // the bush on the grass right below the window
+    // the bush on the grass right below the window; under ?flora=stylised its blobs give way to the bougainvillea
+    reports.waterbush = buildWaterBush(flora === 'blockout' ? new SlotWriter() : w, { seed, body: flora === 'stylised' ? new SlotWriter() : undefined });
     if (flora) floraEntries.push(...reports.waterbush.layout);
   }
 
@@ -278,8 +280,11 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
   const stats = { triangles: total, meshes: group.children.length, perMesh: triangles };
 
   // The flora markers come after the budget: they are a layout aid, not part of the view.
-  const blockout = flora ? buildFloraBlockout(floraEntries, { opacity: flora === 'both' ? 0.55 : 1, layer: MIRROR_LAYER }) : null;
+  const blockout = flora && flora !== 'stylised' ? buildFloraBlockout(floraEntries, { opacity: flora === 'both' ? 0.55 : 1, layer: MIRROR_LAYER }) : null;
   if (blockout) group.add(blockout.group);
+  // ?flora=stylised: the approved plants at the same entries (flora-stylised.js), also after the budget.
+  const stylised = flora === 'stylised' ? buildFloraStylised(floraEntries, { eye: WINDOW_EYE, layer: MIRROR_LAYER }) : null;
+  if (stylised) group.add(stylised.group);
 
   return {
     group,
@@ -287,6 +292,8 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
     stats,
     /** ?flora: the markers' legend ([{ group, kind, count, colour }]), or null. */
     flora: blockout?.legend ?? null,
+    /** ?flora=stylised: { copies, triangles, meshes } of the plants, or null. */
+    floraStats: stylised?.stats ?? null,
     /** For the ink pass (toon.js createOutline `mask`): the leaf cards' layer and atlas. */
     inkMasks: textures.leaves ? [{ layer: LEAF_MASK_LAYER, map: textures.leaves, cover: LEAF_COVER }] : [],
     /** Moves the water. t in seconds. */
@@ -304,6 +311,7 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
       group.traverse((o) => o.geometry?.dispose());
       for (const d of disposables) d.dispose();
       blockout?.dispose();
+      stylised?.dispose();
     },
   };
 }

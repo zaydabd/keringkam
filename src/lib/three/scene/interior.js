@@ -55,6 +55,7 @@ import { buildSeat, furnitureOverlaps, buildTable } from './interior/furniture.j
 import { buildHangings } from './interior/hangings.js';
 import { buildVines } from './interior/vines.js';
 import { floraMode, windowVineLayout, vineMarkers, buildFloraBlockout, showFloraLegend, windowHangingProposal, roomPlantsProposal } from './flora-layout.js';
+import { buildFloraStylised } from './flora-stylised.js';
 import { shadeWalls, glossBoards, buildContactShadows } from './interior/surfaces.js';
 import { drapeAll, fabricGeometry, partColour, fabricIndex } from './interior/fabrics.js';
 import { createTextureStore, fabrics as FABRIC_PHOTOS } from '../common.js';
@@ -453,7 +454,12 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
   landscape.group.userData.noAO = true; // the view outside is too far for AO, and it moves
   scene.add(landscape.group);
   let vineBlockout = null, removeLegend = null;
-  if (flora) {
+  if (flora === 'stylised') {
+    vineBlockout = buildFloraStylised([...windowHangingProposal(PLAN), ...roomPlantsProposal(PLAN)]);
+    vineBlockout.group.visible = !stage;
+    scene.add(vineBlockout.group);
+    console.info('[flora] stylised', JSON.stringify({ outside: landscape.floraStats, room: vineBlockout.stats }));
+  } else if (flora) {
     vineBlockout = buildFloraBlockout([...vineMarkers(windowVineLayout(PLAN)), ...windowHangingProposal(PLAN), ...roomPlantsProposal(PLAN)], { opacity: flora === 'both' ? 0.55 : 1, firstColour: landscape.flora?.length ?? 0 });
     vineBlockout.group.visible = !stage;
     scene.add(vineBlockout.group);
