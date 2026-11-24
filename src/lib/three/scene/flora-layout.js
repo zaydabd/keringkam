@@ -106,6 +106,7 @@ const UNIT = {
   fern: () => new THREE.SphereGeometry(0.5, 10, 6).translate(0, 0.5, 0),
   patch: () => new THREE.CylinderGeometry(0.5, 0.5, 1, 12).translate(0, 0.5, 0),
   vine: () => new THREE.BoxGeometry(1, 1, 0.2).translate(0, 0.5, 0),
+  planter: () => new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0),
 };
 // A colour per group, in the order groups first appear.
 const PALETTE = ['#1f6f3a', '#d1495b', '#edae49', '#00798c', '#8e5cc4', '#3e8ed0', '#e07a1f', '#6a994e', '#c2185b', '#7b5e3b', '#2ec4b6', '#b5179e', '#a7c957', '#ff6b6b'];
@@ -138,7 +139,7 @@ export function buildFloraBlockout(entries, { opacity = 1, layer, firstColour = 
     const mesh = new THREE.InstancedMesh(geo, mat, list.length);
     mesh.name = `flora-${kind}`;
     list.forEach((e, i) => {
-      m.compose(new THREE.Vector3(...e.at), q.setFromAxisAngle(up, e.yaw ?? 0), new THREE.Vector3(e.width, e.height, e.width));
+      m.compose(new THREE.Vector3(...e.at), q.setFromAxisAngle(up, e.yaw ?? 0), new THREE.Vector3(e.width, e.height, e.depth ?? e.width));
       mesh.setMatrixAt(i, m);
       mesh.setColorAt(i, col.set(colourOf.get(e.group)));
     });
@@ -176,11 +177,15 @@ export function farBankProposal({ place, forecourt: [f0, f1], rand }) {
   const out = [];
   const add = (group, kind, at, height, width) => out.push({ group, kind, at, height, width, yaw: rand() * Math.PI * 2 });
   // Tree line on the meadow: clumps of 3-5 along the crest distance, gaps between them.
-  for (let x = -150; x < -12; ) {
+  for (let x = -240; x < -12; ) {
     const n = 3 + Math.floor(rand() * 3);
     for (let i = 0; i < n; i++, x += 4 + rand() * 3) add('proposed: meadow tree line', 'tree', place(x, 28 + rand() * 18), 9 + rand() * 6, 6 + rand() * 3);
-    x += 12 + rand() * 14;
+    x += 6 + rand() * 8;
   }
+  // Left of the bridge (upstream), the user's ask: a taller back row behind the line, and loose
+  // groups nearer the water, so that side reads wooded.
+  for (let x = -230; x < -20; x += 9 + rand() * 6) add('proposed: meadow back trees', 'tree', place(x, 55 + rand() * 30), 12 + rand() * 6, 8 + rand() * 3);
+  for (let x = -210; x < -35; x += 14 + rand() * 12) for (let i = 0; i < 2; i++) add('proposed: meadow riverside trees', 'tree', place(x + i * 4.5, 12 + rand() * 8), 7 + rand() * 4, 5 + rand() * 2);
   // Framing pairs either side of the forecourt, on the slope above the path.
   for (const [x, o] of [[f0 - 3, 17], [f0 - 6.5, 21], [f1 + 3, 17], [f1 + 6.5, 21]]) add('proposed: forecourt framing trees', 'tree', place(x, o), 12 + rand() * 2, 7);
   // Street trees on the far path, every 12 m, clear of the forecourt and the bridge's pier.
@@ -193,25 +198,22 @@ export function farBankProposal({ place, forecourt: [f0, f1], rand }) {
 }
 
 /**
- * PROPOSED (markers only, design guesses): plants on the window ledges that hang into the room.
- * On each back window's lattice rail (room.js: top at window.lattice + 0.06, its face 1.5 cm into
- * the room) a trailing plant sits in a low pot, and strands spill over the rail's room side and
- * hang down the lattice. The side window's sill (y0) gets a pot whose strands reach the floor.
+ * PROPOSED (markers only, design guesses): one long trough planter on each back window's ledge
+ * (the lattice rail, room.js: top at window.lattice + 0.06, its room face 1.5 cm into the room),
+ * its foliage mounded on top and leaves spilling a little over the room side.
  */
 export function windowHangingProposal(PLAN) {
   const { z0 } = PLAN.room;
-  const ledge = PLAN.window.lattice + 0.06, face = z0 + 0.015;
+  const ledge = PLAN.window.lattice + 0.06;
+  const depth = 0.14, front = z0 + 0.05; // overhangs the rail's room face by 3.5 cm
+  const zc = front - depth / 2, tall = 0.14;
   const out = [];
   PLAN.backWindows.forEach((w, i) => {
-    const span = w.x1 - w.x0;
-    const pots = span > 0.8 ? [0.3, 0.72] : [0.5];
-    pots.forEach((f, j) => {
-      const x = w.x0 + span * f;
-      out.push({ group: 'proposed: ledge plants', kind: 'bush', at: [x, ledge, z0 - 0.02], width: 0.28, height: 0.24, yaw: 0 });
-      // strands over the room side of the rail, either side of the pot
-      for (const [dx, drop] of [[-0.08, [0.55, 0.8, 0.4][(i + j) % 3]], [0.07, [0.35, 0.6, 0.75][(i + j) % 3]]])
-        out.push({ group: 'proposed: strands over the ledge', kind: 'vine', at: [x + dx, ledge + 0.04 - drop, face + 0.02], width: 0.08, height: drop, yaw: 0 });
-    });
+    const span = w.x1 - w.x0, x = (w.x0 + w.x1) / 2, len = span * 0.85;
+    out.push({ group: 'proposed: ledge trough', kind: 'planter', at: [x, ledge, zc], width: len, height: tall, depth, yaw: 0 });
+    out.push({ group: 'proposed: trough foliage', kind: 'bush', at: [x, ledge + tall - 0.04, zc], width: len * 1.05, height: 0.22, depth: depth * 1.5, yaw: 0 });
+    const drop = [0.3, 0.38, 0.25][i % 3];
+    out.push({ group: 'proposed: leaves spilling inside', kind: 'vine', at: [x, ledge + tall - drop, front + 0.02], width: len * 0.8, height: drop, depth: 0.15, yaw: 0 });
   });
   return out;
 }
