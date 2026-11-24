@@ -208,12 +208,13 @@ export function windowHangingProposal(PLAN) {
   const depth = 0.14, front = z0 + 0.05; // overhangs the rail's room face by 3.5 cm
   const zc = front - depth / 2, tall = 0.14;
   const out = [];
-  PLAN.backWindows.forEach((w, i) => {
-    const span = w.x1 - w.x0, x = (w.x0 + w.x1) / 2, len = span * 0.85;
+  // Only the two left windows (lowest x), and each trough covers about half its ledge.
+  [...PLAN.backWindows].sort((a, b) => a.x0 - b.x0).slice(0, 2).forEach((w, i) => {
+    const span = w.x1 - w.x0, x = (w.x0 + w.x1) / 2, len = span * 0.5;
     out.push({ group: 'proposed: ledge trough', kind: 'planter', at: [x, ledge, zc], width: len, height: tall, depth, yaw: 0 });
-    out.push({ group: 'proposed: trough foliage', kind: 'bush', at: [x, ledge + tall - 0.04, zc], width: len * 1.05, height: 0.22, depth: depth * 1.5, yaw: 0 });
-    const drop = [0.3, 0.38, 0.25][i % 3];
-    out.push({ group: 'proposed: leaves spilling inside', kind: 'vine', at: [x, ledge + tall - drop, front + 0.02], width: len * 0.8, height: drop, depth: 0.15, yaw: 0 });
+    out.push({ group: 'proposed: trough foliage', kind: 'bush', at: [x, ledge + tall - 0.04, zc], width: len * 1.1, height: 0.22, depth: depth * 1.5, yaw: 0 });
+    const drop = [0.3, 0.38][i];
+    out.push({ group: 'proposed: leaves spilling inside', kind: 'vine', at: [x, ledge + tall - drop, front + 0.02], width: len * 0.7, height: drop, depth: 0.15, yaw: 0 });
   });
   return out;
 }
