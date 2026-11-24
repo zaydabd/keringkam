@@ -28,6 +28,8 @@
 //   eye = x,y,z   yaw = deg   pitch = deg   fov = deg   (a free camera, for close-ups)
 //   perf  (or perf=n: n seconds per shot) a timed run from the seat to the window (perf.js)
 //   dpr   = n (draws at this pixel ratio and never steps it down; default: the device's, up to 3)
+// Keys: the arrow keys slide the camera (up/down: forward/back, left/right: sideways; Shift: faster).
+//   Choosing a view from the menu goes back to that view. No collision: it can pass through walls.
 //   theme = original (default) | detailed | clay: the theme (themes/index.js). clay is the clay render, the
 //           scene without its look (themes/clay.js); theme=off still means clay. The theme
 //           picker in Interior.svelte sets it.
@@ -629,6 +631,37 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
     pointer.set((e.clientX / window.innerWidth) * 2 - 1, (e.clientY / window.innerHeight) * 2 - 1);
   }
   window.addEventListener('pointermove', onPointerMove);
+  // The arrow keys slide the camera, the user's ask ("make my camera movable with the arrow keys"):
+  // `walk` is added to every shot's position. Speeds are design choices.
+  const WALK_SPEED = 1.5; // m/s; four times that with Shift
+  const ARROWS = { ArrowUp: [0, 1], ArrowDown: [0, -1], ArrowLeft: [-1, 0], ArrowRight: [1, 0] };
+  const walk = new THREE.Vector3();
+  const held = new Set();
+  let fast = false;
+  function onKey(e) {
+    fast = e.shiftKey;
+    if (!(e.key in ARROWS)) return;
+    if (e.target instanceof Element && e.target.closest('input, select, textarea, [contenteditable]')) return;
+    e.preventDefault(); // no page scroll
+    if (e.type === 'keydown') held.add(e.key);
+    else held.delete(e.key);
+  }
+  const onBlur = () => held.clear();
+  window.addEventListener('keydown', onKey);
+  window.addEventListener('keyup', onKey);
+  window.addEventListener('blur', onBlur);
+  const fwd = new THREE.Vector3(), rightward = new THREE.Vector3();
+  function stepWalk(dt) {
+    if (!held.size) return;
+    let f = 0, r = 0;
+    for (const k of held) { r += ARROWS[k][0]; f += ARROWS[k][1]; }
+    fwd.set(0, 0, -1).applyQuaternion(camera.quaternion).setY(0);
+    if (fwd.lengthSq() < 1e-6) return;
+    fwd.normalize();
+    rightward.set(-fwd.z, 0, fwd.x);
+    const d = WALK_SPEED * (fast ? 4 : 1) * dt;
+    walk.addScaledVector(fwd, f * d).addScaledVector(rightward, r * d);
+  }
 
   const eye = V(...C.eye);
   eye.z += camOffset;
@@ -647,8 +680,8 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
     const aim = sh.at ? [Math.atan2(sh.at[0] - at.x, at.z - sh.at[2]), Math.atan2(sh.at[1] - at.y, Math.hypot(sh.at[0] - at.x, sh.at[2] - at.z))] : [0, THREE.MathUtils.degToRad(seat ? C.pitch : sh.pitch)];
     const yaw = aim[0] + (free ? yawParam : 0) - look.x * sh.look[0];
     const pitch = aim[1] + (free ? pitchParam : 0) - look.y * sh.look[1];
-    into.position.copy(at);
-    target.set(at.x + Math.sin(yaw) * Math.cos(pitch), at.y + Math.sin(pitch), at.z - Math.cos(yaw) * Math.cos(pitch));
+    into.position.copy(at).add(walk);
+    target.set(into.position.x + Math.sin(yaw) * Math.cos(pitch), into.position.y + Math.sin(pitch), into.position.z - Math.cos(yaw) * Math.cos(pitch));
     into.lookAt(target);
   }
   /** Meters the scene from a shot's frame and sets the exposure to move towards. */
@@ -689,6 +722,7 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
     move.from.quaternion.copy(camera.quaternion);
     move.from.fov = camera.fov;
     shot = name;
+    walk.set(0, 0, 0); // a view from the menu starts where that view stands
     move.t = immediate ? 1 : 0;
     if (SHOTS[name].fabric) showFull(SHOTS[name].fabric);
     if (width) meterFor(name); // start adapting now, so the light changes during the move, not after it
@@ -733,6 +767,7 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
       const [lx, ly] = SHOTS[shot].look;
       if (Math.abs(pointer.x - look.x) * lx * f < 0.05 && Math.abs(pointer.y - look.y) * ly * f < 0.05) look.copy(pointer);
     }
+    stepWalk(dt);
     poseOf(shot, poseCam);
     if (move.t < 1) {
       // A move between shots is one interpolation and nothing else: no second smoother on top.
@@ -863,6 +898,9 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
       resizeObserver.disconnect();
       document.removeEventListener('visibilitychange', onVisibility);
       window.removeEventListener('pointermove', onPointerMove);
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('keyup', onKey);
+      window.removeEventListener('blur', onBlur);
       scene.traverse((o) => {
         if (o.geometry) o.geometry.dispose();
       });
