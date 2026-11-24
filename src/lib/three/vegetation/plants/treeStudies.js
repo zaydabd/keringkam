@@ -31,7 +31,13 @@ const barkOf = (light, dark, base = 0.4) => {
   };
 };
 
-const FOLIAGE = { radius: 1.1, merge: 1.1, density: 1.0, card: 0.35, mask: { curve: 0.04 }, tones: ['#223b1f', '#4c7a33', '#a8c962'] };
+// Leaf clumps per tree (tree.js foliage format). Tones are guesses from the user's photos:
+// kapok a light fresh green; rain tree the rain tree's own (rainTree.js); trumpet tree in pink
+// bloom as in the user's photo 5 (pink and white forms are planted in Malaysia, FRIM, above).
+const LEAVES = { merge: 1.1, density: 1.0, mask: { curve: 0.04 } };
+const KAPOK_LEAVES = { ...LEAVES, radius: 2.0, card: 0.42, density: 1.2, tones: ['#2d4a1e', '#5f8f37', '#b9d77a'] };
+const RAIN_LEAVES = { ...LEAVES, radius: 1.5, card: 0.4, density: 1.1, tones: ['#223b1f', '#4c7a33', '#a8c962'] };
+const TABEBUIA_LEAVES = { ...LEAVES, radius: 1.1, card: 0.32, density: 1.2, tones: ['#7a2d58', '#cf6a9f', '#f6bcd8'] };
 
 export const TREE_STUDIES = {
   // Photo 1: the old kapok, huge pale trunk on wide plank buttresses, a few long horizontal tiers.
@@ -44,7 +50,7 @@ export const TREE_STUDIES = {
       { count: 5, emerge: [0.35, 1], angle: [0.6, 1.0], length: [0.3, 0.42], radius: 0.55, tip: 0.015, sections: 5, radial: 5, gnarl: 0.12, up: 0.1, shorten: 0.3 },
       { count: 4, emerge: [0.3, 1], angle: [0.6, 1.0], length: [0.4, 0.6], radius: 0.6, tip: 0.005, sections: 3, radial: 3, gnarl: 0.2, up: 0.05, shorten: 0.3 },
     ],
-    foliage: FOLIAGE,
+    foliage: KAPOK_LEAVES,
   },
   // Photo 2/3: a taller kapok, tiers closer together, limbs turning up a little at their ends.
   kapokTall: {
@@ -56,7 +62,7 @@ export const TREE_STUDIES = {
       { count: 6, emerge: [0.2, 1], angle: [0.5, 0.9], length: [0.3, 0.45], radius: 0.5, tip: 0.015, sections: 5, radial: 4, gnarl: 0.12, up: 0.08, shorten: 0.3 },
       { count: 4, emerge: [0.3, 1], angle: [0.6, 1.0], length: [0.4, 0.6], radius: 0.6, tip: 0.005, sections: 3, radial: 3, gnarl: 0.2, up: 0.05, shorten: 0.3 },
     ],
-    foliage: FOLIAGE,
+    foliage: KAPOK_LEAVES,
   },
   // Photo 4: roadside rain trees, a leaning trunk forking into a few crooked leaders that arch out.
   rainRoadside: {
@@ -68,7 +74,7 @@ export const TREE_STUDIES = {
       { count: 7, emerge: [0.25, 1], angle: [0.6, 1.0], length: [0.4, 0.55], radius: 0.55, tip: 0.02, sections: 7, radial: 5, gnarl: 0.1, up: 0.05, shorten: 0.4, kink: 0.3, kinkRate: 0.3 },
       { count: 5, emerge: [0.25, 1], angle: [0.6, 1.0], length: [0.35, 0.55], radius: 0.6, tip: 0.006, sections: 4, radial: 3, gnarl: 0.25, up: 0.04, shorten: 0.3 },
     ],
-    foliage: FOLIAGE,
+    foliage: RAIN_LEAVES,
   },
   // Photo 5: trumpet tree, a short trunk forking into upright leaders, a tall rounded crown.
   tabebuia: {
@@ -81,7 +87,7 @@ export const TREE_STUDIES = {
       { count: 5, emerge: [0.3, 1], angle: [0.45, 0.85], length: [0.45, 0.6], radius: 0.6, tip: 0.008, sections: 4, radial: 4, gnarl: 0.12, up: 0.06, shorten: 0.4 },
       { count: 4, emerge: [0.3, 1], angle: [0.5, 0.9], length: [0.4, 0.6], radius: 0.6, tip: 0.004, sections: 3, radial: 3, gnarl: 0.2, up: 0.06, shorten: 0.3 },
     ],
-    foliage: FOLIAGE,
+    foliage: TABEBUIA_LEAVES,
   },
 };
 

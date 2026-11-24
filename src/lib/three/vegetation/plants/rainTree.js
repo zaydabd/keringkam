@@ -104,7 +104,7 @@ function createBlobMaterial(tones) {
   });
 }
 
-function createFar(seed, species) {
+export function createFar(seed, species) {
   // The same growth as near (tree.js), so the limbs match; no extra flare rings.
   const all = growBranches(mulberry32(seed), species);
   const centres = clumpCentres(all, species);

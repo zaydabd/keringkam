@@ -9,7 +9,7 @@
 
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { plant as rainTree } from '../vegetation/plants/rainTree.js';
+import { plant as kuchingTree } from '../vegetation/plants/kuchingTree.js';
 import { plant as pedada } from '../vegetation/plants/pedada.js';
 import { plant as nipah } from '../vegetation/plants/nipah.js';
 import { plant as satinPothos } from '../vegetation/plants/satinPothos.js';
@@ -25,7 +25,7 @@ const oakBush = { id: 'oakBush', label: 'Oak bush', create: ({ seed }) => create
 // Layout group → plant. Groups not listed (the rubber plant, trailing markers, grass, fern, the
 // window vines that already exist) get nothing.
 const PLANT_OF = [
-  [/^proposed: rain tree/, rainTree],
+  [/^proposed: rain tree/, kuchingTree], // the user's Kuching trees: rain tree, kapok, trumpet tree
   [/^proposed: pedada/, pedada],
   [/^proposed: nipah/, nipah],
   [/^bush blobs$/, bougainvillea], // the bush below the window (outside/waterbush.js)
