@@ -24,13 +24,15 @@
 //     https://www.exp-points.com/sven-mren-foliage-study
 //   - Muted colours work better in stylised foliage.
 //     https://80.lv/articles/setting-up-trees-bushes-and-flowers-for-a-stylized-3d-environment
-//   Our additions: crisp, posterised texture shapes instead of photo-like noise; a painted
-//   highlight stroke per leaf; cool shadow and warm light tones; a crisp rim light and glint.
+//   Our additions: ink outlines (an inverted hull drawn in the same call as each mesh); crisp,
+//   flat texture shapes instead of photo-like noise; a punchier palette; cool shadow and warm
+//   light tones; a crisp rim light and glint; slightly chunkier leaves and petioles.
 //
 // Guesses: 2–3 crowns; petiole length and angles; blade fold, curl, arch, twist and thickness;
 // the mottling pattern; underside colour; pot size (15 cm) and its ribs; soil and specks; all
-// colours; switchAt.
-// Units: metres. Two draw calls per level: pot + soil + petioles (one textured mesh), leaves.
+// colours (the slate pot is a stylised choice; the photo's pot is black); switchAt.
+// Units: metres. Two draw calls per level: pot + soil + petioles (one textured mesh), leaves;
+// each mesh carries its own outline copy.
 
 import * as THREE from 'three';
 import { mulberry32, range } from '../rng.js';
@@ -39,7 +41,7 @@ import { UP } from '../grow.js';
 import { CEL_RAMP_GLSL, toneUniforms } from '../cel-foliage.js';
 
 const GOLDEN = Math.PI * (3 - Math.sqrt(5));
-const LEAF = { length: [0.12, 0.17], width: 0.68, thick: 0.02 };
+const LEAF = { length: [0.13, 0.18], width: 0.7, thick: 0.03 };
 const VARIANTS = 4; // mottling patterns in the leaf texture
 
 // Nursery pot profile (radius, height): base, foot, tapered wall, rolled rim, inside to soil.
@@ -116,15 +118,15 @@ function paintTexture(w, h, fn) {
 }
 
 // Leaf texture: VARIANTS upper sides side by side, then one underside. Each slot: u across the
-// blade (s = −1..1), v along it. Simplified graphic shapes: silver over most of the blade,
-// green along the veins and in a few patches, a darker green margin band, a pale midrib.
-const GREEN_DARK = hex('#24573a');
-const GREEN = hex('#2f6a42');
-const SILVER = hex('#8ea291');
-const SILVER_LIGHT = hex('#a5b5a3');
-const MIDRIB = hex('#9cc07f');
-const EDGE_LIGHT = hex('#5d9a62');
-const UNDER = hex('#a3c092');
+// blade (s = −1..1), v along it. Stylised, graphic shapes with crisp edges: a few big silver
+// panels between green vein lines, one or two green patches, a dark margin band, a pale midrib.
+const GREEN_DARK = hex('#185437');
+const GREEN = hex('#2a7448');
+const SILVER = hex('#a9c7b6');
+const SILVER_LIGHT = hex('#c6dccd');
+const MIDRIB = hex('#cde5a0');
+const EDGE_LIGHT = hex('#57a467');
+const UNDER = hex('#a6cc97');
 const SLOT = 1 / (VARIANTS + 1);
 
 function leafPaint(u, v) {
@@ -132,46 +134,33 @@ function leafPaint(u, v) {
   const s = ((u - slot * SLOT) / SLOT) * 2 - 1;
   const t = v;
   const as = Math.abs(s);
-  const mw = 0.03 * (1 - 0.6 * t) + 0.012;
-  const mid = 1 - sstep(mw * 0.6, mw, as);
+  const mw = 0.03 * (1 - 0.6 * t) + 0.014;
+  const mid = 1 - sstep(mw * 0.85, mw, as);
+  const seed = slot * 31 + 3;
   // Lateral veins arch out and up towards the tip (guess); q is constant along one vein.
-  const q = (t - 0.3 * as ** 1.2) * 7 + (fbm(s * 1.5, t * 2, 50) - 0.5) * 0.8;
+  const q = (t - 0.3 * as ** 1.2) * 5 + (fbm(s * 1.2 + seed, t * 1.6, 50) - 0.5) * 0.7;
   const f = q - Math.floor(q);
   if (slot === VARIANTS) {
-    const vein = (1 - sstep(0.04, 0.12, Math.abs(f - 0.5))) * sstep(mw, mw + 0.05, as);
-    return mix3(UNDER, hex('#c3d6b2'), Math.max(mid * 0.8, vein * 0.35));
+    const vein = (1 - sstep(0.04, 0.06, Math.min(f, 1 - f))) * sstep(mw, mw + 0.03, as);
+    return mix3(UNDER, hex('#cfe3bb'), Math.max(mid, vein * 0.5));
   }
-  const seed = slot * 31 + 3;
-  // Silver covers most of the blade; green shows as thin, feathered lines along the veins and
-  // as a few irregular patches (from the reference photo; the shapes are a stylised guess).
-  const wob = fbm(s * 6 + seed, t * 12, seed) - 0.5;
-  const toVein = Math.min(f, 1 - f) + wob * 0.18;
-  let silver = sstep(0.08, 0.1, toVein);
-  silver *= sstep(0.42, 0.45, fbm(s * 3.2 + 7, t * 5.5, seed + 1) + wob * 0.3);
-  // Fine green dashes inside the silver, along the vein direction (stylised mottling).
-  silver *= 1 - 0.5 * sstep(0.7, 0.73, vnoise(s * 10 + seed, q * 4, seed + 9));
-  silver *= (1 - sstep(0.74, 0.88, as)) * (1 - mid) * sstep(0.04, 0.16, t) * (1 - sstep(0.9, 0.99, t));
-  // A few round flecks inside the green, as in the photo's speckling (stylised, sparse).
-  const cx = Math.floor(s * 14);
-  const cy = Math.floor(t * 20);
-  const r = Math.hypot(s * 14 - cx - 0.5, t * 20 - cy - 0.5);
-  const fleck = hash2(cx, cy, seed) > 0.9 ? 1 - sstep(0.18, 0.3, r) : 0;
-  silver = Math.max(silver, fleck * 0.8 * (1 - sstep(0.75, 0.88, as)) * (1 - mid));
-  let col = mix3(GREEN, GREEN_DARK, sstep(0.8, 0.83, as));
-  col = mix3(col, mix3(SILVER, SILVER_LIGHT, sstep(0.3, 0.8, t)), silver);
-  col = mix3(col, MIDRIB, mid * 0.8);
-  col = mix3(col, EDGE_LIGHT, sstep(0.94, 0.99, as) * 0.8); // bright rim
-  // Hand-painted light: a crisp lighter stroke on one half of the blade (baked highlight, a
-  // common stylised-texture trick), lighter towards the tip, darker by the petiole.
-  const stroke = sstep(0.1, 0.13, s) * (1 - sstep(0.52, 0.55, s + wob * 0.15)) * sstep(0.18, 0.22, t) * (1 - sstep(0.68, 0.72, t + wob * 0.1));
-  const value = (0.7 + 0.3 * sstep(0, 0.25, t)) * (1 + 0.1 * sstep(0.5, 1, t)) * (1 + 0.16 * stroke);
-  return col.map((c) => c * value);
+  // Big silver panels with crisp, slightly wavy edges (a stylised take on the photo's mottling).
+  const wob = fbm(s * 3 + seed, t * 5, seed) - 0.5;
+  let silver = sstep(0.085, 0.1, Math.min(f, 1 - f) + wob * 0.08);
+  silver *= sstep(0.36, 0.38, fbm(s * 2 + 7 + seed, t * 3.2, seed + 1)); // one or two green patches
+  silver *= (1 - sstep(0.7, 0.72, as + wob * 0.05)) * (1 - mid) * sstep(0.1, 0.12, t) * (1 - sstep(0.86, 0.88, t + wob * 0.05));
+  let col = mix3(GREEN, GREEN_DARK, sstep(0.82, 0.84, as));
+  col = mix3(col, mix3(SILVER, SILVER_LIGHT, sstep(0.45, 0.47, t + wob * 0.2)), silver);
+  col = mix3(col, MIDRIB, mid);
+  col = mix3(col, EDGE_LIGHT, sstep(0.955, 0.965, as)); // bright painted rim
+  // Painted value: two flat steps, darker by the petiole (Mrđen), lighter in the upper half.
+  return col.map((c) => c * (sstep(0.14, 0.16, t) * 0.25 + 0.75) * (1 + 0.08 * sstep(0.55, 0.57, t)));
 }
 
 // Atlas for the pot mesh. Regions (u, v): pot [0, .5]×[.25, 1], soil [0, .5]×[0, .25],
 // petiole [.5, .875]×[0, 1], plain white [.875, 1]×[0, 1].
 const ATLAS = { pot: [0, 0.25, 0.5, 1], soil: [0, 0, 0.5, 0.25], petiole: [0.5, 0, 0.875, 1], white: [0.875, 0, 1, 1] };
-const PLASTIC = hex('#3b3f44');
+const PLASTIC = hex('#3c4556');
 const SOIL = hex('#5a4231');
 
 const potArc = (() => {
@@ -219,7 +208,7 @@ function atlasPaint(u, v) {
  * crown volume, the shared 3-tone ramp (cel-foliage.js) used as a light multiplier with a cool
  * shadow tone, AO deep in the crown, a crisp rim light and a small highlight band.
  */
-function createCelMaterial({ map, tones, crown = null, crownPull = 0, rim = 0.25, spec = [0.93, 0.96, 0.15], backLift = 1.1 }) {
+function createCelMaterial({ map, tones, crown = null, crownPull = 0, rim = 0.25, spec = [0.93, 0.96, 0.15], backLift = 1.1, outlineWidth = 0, outlineColor = '#000000' }) {
   const centre = crown ? crown.getCenter(new THREE.Vector3()) : new THREE.Vector3();
   const half = crown ? crown.getSize(new THREE.Vector3()).multiplyScalar(0.5) : new THREE.Vector3(1, 1, 1);
   return new THREE.ShaderMaterial({
@@ -232,11 +221,16 @@ function createCelMaterial({ map, tones, crown = null, crownPull = 0, rim = 0.25
       rimStrength: { value: rim },
       spec: { value: new THREE.Vector3(...spec) },
       backLift: { value: backLift },
+      outlineWidth: { value: outlineWidth },
+      outlineColor: { value: new THREE.Color(outlineColor) },
     },
     vertexColors: true,
     vertexShader: /* glsl */ `
+      attribute float outline;
       uniform vec3 crownCentre;
       uniform vec3 crownHalf;
+      uniform float outlineWidth;
+      varying float vOutline;
       varying vec2 vUv;
       varying vec3 vColor;
       varying vec3 vNormal;
@@ -244,7 +238,9 @@ function createCelMaterial({ map, tones, crown = null, crownPull = 0, rim = 0.25
       varying vec3 vView;
       varying float vDepth;
       void main() {
-        vec4 world = modelMatrix * vec4(position, 1.0);
+        // Outline copy: pushed out along the normal (inverted-hull outline).
+        vec4 world = modelMatrix * vec4(position + normal * outline * outlineWidth, 1.0);
+        vOutline = outline;
         vec4 mv = viewMatrix * world;
         vNormal = normalize(normalMatrix * normal);
         vec3 q = (world.xyz - crownCentre) / crownHalf;
@@ -262,7 +258,9 @@ function createCelMaterial({ map, tones, crown = null, crownPull = 0, rim = 0.25
       uniform float rimStrength;
       uniform vec3 spec;
       uniform float backLift;
+      uniform vec3 outlineColor;
       ${CEL_RAMP_GLSL}
+      varying float vOutline;
       varying vec2 vUv;
       varying vec3 vColor;
       varying vec3 vNormal;
@@ -270,6 +268,14 @@ function createCelMaterial({ map, tones, crown = null, crownPull = 0, rim = 0.25
       varying vec3 vView;
       varying float vDepth;
       void main() {
+        if (vOutline > 0.5) {
+          // Only the far side of the pushed-out copy draws, so it shows as a rim around the
+          // silhouette and where one part overlaps another.
+          if (gl_FrontFacing) discard;
+          gl_FragColor = vec4(outlineColor, 1.0);
+          #include <colorspace_fragment>
+          return;
+        }
         vec3 albedo = texture2D(map, vUv).rgb * vColor;
         vec3 N = normalize(vNormal) * (gl_FrontFacing ? 1.0 : -1.0);
         vec3 Nc = normalize(mix(N, vCrown, crownPull));
@@ -313,7 +319,7 @@ function layout(seed) {
     const r = range(rand, 0.012, 0.03);
     return new THREE.Vector3(Math.cos(az) * r, SOIL_Y, Math.sin(az) * r);
   });
-  const n = Math.round(range(rand, 22, 28));
+  const n = Math.round(range(rand, 18, 24));
   const leaves = [];
   let phase = range(rand, 0, Math.PI * 2);
   for (let k = 0; k < n; k++) {
@@ -438,17 +444,30 @@ function addLeaf(w, l, rows, cols) {
 
 function addFarLeaf(w, l) {
   const M = leafMatrix(l, l.size * 1.05);
-  // A rounded octagon (6 triangles) so the far leaf keeps the near leaf's paddle outline.
+  // A rounded octagon (6 triangles a side) so the far leaf keeps the near leaf's paddle outline;
+  // top, underside and an edge band make a closed shell for the outline.
   const pts = [[0, 0.02], [0.85, 0.2], [1, 0.45], [0.75, 0.78], [0, 1], [-0.75, 0.78], [-1, 0.45], [-0.85, 0.2]];
-  const base = w.vertexCount;
-  for (const [s, t] of pts) {
-    leafPoint(l, s, t, 1, _p).applyMatrix4(M);
-    w.positions.push(_p.x, _p.y, _p.z);
-    w.normals.push(0, 0, 0);
-    w.uvs.push((l.variant + 0.5 + s * 0.4) * SLOT, t * 0.9 + 0.05);
-    w.colors.push(...l.tint);
+  const k = pts.length;
+  const top = w.vertexCount;
+  for (const side of [1, -1]) {
+    const slot = side > 0 ? l.variant : VARIANTS;
+    for (const [s, t] of pts) {
+      leafPoint(l, s * 0.97, t, side, _p).applyMatrix4(M);
+      w.positions.push(_p.x, _p.y, _p.z);
+      w.normals.push(0, 0, 0);
+      w.uvs.push((slot + 0.5 + s * 0.4) * SLOT, t * 0.9 + 0.05);
+      w.colors.push(...l.tint);
+    }
   }
-  for (let i = 1; i < pts.length - 1; i++) w.indices.push(base, base + i, base + i + 1);
+  const bot = top + k;
+  for (let i = 1; i < k - 1; i++) {
+    w.indices.push(top, top + i, top + i + 1);
+    w.indices.push(bot, bot + i + 1, bot + i);
+  }
+  for (let i = 0; i < k; i++) {
+    const j = (i + 1) % k;
+    w.indices.push(top + i, bot + i, top + j, top + j, bot + i, bot + j);
+  }
 }
 
 // ---------------------------------------------------------------- pot
@@ -505,6 +524,29 @@ function addPot(w, radial) {
   return tris;
 }
 
+/** The geometry plus an outline copy of it (attribute `outline` = 1), drawn in the same call. */
+function withOutline(g) {
+  const n = g.attributes.position.count;
+  const out = new THREE.BufferGeometry();
+  for (const name of ['position', 'normal', 'uv', 'color']) {
+    const a = g.attributes[name].array;
+    const both = new Float32Array(a.length * 2);
+    both.set(a);
+    both.set(a, a.length);
+    out.setAttribute(name, new THREE.BufferAttribute(both, g.attributes[name].itemSize));
+  }
+  const flag = new Float32Array(n * 2);
+  flag.fill(1, n);
+  out.setAttribute('outline', new THREE.BufferAttribute(flag, 1));
+  const idx = g.index.array;
+  const both = new Uint32Array(idx.length * 2);
+  both.set(idx);
+  for (let i = 0; i < idx.length; i++) both[idx.length + i] = idx[i] + n;
+  out.setIndex(new THREE.BufferAttribute(both, 1));
+  g.dispose();
+  return out;
+}
+
 // ---------------------------------------------------------------- plant
 
 function createSchismatoglottis({ seed = 1, lod = 'near' } = {}) {
@@ -516,7 +558,7 @@ function createSchismatoglottis({ seed = 1, lod = 'near' } = {}) {
   for (const l of leaves) {
     // Thick, fleshy petiole with a wider sheathing base.
     const pts = near ? l.petiole : [l.petiole[0], l.petiole[3], l.petiole[6]];
-    const radii = pts.map((_, i) => THREE.MathUtils.lerp(0.009, 0.005, (i / (pts.length - 1)) ** 0.6) * (0.7 + 0.3 * l.size / LEAF.length[1]));
+    const radii = pts.map((_, i) => THREE.MathUtils.lerp(0.011, 0.006, (i / (pts.length - 1)) ** 0.6) * (0.7 + 0.3 * l.size / LEAF.length[1]));
     const f0 = sw.vertexCount;
     potTris += addTube(sw, pts, radii, { radial: near ? 7 : 3, color: new THREE.Color(1, 1, 1), closeStart: false });
     toRegion(sw, f0, sw.vertexCount, ATLAS.petiole, (u, v) => [u, v / 0.15]);
@@ -527,37 +569,40 @@ function createSchismatoglottis({ seed = 1, lod = 'near' } = {}) {
     if (near) addLeaf(lw, l, 14, 10);
     else addFarLeaf(lw, l);
   }
-  const leafGeometry = lw.toGeometry();
-  leafGeometry.computeVertexNormals();
+  const leafBase = lw.toGeometry();
+  leafBase.computeVertexNormals();
+  leafBase.computeBoundingBox();
+  const crown = leafBase.boundingBox.clone();
+  const leafGeometry = withOutline(leafBase);
   const leafTris = leafGeometry.index.count / 3;
 
   const atlas = paintTexture(near ? 1024 : 256, near ? 1024 : 256, atlasPaint);
   const leafTex = near ? paintTexture(1280, 512, leafPaint) : paintTexture(320, 128, leafPaint);
-  leafGeometry.computeBoundingBox();
-  const crown = leafGeometry.boundingBox.clone();
 
   const group = new THREE.Group();
   group.name = `schismatoglottis (${near ? 'near' : 'far'})`;
-  const potGeometry = sw.toGeometry();
+  const potGeometry = withOutline(sw.toGeometry());
   // Plastic pot: cool shadows, a crisp highlight band and rim light (stylised).
-  const potMaterial = createCelMaterial({ map: atlas, tones: ['#46536a', '#c2c6cc', '#fff6e6'], rim: 0.6, spec: [0.9, 0.905, 0.25], backLift: 1 });
+  const potMaterial = createCelMaterial({ map: atlas, tones: ['#3f4d6a', '#c2c8d2', '#fff4e2'], rim: 0.5, spec: [0.9, 0.905, 0.25], backLift: 1, outlineWidth: near ? 0.0022 : 0.006, outlineColor: '#0c0f16' });
   const potMesh = new THREE.Mesh(potGeometry, potMaterial);
   potMesh.name = 'pot and petioles';
   group.add(potMesh);
 
-  const leafMaterial = createCelMaterial({ map: leafTex, tones: ['#3b5568', '#b7c4b5', '#fff3dc'], crown, crownPull: 0.6, rim: 0.35, spec: [0.955, 0.96, 0.12], backLift: 1.12 });
+  const leafMaterial = createCelMaterial({ map: leafTex, tones: ['#2f4f6a', '#b9cbb9', '#fff3d8'], crown, crownPull: 0.7, rim: 0.3, spec: [0.955, 0.96, 0.14], backLift: 1.12, outlineWidth: near ? 0.0016 : 0.005, outlineColor: '#0e2a1c' });
   const leafMesh = new THREE.Mesh(leafGeometry, leafMaterial);
   leafMesh.name = 'leaves';
   group.add(leafMesh);
 
   potGeometry.computeBoundingBox();
+  leafGeometry.computeBoundingBox();
   const box = potGeometry.boundingBox.clone().union(leafGeometry.boundingBox);
   const stats = {
     seed,
     lod: near ? 'near' : 'far',
     leaves: leaves.length,
     drawCalls: 2,
-    triangles: { pot: potTris, leaves: leafTris, total: potTris + leafTris },
+    // Outline copies included (they double each mesh).
+    triangles: { pot: potTris * 2, leaves: leafTris, total: potTris * 2 + leafTris },
     bounds: box.getSize(new THREE.Vector3()).toArray().map((v) => +v.toFixed(2)),
   };
 
