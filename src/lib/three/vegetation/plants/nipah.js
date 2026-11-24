@@ -43,8 +43,23 @@ const NIPAH = {
 
 const UP = new THREE.Vector3(0, 1, 0);
 
-/** Cel material for plain (non-instanced) leaf geometry; normals blended with `proxyNormal`. */
-function createNipahMaterial(tones, proxyWeight = 0.55) {
+/**
+ * Cel material for plain (non-instanced) leaf geometry. Techniques taken from the stylised-foliage
+ * guides (re-written here, no code copied):
+ *  - soft group normals: each leaf vertex's normal is blended with `proxyNormal`, a smooth normal
+ *    of the frond it belongs to, so a frond shades as one arched volume (the "normals outward from
+ *    the leaf group" method: https://80.lv/articles/stylized-nature-vegetation-animation-shaders
+ *    and https://superhivemarket.com/products/foliage-prep);
+ *  - AO times blocky noise, so the ramp's bands break into painterly patches
+ *    (https://80.lv/articles/breakdown-making-3d-landscape-look-like-painting);
+ *  - a painted leaflet in place of a texture: lighter midrib, darker edges and base
+ *    (exaggerated veins + colour variation, after
+ *    https://cfringerwtcc.itch.io/hexbreaker/devlog/544906/hexbreaker-how-to-create-foliage).
+ * Ramp: the shared 3-tone celRamp; craftzdog's Ghibli shader uses the same hard N·L bands
+ * (https://github.com/craftzdog/ghibli-style-shader). All amounts are design choices (guess).
+ * uv.x: -1..1 across a leaflet (0 = midrib); uv.y: 0 base .. 1 tip.
+ */
+function createNipahMaterial(tones, proxyWeight = 0.7) {
   return new THREE.ShaderMaterial({
     uniforms: { ...toneUniforms(tones), proxyWeight: { value: proxyWeight } },
     vertexColors: true,
@@ -54,12 +69,16 @@ function createNipahMaterial(tones, proxyWeight = 0.55) {
       uniform float proxyWeight;
       varying vec3 vNormal;
       varying vec3 vTint;
+      varying vec3 vWorld;
+      varying vec2 vUv;
       varying float vAo;
       void main() {
         vec3 n = normalize(mix(normalize(normal), proxyNormal, proxyWeight));
         vNormal = normalize(normalMatrix * n);
         vTint = color;
         vAo = ao;
+        vUv = uv;
+        vWorld = (modelMatrix * vec4(position, 1.0)).xyz;
         gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
       }`,
     fragmentShader: /* glsl */ `
@@ -67,38 +86,70 @@ function createNipahMaterial(tones, proxyWeight = 0.55) {
       ${CEL_RAMP_GLSL}
       varying vec3 vNormal;
       varying vec3 vTint;
+      varying vec3 vWorld;
+      varying vec2 vUv;
       varying float vAo;
+      float hash(vec3 p) { return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
+      // Blocky value noise: a few soft cells per frond.
+      float blocky(vec3 p) {
+        vec3 i = floor(p);
+        vec3 f = smoothstep(0.0, 1.0, fract(p));
+        float a = mix(mix(hash(i), hash(i + vec3(1, 0, 0)), f.x), mix(hash(i + vec3(0, 1, 0)), hash(i + vec3(1, 1, 0)), f.x), f.y);
+        float b = mix(mix(hash(i + vec3(0, 0, 1)), hash(i + vec3(1, 0, 1)), f.x), mix(hash(i + vec3(0, 1, 1)), hash(i + vec3(1, 1, 1)), f.x), f.y);
+        return mix(a, b, f.z);
+      }
       void main() {
         vec3 L = normalize((viewMatrix * vec4(sunDir, 0.0)).xyz);
-        float shade = max(dot(normalize(vNormal), L), 0.0) * vAo;
-        gl_FragColor = vec4(celRamp(shade) * vTint, 1.0);
+        float noise = blocky(vWorld * 1.4);
+        float shade = max(dot(normalize(vNormal), L), 0.0) * vAo * (0.84 + 0.32 * noise);
+        // Painted leaflet.
+        float across = abs(vUv.x);
+        float paint = mix(0.82, 1.04, smoothstep(0.0, 0.6, vUv.y));      // darker base
+        paint *= 1.0 + 0.2 * (1.0 - smoothstep(0.0, 0.14, across));      // light midrib
+        paint *= 1.0 - 0.16 * smoothstep(0.6, 1.0, across);              // darker edges
+        gl_FragColor = vec4(celRamp(shade) * vTint * paint, 1.0);
         #include <colorspace_fragment>
       }`,
     side: THREE.DoubleSide,
   });
 }
 
-/** Leaf writer: positions, normals, proxy normals, colours, ao, indices. */
+const _po = new THREE.Vector3();
+
+/**
+ * Leaf writer: positions, normals, uvs, proxy normals, colours, ao, indices.
+ * `group` = {n, s, lateral}: the frond's upper-surface normal, its side axis, and where the vertex
+ * sits across the frond (-1..1). The proxy normal arches over the frond like half a tube, and leans
+ * a little away from the clump's centre, so each frond is a soft volume within the clump.
+ */
 function createLeafWriter(crownCentre) {
-  const w = { positions: [], normals: [], proxy: [], colors: [], ao: [], indices: [] };
+  const w = { positions: [], normals: [], uvs: [], proxy: [], colors: [], ao: [], indices: [] };
   const _p = new THREE.Vector3();
   w.count = () => w.positions.length / 3;
-  w.vertex = (p, n, tint, ao) => {
+  w.vertex = (p, n, tint, ao, uv, group) => {
     w.positions.push(p.x, p.y, p.z);
     w.normals.push(n.x, n.y, n.z);
-    // Proxy: away from the clump's centre, tipped up, so the clump shades as one mass.
-    _p.subVectors(p, crownCentre);
-    _p.y = Math.max(_p.y, 0) + 1.2;
-    _p.normalize();
+    w.uvs.push(uv[0], uv[1]);
+    _po.subVectors(p, crownCentre);
+    _po.y = Math.max(_po.y, 0) + 1.2;
+    _po.normalize();
+    const x = THREE.MathUtils.clamp(group.lateral, -1, 1);
+    _p.copy(group.n)
+      .multiplyScalar(Math.sqrt(1 - 0.75 * x * x))
+      .addScaledVector(group.s, x * 1.1)
+      .addScaledVector(_po, 0.9)
+      .addScaledVector(UP, 0.35)
+      .normalize();
     w.proxy.push(_p.x, _p.y, _p.z);
     w.colors.push(tint.r, tint.g, tint.b);
-    const away = _p.dot(FOLIAGE_SUN) * 0.5 + 0.5;
+    const away = _po.dot(FOLIAGE_SUN) * 0.5 + 0.5;
     w.ao.push(ao * (0.85 + 0.15 * away));
   };
   w.toGeometry = () => {
     const g = new THREE.BufferGeometry();
     g.setAttribute('position', new THREE.Float32BufferAttribute(w.positions, 3));
     g.setAttribute('normal', new THREE.Float32BufferAttribute(w.normals, 3));
+    g.setAttribute('uv', new THREE.Float32BufferAttribute(w.uvs, 2));
     g.setAttribute('proxyNormal', new THREE.Float32BufferAttribute(w.proxy, 3));
     g.setAttribute('color', new THREE.Float32BufferAttribute(w.colors, 3));
     g.setAttribute('ao', new THREE.Float32BufferAttribute(w.ao, 1));
@@ -239,9 +290,10 @@ export function createNipah({ seed = 1, lod = 'near', species = NIPAH } = {}) {
             const half = (width / 2) * Math.pow(Math.sin(Math.PI * Math.min(1, v * 0.85 + 0.08)), 0.8) * (1 - v * 0.6);
             const ao = 0.75 + 0.25 * v;
             const fold = half * 0.5; // midrib ridge (V fold)
-            leaves.vertex(_b.copy(centre).addScaledVector(_w, -half), _nrm, tint, ao);
-            leaves.vertex(_b.copy(centre).addScaledVector(_nrm, fold), _nrm, tint, ao);
-            leaves.vertex(_b.copy(centre).addScaledVector(_w, half), _nrm, tint, ao);
+            const g = { n, s, lateral: side * v };
+            leaves.vertex(_b.copy(centre).addScaledVector(_w, -half), _nrm, tint, ao, [-1, v], g);
+            leaves.vertex(_b.copy(centre).addScaledVector(_nrm, fold), _nrm, tint, ao, [0, v], g);
+            leaves.vertex(_b.copy(centre).addScaledVector(_w, half), _nrm, tint, ao, [1, v], g);
           }
           for (let k = 0; k < segs; k++) {
             const a = base + k * 3;
@@ -273,15 +325,16 @@ export function createNipah({ seed = 1, lod = 'near', species = NIPAH } = {}) {
             .addScaledVector(t, leafletLength(S, q) * Math.cos(ang) * 0.5)
             .addScaledVector(s, side * reach * Math.cos(down))
             .addScaledVector(n, -reach * Math.sin(down));
-          if (side < 0) leaves.vertex(edge, n, tint, ao);
+          // uv: the strip's edge is the leaflet tips, the rachis their bases.
+          if (side < 0) leaves.vertex(edge, n, tint, ao, [0.5, 1], { n, s, lateral: -1 });
           else {
-            leaves.vertex(p, n, tint, ao);
-            leaves.vertex(edge, n, tint, ao);
+            leaves.vertex(p, n, tint, ao, [0.5, 0.15], { n, s, lateral: 0 });
+            leaves.vertex(edge, n, tint, ao, [0.5, 1], { n, s, lateral: 1 });
           }
         }
         // Crossed strip: below the rachis, as the drooping leaflets seen edge on.
-        leaves.vertex(p, s, tint, ao * 0.9);
-        leaves.vertex(p.clone().addScaledVector(n, -leafletLength(S, q) * 0.4), s, tint, ao * 0.9);
+        leaves.vertex(p, s, tint, ao * 0.9, [0.5, 0.15], { n, s, lateral: 0.6 });
+        leaves.vertex(p.clone().addScaledVector(n, -leafletLength(S, q) * 0.4), s, tint, ao * 0.9, [0.5, 1], { n, s, lateral: 1 });
       }
       for (let k = 0; k < segs; k++) {
         const a = base + k * 5;
