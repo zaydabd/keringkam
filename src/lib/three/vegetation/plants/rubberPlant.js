@@ -1,5 +1,6 @@
-// Rubber plant (Ficus elastica), indoor potted form. Original procedural design, stylised to
-// match tree.js (cel-ramp foliage). No model, texture or measurement is copied.
+// Rubber plant (Ficus elastica), indoor potted form. Original procedural design. No model,
+// texture or measurement is copied from anywhere. Two looks for review, picked with `style`
+// (or `&style=` in the preview URL): 'chunky' and 'painterly'.
 //
 // Sourced shape facts:
 //   - "broad shiny oval leaves 10–35 cm long and 5–15 cm broad"; 'Robusta' has "broader, stiffer
@@ -10,39 +11,72 @@
 //     purple stipules", "Midrib is pale to reddish"; indoors "usually kept to 2 to 10 feet".
 //     https://plants.ces.ncsu.edu/plants/ficus-elastica/common-name/indian-rubber-plant/
 //
-// Stylisation guides followed (method, not shapes):
-//   - Sven Mrđen, foliage study: edge gradients so a leaf is not flat, veins as borders between
-//     volumes, occlusion near the stem and midrib, a brighter rim, small per-leaf hue shifts.
+// Looks (general method only, nothing copied):
+//   - chunky: after the finished image of Polygon Runway's stylised plant tutorial: few, big,
+//     puffy, smooth-shaded leaves, bright green, a large soft highlight.
+//     https://www.blendernation.com/2024/08/21/stylized-plant-tutorial/
+//   - painterly: after Sven Mrđen's foliage study: edge gradients so a leaf is not flat, veins
+//     as "borders between individual volumes", darker "near the stem and along the middle",
+//     brightness "right at the border", per-leaf hue shifts, darker base with lighter details.
 //     https://www.exp-points.com/sven-mren-foliage-study
-//   - Anime foliage pipeline (already used by tree.js): normals from a shared volume, 3-tone ramp.
+//   - both: normals pulled towards one crown volume so light and shadow group into big shapes,
+//     as in the anime foliage pipeline used by tree.js.
 //     https://trungduyng.substack.com/p/tutorial-blender-anime-foliage-pipeline
-//   - Muted colours read better in stylised foliage.
-//     https://80.lv/articles/setting-up-trees-bushes-and-flowers-for-a-stylized-3d-environment
 //
 // Guesses (stylistic or unsourced): 1–3 stems per pot; ~1.5 m total height; the pot and soil;
-// leaf length 20–30 cm and width/length 0.46; spiral at the golden angle (sources say only
-// "alternate"); short petioles (4–6 cm); lower stem bare; upper leaves more upright, lower ones
-// near horizontal; leaves smaller near the tip; stem colours; cel tones; the specular band.
+// spiral at the golden angle (sources say only "alternate"); short petioles (4–6 cm); bare lower
+// stem; leaf angles; smaller leaves near the tip; lateral vein lines (painterly); all colours;
+// the highlight; chunky leaves up to 19 cm broad (exaggerated past the sourced 15 cm on purpose).
 // Units: metres.
 
 import * as THREE from 'three';
 import { mulberry32, range } from '../rng.js';
 import { addTube, createMeshWriter } from '../tube.js';
 import { UP } from '../grow.js';
-import { CEL_RAMP_GLSL, toneUniforms } from '../cel-foliage.js';
+import { toneUniforms } from '../cel-foliage.js';
 
-const POT = { height: 0.26, base: 0.12, top: 0.165 }; // guess
-const LEAF = {
-  length: [0.22, 0.3], // inside the sourced 10–35 cm
-  width: 0.5, // width / length; 0.3 m × 0.5 = 15 cm, the sourced maximum breadth (guess within range)
-  petiole: [0.04, 0.06], // guess
-  tones: ['#1b3826', '#2f6340', '#5f9a5c'], // guess: muted dark green, no near-black
-  midrib: '#a9b98a', // "pale" midrib
-};
 const GOLDEN = Math.PI * (3 - Math.sqrt(5));
 
-const potColor = new THREE.Color('#b5673f');
-const potDark = new THREE.Color('#8a4a2c');
+// Per-look settings. All design choices except where the header cites a source.
+const STYLES = {
+  chunky: {
+    leaves: { main: [10, 13], side: [5, 7] },
+    length: [0.27, 0.34],
+    width: 0.56,
+    puff: 0.09, // dome height of the blade, share of its length
+    tones: ['#17583f', '#2a8f5c', '#5cc47c'],
+    midrib: '#bfe6b0',
+    soft: 0.16, // ramp step softness
+    crown: 0.35, // pull towards the crown normal
+    spec: [0.8, 0.93, 0.22], // highlight: smoothstep edges, strength
+    rim: 0.12,
+    veins: 0,
+    brush: 0,
+    hue: 0.05,
+    stem: 1.35, // stem radius scale
+    pot: { color: '#d17d4d', dark: '#a85d34', radial: 28 },
+  },
+  painterly: {
+    leaves: { main: [17, 21], side: [8, 11] },
+    length: [0.22, 0.3],
+    width: 0.5,
+    puff: 0.035,
+    tones: ['#22381f', '#47672f', '#86a650'],
+    midrib: '#dcd79c',
+    soft: 0.07,
+    crown: 0.5,
+    spec: [0.94, 0.965, 0.14],
+    rim: 0.3,
+    veins: 0.22,
+    brush: 0.16,
+    hue: 0.1,
+    stem: 1,
+    pot: { color: '#b5673f', dark: '#8a4a2c', radial: 20 },
+  },
+};
+
+const POT = { height: 0.26, base: 0.12, top: 0.165 }; // guess
+const PETIOLE = [0.04, 0.06]; // guess
 const soilColor = new THREE.Color('#3b2a1e');
 const sheathColor = new THREE.Color('#c8435e');
 const petioleColor = new THREE.Color('#5d7a3a');
@@ -51,7 +85,7 @@ const stemHigh = new THREE.Color('#4f7a3a');
 const _c = new THREE.Color();
 
 /** Seeded layout shared by both levels, so near and far are the same plant. */
-function layout(seed) {
+function layout(seed, S) {
   const rand = mulberry32(seed);
   const stemCount = 1 + Math.floor(rand() * 3); // 1–3 (guess)
   const stems = [];
@@ -74,13 +108,14 @@ function layout(seed) {
       p.addScaledVector(dir, height / sections);
       pts.push(p.clone());
     }
-    const r0 = main ? 0.024 : 0.018;
-    const radii = pts.map((_, i) => r0 + (0.008 - r0) * (i / sections) ** 0.9);
+    const r0 = (main ? 0.024 : 0.018) * S.stem;
+    const r1 = 0.008 * S.stem;
+    const radii = pts.map((_, i) => r0 + (r1 - r0) * (i / sections) ** 0.9);
     const tipDir = pts[sections].clone().sub(pts[sections - 1]).normalize();
     stems.push({ pts, radii, tipDir });
 
     // Leaves: alternate, spiralling up the upper part of the stem.
-    const n = Math.round(main ? range(rand, 17, 21) : range(rand, 8, 11));
+    const n = Math.round(range(rand, ...(main ? S.leaves.main : S.leaves.side)));
     const start = range(rand, 0.15, 0.25); // bare lower stem (guess)
     let phase = range(rand, 0, Math.PI * 2);
     for (let k = 0; k < n; k++) {
@@ -92,20 +127,20 @@ function layout(seed) {
       const tan = pts[i + 1].clone().sub(pts[i]).normalize();
       phase += GOLDEN + range(rand, -0.15, 0.15);
       // Pitch from the stem axis: upright near the tip, about 50–60° low down, so most blades
-      // show their face at eye level instead of an edge ('Robusta': "more upright leaves").
+      // show their face at eye level ('Robusta': "more upright leaves").
       const pitch = THREE.MathUtils.lerp(1.0, 0.4, u ** 1.2) + range(rand, -0.12, 0.12);
       const side = new THREE.Vector3(Math.cos(phase), 0, Math.sin(phase));
       side.addScaledVector(tan, -side.dot(tan)).normalize();
       const out = tan.clone().multiplyScalar(Math.cos(pitch)).addScaledVector(side, Math.sin(pitch)).normalize();
-      const size = range(rand, ...LEAF.length) * (main ? 1 : 0.9) * (u > 0.8 ? THREE.MathUtils.lerp(1, 0.45, (u - 0.8) / 0.2) : 1);
-      const petiole = range(rand, ...LEAF.petiole) * (0.6 + 0.4 * size / LEAF.length[1]);
+      const size = range(rand, ...S.length) * (main ? 1 : 0.9) * (u > 0.8 ? THREE.MathUtils.lerp(1, 0.45, (u - 0.8) / 0.2) : 1);
+      const petiole = range(rand, ...PETIOLE) * (0.6 + 0.4 * size / S.length[1]);
       const radius = THREE.MathUtils.lerp(radii[i], radii[i + 1], f - i);
       const root = at.clone().addScaledVector(side, radius * 0.8);
       const blade = root.clone().addScaledVector(out, petiole);
-      // The blade droops a little further than its petiole.
       const fwd = out.clone().addScaledVector(UP, -0.2 * (1 - u)).normalize();
-      // Per-leaf hue shift, kept small so the leaves still work together (Mrđen, see top).
-      leaves.push({ root, blade, fwd, size, roll: range(rand, -0.45, 0.45), tint: new THREE.Color().setRGB(range(rand, 0.92, 1.06), range(rand, 0.95, 1.06), range(rand, 0.9, 1.02)) });
+      const h = S.hue;
+      const tint = new THREE.Color().setRGB(range(rand, 1 - h, 1 + h * 0.6), range(rand, 1 - h * 0.5, 1 + h * 0.6), range(rand, 1 - h, 1 + h * 0.2));
+      leaves.push({ root, blade, fwd, size, roll: range(rand, -0.45, 0.45), tint });
     }
   }
   return { stems, leaves };
@@ -113,42 +148,47 @@ function layout(seed) {
 
 /**
  * Leaf as real geometry: base at the origin, along +Y, facing +Z; length 1.
- * `paint` = (midrib weight, edge weight, t along the leaf). Normals are bent outwards across the
- * width so each half of the blade reads as a curved volume with a gradient, not a flat card
- * (Mrđen: a leaf with no gradient "ends up looking flat"; veins are "borders between volumes").
+ * A domed top surface and a flatter underside, so the blade has thickness edge-on.
+ * `paint` = (midrib weight, edge weight, t along the leaf, s across it −1..1).
  */
-function createRubberLeaf(rows, cols) {
+function createRubberLeaf(S, rows, cols) {
   const pos = [];
   const paint = [];
   const nrm = [];
   const idx = [];
-  const half = LEAF.width / 2;
-  for (let r = 0; r <= rows; r++) {
-    const t = r / rows;
-    // Elliptic blade, round base, short point at the tip.
-    const w = half * Math.sin(Math.PI * Math.min(1, t * 1.02)) ** 0.62 * (1 - 0.3 * THREE.MathUtils.smoothstep(t, 0.78, 1));
-    for (let c = 0; c <= cols; c++) {
-      const s = (c / cols) * 2 - 1;
-      const x = s * w;
-      // Mid column = the midrib. Slight V along it, edges a little down, tip arching down.
-      const z = 0.06 * Math.abs(s) * w - 0.2 * s * s * w - 0.16 * t * t;
-      pos.push(x, t, z);
-      paint.push(c * 2 === cols && t < 0.96 ? 1 : 0, Math.abs(s) ** 3, t);
-      // Pillow normal: each half domes from the midrib to its edge; the tip tilts forward.
-      const side = Math.sign(s) * Math.min(1, Math.abs(s) * 1.4) ** 0.8;
-      nrm.push(side * 0.75, 0.25 * t, 1);
-    }
-  }
+  const half = S.width / 2;
   const row = cols + 1;
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      const a = r * row + c;
-      idx.push(a, a + 1, a + row, a + 1, a + row + 1, a + row);
+  for (const face of [1, -1]) {
+    const base = pos.length / 3;
+    for (let r = 0; r <= rows; r++) {
+      const t = r / rows;
+      // Elliptic blade, round base, short point at the tip.
+      const w = half * Math.sin(Math.PI * Math.min(1, t * 1.02)) ** 0.62 * (1 - 0.3 * THREE.MathUtils.smoothstep(t, 0.78, 1));
+      const along = Math.sin(Math.PI * t) ** 0.7;
+      for (let c = 0; c <= cols; c++) {
+        const s = (c / cols) * 2 - 1;
+        const x = s * w;
+        const dome = S.puff * (1 - s * s) * along * (face > 0 ? 1 : 0.35);
+        // Edges a little down, tip arching down; the dome above (or below) the mid surface.
+        const z = -0.2 * s * s * w - 0.16 * t * t + face * dome;
+        pos.push(x, t, z);
+        paint.push(c * 2 === cols && t < 0.96 ? 1 : 0, Math.abs(s) ** 3, t, s);
+        // Pillow normal: each half domes from the midrib to its edge; the tip tilts forward.
+        const sideN = Math.sign(s) * Math.min(1, Math.abs(s) * 1.4) ** 0.8;
+        nrm.push(sideN * (0.6 + 4 * S.puff), 0.25 * t, face);
+      }
+    }
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const a = base + r * row + c;
+        if (face > 0) idx.push(a, a + 1, a + row, a + 1, a + row + 1, a + row);
+        else idx.push(a, a + row, a + 1, a + 1, a + row, a + row + 1);
+      }
     }
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-  g.setAttribute('paint', new THREE.Float32BufferAttribute(paint, 3));
+  g.setAttribute('paint', new THREE.Float32BufferAttribute(paint, 4));
   g.setAttribute('normal', new THREE.Float32BufferAttribute(nrm, 3));
   g.normalizeNormals();
   g.setIndex(idx);
@@ -156,12 +196,12 @@ function createRubberLeaf(rows, cols) {
 }
 
 /** Far leaf: a hexagon outline (4 triangles), same frame and normals as createRubberLeaf. */
-function createFarLeaf() {
-  const h = LEAF.width / 2;
+function createFarLeaf(S) {
+  const h = S.width / 2;
   const pos = [0, 0, 0, h * 0.85, 0.3, -0.03, h * 0.8, 0.68, -0.1, 0, 1, -0.16, -h * 0.8, 0.68, -0.1, -h * 0.85, 0.3, -0.03];
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
-  g.setAttribute('paint', new THREE.Float32BufferAttribute([0.3, 0, 0, 0, 1, 0.3, 0, 1, 0.68, 0.3, 0, 1, 0, 1, 0.68, 0, 1, 0.3], 3));
+  g.setAttribute('paint', new THREE.Float32BufferAttribute([0.3, 0, 0, 0, 0, 1, 0.3, 1, 0, 1, 0.68, 1, 0.3, 0, 1, 0, 0, 1, 0.68, -1, 0, 1, 0.3, -1], 4));
   g.setAttribute('normal', new THREE.Float32BufferAttribute([0, 0, 1, 0.75, 0.1, 1, 0.75, 0.2, 1, 0, 0.25, 1, -0.75, 0.2, 1, -0.75, 0.1, 1], 3));
   g.normalizeNormals();
   g.setIndex([0, 1, 2, 0, 2, 3, 0, 3, 4, 0, 4, 5]);
@@ -169,34 +209,38 @@ function createFarLeaf() {
 }
 
 /**
- * Cel leaf material for an InstancedMesh: the leaf's own normal through the shared 3-tone ramp,
- * a pale midrib, and a hard-edged specular band for the glossy look (the band is a stylistic
- * choice, not in cel-foliage.js). Back faces are a little lighter and matte.
+ * Leaf material for an InstancedMesh: a 3-tone ramp (softness per look), normals pulled towards
+ * the crown volume, AO, a bright rim, a pale midrib, a highlight, and for the painterly look
+ * lateral vein lines and brush-like value noise. Back faces lighter and matte.
  */
-function createGlossyLeafMaterial(crownCentre, crownHalf) {
+function createLeafMaterial(S, crownCentre, crownHalf, far) {
   return new THREE.ShaderMaterial({
     uniforms: {
-      ...toneUniforms(LEAF.tones),
-      midTone: { value: new THREE.Color(LEAF.midrib) },
+      ...toneUniforms(S.tones),
+      midTone: { value: new THREE.Color(S.midrib) },
       crownCentre: { value: crownCentre },
       crownHalf: { value: crownHalf },
+      soft: { value: S.soft },
+      crownPull: { value: S.crown },
+      spec: { value: new THREE.Vector3(...S.spec) },
+      rim: { value: S.rim },
+      veins: { value: far ? 0 : S.veins },
+      brush: { value: far ? 0 : S.brush },
     },
     vertexShader: /* glsl */ `
-      attribute vec3 paint;
+      attribute vec4 paint;
       uniform vec3 crownCentre;
       uniform vec3 crownHalf;
       varying vec3 vNormal;
       varying vec3 vCrown;
       varying vec3 vView;
       varying vec3 vTint;
-      varying vec3 vPaint;
+      varying vec4 vPaint;
       varying float vDepth;
       void main() {
         vec4 world = modelMatrix * instanceMatrix * vec4(position, 1.0);
         vec4 mv = viewMatrix * world;
         vNormal = normalize(normalMatrix * mat3(instanceMatrix) * normal);
-        // Crown-volume normal (as tree.js): leaves on the sunny side of the plant light up as
-        // one shape, leaves inside and behind fall into the shadow tone.
         vec3 q = (world.xyz - crownCentre) / crownHalf;
         vDepth = clamp(length(q), 0.0, 1.0);
         vCrown = normalize(mat3(viewMatrix) * normalize(q + vec3(0.0, 0.25, 0.0)));
@@ -207,30 +251,52 @@ function createGlossyLeafMaterial(crownCentre, crownHalf) {
       }`,
     fragmentShader: /* glsl */ `
       uniform vec3 sunDir;
+      uniform vec3 tone0;
+      uniform vec3 tone1;
+      uniform vec3 tone2;
       uniform vec3 midTone;
-      ${CEL_RAMP_GLSL}
+      uniform float soft;
+      uniform float crownPull;
+      uniform vec3 spec;
+      uniform float rim;
+      uniform float veins;
+      uniform float brush;
       varying vec3 vNormal;
       varying vec3 vCrown;
       varying vec3 vView;
       varying vec3 vTint;
-      varying vec3 vPaint;
+      varying vec4 vPaint;
       varying float vDepth;
+      vec3 ramp(float x) {
+        vec3 col = mix(tone0, tone1, smoothstep(0.22 - soft, 0.22 + soft, x));
+        return mix(col, tone2, smoothstep(0.6 - soft, 0.6 + soft, x));
+      }
+      float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+      float noise(vec2 p) {
+        vec2 i = floor(p), f = fract(p);
+        f = f * f * (3.0 - 2.0 * f);
+        return mix(mix(hash(i), hash(i + vec2(1, 0)), f.x), mix(hash(i + vec2(0, 1)), hash(i + vec2(1, 1)), f.x), f.y);
+      }
       void main() {
         vec3 leafN = normalize(vNormal) * (gl_FrontFacing ? 1.0 : -1.0);
-        vec3 N = normalize(mix(leafN, vCrown, 0.45));
+        vec3 N = normalize(mix(leafN, vCrown, crownPull));
         vec3 L = normalize((viewMatrix * vec4(sunDir, 0.0)).xyz);
-        // AO: darker deep in the plant and at the blade base by the stem (Mrđen: occlusion
-        // "near the stem and along the middle").
-        float ao = (0.72 + 0.28 * vDepth) * (0.8 + 0.2 * smoothstep(0.0, 0.3, vPaint.z));
-        float shade = (max(dot(N, L), 0.0) * 0.8 + 0.12) * ao;
-        vec3 col = celRamp(shade) * vTint;
-        // Light catching the rim ("brightness right at the border").
-        col *= 1.0 + 0.18 * vPaint.y;
+        float t = vPaint.z;
+        float s = vPaint.w;
+        float ao = (0.72 + 0.28 * vDepth) * (0.78 + 0.22 * smoothstep(0.0, 0.3, t));
+        // Painterly: brush-stroke value noise stretched along the lateral veins.
+        float seed = vTint.r * 53.0 + vTint.b * 17.0;
+        float strokes = noise(vec2((t - abs(s) * 0.3) * 18.0, abs(s) * 3.0) + seed) - 0.5;
+        float shade = (max(dot(N, L), 0.0) * 0.8 + 0.12) * ao + strokes * brush;
+        vec3 col = ramp(shade) * vTint;
+        col *= 1.0 + rim * vPaint.y;
+        // Lateral veins: thin darker lines from the midrib out towards the edge.
+        float v = abs(fract((t - abs(s) * 0.32) * 9.0) - 0.5);
+        col *= 1.0 - veins * (1.0 - smoothstep(0.02, 0.06, v)) * smoothstep(0.08, 0.2, abs(s)) * (1.0 - smoothstep(0.85, 0.98, abs(s)));
         col = mix(col, midTone * (0.5 + 0.5 * shade), smoothstep(0.55, 0.95, vPaint.x) * 0.7);
         if (gl_FrontFacing) {
           vec3 H = normalize(L + normalize(vView));
-          float spec = smoothstep(0.93, 0.95, dot(leafN, H));
-          col += vec3(0.2, 0.24, 0.2) * spec;
+          col += vec3(1.0, 1.0, 0.95) * spec.z * smoothstep(spec.x, spec.y, dot(leafN, H));
         } else {
           col *= vec3(1.12, 1.16, 1.04);
         }
@@ -241,12 +307,14 @@ function createGlossyLeafMaterial(crownCentre, crownHalf) {
   });
 }
 
-function potAndSoil(writer, radial) {
+function potAndSoil(writer, radial, P) {
   // Built top → bottom so the end cap closes the base and the top stays open over the soil.
+  const color = new THREE.Color(P.color);
+  const dark = new THREE.Color(P.dark);
   const h = POT.height;
   const pts = [new THREE.Vector3(0, h, 0), new THREE.Vector3(0, h - 0.035, 0), new THREE.Vector3(0, 0, 0)];
   const radii = [POT.top + 0.012, POT.top + 0.012, POT.base];
-  let tris = addTube(writer, pts, radii, { radial, colorAt: (v) => (v < 0.04 ? potDark : potColor) });
+  let tris = addTube(writer, pts, radii, { radial, colorAt: (v) => (v < 0.04 ? dark : color) });
   const soil = [new THREE.Vector3(0, h - 0.06, 0), new THREE.Vector3(0, h - 0.03, 0)];
   tris += addTube(writer, soil, [POT.top - 0.01, POT.top - 0.005], { radial, color: soilColor });
   return tris;
@@ -254,11 +322,19 @@ function potAndSoil(writer, radial) {
 
 const stemColor = (v, u, t) => _c.copy(stemLow).lerp(stemHigh, THREE.MathUtils.smoothstep(t, 0.3, 0.9));
 
-function createRubberPlant({ seed = 1, lod = 'near' } = {}) {
+/** Style from the argument, else from the preview URL (`&style=`), else chunky. */
+function pickStyle(style) {
+  if (!style && typeof location !== 'undefined') style = new URLSearchParams(location.hash.split('?')[1] ?? '').get('style');
+  return STYLES[style] ? style : 'chunky';
+}
+
+function createRubberPlant({ seed = 1, lod = 'near', style } = {}) {
   const near = lod !== 'far';
-  const { stems, leaves } = layout(seed);
+  const styleName = pickStyle(style);
+  const S = STYLES[styleName];
+  const { stems, leaves } = layout(seed, S);
   const writer = createMeshWriter();
-  let stemTris = potAndSoil(writer, near ? 20 : 8);
+  let stemTris = potAndSoil(writer, near ? S.pot.radial : 8, S.pot);
 
   for (const s of stems) {
     if (near) {
@@ -276,24 +352,25 @@ function createRubberPlant({ seed = 1, lod = 'near' } = {}) {
   }
   if (near) {
     for (const l of leaves) {
-      stemTris += addTube(writer, [l.root, l.root.clone().lerp(l.blade, 0.5), l.blade], [0.0045, 0.004, 0.0035], { radial: 3, color: petioleColor });
+      const r = 0.0045 * S.stem;
+      stemTris += addTube(writer, [l.root, l.root.clone().lerp(l.blade, 0.5), l.blade], [r, r * 0.9, r * 0.8], { radial: 3, color: petioleColor });
     }
   }
 
   const group = new THREE.Group();
-  group.name = `rubber plant (${near ? 'near' : 'far'})`;
+  group.name = `rubber plant (${styleName}, ${near ? 'near' : 'far'})`;
   const stemGeometry = writer.toGeometry();
   const stemMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.8, side: THREE.DoubleSide });
   const stemMesh = new THREE.Mesh(stemGeometry, stemMaterial);
   stemMesh.name = 'stems';
   group.add(stemMesh);
 
-  const leafGeometry = near ? createRubberLeaf(12, 6) : createFarLeaf();
   // Crown volume from the leaves alone (the same for both levels, so they shade alike).
   const crown = new THREE.Box3();
   for (const l of leaves) crown.expandByPoint(l.blade).expandByPoint(l.blade.clone().addScaledVector(l.fwd, l.size));
   const crownHalf = crown.getSize(new THREE.Vector3()).multiplyScalar(0.5);
-  const leafMaterial = createGlossyLeafMaterial(crown.getCenter(new THREE.Vector3()), crownHalf);
+  const leafGeometry = near ? createRubberLeaf(S, 12, 6) : createFarLeaf(S);
+  const leafMaterial = createLeafMaterial(S, crown.getCenter(new THREE.Vector3()), crownHalf, !near);
   const leafMesh = new THREE.InstancedMesh(leafGeometry, leafMaterial, leaves.length);
   leafMesh.name = 'leaves';
   const m = new THREE.Matrix4();
@@ -301,6 +378,7 @@ function createRubberPlant({ seed = 1, lod = 'near' } = {}) {
   const z = new THREE.Vector3();
   const y = new THREE.Vector3();
   const q = new THREE.Quaternion();
+  const roll = new THREE.Quaternion();
   const sc = new THREE.Vector3();
   const box = new THREE.Box3();
   leaves.forEach((l, i) => {
@@ -308,7 +386,7 @@ function createRubberPlant({ seed = 1, lod = 'near' } = {}) {
     x.crossVectors(y, UP).normalize();
     z.crossVectors(x, y).normalize();
     m.makeBasis(x, y, z);
-    q.setFromRotationMatrix(m).multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), l.roll));
+    q.setFromRotationMatrix(m).multiply(roll.setFromAxisAngle(UP, l.roll));
     // Far leaves a touch larger so the thinner outline keeps the same mass.
     const s = l.size * (near ? 1 : 1.08);
     m.compose(l.blade, q, sc.set(s, s, s));
@@ -325,6 +403,7 @@ function createRubberPlant({ seed = 1, lod = 'near' } = {}) {
   const stats = {
     seed,
     lod: near ? 'near' : 'far',
+    style: styleName,
     stems: stems.length,
     leaves: leaves.length,
     drawCalls: 2,
