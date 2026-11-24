@@ -157,3 +157,21 @@ export function saveShowFps(on) {
     // storage blocked: the switch lasts until the page closes
   }
 }
+
+/** The "Walk" button (WASD and the arrow keys move the camera): off unless saved on, in this browser. */
+const WALK = 'keringkam.walk';
+export function loadWalk() {
+  try {
+    return localStorage.getItem(WALK) === '1';
+  } catch {
+    return false;
+  }
+}
+
+export function saveWalk(on) {
+  try {
+    localStorage.setItem(WALK, on ? '1' : '0');
+  } catch {
+    // storage blocked: the button lasts until the page closes
+  }
+}

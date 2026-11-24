@@ -28,8 +28,9 @@
 //   eye = x,y,z   yaw = deg   pitch = deg   fov = deg   (a free camera, for close-ups)
 //   perf  (or perf=n: n seconds per shot) a timed run from the seat to the window (perf.js)
 //   dpr   = n (draws at this pixel ratio and never steps it down; default: the device's, up to 3)
-// Keys: the arrow keys slide the camera (up/down: forward/back, left/right: sideways; Shift: faster).
-//   Choosing a view from the menu goes back to that view. No collision: it can pass through walls.
+// Keys: with Walk on (the button beside Graphics; setWalk), W/S or up/down move forward/back and
+//   A/D or left/right slide sideways; Shift: faster. Choosing a view from the menu goes back to that
+//   view. No collision: it can pass through walls.
 //   theme = original (default) | detailed | clay: the theme (themes/index.js). clay is the clay render, the
 //           scene without its look (themes/clay.js); theme=off still means clay. The theme
 //           picker in Interior.svelte sets it.
@@ -631,20 +632,26 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
     pointer.set((e.clientX / window.innerWidth) * 2 - 1, (e.clientY / window.innerHeight) * 2 - 1);
   }
   window.addEventListener('pointermove', onPointerMove);
-  // The arrow keys slide the camera, the user's ask ("make my camera movable with the arrow keys"):
-  // `walk` is added to every shot's position. Speeds are design choices.
+  // Walking, the user's ask ("make my camera movable with the arrow keys", "it should use wasd",
+  // with a button to turn it on and off): `walk` is added to every shot's position. Keys are read by
+  // e.code, the key's place on the keyboard, so WASD sits in the same spot on any layout.
+  // Speeds are design choices.
   const WALK_SPEED = 1.5; // m/s; four times that with Shift
-  const ARROWS = { ArrowUp: [0, 1], ArrowDown: [0, -1], ArrowLeft: [-1, 0], ArrowRight: [1, 0] };
+  const KEYS = {
+    ArrowUp: [0, 1], ArrowDown: [0, -1], ArrowLeft: [-1, 0], ArrowRight: [1, 0],
+    KeyW: [0, 1], KeyS: [0, -1], KeyA: [-1, 0], KeyD: [1, 0],
+  };
   const walk = new THREE.Vector3();
   const held = new Set();
   let fast = false;
+  let walkOn = false;
   function onKey(e) {
     fast = e.shiftKey;
-    if (!(e.key in ARROWS)) return;
+    if (!walkOn || !(e.code in KEYS) || e.ctrlKey || e.metaKey || e.altKey) return;
     if (e.target instanceof Element && e.target.closest('input, select, textarea, [contenteditable]')) return;
     e.preventDefault(); // no page scroll
-    if (e.type === 'keydown') held.add(e.key);
-    else held.delete(e.key);
+    if (e.type === 'keydown') held.add(e.code);
+    else held.delete(e.code);
   }
   const onBlur = () => held.clear();
   window.addEventListener('keydown', onKey);
@@ -654,7 +661,7 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
   function stepWalk(dt) {
     if (!held.size) return;
     let f = 0, r = 0;
-    for (const k of held) { r += ARROWS[k][0]; f += ARROWS[k][1]; }
+    for (const k of held) { r += KEYS[k][0]; f += KEYS[k][1]; }
     fwd.set(0, 0, -1).applyQuaternion(camera.quaternion).setY(0);
     if (fwd.lengthSq() < 1e-6) return;
     fwd.normalize();
@@ -869,6 +876,11 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
   return {
     setShot,
     getShot: () => shot,
+    /** Turns walking with WASD and the arrow keys on or off; off stops any held key. */
+    setWalk(on) {
+      walkOn = !!on;
+      if (!walkOn) held.clear();
+    },
     /**
      * Changes the graphics settings while the page runs (quality.js). Returns whether the page must
      * reload for them: the texture detail is made at load.

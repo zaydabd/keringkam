@@ -3,7 +3,7 @@
   import { fade } from 'svelte/transition';
   import { createInterior, FABRIC_VIEWS } from '../three/scene/interior.js';
   import { THEMES, THEME_NAME, DEFAULT_THEME } from '../three/scene/themes/index.js';
-  import { OPTIONS, PRESETS, loadQuality, saveQuality, presetOf, presetSettings, loadShowFps, saveShowFps } from '../three/scene/quality.js';
+  import { OPTIONS, PRESETS, loadQuality, saveQuality, presetOf, presetSettings, loadShowFps, saveShowFps, loadWalk, saveWalk } from '../three/scene/quality.js';
 
   let canvas;
   let ready = $state(false);
@@ -22,6 +22,13 @@
     showFps = on;
     saveShowFps(on);
     if (!on) frameRate = null;
+  }
+  // Walking with WASD and the arrow keys: the Walk button beside Graphics, kept in this browser.
+  let walking = $state(loadWalk());
+  function toggleWalk() {
+    walking = !walking;
+    saveWalk(walking);
+    scene?.setWalk(walking);
   }
   const preset = $derived(presetOf(quality));
   function applyQuality(next) {
@@ -49,6 +56,7 @@
       onFrameRate: (r) => showFps && (frameRate = r),
     });
     shot = scene.getShot();
+    scene.setWalk(walking);
     return () => scene.destroy();
   });
 </script>
@@ -64,6 +72,9 @@
       {#if showFps && frameRate}
         <span class="fps" aria-hidden="true">{frameRate.fps} fps · {frameRate.ms} ms</span>
       {/if}
+      <button class="settings-toggle walk" type="button" aria-pressed={walking} title="Move with W A S D or the arrow keys; Shift is faster" onclick={toggleWalk}>
+        Walk: {walking ? 'on' : 'off'}
+      </button>
       <button class="settings-toggle" type="button" aria-expanded={settingsOpen} aria-controls="graphics" onclick={() => (settingsOpen = !settingsOpen)}>
         Graphics
       </button>
@@ -223,6 +234,10 @@
     display: flex;
     gap: 10px;
     align-items: center;
+  }
+  .walk[aria-pressed='true'] {
+    background: rgba(246, 234, 210, 0.9);
+    color: #3a2418;
   }
   .fps {
     padding: 6px 12px;
