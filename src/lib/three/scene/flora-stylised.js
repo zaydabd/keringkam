@@ -1,7 +1,7 @@
 // `?flora=stylised`: the approved stylised plants (vegetation/plants/*.js) stand at the proposed
 // layout entries (flora-layout.js) instead of the markers. Each entry gets one copy of its plant,
 // based at the entry's `at`, turned by its `yaw` and scaled so its height matches the entry's
-// (satin pothos keeps its modelled size: its entry is the pot's top, not the plant's height).
+// (satin pothos and the table's Schismatoglottis keep their modelled size).
 // The level of detail is picked once per copy, by its distance from `eye` against the plant's
 // `switchAt` (the camera stays near the window, so a static pick is enough). Copies of the same
 // plant, seed and level are baked into one mesh per material, so each costs no extra draw call.
@@ -15,6 +15,7 @@ import { plant as nipah } from '../vegetation/plants/nipah.js';
 import { plant as satinPothos } from '../vegetation/plants/satinPothos.js';
 import { plant as aglaonema } from '../vegetation/plants/aglaonema.js';
 import { plant as bougainvillea } from '../vegetation/plants/bougainvillea.js';
+import { plant as schismatoglottis } from '../vegetation/plants/schismatoglottis.js';
 import { createTree } from '../vegetation/tree.js';
 
 // The oak bush preset (vegetation/tree.js) as a plant: one level of detail, used near and far.
@@ -28,18 +29,17 @@ const PLANT_OF = [
   [/^proposed: nipah/, nipah],
   [/^bush blobs$/, bougainvillea], // the bush below the window (outside/waterbush.js)
   [/^proposed: Chinese evergreen \(floor\)$/, aglaonema],
-  [/^proposed: Chinese evergreen \(table\)$/, bougainvillea], // the user's choice: bougainvillea on the table
+  [/^proposed: Chinese evergreen \(table\)$/, schismatoglottis], // the user's choice: the Schismatoglottis on the table
   [/^proposed: satin pothos \((stand|ledge)\)$/, satinPothos],
   [/^proposed: bougainvillea/, bougainvillea], // outside the middle window (outside/index.js)
   [/^proposed: step planting \(oak bush\)$/, oakBush], // by the Assembly's side stairs
   [/^proposed: step planting \(bougainvillea\)$/, bougainvillea],
 ];
-const NATURAL_SIZE = new Set([satinPothos.id]);
+const NATURAL_SIZE = new Set([satinPothos.id, schismatoglottis.id]);
+// Plants that bring their own pot: they stand on the named planter's base, and its box is not drawn.
+const OWN_POT = [[/^proposed: Chinese evergreen \(table\)$/, /^proposed: table pot/]];
 const SEEDS = 5; // seeds per plant, reused round the copies: each a different branching and leaf spread
 const POTHOS_SPACING = 0.35; // m between pothos along a ledge trough
-// Heights that differ from the entry's marker (design guesses, tuned by eye): the table marker is
-// 0.18 m, which leaves a bougainvillea as bare twigs.
-const HEIGHT_OF = [[/^proposed: Chinese evergreen \(table\)$/, 0.45]];
 
 // How each vertex attribute moves with a copy: points, directions, or view-space card offsets
 // (`corner`, in metres, which the model matrix does not scale).
@@ -76,8 +76,10 @@ function copiesOf(entries) {
       }
       return;
     }
-    const height = HEIGHT_OF.find(([re]) => re.test(e.group))?.[1] ?? e.height;
-    out.push({ plant, at: e.at, yaw: e.yaw ?? index * 2.1, height, squash: e.squash ?? 1, index });
+    const potRe = OWN_POT.find(([re]) => re.test(e.group))?.[1];
+    const pot = potRe && entries.find((p) => p.kind === 'planter' && potRe.test(p.group));
+    const at = pot ? [e.at[0], pot.at[1], e.at[2]] : e.at;
+    out.push({ plant, at, yaw: e.yaw ?? index * 2.1, height: e.height, squash: e.squash ?? 1, index });
   });
   if (blobs.length) {
     // One bougainvillea over the bush's blobs: centred on them, as tall as the tallest.
@@ -146,7 +148,8 @@ export function buildFloraStylised(entries, { eye = null, layer } = {}) {
 
   // Planters and the plant stand: plain boxes, the neutral grey of unglazed pots.
   const rubber = entries.find((e) => /rubber plant/.test(e.group));
-  const pots = entries.filter((e) => e.kind === 'planter' && !(rubber && e.at[0] === rubber.at[0] && e.at[2] === rubber.at[2]));
+  const ownPots = OWN_POT.filter(([re]) => entries.some((e) => re.test(e.group))).map(([, potRe]) => potRe);
+  const pots = entries.filter((e) => e.kind === 'planter' && !(rubber && e.at[0] === rubber.at[0] && e.at[2] === rubber.at[2]) && !ownPots.some((re) => re.test(e.group)));
   if (pots.length) {
     const geo = new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0);
     const mat = new THREE.MeshStandardMaterial({ color: '#9a8f84', roughness: 0.9 });
