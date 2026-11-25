@@ -2490,3 +2490,24 @@ the edges change here.
   user can choose to turn the house's shadows on (realistic, but the room changes).
 - **New captures** (`research/tools/interior-captures.cjs`): `ext-river`, `ext-side`,
   `ext-front`, `ext-high`, `ext-river-clay`, `final-nohouse`. `?off=house` hides the house.
+
+### House exterior, step 2: the garden (work in progress, 2026-11-25)
+
+- **How to see it:** `?garden=<layout>` shows a layout's beds and placeholder volumes;
+  `&grow=plants` plants it; `&grow=trim` cuts each plant back to its slot, with some growth left
+  past the cut (`GARDEN.grown`). Without `?garden` the scene is unchanged. With a garden on, the
+  old painted bush below the window is left out (`createOutside({ bush: false })`).
+- **Layouts** (`src/lib/three/scene/garden-layouts.js`; all places and sizes **ESTIMATED**):
+  framed, open, drift, tropical, and **bougainvillea** (the user's design): a trimmed
+  bougainvillea row along the river wall (tops about 1.3 m above the floor), four trained up the
+  wall beside the windows, vine curtains and hanging vines from the window heads and the eaves,
+  and one small rain tree on the street's grass in front of the left window.
+- **Plans:** `node research/tools/garden-plans.mjs > plans.json && python3 research/tools/garden-plans.py plans.json out.png [layout]`
+  draws the layouts top down; with a layout key, also its front view and a side cut with the
+  seat's and window shot's sight lines.
+- **Open issues (last render, headless SwiftShader):** the window shot's vines are too dense and
+  show a web of thin lines (cause not found); the `garden-bougainvillea-*-wall` capture's camera
+  stands inside the tree; the climbers are sparse.
+- **Not done:** step 3, camera angles from outside.
+- **Speed:** captures take about a minute each here: no GPU, so WebGL runs on the CPU
+  (frameMs about 900–1300 against cpuMs about 3).
