@@ -10,15 +10,14 @@ import * as THREE from 'three';
 import { PLAN } from './plan.js';
 import { V } from './builder.js';
 import { neutral } from './helpers.js';
+import { FURNITURE_LAYER, SIDE_LAYER } from '../layers.js';
 
 // The sky: one direction stands for the three windows. Only the furniture casts its shadow
 // (FURNITURE_LAYER): the window wall would otherwise shut it out, as one direction cannot go
 // round the wall the way the whole sky does. Its shadows fall towards the viewer.
-export const FURNITURE_LAYER = 4;
 // The side window: a lamp outside it, shining in. The wall casts its shadow (SIDE_LAYER: walls,
 // frames and furniture, not the curtain that hangs in the opening), so the light keeps the
 // window's shape, widens across the room and fades with distance.
-export const SIDE_LAYER = 5;
 
 /**
  * Adds the four lights to `scene`. `L` is the theme's light section, `level` its overall level,

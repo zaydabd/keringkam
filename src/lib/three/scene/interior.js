@@ -40,7 +40,7 @@ import * as THREE from 'three';
 import './stableShadows.js'; // soft shadow edges dithered on the world, not the screen
 import { toonGradient } from './toon.js';
 import { paintPlanks, paintCarving, paintWindowLattice, paintCurtain, paintDecor, paintGlow, setPaintDetail } from './paint.js';
-import { createOutside, OBJECTS, MIRROR_LAYER } from './outside/index.js';
+import { createOutside, OBJECTS } from './outside/index.js';
 import { createMeter, REFERENCE_EXPOSURE } from './meter.js';
 import { RESOLUTIONS, MAX_PIXEL_RATIO, MIN_PIXEL_RATIO, PACE, SHADOWS, TEXTURES, normalise } from './quality.js';
 import { createPerfRun } from './perf.js';
@@ -60,7 +60,8 @@ import { gardenChoice, buildGarden, buildBeds } from './garden.js';
 import { shadeWalls, glossBoards, buildContactShadows } from './interior/surfaces.js';
 import { sceneOptions } from '../../utils/urlOptions.js';
 import { maskOf } from './interior/helpers.js';
-import { createLights, FURNITURE_LAYER, SIDE_LAYER } from './interior/lights.js';
+import { createLights } from './interior/lights.js';
+import { NO_INK_LAYER, MIRROR_LAYER, INK_MASK_LAYER, FURNITURE_LAYER, SIDE_LAYER } from './layers.js';
 import { SHOTS, SHOT_MOVE_SECONDS } from './interior/shots.js';
 import { createControls } from './interior/controls.js';
 import { createFrameCounter } from './interior/frameRate.js';
@@ -248,8 +249,8 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
   for (const mesh of room.children) {
     if (mesh.name === 'lattice' || mesh.name === 'carve') {
       mesh.customDepthMaterial = mesh.name === 'lattice' ? latticeDepth : carveDepth;
-      mesh.layers.set(1);
-      if (mesh.name === 'lattice') mesh.layers.enable(3); // and masks the ink of the view behind it (toon.js)
+      mesh.layers.set(NO_INK_LAYER);
+      if (mesh.name === 'lattice') mesh.layers.enable(INK_MASK_LAYER); // and masks the ink of the view behind it (toon.js)
     }
     if (['leaf', 'decor'].includes(mesh.name)) mesh.castShadow = mesh.name === 'leaf';
     if (['wood', 'top', 'carve'].includes(mesh.name)) mesh.layers.enable(FURNITURE_LAYER);
@@ -332,7 +333,7 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
       if (r.stats) console.info(`built ${name}`, JSON.stringify(r.stats));
     }
   }
-  camera.layers.enable(1);
+  camera.layers.enable(NO_INK_LAYER);
 
   // Post-processing (interior/post.js).
   const post = own(createPost(renderer, scene, camera, { theme: THEME, quality: Q, params, off, debug, clay, stage, seed, inkMask: textures.lattice }));

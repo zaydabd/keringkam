@@ -44,10 +44,10 @@ import { PENAMBANG, planBoat, compileBoat } from './boats.js';
 import { checkBoats } from './placement.js';
 import { buildBridge } from './bridge.js';
 import { createWater, fresnelF0, WAVES } from './water.js';
+import { NO_INK_LAYER, MIRROR_LAYER } from '../layers.js';
 
 export { SITE };
 /** The mirrored camera of the river draws this layer: the outside without the water. Lights must be on it too. */
-export const MIRROR_LAYER = 2;
 export const OBJECTS = ['farbank', 'forecourt', 'waterfront', 'river', 'assembly', 'bridge', 'boats', 'sky'];
 
 // The sky is keyed down like the rest of the outdoors, so its blue survives an exposure set for
@@ -247,7 +247,7 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
     sky.rotation.y = 1.1 + skySeed;
     sky.renderOrder = -1;
     sky.name = 'sky';
-    sky.layers.set(1);
+    sky.layers.set(NO_INK_LAYER);
     sky.layers.enable(MIRROR_LAYER);
     disposables.push(skyMat);
     group.add(sky);
@@ -277,7 +277,7 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
   // ink pass would outline every blade.
   if (flora === 'stylised' && want('farbank')) {
     const fur = buildFarFur(reports.farbank, { seed, material: toon({ side: THREE.DoubleSide }) });
-    fur.mesh.layers.set(1);
+    fur.mesh.layers.set(NO_INK_LAYER);
     fur.mesh.layers.enable(MIRROR_LAYER);
     disposables.push(fur.mesh.geometry);
     group.add(fur.mesh);
