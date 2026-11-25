@@ -1,6 +1,6 @@
 # Agent skills in this folder (vendored)
 
-Only the skills the window view (`src/lib/three/scene/outside/`) needs. Re-added 2026-11-11.
+Only the skills the window view (`src/lib/three/scene/riverside/`) needs. Re-added 2026-11-11.
 
 - https://github.com/scottstts/Threejs-Awesome-Graphics-Agent-Skills @ 53eb5a24097425d82532ec33697ad472750132a4 (MIT AND GPL-3.0-only): threejs-procedural-architecture, threejs-procedural-geometry, threejs-procedural-vegetation, threejs-water-optics, threejs-atmosphere-aerial-perspective, threejs-camera-direction, threejs-image-pipeline, threejs-exposure-color-grading, threejs-bloom, threejs-visual-validation
 - https://github.com/CloudAI-X/threejs-skills @ 0e181866f095b5f06d005133876e926515390d95 (MIT): threejs-performance

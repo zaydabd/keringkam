@@ -112,7 +112,7 @@ Composites of CC BY-SA photos must themselves be shared under CC BY-SA with cred
 
 # Interior: the view outside the windows (2026-11-11)
 
-`src/lib/three/scene/outside/` is drawn after **R3**, a painting the user supplied (a window view of the Sarawak River at Kuching). Its source and licence are unknown, so it is not in the repo. Nothing is copied from it into the scene: the bridge, the building, the river and the trees are built and painted in code.
+`src/lib/three/scene/riverside/` is drawn after **R3**, a painting the user supplied (a window view of the Sarawak River at Kuching). Its source and licence are unknown, so it is not in the repo. Nothing is copied from it into the scene: the bridge, the building, the river and the trees are built and painted in code.
 
 Facts used, with their sources:
 
@@ -184,7 +184,7 @@ is in the repo. The scene reference is R4, an image supplied by the user (not in
 # Window view: the sky (2026-11-19, pass e6)
 
 Looked at only, to read how clouds are painted for `paintSoftSky`'s watercolour style
-(`src/lib/three/scene/paint.js`). Nothing is copied into the scene; none of these images is in
+(`src/lib/three/scene/paint/core.js`, `house/paint.js` and `riverside/paint.js`). Nothing is copied into the scene; none of these images is in
 the repo. The scene reference is R4, an image supplied by the user (not in the repo). Trait
 numbers are the plan's: 1 lobed masses, layered; 2 values (paper-white tops, warm grey, cool
 undersides, pools); 3 edges (crisp lit, lost below, dry-brush); 4 the uneven blue wash; 5 flat

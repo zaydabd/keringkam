@@ -1,6 +1,6 @@
 # Interior scene notes (`#/interior`)
 
-Notes for `src/lib/three/scene/interior.js` (+ `toon.js`, `paint.js`, `landscape.js`).
+Notes for `src/lib/three/scene/index.js` (+ `toon.js`, `paint.js`, `landscape.js`).
 
 ## Reference
 
@@ -167,7 +167,7 @@ Every signal has one producer; every pass has a way to switch it off.
 
 ## Outside the windows (branch `window-view`)
 
-`src/lib/three/scene/outside/` draws what is outside the windows of `#/interior`. The old jungle backdrop (`landscape.js`) is still used by the veranda scene.
+`src/lib/three/scene/riverside/` draws what is outside the windows of `#/interior`. The old jungle backdrop (`landscape.js`) is still used by the veranda scene.
 
 ### Reference and facts
 
@@ -354,7 +354,7 @@ OUTSIDE_SIGNOFF
 
 The old scene was built from H1–H6. Those photos show Orang Ulu and Bidayuh houses, not Malay houses, so the scene was replaced. The notes below are kept for the method only.
 
-Running notes for `src/lib/three/scene/interior.js` (+ `toon.js`, `paint.js`, `landscape.js`).
+Running notes for `src/lib/three/scene/index.js` (+ `toon.js`, `paint.js`, `landscape.js`).
 Reference photos H1–H15 are listed with credits in `CREDITS.md` (contact sheet `kampung-house-inside.jpg`).
 The style is our own hand-drawn look, inspired by Ghibli backgrounds. No Ghibli assets or images are copied.
 
@@ -610,7 +610,7 @@ building, as agreed with the user. 9,226 triangles (limit 14,000).
 
 ### Pass w6: river taxis (penambang) rebuilt like the Assembly building (2026-11-12)
 
-`src/lib/three/scene/outside/boats.js` replaces the old `buildBoat` in `index.js`. Same pattern as
+`src/lib/three/scene/riverside/boats.js` replaces the old `buildBoat` in `index.js`. Same pattern as
 `assembly.js`: settings (`PENAMBANG`) -> plan (`planBoat`, parts in build order) -> part builders
 (hull, deck, cabin, porch, roof, hatch; boatman removed in pass e9) -> `compileBoat` with a checks contract.
 
@@ -652,7 +652,7 @@ Fix: the first build drew black blobs in the window view because some colours we
 
 ### Pass w7: the near bank in detail (2026-11-12, branch `fix-near-bank`)
 
-`src/lib/three/scene/outside/nearbank.js` replaces the old `buildNearBank` in `banks.js`, which now
+`src/lib/three/scene/riverside/nearbank.js` replaces the old `buildNearBank` in `banks.js`, which now
 builds the far bank only. Reference: R3's foreground (mud flat, bush mass on the left, grass, fern).
 **Every size, density and colour here is a design choice read off R3 by eye, not measured data.**
 

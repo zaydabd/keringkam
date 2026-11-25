@@ -1,7 +1,7 @@
 // The one place the app reads its URL options. All are optional: the plain address
 // (http://localhost:5173/) shows the full scene.
 //
-// Scene (query before the #, read by scene/interior.js unless noted):
+// Scene (query before the #, read by scene/index.js unless noted):
 //   garden  = off                      hide the planting round the house (garden.js)
 //   flora   = off                      hide the stylised plants and the far bank's trees (house/garden/plants.js and riverside/plants.js)
 //   theme   = original | detailed | clay (themes/index.js; off = clay)

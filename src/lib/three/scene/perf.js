@@ -167,7 +167,7 @@ export function createPerfRun(renderer, { hold = 3, go, moving, load }) {
     panel.textContent = text;
     Object.assign(panel.style, {
       position: 'fixed', left: '8px', top: '64px', right: '8px', margin: '0', padding: '8px 10px', zIndex: '50',
-      font: '11px/1.35 ui-monospace, monospace', color: '#f6ead2', background: 'rgba(30, 18, 10, 0.82)',
+      font: '11px/1.35 ui-monospace, monospace', color: 'var(--cream)', background: 'rgba(30, 18, 10, 0.82)',
       whiteSpace: 'pre-wrap', pointerEvents: 'none',
     });
     document.body.appendChild(panel);

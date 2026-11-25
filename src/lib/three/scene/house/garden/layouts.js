@@ -20,13 +20,17 @@ const SOFFIT = HOUSE.plate + 0.06 - HOUSE.roof.overhang * Math.tan((HOUSE.roof.p
 const [w1, w2, w3] = PLAN.backWindows;
 const s = PLAN.sideWindow;
 
+// The placeholder colour of each layer: debug only, for telling the layers apart in a layout
+// sketch, never part of the look (so not in themes/).
+const PLACEHOLDER_COLOURS = { mound: '#c2407f', climber: '#f08cc0', curtain: '#4f9e3a', hanging: '#7cc24f', tree: '#3d6b2f' };
+
 // What each layer is, its plant, and its placeholder colour.
 export const LAYERS = {
-  mound: { plant: 'bougainvillea', label: 'Bougainvillea bush, trimmed (tops about 1.3 m above the floor)', colour: '#c2407f' },
-  climber: { plant: 'bougainvillea', label: 'Bougainvillea trained up the wall beside a window', colour: '#f08cc0' },
-  curtain: { plant: 'vineCurtain', label: 'Vine curtain hanging from a window head', colour: '#4f9e3a' },
-  hanging: { plant: 'hangingVine', label: 'Hanging vine from the eaves', colour: '#7cc24f' },
-  tree: { plant: 'rainTree', label: 'Rain tree, kept small (about 4 m tall)', colour: '#3d6b2f' },
+  mound: { plant: 'bougainvillea', label: 'Bougainvillea bush, trimmed (tops about 1.3 m above the floor)', colour: PLACEHOLDER_COLOURS.mound },
+  climber: { plant: 'bougainvillea', label: 'Bougainvillea trained up the wall beside a window', colour: PLACEHOLDER_COLOURS.climber },
+  curtain: { plant: 'vineCurtain', label: 'Vine curtain hanging from a window head', colour: PLACEHOLDER_COLOURS.curtain },
+  hanging: { plant: 'hangingVine', label: 'Hanging vine from the eaves', colour: PLACEHOLDER_COLOURS.hanging },
+  tree: { plant: 'rainTree', label: 'Rain tree, kept small (about 4 m tall)', colour: PLACEHOLDER_COLOURS.tree },
 };
 
 const wallZ = Z0 - 0.02; // a bed's edge along the river wall
