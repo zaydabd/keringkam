@@ -138,15 +138,17 @@ const GLASS = { cabin: '#1f2326' };
 const SHADE = { cabin: '#2a2220' }; // the dark inside of a boat's cabin
 
 // Pass e16: three stylized looks for the Assembly, picked with ?asm=c|d|cd for a side-by-side
-// comparison (no parameter: the e15c look). C after Annie Xiao's Ghibli-style house (80.lv): a
+// comparison. C after Annie Xiao's Ghibli-style house (80.lv): a
 // watercolour wash, light and shadow painted in, saturation pushed. D after Abhishek Maity's
 // hand-painted warm environment (80.lv): brush dabs, lighter soft edges, warm light. CD: both at
 // about half. Technique only; nothing copied (research/CREDITS.md).
 export const ASSEMBLY_STYLES = ['c', 'd', 'cd'];
+// D is the default since pass e16b (the user picked it); ?asm=none gives the plain e15c paint.
 export const ASSEMBLY_STYLE = (() => {
-  if (typeof window === 'undefined') return null;
+  if (typeof window === 'undefined') return 'd';
   const asked = new URLSearchParams(window.location.search).get('asm');
-  return ASSEMBLY_STYLES.includes(asked) ? asked : null;
+  if (asked === 'none') return null;
+  return ASSEMBLY_STYLES.includes(asked) ? asked : 'd';
 })();
 const LUMA = [0.2126, 0.7152, 0.0722];
 /** A linear colour with its saturation scaled by k round its own luminance, kept in 0..1. */

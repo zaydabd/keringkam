@@ -2443,3 +2443,19 @@ Credits: research/CREDITS.md (pass e16).
   gets the same brushwork; the glass keeps its own look. Both maps are painted on a paper of sRGB
   214, and the materials are brightened by its inverse (`styleGain`), so light strokes can rise
   above the plain colour. There is no new mesh (still 8), one more texture (256², about 0.25 MB).
+
+### Pass e16b: look D by default, and worn edges (`assembly-stylized-main`)
+The user picked look D and asked for the shape to change too, after the guide (option 1: D only).
+Guide D ([Abhishek Maity, 80.lv](https://80.lv/articles/how-to-create-a-ghibli-style-warm-environment-with-hand-painted-texture))
+says this about shape: quad meshes with good edge flow, and edges sculpted in ZBrush with "Clay
+Buildup and Flatten", then baked. It says nothing about bevels or exaggerated proportions, so only
+the edges change here.
+- **Default:** `?asm` now defaults to `d`. `?asm=none` gives the plain e15c paint; `c` and `cd` remain.
+- **Members** (`beam()` in assembly.js; shafts, arms, mullions, flares, struts, kiosk posts): the
+  front corners are cut by 0.35 of the half width. At each joint this varies by up to ±45%, seeded
+  by the joint's position, so joined pieces agree and the edges look worked by hand rather than
+  machined. All values estimated.
+- **Brim:** its top and bottom outer edges are cut by 0.6 m (estimated).
+- **Roof rim:** its top outer edge is cut by 0.6 m (estimated).
+- **Triangle limit removed** (the user: "get rid of the limit"; it was 14,000). The building's
+  triangles went from 11,170 to 15,766: rib 7,236, gold 4,892, stone 3,098, glass 540.
