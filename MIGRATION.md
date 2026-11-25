@@ -21,3 +21,6 @@ Already fully in main: `stylised/aglaonema`, `bougainvillea`, `nipah`, `pedada`,
 1. For each ready branch: merge onto main locally, `npm run build`, `npm run check`, look at a screenshot, then push. A push to main redeploys GitHub Pages.
 2. Do not run the Pages workflow on a branch: it replaces the live site.
 3. Licences: do not commit reference images with an unknown licence (the repo is public). The two Sketchfab vine models (iGauravRajput) are CC Attribution; the POLYSCAN packs have no licence (style reference only).
+
+## Update (25 Nov 2026, later)
+All four branches above are now merged into main: `stylised/scene`, `assembly-stylized-main`, `stylised/rubber-plant` and `house-exterior`. The garden tree uses main's new Kuching tree (rain-tree design). Still not done on house-exterior: step 3, camera angles from outside.
