@@ -96,7 +96,7 @@ function writeStems(stems, { radial, every = 1 }) {
  * `cells` = [leaf cell, bract cell] in the atlas. Bracts go on the outward, upper side of a
  * clump, in proportion to its bract share (guess).
  */
-function writeCards(rand, list, { radius, count, leafCard, bractCard, cells, aoScale = 1, bractBias = 1 }) {
+function writeCards(rand, list, { radius, count, leafCard, bractCard, cells, aoScale = 1, bractBias = 1, tuck = false, crown }) {
   const frame = crownFrame(list.map((c) => c.centre), radius);
   const A = { position: [], normal: [], uv: [], corner: [], centre: [], color: [], ao: [], kind: [] };
   const indices = [];
@@ -121,10 +121,13 @@ function writeCards(rand, list, { radius, count, leafCard, bractCard, cells, aoS
       const az = range(rand, 0, Math.PI * 2);
       const sn = Math.sqrt(1 - zz * zz);
       n.set(sn * Math.cos(az), zz, sn * Math.sin(az));
-      const shell = rand() < 0.85 ? range(rand, 0.82, 1) : range(rand, 0.3, 0.82);
-      p.copy(c.centre).addScaledVector(n, r * shell);
+      let shell = rand() < 0.85 ? range(rand, 0.82, 1) : range(rand, 0.3, 0.82);
       const facing = 0.55 + 0.45 * (n.dot(out) * 0.6 + n.y * 0.4);
-      const isBract = shell > 0.8 && rand() < c.b * facing * 1.3 * bractBias;
+      // Bracts on the outer shell only, or with `tuck` (a trimmed bush) in among the leaves, a
+      // little under the outermost ones, so they grow out of it rather than sit on top.
+      const isBract = (tuck || shell > 0.8) && rand() < c.b * facing * 1.3 * bractBias;
+      if (isBract && tuck) shell = range(rand, 0.55, 0.9);
+      p.copy(c.centre).addScaledVector(n, r * shell);
       const size = (isBract ? bractCard : leafCard) * range(rand, 0.8, 1.2);
       const roll = range(rand, 0, Math.PI * 2);
       const cr = Math.cos(roll);
@@ -132,7 +135,8 @@ function writeCards(rand, list, { radius, count, leafCard, bractCard, cells, aoS
       const tint = hue * range(rand, 0.93, 1.07);
       const ao = clumpAo * (0.7 + 0.3 * shell) * (isBract ? 1.1 : 1);
       const kind = cells[isBract ? 1 : 0];
-      q.copy(p).sub(frame.centre).divide(frame.half).normalize();
+      if (c.normal) q.copy(c.normal);
+      else q.copy(p).sub(frame.centre).divide(frame.half).normalize();
       const base = A.position.length / 3;
       for (const [u, v] of CORNERS) {
         A.position.push(p.x, p.y, p.z);
@@ -156,7 +160,7 @@ function writeCards(rand, list, { radius, count, leafCard, bractCard, cells, aoS
   geometry.computeBoundingSphere();
   geometry.boundingSphere.radius += bractCard * 1.7;
   const atlas = createAtlas();
-  const material = createCardMaterial(atlas, LEAF_TONES, BRACT_TONES);
+  const material = createCardMaterial(atlas, LEAF_TONES, BRACT_TONES, { crown });
   const mesh = new THREE.Mesh(geometry, material);
   mesh.name = 'leaves and bracts';
   return {
@@ -231,8 +235,10 @@ function createFar(seed) {
 /**
  * Foliage for a trimmed bush (the garden round the house): leaf and bract spray cards on the given
  * clumps, in whatever space they are given (world space for the garden). Each clump is
- * { centre: Vector3, b: bract share 0..1 }. `card` is a leaf card's size, `bractCard` a bract
- * card's (default the same); `count` cards per clump.
+ * { centre: Vector3, b: bract share 0..1, normal?: the bush's surface normal there }. `card` is a
+ * leaf card's size, `bractCard` a bract card's (default the same); `count` cards per clump. The
+ * bracts are tucked in among the leaves, and the cards shade mostly by the bush's surface
+ * (`crown`), so the bush reads as one shape in light, mid and dark.
  * Same shader and atlas as the far level, so a clump reads as a mass of leaves, not single cards.
  */
 export function createBushFoliage(seed, list, { radius = FAR.radius, card = FAR.card, bractCard = card, count = FAR.cards } = {}) {
@@ -243,6 +249,8 @@ export function createBushFoliage(seed, list, { radius = FAR.radius, card = FAR.
     bractCard,
     cells: [2, 3],
     bractBias: 1.35,
+    tuck: true,
+    crown: 0.6,
   });
 }
 

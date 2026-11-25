@@ -117,16 +117,22 @@ export function createAtlas(size = 128) {
   return tex;
 }
 
-/** Camera-facing leaf and bract cards (near level). */
-export function createCardMaterial(map, leafTones, bractTones) {
+/**
+ * Camera-facing leaf and bract cards (near level). `crown` is how much of a card's shading normal
+ * is its mesh normal (the clump's, or for a trimmed bush the bush's own surface) against the
+ * round of its clump: 0.25 for a free shrub; a trimmed hedge uses more, so its light, mid and dark
+ * bands fall over the whole hedge, not over each small clump.
+ */
+export function createCardMaterial(map, leafTones, bractTones, { crown = 0.25 } = {}) {
   return new THREE.ShaderMaterial({
-    uniforms: { map: { value: map }, ...uniforms(leafTones, bractTones) },
+    uniforms: { map: { value: map }, crown: { value: crown }, ...uniforms(leafTones, bractTones) },
     vertexShader: /* glsl */ `
       attribute vec2 corner;
       attribute vec3 centre;
       attribute vec3 color;
       attribute float ao;
       attribute float kind;
+      uniform float crown;
       varying vec2 vUv;
       varying vec3 vNormal;
       varying vec3 vTint;
@@ -137,7 +143,7 @@ export function createCardMaterial(map, leafTones, bractTones) {
         mv.xy += corner;
         gl_Position = projectionMatrix * mv;
         vec3 c = (modelViewMatrix * vec4(centre, 1.0)).xyz;
-        vNormal = normalize(normalize(mv.xyz - c) * 0.75 + normalize(normalMatrix * normal) * 0.25);
+        vNormal = normalize(normalize(mv.xyz - c) * (1.0 - crown) + normalize(normalMatrix * normal) * crown);
         vUv = vec2((uv.x + kind) / ${CELLS}.0, uv.y);
         vTint = color;
         vAo = ao;

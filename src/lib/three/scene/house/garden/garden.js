@@ -170,6 +170,7 @@ function hedgeClumps(sl, seed) {
     q.set(THREE.MathUtils.clamp(x, -hw + r, hw - r), THREE.MathUtils.clamp(y, r, sl.h - r), THREE.MathUtils.clamp(z, -hd + r, hd - r));
     p.set(x, y, z).sub(q);
     if (p.lengthSq() < 1e-8) return;
+    const normal = p.clone().normalize(); // the trimmed surface's normal: the hedge shades as one shape
     // Growth past the cut: smooth patches, and a few sprigs further out.
     const wx = x + sl.at[0];
     const wz = z + sl.at[1];
@@ -181,7 +182,8 @@ function hedgeClumps(sl, seed) {
     p.y += base;
     p.z += sl.at[1];
     if (inHouse(p, clear)) return;
-    out.push({ centre: p.clone(), b: bractAt((p.y - base) / sl.h) });
+    // No flowers on a stray sprig: they would float clear of the hedge.
+    out.push({ centre: p.clone(), normal, b: sprig ? 0 : bractAt((p.y - base) / sl.h) });
   };
   const jit = () => (rand() - 0.5) * B.spacing * 0.4;
   const steps = (len) => Math.max(1, Math.round(len / B.spacing));
@@ -235,7 +237,8 @@ function bushClumps(sl, seed) {
       p.set(sl.at[0] + ex * r * Math.cos(a), y + (rand() - 0.5) * B.spacing * 0.3, sl.at[1] + ez * r * Math.sin(a));
       if (inHouse(p, clear)) continue;
       const height = (p.y - base) / sl.h;
-      out.push({ centre: p.clone(), b: bractAt(height) });
+      const normal = new THREE.Vector3(Math.cos(a) / sl.rx, up / half, Math.sin(a) / sl.rz).normalize();
+      out.push({ centre: p.clone(), normal, b: bractAt(height) });
     }
   }
   return out;
