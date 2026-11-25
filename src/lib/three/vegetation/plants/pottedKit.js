@@ -3,34 +3,7 @@
 
 import * as THREE from 'three';
 
-export function hash2(x, y, s) {
-  const h = Math.sin(x * 127.1 + y * 311.7 + s * 74.7) * 43758.5453;
-  return h - Math.floor(h);
-}
-export function vnoise(x, y, s = 0) {
-  const xi = Math.floor(x);
-  const yi = Math.floor(y);
-  const xf = x - xi;
-  const yf = y - yi;
-  const u = xf * xf * (3 - 2 * xf);
-  const v = yf * yf * (3 - 2 * yf);
-  const a = hash2(xi, yi, s);
-  const b = hash2(xi + 1, yi, s);
-  const c = hash2(xi, yi + 1, s);
-  const d = hash2(xi + 1, yi + 1, s);
-  return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
-}
-export function fbm(x, y, s = 0, oct = 4) {
-  let sum = 0;
-  let amp = 0.5;
-  for (let i = 0; i < oct; i++) {
-    sum += amp * vnoise(x, y, s + i * 13);
-    x *= 2.03;
-    y *= 2.03;
-    amp *= 0.5;
-  }
-  return sum / (1 - 0.5 ** oct);
-}
+export { sinHash as hash2, valueNoise as vnoise, valueFbm as fbm } from '../../../utils/noise.js'; // the shared noise
 export const sstep = (a, b, x) => THREE.MathUtils.smoothstep(x, a, b);
 export const mix3 = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
 /** A hex colour as linear [r, g, b]. */

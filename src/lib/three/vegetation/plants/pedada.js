@@ -29,6 +29,7 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { createTree } from '../tree.js';
 import { addTube, createMeshWriter } from '../tube.js';
 import { mulberry32, range } from '../../../utils/rng.js';
+import { sinHash } from '../../../utils/noise.js';
 
 const TONES = ['#163a2a', '#2f6a3c', '#8fbf6a']; // deep green ramp (colour sourced, values guess)
 
@@ -37,10 +38,7 @@ const pedadaBark = (() => {
   const grey = new THREE.Color('#6a6258');
   const dark = new THREE.Color('#3f3a33');
   const out = new THREE.Color();
-  const hash = (a, b) => {
-    const s = Math.sin(a * 127.1 + b * 311.7) * 43758.5453;
-    return s - Math.floor(s);
-  };
+  const hash = sinHash;
   // Greyish pale brown with flaky patches (sourced colour/texture; the pattern is a guess).
   return (v, u, t, level) => {
     const flake = hash(Math.floor(v * 4), Math.floor(u * 6));
