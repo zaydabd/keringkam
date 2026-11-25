@@ -11,7 +11,9 @@ import { LAYOUTS, LAYERS, WALLS } from './garden-layouts.js';
 import { plant as bougainvillea } from '../vegetation/plants/bougainvillea.js';
 import { plant as aglaonema } from '../vegetation/plants/aglaonema.js';
 import { plant as nipah } from '../vegetation/plants/nipah.js';
-import { plant as rainTree } from '../vegetation/plants/rainTree.js';
+import { plant as kuchingTree } from '../vegetation/plants/kuchingTree.js';
+// The garden's tree: main's new Kuching tree in its rain-tree design (treeStudies.js rainRoadside).
+const rainTree = { id: 'rainTree', create: (o) => kuchingTree.create({ ...o, variant: 'rainRoadside' }) };
 import { createVineCurtain, VINE_CURTAIN } from '../vegetation/vine-curtain.js';
 import { createHangingVine, HANGING_VINE } from '../vegetation/hanging-vine.js';
 
@@ -164,7 +166,7 @@ export function buildGarden({ layout, stage }) {
   }
   for (const [n, sl] of slots.entries()) {
     const kind = PLANTS[LAYERS[sl.layer].plant];
-    const made = kind.create({ seed: 1 + (n % 5), lod: 'near', leaves: kind === rainTree ? 0.65 : undefined }); // 0.65: the rain tree's smaller clumps for trees seen close (rainTree.js)
+    const made = kind.create({ seed: 1 + (n % 5), lod: 'near', leaves: kind === rainTree ? 0.65 : undefined }); // 0.65: the rain tree's smaller clumps for trees seen close (kuchingTree.js)
     if (sl.shape === 'hang') {
       // A vine hangs whole in its panel: scaled to its height, its top at the panel's top, uncut.
       group.add(hang(made.group, sl));
