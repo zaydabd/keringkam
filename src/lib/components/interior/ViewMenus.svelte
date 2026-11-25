@@ -58,17 +58,17 @@
     right: 32px;
     bottom: 64px;
     padding: 10px 18px;
-    border: 1px solid rgba(246, 234, 210, 0.7);
+    border: 1px solid rgba(var(--cream-rgb), 0.7);
     border-radius: 999px;
-    background: rgba(58, 36, 24, 0.55);
-    color: #f6ead2;
+    background: var(--panel);
+    color: var(--cream);
     font: inherit;
     font-size: 13px;
     letter-spacing: 0.04em;
     cursor: pointer;
   }
   .shot:hover {
-    background: rgba(58, 36, 24, 0.8);
+    background: var(--panel-hover);
   }
   .theme {
     bottom: 160px;
@@ -96,15 +96,15 @@
   .theme option,
   .fabrics option,
   .fabrics optgroup {
-    color: #3a2418; /* the open list is drawn by the browser, on a light background */
+    color: var(--brown); /* the open list is drawn by the browser, on a light background */
   }
   .theme:focus-within,
   .fabrics:focus-within {
-    outline: 2px solid #f6ead2;
+    outline: 2px solid var(--cream);
     outline-offset: 3px;
   }
   .shot:focus-visible {
-    outline: 2px solid #f6ead2;
+    outline: 2px solid var(--cream);
     outline-offset: 3px;
   }
   .caption {
@@ -115,8 +115,8 @@
     margin: 0;
     padding: 8px 18px;
     border-radius: 999px;
-    background: rgba(58, 36, 24, 0.55);
-    color: #f6ead2;
+    background: var(--panel);
+    color: var(--cream);
     font-size: 14px;
     text-align: center;
     white-space: nowrap;

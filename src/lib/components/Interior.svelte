@@ -91,8 +91,8 @@
   .interior {
     position: fixed;
     inset: 0;
-    background: #e9dcc3;
-    color: #3a2418;
+    background: var(--paper);
+    color: var(--brown);
     font-family: var(--soft);
   }
   canvas {
@@ -112,7 +112,7 @@
     align-items: baseline;
     padding: 24px 32px;
     /* cream on the dark roof */
-    color: #f6ead2;
+    color: var(--cream);
     text-shadow: 0 1px 6px rgba(40, 22, 12, 0.7);
   }
   a {
@@ -133,13 +133,13 @@
     align-items: center;
   }
   .walk[aria-pressed='true'] {
-    background: rgba(246, 234, 210, 0.9);
-    color: #3a2418;
+    background: rgba(var(--cream-rgb), 0.9);
+    color: var(--brown);
   }
   .fps {
     padding: 6px 12px;
     border-radius: 999px;
-    background: rgba(58, 36, 24, 0.55);
+    background: var(--panel);
     font-size: 12px;
     font-variant-numeric: tabular-nums;
     text-shadow: none;
@@ -147,9 +147,9 @@
   }
   .settings-toggle {
     padding: 6px 14px;
-    border: 1px solid rgba(246, 234, 210, 0.7);
+    border: 1px solid rgba(var(--cream-rgb), 0.7);
     border-radius: 999px;
-    background: rgba(58, 36, 24, 0.55);
+    background: var(--panel);
     color: inherit;
     font: inherit;
     font-size: 13px;
@@ -159,10 +159,10 @@
   }
   .settings-toggle:hover,
   .settings-toggle[aria-expanded='true'] {
-    background: rgba(58, 36, 24, 0.8);
+    background: var(--panel-hover);
   }
   .settings-toggle:focus-visible {
-    outline: 2px solid #f6ead2;
+    outline: 2px solid var(--cream);
     outline-offset: 3px;
   }
   .credit {
@@ -172,7 +172,7 @@
     bottom: 20px;
     margin: 0;
     font-size: 11px;
-    color: #f6ead2;
+    color: var(--cream);
     text-shadow: 0 1px 4px rgba(40, 22, 12, 0.85);
     opacity: 0.9;
   }
@@ -181,7 +181,7 @@
     inset: 0;
     display: grid;
     place-items: center;
-    background: #e9dcc3;
+    background: var(--paper);
   }
   .veil span {
     font-family: var(--serif);
