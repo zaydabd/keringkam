@@ -10,7 +10,7 @@ import { LAYOUTS, LAYERS } from '../src/lib/three/scene/house/garden/layouts.js'
 import { furnitureOverlaps } from '../src/lib/three/scene/house/furniture.js';
 import { planAssembly, compileAssembly } from '../src/lib/three/scene/riverside/assembly.js';
 
-const GARDEN_SHA1 = 'f903a14e6106fe6f359e8a98c3817c57ecbee9d5'; // the bougainvillea layout's slots and beds (the hedge outside the windows, no wall climbers, vines at the window sides: the user, 2026-11-25)
+const GARDEN_SHA1 = 'efcd4e393a37123b129a0be150b4009aac9f8185'; // the bougainvillea layout's slots and beds (the hedge outside the windows, no wall climbers, vines at the window sides, no tree: the user, 2026-11-25)
 const sha1 = (value) => createHash('sha1').update(JSON.stringify(value)).digest('hex');
 
 test('seeded random numbers are unchanged', () => {
@@ -26,7 +26,7 @@ test('seeded random numbers are unchanged', () => {
 test('the garden layout is unchanged', () => {
   const L = LAYOUTS.bougainvillea;
   assert.deepEqual(Object.keys(LAYOUTS), ['bougainvillea']);
-  assert.equal(L.slots.length, 18);
+  assert.equal(L.slots.length, 17);
   assert.equal(L.beds.length, 3);
   for (const s of L.slots) assert.ok(LAYERS[s.layer], `slot layer ${s.layer} has no LAYERS entry`);
   assert.equal(sha1({ slots: L.slots, beds: L.beds }), GARDEN_SHA1);

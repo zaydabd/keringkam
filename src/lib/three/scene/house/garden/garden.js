@@ -10,9 +10,7 @@ import { mulberry32 } from '../../../../utils/rng.js';
 import { valueFbm } from '../../../../utils/noise.js';
 import { HEDGE, hedgeLumps, createHedgeFoliage } from '../../../vegetation/plants/bougainvilleaHedge.js';
 import { NO_INK_LAYER, CARD_MASK_LAYER } from '../../layers.js';
-import { plant as kuchingTree } from '../../../vegetation/plants/kuchingTree.js';
 // The garden's tree: main's new Kuching tree in its rain-tree design (treeStudies.js rainRoadside).
-const rainTree = { id: 'rainTree', create: (o) => kuchingTree.create({ ...o, variant: 'rainRoadside' }) };
 import { createVineCurtain, VINE_CURTAIN } from '../../../vegetation/vineCurtain.js';
 import { createHangingVine, HANGING_VINE } from '../../../vegetation/hangingVine.js';
 
@@ -32,7 +30,7 @@ const GARDEN_HANGING = { ...HANGING_VINE, strand: { ...thick(HANGING_VINE.strand
 // The vine generators made into plants: create({ seed }) -> { group, stats, dispose }.
 const vineCurtain = { id: 'vineCurtain', create: ({ seed }) => createVineCurtain({ seed, species: GARDEN_CURTAIN }) };
 const hangingVine = { id: 'hangingVine', create: ({ seed }) => createHangingVine({ seed, species: GARDEN_HANGING }) };
-const PLANTS = { bougainvillea, rainTree, vineCurtain, hangingVine };
+const PLANTS = { bougainvillea, vineCurtain, hangingVine };
 
 export const GARDEN = {
   kerb: { w: 0.1, h: 0.12 }, // concrete edging round each bed
@@ -321,7 +319,7 @@ export function buildGarden({ layout, noVines = false }) {
       group.add(...bushParts(sl, n, coreMaterial, disposables, stats));
       continue;
     }
-    const made = kind.create({ seed: 1 + (n % 5), lod: 'near', leaves: kind === rainTree ? 0.65 : undefined }); // 0.65: the rain tree's smaller clumps for trees seen close (kuchingTree.js)
+    const made = kind.create({ seed: 1 + (n % 5), lod: 'near' });
     if (sl.shape === 'hang') {
       // A vine hangs whole in its panel: scaled to its height, its top at the panel's top, uncut.
       group.add(hang(made.group, sl));
@@ -341,25 +339,22 @@ export function buildGarden({ layout, noVines = false }) {
     });
     // Sizes. The bougainvillea keeps its generator's width (its cards are sized for that:
     // vegetation/stylised.js NATURAL_SIZE), but is drawn taller where its slot is taller than the
-    // shrub (~2 m): a climber is the shrub stretched up the wall, then cut narrow. Trees are
-    // scaled to fit their slot whole and never cut. The rest are scaled a little over their cut.
+    // shrub (~2 m): a climber is the shrub stretched up the wall, then cut narrow. The rest are
+    // scaled a little over their cut.
     plant.updateMatrixWorld(true);
     const box = new THREE.Box3().setFromObject(plant);
     const top = box.max.y;
     if (kind === bougainvillea) plant.scale.set(1, Math.max(1, (sl.h * 1.1) / top), 1);
-    else if (sl.layer === 'tree') plant.scale.setScalar(Math.min(sl.h / top, (2 * sl.rx) / Math.max(box.max.x - box.min.x, box.max.z - box.min.z)));
     else plant.scale.setScalar((sl.h * 1.15) / top);
     plant.rotation.y = n * 1.7;
     plant.position.set(sl.at[0], baseOf(sl), sl.at[1]);
     plant.updateMatrixWorld(true);
-    if (sl.layer !== 'tree') {
-      const kept = [];
-      // A bougainvillea's stems stay inside its leaves, and its own leaves keep close to the bush's
-      // surface, not loose beyond it (the user: "the spread is so much that it is loose").
-      const isB = kind === bougainvillea;
-      plant.traverse((o) => o.isMesh && kept.push(trim(o, sl, isB ? (o.name === 'stems' ? -0.2 : 0.05) : GARDEN.grown)));
-      stats.kept[`${sl.layer} ${n}`] = +(kept.reduce((a, k) => a + k, 0) / kept.length).toFixed(2);
-    }
+    const kept = [];
+    // A bougainvillea's stems stay inside its leaves, and its own leaves keep close to the bush's
+    // surface, not loose beyond it (the user: "the spread is so much that it is loose").
+    const isB = kind === bougainvillea;
+    plant.traverse((o) => o.isMesh && kept.push(trim(o, sl, isB ? (o.name === 'stems' ? -0.2 : 0.05) : GARDEN.grown)));
+    stats.kept[`${sl.layer} ${n}`] = +(kept.reduce((a, k) => a + k, 0) / kept.length).toFixed(2);
     plant.traverse((o) => o.isMesh && disposables.push(o.geometry));
     if (kind === bougainvillea) {
       plant.traverse((o) => o.isMesh && o.geometry.attributes.corner && cardsMaskInk(o));

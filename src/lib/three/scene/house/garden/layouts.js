@@ -9,7 +9,6 @@
 
 import { HOUSE } from '../../world/house.js';
 import { PLAN } from '../../world/plan.js';
-import { SITE } from '../../world/site.js';
 
 const R = PLAN.room;
 export const WALLS = { X0: R.x0 - HOUSE.out, X1: R.x1 + HOUSE.out, Z0: R.z0 - HOUSE.out, Z1: R.z1 + HOUSE.out }; // the cladding's faces
@@ -22,7 +21,7 @@ const s = PLAN.sideWindow;
 
 // The placeholder colour of each layer: debug only, for telling the layers apart in a layout
 // sketch, never part of the look (so not in themes/).
-const PLACEHOLDER_COLOURS = { mound: '#c2407f', climber: '#f08cc0', curtain: '#4f9e3a', hanging: '#7cc24f', tree: '#3d6b2f' };
+const PLACEHOLDER_COLOURS = { mound: '#c2407f', curtain: '#4f9e3a', hanging: '#7cc24f' };
 
 // What each layer is, its plant, and its placeholder colour.
 export const LAYERS = {
@@ -30,7 +29,6 @@ export const LAYERS = {
   hedge: { plant: 'bougainvillea', label: 'Bougainvillea hedge, trimmed square (top about 1.1 m above the floor)', colour: PLACEHOLDER_COLOURS.mound },
   curtain: { plant: 'vineCurtain', label: 'Vine curtain hanging from a window head', colour: PLACEHOLDER_COLOURS.curtain },
   hanging: { plant: 'hangingVine', label: 'Hanging vine from the eaves', colour: PLACEHOLDER_COLOURS.hanging },
-  tree: { plant: 'rainTree', label: 'Rain tree, kept small (about 4 m tall)', colour: PLACEHOLDER_COLOURS.tree },
 };
 
 const wallZ = Z0 - 0.02; // a bed's edge along the river wall
@@ -41,8 +39,8 @@ export const LAYOUTS = {
   // corners, its tops trimmed about 1.3 m above the floor so a band of flowers shows at the bottom
   // of the windows (the ones trained up the wall were taken out: the user, 2026-11-25); vines hanging
   // from the window heads and the eaves, so they show hanging at the top of the windows from
-  // inside; one rain tree on the grass below the bank in front of the left window, so it shows
-  // through that window from the seat (the user's choice; the two side trees were taken out).
+  // inside. No trees (the user took out the last one, the rain tree in front of the left window,
+  // 2026-11-25).
   bougainvillea: {
     label: 'Bougainvillea all along, hanging vines',
     beds: [
@@ -73,8 +71,6 @@ export const LAYOUTS = {
       // ...and a row from under the eaves, half a metre out, between the windows and at their sides (none over the middle of one)
       ...[X0 + 0.25, w1.x0 + 0.1, pierL, w2.x1 - 0.1, pierR, w3.x1 + 0.1, X1 - 0.1].map((x, k) => ({ layer: 'hanging', shape: 'hang', at: [x, Z0 - 0.45 - (k % 2) * 0.06], top: SOFFIT, w: 0.4, h: [1.0, 0.85, 1.15, 0.9, 1.05, 0.8, 1.1][k] })),
       { layer: 'curtain', shape: 'hang', at: [X1 + 0.07, (s.z0 + s.z1) / 2], top: WIN_HEAD, w: 0.7, h: 1.0, yaw: Math.PI / 2 },
-      // the tree: on the street's grass (y -1.85), about 4.5 m out from the river wall
-      { layer: 'tree', at: [-3.5, -10.0], base: SITE.ground, rx: 3.5, rz: 3.5, h: 5.5 },
     ],
   },
 };
