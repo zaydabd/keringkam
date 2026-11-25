@@ -65,13 +65,13 @@ export const LAYOUTS = {
       { layer: 'hanging', shape: 'hang', at: [w1.x1 - 0.12, Z0 - 0.07], top: WIN_HEAD, w: 0.4, h: 0.95 },
       // the middle window: its curtain on the left, a third narrower (the user, 2026-11-25: "a bit
       // less thick", and "don't make too many vines block the middle")
-      { layer: 'curtain', shape: 'hang', at: [w2.x0 + 0.06, Z0 - 0.07], top: WIN_HEAD, w: 0.47, sx: 0.67, h: 1.2 },
+      { layer: 'curtain', shape: 'hang', at: [w2.x0 - 0.04, Z0 - 0.07], top: WIN_HEAD, w: 0.47, sx: 0.67, h: 1.2 },
       { layer: 'hanging', shape: 'hang', at: [w2.x1 - 0.12, Z0 - 0.07], top: WIN_HEAD, w: 0.4, h: 0.9 },
       // the narrow right window: one each side, half on the wall beside it
       { layer: 'hanging', shape: 'hang', at: [w3.x0 - 0.02, Z0 - 0.07], top: WIN_HEAD, w: 0.4, h: 1.0 },
       { layer: 'hanging', shape: 'hang', at: [w3.x1 + 0.02, Z0 - 0.07], top: WIN_HEAD, w: 0.4, h: 0.9 },
       // ...and a row from under the eaves, half a metre out, between the windows and at their sides (none over the middle of one)
-      ...[X0 + 0.25, w1.x0 + 0.1, pierL, w2.x0 + 0.1, pierR, w3.x1 + 0.1, X1 - 0.1].map((x, k) => ({ layer: 'hanging', shape: 'hang', at: [x, Z0 - 0.45 - (k % 2) * 0.06], top: SOFFIT, w: 0.4, h: [1.0, 0.85, 1.15, 0.9, 1.05, 0.8, 1.1][k] })),
+      ...[X0 + 0.25, w1.x0 + 0.1, pierL, w2.x1 - 0.1, pierR, w3.x1 + 0.1, X1 - 0.1].map((x, k) => ({ layer: 'hanging', shape: 'hang', at: [x, Z0 - 0.45 - (k % 2) * 0.06], top: SOFFIT, w: 0.4, h: [1.0, 0.85, 1.15, 0.9, 1.05, 0.8, 1.1][k] })),
       { layer: 'curtain', shape: 'hang', at: [X1 + 0.07, (s.z0 + s.z1) / 2], top: WIN_HEAD, w: 0.7, h: 1.0, yaw: Math.PI / 2 },
       // the tree: on the street's grass (y -1.85), about 4.5 m out from the river wall
       { layer: 'tree', at: [-3.5, -10.0], base: SITE.ground, rx: 3.5, rz: 3.5, h: 5.5 },
