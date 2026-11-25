@@ -11,9 +11,9 @@
 // (the lattice, the carving) and sheer cloth would read as solid panels there.
 
 import * as THREE from 'three';
-import { AO } from './quality.js';
+import { AO } from '../quality.js';
 import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
-import { VIEW_FIELD, setViewField } from './toon.js';
+import { VIEW_FIELD, setViewField } from '../toon.js';
 
 const PD_RADIUS = AO.denoiseRadius; // in drawing-buffer pixels
 

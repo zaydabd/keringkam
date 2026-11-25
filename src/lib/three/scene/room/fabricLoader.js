@@ -1,4 +1,4 @@
-// The fabrics in the room (interior.js, after interior/fabrics.js): settled in Workers while the
+// The fabrics in the room (interior.js, after room/fabrics.js): settled in Workers while the
 // rest loads, then placed with their 512 px photos. A fabric's 2048 px photo loads when its view
 // is chosen (showFull), then every other one after it unless only previews are wanted.
 

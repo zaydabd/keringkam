@@ -3,8 +3,8 @@
 // compensation. `seat` is the design view (R1). `window` stands at the middle window and looks
 // out over the lattice, framed by the curtains (R3).
 
-import { PLAN } from './plan.js';
-import { fabricIndex } from './fabrics.js';
+import { PLAN } from '../room/plan.js';
+import { fabricIndex } from '../room/fabrics.js';
 import { fabrics as FABRIC_PHOTOS } from '../../common.js';
 
 export const SHOTS = {

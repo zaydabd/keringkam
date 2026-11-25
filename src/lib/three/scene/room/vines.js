@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { PLAN } from './plan.js';
 import { M, dice } from './builder.js';
-import { windowVineLayout } from '../floraLayout.js';
+import { windowVineLayout } from '../garden/floraLayout.js';
 
 /** Trailing vines beside the windows: small leaf cards along a gently swinging line. */
 export function buildVines(b) {

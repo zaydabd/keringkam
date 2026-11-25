@@ -9,15 +9,15 @@
 
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { plant as kuchingTree } from '../vegetation/plants/kuchingTree.js';
-import { plant as pedada } from '../vegetation/plants/pedada.js';
-import { plant as nipah } from '../vegetation/plants/nipah.js';
-import { plant as satinPothos } from '../vegetation/plants/satinPothos.js';
-import { plant as aglaonema } from '../vegetation/plants/aglaonema.js';
-import { plant as bougainvillea } from '../vegetation/plants/bougainvillea.js';
-import { plant as schismatoglottis } from '../vegetation/plants/schismatoglottis.js';
-import { createTree } from '../vegetation/tree.js';
-import { FOLIAGE_SUN } from '../vegetation/celFoliage.js';
+import { plant as kuchingTree } from '../../vegetation/plants/kuchingTree.js';
+import { plant as pedada } from '../../vegetation/plants/pedada.js';
+import { plant as nipah } from '../../vegetation/plants/nipah.js';
+import { plant as satinPothos } from '../../vegetation/plants/satinPothos.js';
+import { plant as aglaonema } from '../../vegetation/plants/aglaonema.js';
+import { plant as bougainvillea } from '../../vegetation/plants/bougainvillea.js';
+import { plant as schismatoglottis } from '../../vegetation/plants/schismatoglottis.js';
+import { createTree } from '../../vegetation/tree.js';
+import { FOLIAGE_SUN } from '../../vegetation/celFoliage.js';
 
 // The oak bush preset (vegetation/tree.js) as a plant: one level of detail, used near and far.
 const oakBush = { id: 'oakBush', label: 'Oak bush', create: ({ seed }) => createTree({ seed, kind: 'oakBush' }), switchAt: Infinity };

@@ -6,12 +6,20 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
 import { createOutline } from '../toon.js';
-import { PIGMENT_SHADER, FINISH_SHADER, createPigmentField } from '../watercolour.js';
-import { createAO } from '../ao.js';
+import { PIGMENT_SHADER, FINISH_SHADER, createPigmentField } from './watercolour.js';
+import { createAO } from './ao.js';
 import { AO, OUTLINES } from '../quality.js';
-import { setUniforms } from './helpers.js';
-import { REFERENCE_EXPOSURE } from '../meter.js';
+import { REFERENCE_EXPOSURE } from './meter.js';
 import { INK_MASK_LAYER } from '../layers.js';
+
+/** Sets a pass's uniforms from a theme section: colours take a hex, vectors an array, the rest a number. */
+function setUniforms(uniforms, values) {
+  for (const [k, v] of Object.entries(values)) {
+    if (uniforms[k].value?.isColor) uniforms[k].value.set(v);
+    else if (uniforms[k].value?.isVector3) uniforms[k].value.fromArray(v);
+    else uniforms[k].value = v;
+  }
+}
 
 /**
  * Builds the pass chain. `quality` is the live settings object (quality.js; setQuality changes it

@@ -16,7 +16,7 @@
 import { createContract } from './contract.js';
 import { SITE, WINDOW_EYE } from './site.js';
 
-// The window shot, as the window's opening sees it (interior/plan.js: the wall at z = -5.5, the
+// The window shot, as the window's opening sees it (room/plan.js: the wall at z = -5.5, the
 // opening from x -1.0 to 0.05, the lattice rail's top at y 1.16, the opening's top at 2.25): `f`
 // across the opening from its left edge (0) to its right (1), and the slope of the sight line,
 // `tan` (rise over the distance along -z). Visible when f is in 0..1 and tan above the sill.

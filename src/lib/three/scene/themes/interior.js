@@ -155,7 +155,7 @@ const CERAMIC = {
   plate: '#e6dcc0',
 };
 
-// The house seen from outside (interior/exterior.js). Picked by eye from the user's reference E1
+// The house seen from outside (room/exterior.js). Picked by eye from the user's reference E1
 // (ochre walls, white trim, red zinc roof) and E4 (weathered timber): ESTIMATES, not measured.
 const HOUSE_OUTSIDE = {
   clad: '#c8923c', // ochre-painted weatherboards (E1)
@@ -234,7 +234,7 @@ export const INTERIOR_THEME = {
     ao: { intensity: 1, radius: 0.6, distanceExponent: 1, thickness: 1, scale: 1.3 },
     // Curtains lit from behind (emissive strength, times the level above).
     glow: { valance: 0.25, sheer: 0.12, white: 0.35 },
-    // Polished boards mirror the bright windows (glossBoards in interior/surfaces.js).
+    // Polished boards mirror the bright windows (glossBoards in room/surfaces.js).
     gloss: {
       window: [1.0, 0.74, 0.46], // the windows' colour in the boards (linear)
       floor: { strength: 1.45, falloff: 0.62, plankVariation: 3 }, // plankVariation: how much one board's polish differs from the next
@@ -275,7 +275,7 @@ export const INTERIOR_THEME = {
     shadowTintAmount: 0.1,
   },
 
-  // The fabric photos (interior/fabrics.js): kept close to the photo. keep = the share of the ink
+  // The fabric photos (room/fabrics.js): kept close to the photo. keep = the share of the ink
   // pass's paper and split tone, the pigment pass and the grade they are spared; ink = how much
   // ink they still get on their own pixels (their outline is drawn on what is beside them).
   // balance: a white balance for the warm room light (the sun is #ffe6c4), a linear multiplier on

@@ -7,9 +7,9 @@
 // terrace unless it gives its own ground height, `base`. Every place and size is a design choice:
 // ESTIMATES.
 
-import { HOUSE } from './interior/exterior.js';
-import { PLAN } from './interior/plan.js';
-import { SITE } from './outside/site.js';
+import { HOUSE } from '../room/exterior.js';
+import { PLAN } from '../room/plan.js';
+import { SITE } from '../outside/site.js';
 
 const R = PLAN.room;
 export const WALLS = { X0: R.x0 - HOUSE.out, X1: R.x1 + HOUSE.out, Z0: R.z0 - HOUSE.out, Z1: R.z1 + HOUSE.out }; // the cladding's faces

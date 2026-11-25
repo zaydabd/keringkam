@@ -3,14 +3,14 @@
 // out. research/tools/garden-plans.mjs draws the layout as a plan.
 
 import * as THREE from 'three';
-import { HOUSE } from './interior/exterior.js';
+import { HOUSE } from '../room/exterior.js';
 import { LAYOUTS, LAYERS, WALLS } from './gardenLayouts.js';
-import { plant as bougainvillea } from '../vegetation/plants/bougainvillea.js';
-import { plant as kuchingTree } from '../vegetation/plants/kuchingTree.js';
+import { plant as bougainvillea } from '../../vegetation/plants/bougainvillea.js';
+import { plant as kuchingTree } from '../../vegetation/plants/kuchingTree.js';
 // The garden's tree: main's new Kuching tree in its rain-tree design (treeStudies.js rainRoadside).
 const rainTree = { id: 'rainTree', create: (o) => kuchingTree.create({ ...o, variant: 'rainRoadside' }) };
-import { createVineCurtain, VINE_CURTAIN } from '../vegetation/vineCurtain.js';
-import { createHangingVine, HANGING_VINE } from '../vegetation/hangingVine.js';
+import { createVineCurtain, VINE_CURTAIN } from '../../vegetation/vineCurtain.js';
+import { createHangingVine, HANGING_VINE } from '../../vegetation/hangingVine.js';
 
 const GH = HOUSE.ground.y; // the terrace (-0.45)
 // Garden copies of the vines, for the window shot (about 1.5 m off, where a pixel is about

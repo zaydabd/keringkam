@@ -2,15 +2,6 @@
 
 import * as THREE from 'three';
 
-/** Sets a pass's uniforms from a theme section: colours take a hex, vectors an array, the rest a number. */
-export function setUniforms(uniforms, values) {
-  for (const [k, v] of Object.entries(values)) {
-    if (uniforms[k].value?.isColor) uniforms[k].value.set(v);
-    else if (uniforms[k].value?.isVector3) uniforms[k].value.fromArray(v);
-    else uniforms[k].value = v;
-  }
-}
-
 /** A white copy of a cut-out texture with the same alpha: keeps the holes, drops the paint (clay render). */
 export function maskOf(texture) {
   const src = texture.image;

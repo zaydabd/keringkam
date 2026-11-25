@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { VIEW_FIELD, setViewField, FIELD_NOISE, fieldNoiseTexture } from './toon.js';
+import { VIEW_FIELD, setViewField, FIELD_NOISE, fieldNoiseTexture } from '../toon.js';
 import { REFERENCE_EXPOSURE } from './meter.js';
 
 // Watercolour look, after R2 (a painting of the room supplied by the user; not in the repo).

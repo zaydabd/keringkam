@@ -4,7 +4,7 @@
 // until it is still (cloth.js). Worked out once, at load. No three.js here, so it runs in a Worker
 // (drapeWorker.js) or in Node (research/tools/drape-check.mjs).
 
-import { ClothSim } from '../cloth.js';
+import { ClothSim } from './cloth.js';
 import { PLAN } from './plan.js';
 import { SEAT } from './seat.js';
 

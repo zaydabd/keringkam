@@ -7,9 +7,9 @@
 //   bounce what the boards and walls give back, from all round (no shadow; the AO pass stands in)
 
 import * as THREE from 'three';
-import { PLAN } from './plan.js';
-import { V } from './builder.js';
-import { neutral } from './helpers.js';
+import { PLAN } from '../room/plan.js';
+import { V } from '../room/builder.js';
+import { neutral } from '../room/helpers.js';
 import { FURNITURE_LAYER, SIDE_LAYER } from '../layers.js';
 
 // The sky: one direction stands for the three windows. Only the furniture casts its shadow

@@ -41,36 +41,36 @@ import './stableShadows.js'; // soft shadow edges dithered on the world, not the
 import { toonGradient } from './toon.js';
 import { paintPlanks, paintCarving, paintWindowLattice, paintCurtain, paintDecor, paintGlow, setPaintDetail } from './paint.js';
 import { createOutside, OBJECTS } from './outside/index.js';
-import { createMeter, REFERENCE_EXPOSURE } from './meter.js';
+import { createMeter, REFERENCE_EXPOSURE } from './post/meter.js';
 import { RESOLUTIONS, MAX_PIXEL_RATIO, MIN_PIXEL_RATIO, PACE, SHADOWS, TEXTURES, normalise } from './quality.js';
 import { createPerfRun } from './perf.js';
 import { INTERIOR_THEME, OUTSIDE_THEME, CLAY_LOOK } from './themes/index.js';
-import { PLAN } from './interior/plan.js';
-import { V, Builder } from './interior/builder.js';
-import { buildRoom } from './interior/room.js';
-import { buildExterior } from './interior/exterior.js';
-import { buildLattice, LATTICE_TILE } from './interior/lattice.js';
-import { buildCurtains } from './interior/curtains.js';
-import { buildSeat, furnitureOverlaps, buildTable } from './interior/furniture.js';
-import { buildHangings } from './interior/hangings.js';
-import { buildVines } from './interior/vines.js';
-import { floraMode, windowHangingProposal, roomPlantsProposal } from './floraLayout.js';
-import { buildFloraStylised } from './floraStylised.js';
-import { gardenChoice, buildGarden, buildBeds } from './garden.js';
-import { shadeWalls, glossBoards, buildContactShadows } from './interior/surfaces.js';
+import { PLAN } from './room/plan.js';
+import { V, Builder } from './room/builder.js';
+import { buildRoom } from './room/room.js';
+import { buildExterior } from './room/exterior.js';
+import { buildLattice, LATTICE_TILE } from './room/lattice.js';
+import { buildCurtains } from './room/curtains.js';
+import { buildSeat, furnitureOverlaps, buildTable } from './room/furniture.js';
+import { buildHangings } from './room/hangings.js';
+import { buildVines } from './room/vines.js';
+import { floraMode, windowHangingProposal, roomPlantsProposal } from './garden/floraLayout.js';
+import { buildFloraStylised } from './garden/floraStylised.js';
+import { gardenChoice, buildGarden, buildBeds } from './garden/garden.js';
+import { shadeWalls, glossBoards, buildContactShadows } from './room/surfaces.js';
 import { sceneOptions } from '../../utils/urlOptions.js';
-import { maskOf } from './interior/helpers.js';
-import { createLights } from './interior/lights.js';
+import { maskOf } from './room/helpers.js';
+import { createLights } from './stage/lights.js';
 import { NO_INK_LAYER, MIRROR_LAYER, INK_MASK_LAYER, FURNITURE_LAYER, SIDE_LAYER } from './layers.js';
-import { SHOTS, SHOT_MOVE_SECONDS } from './interior/shots.js';
-import { createControls } from './interior/controls.js';
-import { createFrameCounter } from './interior/frameRate.js';
-import { createPost } from './interior/post.js';
-import { loadFabrics } from './interior/fabricLoader.js';
+import { SHOTS, SHOT_MOVE_SECONDS } from './stage/shots.js';
+import { createControls } from './stage/controls.js';
+import { createFrameCounter } from './stage/frameRate.js';
+import { createPost } from './post/post.js';
+import { loadFabrics } from './room/fabricLoader.js';
 import { clayMaterial, FLAT_GREY } from './debugMaterials.js';
-export { SHOTS, FABRIC_VIEWS } from './interior/shots.js';
-export { PLAN } from './interior/plan.js';
-export { furnitureOverlaps } from './interior/furniture.js';
+export { SHOTS, FABRIC_VIEWS } from './stage/shots.js';
+export { PLAN } from './room/plan.js';
+export { furnitureOverlaps } from './room/furniture.js';
 
 const THEME = INTERIOR_THEME;
 
@@ -148,7 +148,7 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
   const C = PLAN.camera;
   const camera = new THREE.PerspectiveCamera(C.fov, C.aspect, 0.2, 1600); // at 0.05 the big ground plane outside drew over the near floor on tall screens
 
-  // The lights (interior/lights.js).
+  // The lights (stage/lights.js).
   const shadowSize = () => SHADOWS[Q.shadows]; // quality.js
   const { sun, sky, side } = createLights(scene, { L, level: LIGHT, size: shadowSize(), off, clay });
   if (clay) scene.background = new THREE.Color(CLAY_LOOK.colour).multiplyScalar(LIGHT);
@@ -198,7 +198,7 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
     ['decor', M.decor, textures.decor, { side: D }],
     ['plate', M.plate, null],
     ['leaf', M.leaf, null, { side: D }],
-    // The house outside (interior/exterior.js)
+    // The house outside (room/exterior.js)
     ['clad', M.clad, textures.wall],
     ['zinc', M.zinc, null],
     ['trim', M.trim, textures.planks],
@@ -230,7 +230,7 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
     glossBoards(materials.top, { window: windowGloss, ...L.gloss.top, light: LIGHT, view: debug === 'gloss' });
   }
   const b = new Builder();
-  // Each object rolls its own dice (interior/builder.js), so this order does not change the look.
+  // Each object rolls its own dice (room/builder.js), so this order does not change the look.
   buildRoom(b.as('room'));
   buildLattice(b.as('lattice'));
   buildCurtains(b.as('curtains'));
@@ -264,7 +264,7 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
   own(contact.mat), own(contact.core), own(contact.foot);
   room.visible = contact.group.visible = !stage;
 
-  // The house outside the room (interior/exterior.js): its own builder, so it can be shown or
+  // The house outside the room (room/exterior.js): its own builder, so it can be shown or
   // hidden as one (?off=house). Seen only from outside: the room's views do not change.
   const hb = new Builder();
   buildExterior(hb.as('house'));
@@ -281,7 +281,7 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
   house.visible = !stage && !off.has('house');
   scene.add(house);
 
-  // The fabrics (interior/fabricLoader.js). The first frame waits for them (see tick), so they do
+  // The fabrics (room/fabricLoader.js). The first frame waits for them (see tick), so they do
   // not pop in. Low texture detail or ?fabrics=preview keeps their 512 px previews.
   const fabrics = own(loadFabrics({
     renderer, scene, camera, theme: THEME, clay, flat: debug === 'flat', stage,
@@ -336,7 +336,7 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
   }
   camera.layers.enable(NO_INK_LAYER);
 
-  // Post-processing (interior/post.js).
+  // Post-processing (post/post.js).
   const post = own(createPost(renderer, scene, camera, { theme: THEME, quality: Q, params, off, debug, clay, stage, seed, inkMask: textures.lattice }));
   const meter = own(createMeter(renderer));
   let metered = false;
@@ -413,7 +413,7 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
     console.info(`interior: frames took ${median.toFixed(1)} ms while moving; drawing at pixel ratio ${metrics.pixelRatio}`);
   }
 
-  // The pointer's sway, walking with the keys and dragging to look (interior/controls.js).
+  // The pointer's sway, walking with the keys and dragging to look (stage/controls.js).
   const controls = own(createControls(canvas, camera, { fixedLook }));
   const { pointer, walk, turn } = controls;
   const look = new THREE.Vector2();
@@ -477,7 +477,7 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
   }
   const timer = new THREE.Timer();
   let frame = 0;
-  const frames = own(createFrameCounter(onFrameRate)); // the settings panel's counter (interior/frameRate.js)
+  const frames = own(createFrameCounter(onFrameRate)); // the settings panel's counter (stage/frameRate.js)
   let readyCalled = false;
   function tick(now) {
     frame = requestAnimationFrame(tick);

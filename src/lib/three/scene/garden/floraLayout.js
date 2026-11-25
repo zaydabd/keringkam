@@ -1,8 +1,8 @@
 // Where the plants of #/interior stand, as data: the grass ticks of the far slope
 // (outside/banks.js), the far-bank planting, the room's plants and the vines beside the windows
-// (interior/vines.js). floraStylised.js grows the stylised plants at these entries.
+// (room/vines.js). floraStylised.js grows the stylised plants at these entries.
 
-import { mulberry32 } from '../../utils/rng.js';
+import { mulberry32 } from '../../../utils/rng.js';
 
 /**
  * The `?flora=` flag: 'stylised' (the stylised plants, floraStylised.js; the default, the user's
@@ -13,7 +13,7 @@ export function floraMode(params) {
   return f === 'stylised' ? f : null;
 }
 
-/** The vines beside the windows (interior/vines.js): anchor, top and bottom of each. */
+/** The vines beside the windows (room/vines.js): anchor, top and bottom of each. */
 export function windowVineLayout(PLAN) {
   const { z0, x1 } = PLAN.room;
   const [w1, w2, w3] = PLAN.backWindows;
