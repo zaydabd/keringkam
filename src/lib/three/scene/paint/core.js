@@ -3,15 +3,9 @@
 
 import * as THREE from 'three';
 
-export function rng(seed) {
-  let a = seed | 0;
-  return () => {
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
+// The seeded random is the shared one (utils/rng.js); it gives the same numbers as the copy
+// that was here, so every painted texture is unchanged.
+export { mulberry32 as rng } from '../../../utils/rng.js';
 
 // How many canvas pixels each painted pixel gets (setPaintDetail). The strokes are the same: only
 // the canvas is finer, so a texture seen close on a 2x screen is not magnified into blur.
