@@ -44,7 +44,7 @@ export const GARDEN = {
   // not clumps floating on bare stems). Its outside is covered in clumps of leaf and bract cards
   // `spacing` apart, on rings from just above the bed to the top of the dome. Sizes are guesses.
   // `core`: a solid body of this share of the slot that only the AO sees (see bushCore).
-  bush: { spacing: 0.13, clump: 0.2, card: 0.22, cards: 18, core: 0.85 },
+  bush: { spacing: 0.1, clump: 0.12, card: 0.2, cards: 14, core: 0.85 },
 };
 
 const baseOf = (sl) => sl.base ?? GH; // where a slot stands
@@ -240,9 +240,10 @@ export function buildGarden({ layout }) {
     plant.updateMatrixWorld(true);
     if (sl.layer !== 'tree') {
       const kept = [];
-      // A bougainvillea's stems stay inside its leaves (the bush's cards sit on the slot's surface).
-      const stemsIn = kind === bougainvillea ? -0.2 : GARDEN.grown;
-      plant.traverse((o) => o.isMesh && kept.push(trim(o, sl, o.name === 'stems' ? stemsIn : GARDEN.grown)));
+      // A bougainvillea's stems stay inside its leaves, and its own leaves keep close to the bush's
+      // surface, not loose beyond it (the user: "the spread is so much that it is loose").
+      const isB = kind === bougainvillea;
+      plant.traverse((o) => o.isMesh && kept.push(trim(o, sl, isB ? (o.name === 'stems' ? -0.2 : 0.05) : GARDEN.grown)));
       stats.kept[`${sl.layer} ${n}`] = +(kept.reduce((a, k) => a + k, 0) / kept.length).toFixed(2);
     }
     plant.traverse((o) => o.isMesh && disposables.push(o.geometry));
