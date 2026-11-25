@@ -9,12 +9,16 @@ export function createMeshWriter() {
   const uvs = [];
   const colors = [];
   const indices = [];
+  // Bark cells around each tube vertex (addTube's uRepeat), so the bark shader can wrap its
+  // pattern without a seam. Written only by addTube; kept when every vertex has one.
+  const reps = [];
   return {
     positions,
     normals,
     uvs,
     colors,
     indices,
+    reps,
     get vertexCount() {
       return positions.length / 3;
     },
@@ -24,6 +28,7 @@ export function createMeshWriter() {
       g.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
       g.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
       g.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+      if (reps.length === positions.length / 3) g.setAttribute('barkRep', new THREE.Float32BufferAttribute(reps, 1));
       g.setIndex(indices);
       g.computeBoundingSphere();
       return g;
@@ -90,6 +95,7 @@ export function addTube(writer, points, radii, { radial = 6, color, colorAt, clo
       writer.uvs.push((k / radial) * uRepeat, along);
       const col = colorAt ? colorAt(along, k / radial, i / (n - 1)) : color;
       writer.colors.push(col.r, col.g, col.b);
+      writer.reps.push(uRepeat);
     }
   }
 
@@ -115,6 +121,7 @@ export function addTube(writer, points, radii, { radial = 6, color, colorAt, clo
     writer.uvs.push(0.5, along);
     const c = colorAt ? colorAt(along, 0.5, i / (n - 1)) : color;
     writer.colors.push(c.r, c.g, c.b);
+    writer.reps.push(uRepeat);
     const first = base + i * ring;
     for (let k = 0; k < radial; k++) {
       if (sign > 0) writer.indices.push(first + k, first + k + 1, centre);

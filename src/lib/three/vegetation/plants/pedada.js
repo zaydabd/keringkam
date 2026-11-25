@@ -53,6 +53,7 @@ const pedadaBark = (() => {
 // Species preset in TREE_SPECIES format. Negative `up` makes the outer branches droop.
 export const PEDADA_SPECIES = {
   bark: pedadaBark,
+  barkPattern: 'scaly',
   levels: [
     // Shape after the user's photo of a pedada standing in water (not in the repo): a slender
     // trunk, limbs rising steeply, leaves in clumps at the branch ends, a crown taller than wide
