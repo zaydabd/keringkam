@@ -28,7 +28,6 @@ const PLACEHOLDER_COLOURS = { mound: '#c2407f', climber: '#f08cc0', curtain: '#4
 export const LAYERS = {
   mound: { plant: 'bougainvillea', label: 'Bougainvillea bush, trimmed (tops about 1.3 m above the floor)', colour: PLACEHOLDER_COLOURS.mound },
   hedge: { plant: 'bougainvillea', label: 'Bougainvillea hedge, trimmed square (top about 1.1 m above the floor)', colour: PLACEHOLDER_COLOURS.mound },
-  climber: { plant: 'bougainvillea', label: 'Bougainvillea trained up the wall beside a window', colour: PLACEHOLDER_COLOURS.climber },
   curtain: { plant: 'vineCurtain', label: 'Vine curtain hanging from a window head', colour: PLACEHOLDER_COLOURS.curtain },
   hanging: { plant: 'hangingVine', label: 'Hanging vine from the eaves', colour: PLACEHOLDER_COLOURS.hanging },
   tree: { plant: 'rainTree', label: 'Rain tree, kept small (about 4 m tall)', colour: PLACEHOLDER_COLOURS.tree },
@@ -40,7 +39,7 @@ const pierL = (w1.x1 + w2.x0) / 2, pierR = (w2.x1 + w3.x0) / 2;
 export const LAYOUTS = {
   // The user's design (2026-11-25): bougainvillea all along the river wall, wrapping round both
   // corners, its tops trimmed about 1.3 m above the floor so a band of flowers shows at the bottom
-  // of the windows; a few trained up the wall beside the windows like creepers; vines hanging
+  // of the windows (the ones trained up the wall were taken out: the user, 2026-11-25); vines hanging
   // from the window heads and the eaves, so they show hanging at the top of the windows from
   // inside; one rain tree on the grass below the bank in front of the left window, so it shows
   // through that window from the seat (the user's choice; the two side trees were taken out).
@@ -59,11 +58,6 @@ export const LAYOUTS = {
       // round the corners: short hedges along the side walls, a little lower
       { layer: 'hedge', shape: 'box', at: [X0 - 0.5, Z0 + 0.8], w: 0.84, d: 1.6, rx: 0.42, rz: 0.8, h: 1.05 },
       { layer: 'hedge', shape: 'box', at: [X1 + 0.5, Z0 + 0.8], w: 0.84, d: 1.6, rx: 0.42, rz: 0.8, h: 1.05 },
-      // climbers beside the windows, against the wall, up to just under the eaves (widened from rx 0.14-0.18: they read sparse once trimmed)
-      { layer: 'climber', at: [w1.x0 - 0.36, Z0 - 0.22], rx: 0.3, rz: 0.24, h: 3.2 },
-      { layer: 'climber', at: [pierL, Z0 - 0.22], rx: 0.26, rz: 0.24, h: 3.25 },
-      { layer: 'climber', at: [pierR, Z0 - 0.22], rx: 0.26, rz: 0.24, h: 3.15 },
-      { layer: 'climber', at: [w3.x1 + 0.34, Z0 - 0.22], rx: 0.28, rz: 0.24, h: 3.2 },
       // vines hanging from the window heads, over the top of each opening (top just under the head trim)
       { layer: 'curtain', shape: 'hang', at: [w1.x0 + 0.38, Z0 - 0.07], top: WIN_HEAD, w: 0.7, h: 1.1 },
       { layer: 'hanging', shape: 'hang', at: [w1.x1 - 0.2, Z0 - 0.07], top: WIN_HEAD, w: 0.4, h: 0.95 },
