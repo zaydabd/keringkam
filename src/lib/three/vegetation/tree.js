@@ -304,7 +304,51 @@ export function growBranches(rand, species) {
       queue.push({ level: job.level + 1, points, radii: radiiFor(points.length, r0, spec.tip), length, parent: index, t });
     });
   }
+  if (species.pipe) pipeRadii(branches, species.pipe, T.radius);
   return branches;
+}
+
+/**
+ * Optional (species.pipe): replaces the plain taper with Leonardo's rule. At any point a branch's
+ * cross-section is the sum of the cross-sections it still has to carry: its own tip plus every
+ * child that leaves further up, so `r^e = tip^e + sum(child^e)` with e about 2.
+ * See Eloy 2011, https://doi.org/10.1103/PhysRevLett.107.258101.
+ * A branch therefore steps down from thick to medium to thin. It stays thick while most of its
+ * children are still above, and ends about as thick as one of its children.
+ * Children are later in `branches` than their parents, so one pass from the end works.
+ * The whole tree is then scaled so the trunk keeps its designed base radius.
+ *   pipe: { twig, end, hold, exponent, fade }
+ *   twig: base radius of a branch with no children, in metres before scaling.
+ *   end: tip radius as a fraction of twig. hold: how long a childless twig keeps its thickness.
+ *   fade: how far below a fork, as a fraction of the parent, the child's share starts to fade.
+ */
+function pipeRadii(branches, P, trunkRadius) {
+  const e = P.exponent ?? 2;
+  const fade = P.fade ?? 0.12;
+  const tipR = P.twig * (P.end ?? 0.45);
+  const kids = branches.map(() => []);
+  branches.forEach((b, i) => { if (b.parent >= 0) kids[b.parent].push(i); });
+  const base = new Array(branches.length);
+  for (let i = branches.length - 1; i >= 0; i--) {
+    const b = branches[i];
+    const n = b.points.length;
+    if (!kids[i].length) {
+      b.radii = Array.from({ length: n }, (_, j) => P.twig * THREE.MathUtils.lerp(1, P.end ?? 0.45, (j / (n - 1)) ** (P.hold ?? 1.6)));
+    } else {
+      b.radii = Array.from({ length: n }, (_, j) => {
+        const u = j / (n - 1);
+        // Above its last fork the branch carries on as one more stream about its children's size,
+        // so it ends at medium thickness instead of a point.
+        let a = Math.max(tipR ** e, kids[i].reduce((sum, k) => sum + base[k] ** e, 0) / kids[i].length);
+        // Each child's share fades out smoothly just below the point where it leaves.
+        for (const k of kids[i]) a += base[k] ** e * THREE.MathUtils.smoothstep(branches[k].t - u, -0.02, fade);
+        return a ** (1 / e);
+      });
+    }
+    base[i] = b.radii[0];
+  }
+  const s = trunkRadius / base[0];
+  for (const b of branches) b.radii = b.radii.map((r) => r * s);
 }
 
 /** Inserts points (and linearly interpolated radii) so spacing is at most `step` up to `upTo` metres from the start. */

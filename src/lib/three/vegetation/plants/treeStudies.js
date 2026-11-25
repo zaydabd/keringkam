@@ -94,6 +94,8 @@ export const TREE_STUDIES = {
       { count: 5, emerge: [0.3, 1], angle: [0.45, 0.85], length: [0.4, 0.55], radius: 0.55, tip: 0.005, sections: 4, radial: 3, gnarl: 0.12, up: 0.06, shorten: 0.35 },
       { count: 4, emerge: [0.3, 1], angle: [0.5, 0.9], length: [0.4, 0.6], radius: 0.6, tip: 0.003, sections: 3, radial: 3, gnarl: 0.2, up: 0.06, shorten: 0.3 },
     ],
+    // Leonardo's rule for the limb thickness (tree.js pipeRadii): thick, then medium, then thin.
+    pipe: { twig: 0.012, end: 0.45, hold: 1.6, exponent: 2 },
     foliage: TABEBUIA_LEAVES,
   },
 };
