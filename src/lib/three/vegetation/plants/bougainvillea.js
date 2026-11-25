@@ -228,6 +228,23 @@ function createFar(seed) {
   return build(seed, 'far', stems, cards, list.length);
 }
 
+/**
+ * Foliage for a trimmed bush (the garden round the house): leaf and bract spray cards on the given
+ * clumps, in whatever space they are given (world space for the garden). Each clump is
+ * { centre: Vector3, b: bract share 0..1 }. `card` is the card size; `count` cards per clump.
+ * Same shader and atlas as the far level, so a clump reads as a mass of leaves, not single cards.
+ */
+export function createBushFoliage(seed, list, { radius = FAR.radius, card = FAR.card, count = FAR.cards } = {}) {
+  return writeCards(mulberry32(seed * 7919 + 41), list, {
+    radius,
+    count: () => count,
+    leafCard: card,
+    bractCard: card,
+    cells: [2, 3],
+    bractBias: 1.35,
+  });
+}
+
 export const plant = {
   id: 'bougainvillea',
   label: 'Bougainvillea',

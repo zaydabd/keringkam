@@ -5,7 +5,8 @@
 import * as THREE from 'three';
 import { HOUSE } from '../../world/house.js';
 import { LAYOUTS, LAYERS, WALLS } from './layouts.js';
-import { plant as bougainvillea } from '../../../vegetation/plants/bougainvillea.js';
+import { plant as bougainvillea, createBushFoliage } from '../../../vegetation/plants/bougainvillea.js';
+import { mulberry32 } from '../../../../utils/rng.js';
 import { plant as kuchingTree } from '../../../vegetation/plants/kuchingTree.js';
 // The garden's tree: main's new Kuching tree in its rain-tree design (treeStudies.js rainRoadside).
 const rainTree = { id: 'rainTree', create: (o) => kuchingTree.create({ ...o, variant: 'rainRoadside' }) };
@@ -38,6 +39,10 @@ export const GARDEN = {
   // further; at the window they read as big flat stickers (the user: "the plants look weird").
   // Garden copies draw them at this share of their size.
   cardScale: 0.6,
+  // A bougainvillea slot is a thick bush from the soil up (the user: "they should be thick bushes",
+  // not clumps floating on bare stems). Its outside is covered in clumps of leaf and bract cards
+  // `spacing` apart, on rings from just above the bed to the top of the dome. Sizes are guesses.
+  bush: { spacing: 0.2, clump: 0.2, card: 0.22, cards: 12 },
 };
 
 const baseOf = (sl) => sl.base ?? GH; // where a slot stands
@@ -73,13 +78,50 @@ function noise(x, y, z) {
   return (h - Math.floor(h)) * 2 - 1;
 }
 
-/** How far a world point is into a slot's volume: below 1 inside, 1 on its surface. */
+/**
+ * How far a world point is into a slot's volume: below 1 inside, 1 on its surface. The volume is
+ * a dome on straight sides: full width from the ground to half height, then rounding over the top,
+ * so a trimmed bush stays full down to the soil.
+ */
 function reachOf(sl, p) {
   const cy = baseOf(sl) + sl.h / 2;
-  return Math.hypot((p.x - sl.at[0]) / sl.rx, (p.y - cy) / (sl.h / 2), (p.z - sl.at[1]) / sl.rz);
+  const up = Math.max(0, p.y - cy);
+  return Math.hypot((p.x - sl.at[0]) / sl.rx, up / (sl.h / 2), (p.z - sl.at[1]) / sl.rz);
 }
 
-const inHouse = (p) => p.x > WALLS.X0 - 0.03 && p.x < WALLS.X1 + 0.03 && p.z > WALLS.Z0 - 0.03 && p.z < WALLS.Z1 + 0.03;
+/**
+ * The clumps covering a bougainvillea slot's outside (world space): rings up its straight sides
+ * and over its dome. None close enough to the house for a card to show through the wall into the
+ * room (the cards turn to face the camera, so they reach a clump and a card from their centre). More bracts higher up and on the outside (guess).
+ */
+function bushClumps(sl, seed) {
+  const rand = mulberry32(seed);
+  const B = GARDEN.bush;
+  const base = baseOf(sl);
+  const half = sl.h / 2;
+  const out = [];
+  const p = new THREE.Vector3();
+  const clear = B.clump + B.card * 0.75;
+  for (let y = base + B.clump * 0.4; y <= base + sl.h; y += B.spacing * 0.8) {
+    const up = Math.max(0, y - base - half) / half;
+    const f = Math.sqrt(Math.max(0, 1 - up * up));
+    const ex = sl.rx * f;
+    const ez = sl.rz * f;
+    const n = Math.max(1, Math.round((2 * Math.PI * Math.hypot(ex, ez) * Math.SQRT1_2) / B.spacing));
+    const turn = rand() * Math.PI * 2;
+    for (let k = 0; k < n; k++) {
+      const a = turn + ((k + 0.3 * rand()) / n) * Math.PI * 2;
+      const r = 0.95 + 0.1 * rand();
+      p.set(sl.at[0] + ex * r * Math.cos(a), y + (rand() - 0.5) * B.spacing * 0.3, sl.at[1] + ez * r * Math.sin(a));
+      if (inHouse(p, clear)) continue;
+      const height = (p.y - base) / sl.h;
+      out.push({ centre: p.clone(), b: 0.15 + 0.6 * THREE.MathUtils.smoothstep(height, 0.25, 1) });
+    }
+  }
+  return out;
+}
+
+const inHouse = (p, m = 0.03) => p.x > WALLS.X0 - m && p.x < WALLS.X1 + m && p.z > WALLS.Z0 - m && p.z < WALLS.Z1 + m;
 
 /**
  * Keeps the triangles of `mesh` whose vertices all lie inside the slot's volume grown by
@@ -167,6 +209,13 @@ export function buildGarden({ layout }) {
     }
     plant.traverse((o) => o.isMesh && disposables.push(o.geometry));
     group.add(plant);
+    if (kind === bougainvillea) {
+      const B = GARDEN.bush;
+      const leaves = createBushFoliage(1 + n, bushClumps(sl, 101 + n), { radius: B.clump, card: B.card, count: B.cards });
+      leaves.mesh.name = `bush ${n}`;
+      group.add(leaves.mesh);
+      disposables.push(leaves);
+    }
   }
   return { group, stats, dispose: () => disposables.forEach((d) => d.dispose()) };
 }
