@@ -81,16 +81,18 @@ export const TREE_STUDIES = {
     ],
     foliage: RAIN_LEAVES,
   },
-  // Photo 5: trumpet tree, a short trunk forking into upright leaders, a tall rounded crown.
+  // Photo 5: trumpet tree, a clear slender trunk, then several slim limbs rising at a steep angle
+  // into a tall rounded crown of fine twigs (form after NParks, above). The limbs are about half
+  // the trunk's thickness or less, so they do not read as fat stubs. Sizes are guesses by eye.
   tabebuia: {
     bark: barkOf('#8a7f70', '#4e463c', 0.3),
     barkPattern: 'ridges',
     levels: [
-      { length: [2.8, 3.2], radius: 0.3, tip: 0.22, sections: 6, radial: 12, gnarl: 0.04, up: 0.05, lean: 0.06, base: { flare: 0.35, height: 0.6, lobes: 0, lobe: 0 }, dome: true },
-      { count: 4, emerge: [0.75, 1], angle: [0.3, 0.55], length: [1.5, 1.8], radius: 0.8, tip: 0.06, sections: 7, radial: 9, gnarl: 0.06, up: 0.03, shorten: 0.1, kink: 0.2, kinkRate: 0.3, flare: 0.45 },
-      { count: 4, emerge: [0.45, 1], angle: [0.35, 0.7], length: [0.6, 0.75], radius: 0.7, tip: 0.02, sections: 6, radial: 6, gnarl: 0.08, up: 0.04, shorten: 0.4, kink: 0.2, kinkRate: 0.3 },
-      { count: 5, emerge: [0.3, 1], angle: [0.45, 0.85], length: [0.45, 0.6], radius: 0.6, tip: 0.008, sections: 4, radial: 4, gnarl: 0.12, up: 0.06, shorten: 0.4 },
-      { count: 4, emerge: [0.3, 1], angle: [0.5, 0.9], length: [0.4, 0.6], radius: 0.6, tip: 0.004, sections: 3, radial: 3, gnarl: 0.2, up: 0.06, shorten: 0.3 },
+      { length: [5.4, 5.8], radius: 0.28, tip: 0.1, sections: 10, radial: 12, gnarl: 0.03, up: 0.05, lean: 0.05, base: { flare: 0.3, height: 0.6, lobes: 0, lobe: 0 }, dome: true },
+      { count: 7, emerge: [0.6, 1], angle: [0.65, 1.0], length: [1.05, 1.25], radius: 0.45, tip: 0.03, sections: 12, radial: 7, gnarl: 0.06, up: 0.025, shorten: 0.3, kink: 0.15, kinkRate: 0.3, flare: 0.35 },
+      { count: 6, emerge: [0.3, 1], angle: [0.5, 0.85], length: [0.38, 0.5], radius: 0.5, tip: 0.012, sections: 6, radial: 5, gnarl: 0.08, up: 0.05, shorten: 0.4, kink: 0.15, kinkRate: 0.3 },
+      { count: 5, emerge: [0.3, 1], angle: [0.45, 0.85], length: [0.4, 0.55], radius: 0.55, tip: 0.005, sections: 4, radial: 3, gnarl: 0.12, up: 0.06, shorten: 0.35 },
+      { count: 4, emerge: [0.3, 1], angle: [0.5, 0.9], length: [0.4, 0.6], radius: 0.6, tip: 0.003, sections: 3, radial: 3, gnarl: 0.2, up: 0.06, shorten: 0.3 },
     ],
     foliage: TABEBUIA_LEAVES,
   },
