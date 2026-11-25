@@ -1,7 +1,7 @@
 // Growth helpers shared by the vine and tree builders.
 
 import * as THREE from 'three';
-import { range } from './rng.js';
+import { range } from '../../utils/rng.js';
 
 export const UP = new THREE.Vector3(0, 1, 0);
 export const DOWN = new THREE.Vector3(0, -1, 0);

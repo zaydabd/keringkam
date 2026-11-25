@@ -23,7 +23,7 @@
 // Near: stems + cards (2 draw calls). Far: bigger, fewer cards on fewer clumps, no stems (1 call).
 
 import * as THREE from 'three';
-import { mulberry32, range, shuffled, stratified } from '../rng.js';
+import { mulberry32, range, shuffled, stratified } from '../../../utils/rng.js';
 import { addTube, createMeshWriter } from '../tube.js';
 import { bladeRadius } from '../leaf.js';
 import { CEL_RAMP_GLSL, FOLIAGE_SUN, toneUniforms } from '../cel-foliage.js';

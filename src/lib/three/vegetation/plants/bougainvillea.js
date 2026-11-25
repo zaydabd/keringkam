@@ -25,7 +25,7 @@
 //                (2 draw calls, same shader as near).
 
 import * as THREE from 'three';
-import { mulberry32, range } from '../rng.js';
+import { mulberry32, range } from '../../../utils/rng.js';
 import { addTube, createMeshWriter } from '../tube.js';
 import { FOLIAGE_SUN } from '../cel-foliage.js';
 import { growSkeleton } from './bougainvillea/skeleton.js';

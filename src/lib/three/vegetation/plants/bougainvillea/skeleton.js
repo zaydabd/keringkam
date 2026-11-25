@@ -4,7 +4,7 @@
 // Every number here is a design choice (guess), tuned by eye.
 
 import * as THREE from 'three';
-import { range, stratified, shuffled } from '../../rng.js';
+import { range, stratified, shuffled } from '../../../../utils/rng.js';
 import { growHanging, taper, UP } from '../../grow.js';
 
 export const SPEC = {

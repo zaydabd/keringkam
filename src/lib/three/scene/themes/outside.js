@@ -15,6 +15,8 @@
 // themes/interior.js: sizes in texture pixels, opacities 0-1, a plain number is fixed and a pair
 // [from, by] is random, from `from` up to `from + by`.
 
+import { sceneOptions } from '../../../utils/urlOptions.js';
+
 // --- 1. Swatches and marks ----------------------------------------------------------------------
 
 const AIR = {
@@ -145,8 +147,7 @@ const SHADE = { cabin: '#2a2220' }; // the dark inside of a boat's cabin
 export const ASSEMBLY_STYLES = ['c', 'd', 'cd'];
 // D is the default since pass e16b (the user picked it); ?asm=none gives the plain e15c paint.
 export const ASSEMBLY_STYLE = (() => {
-  if (typeof window === 'undefined') return 'd';
-  const asked = new URLSearchParams(window.location.search).get('asm');
+  const asked = sceneOptions().get('asm');
   if (asked === 'none') return null;
   return ASSEMBLY_STYLES.includes(asked) ? asked : 'd';
 })();
@@ -324,29 +325,6 @@ export const OUTSIDE_THEME = {
       d: { dabs: { count: 220, length: [14, 18], width: [4, 5], opacity: [0.1, 0.12], angle: 0.35, turn: 0.45, darkShare: 0.45 }, warm: 0.1 },
       // C's light painted in: vertex colours scaled from the building's foot to its top (outside/index.js)
       light: { c: [0.78, 1.12], d: [1, 1], cd: [0.88, 1.06] },
-    },
-    // The leaf atlas (paint.js paintLeaves): light greys, the plant's vertex colour sets the green.
-    // The edge line stands in for the ink the leaf cards do not get. Sizes are fractions of a cell.
-    leaves: {
-      // petal, petalDeep and eye are the flower's own colours: it is drawn with a near-white vertex colour
-      colours: { fill: '#f2f2ea', fillDark: '#dcdfd2', shade: '#8c9086', vein: '#c4c8b8', edge: '#4c4e44', stem: '#8c8468', washBase: '#b4b8a8', petal: '#cc4a52', petalDeep: '#9d2e35', petalLight: '#e8908a', eye: '#f4e6b8' }, // petals: R4's reds, sampled (pass e5b)
-      pattern: {
-        cell: 512, // px; the atlas is 3 x 2 cells
-        shade: 0.26, // how dark the half of a blade turned from the light is
-        vein: 0.012, // midrib width, of the leaf's length
-        edge: 3, // px
-        // a sprig of small leaves, alternate along a bent stem
-        sprig: { top: 0.2, count: 9, length: [0.15, 0.08], width: [0.4, 0.14], spread: [0.7, 0.35], droop: 0.35 },
-        // a sprig of fewer, larger leaves that hang further
-        sprigBig: { top: 0.24, count: 6, length: [0.25, 0.1], width: [0.44, 0.12], spread: [0.9, 0.3], droop: 0.6 },
-        broad: { width: 0.5, veins: 6 }, // one leaf filling its cell, for the weeds' rosettes
-        frond: { pairs: 19, reach: 0.34, angle: 0.35, lobes: 3, width: 0.3, edge: 0.8 }, // paired leaflets, each a lobed blade; width: its half-width, of the gap between pairs; edge: its soft rim, of `edge` (pass e5b: slender and soft, as R4's palm-like fronds)
-        // the bush at the water (pass e5b): sprays of pointed leaves painted as washes; fan and
-        // spread in radians, sizes and wobble of the cell; bloom, rib and rim the alpha of the
-        // pooled pigment, the midrib and the dried edge
-        wash: { sprays: 3, leaves: 5, fan: 1.3, spread: [0.75, 0.3], length: [0.3, 0.08], width: [0.36, 0.08], wobble: 0.006, bloom: 0.3, rib: 0.35, rim: 0.3 },
-        flower: { radius: 0.46, spread: 1.5 }, // radius of the cell; spread: each petal's angle, radians (5 x 1.5 > 2 pi, so they overlap)
-      },
     },
   },
 

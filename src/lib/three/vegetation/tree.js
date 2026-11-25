@@ -16,7 +16,7 @@
 // Units: metres. Every size is a design choice.
 
 import * as THREE from 'three';
-import { mulberry32, range, shuffled, stratified } from './rng.js';
+import { mulberry32, range, shuffled, stratified } from '../../utils/rng.js';
 import { addTube, createMeshWriter } from './tube.js';
 import { UP } from './grow.js';
 import { CEL_RAMP_GLSL, FOLIAGE_SUN, toneUniforms } from './cel-foliage.js';

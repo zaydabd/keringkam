@@ -28,7 +28,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { createTree } from '../tree.js';
 import { addTube, createMeshWriter } from '../tube.js';
-import { mulberry32, range } from '../rng.js';
+import { mulberry32, range } from '../../../utils/rng.js';
 
 const TONES = ['#163a2a', '#2f6a3c', '#8fbf6a']; // deep green ramp (colour sourced, values guess)
 

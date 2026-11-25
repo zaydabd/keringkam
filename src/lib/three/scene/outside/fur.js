@@ -7,7 +7,8 @@
 // Every number here is a design choice tuned in the window shot, not a measurement.
 
 import * as THREE from 'three';
-import { SITE, WINDOW_EYE, mulberry32, fbm, rgb } from './site.js';
+import { SITE, WINDOW_EYE, fbm, rgb } from './site.js';
+import { mulberry32 } from '../../../utils/rng.js';
 import { underForecourt } from './forecourt.js';
 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));

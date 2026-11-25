@@ -11,12 +11,13 @@
 
 import * as THREE from 'three';
 import { createContract } from './contract.js';
-import { SITE, sampleLine, smooth, mulberry32, rgbTable, fbm } from './site.js';
+import { SITE, sampleLine, smooth, rgbTable, fbm } from './site.js';
+import { mulberry32 } from '../../../utils/rng.js';
 import { OUTSIDE_THEME } from '../themes/index.js';
 import { underForecourt } from './forecourt.js';
 import { WATERFRONT, FRONT_PAINT, buildRailing, checkFooting, paveQuad } from './waterfront.js';
+import { lerp } from '../../../utils/vec3.js';
 
-const lerp = (a, b, t) => a + (b - a) * t;
 
 // Paint, as vertex colours (themes/outside.js).
 export const BANK_PAINT = rgbTable(OUTSIDE_THEME.farBank);

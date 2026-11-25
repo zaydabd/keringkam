@@ -26,6 +26,7 @@
 
 import { createContract } from './contract.js';
 import { OUTSIDE_THEME } from '../themes/index.js';
+import { sub, cross, norm } from '../../../utils/vec3.js';
 
 export const ASSEMBLY = {
   height: 114, // sourced
@@ -124,12 +125,6 @@ export function star(n, tip, valley) {
     return (p0[0] * e[1] - p0[1] * e[0]) / den;
   };
 }
-const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
-const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
-const norm = (a) => {
-  const l = Math.hypot(a[0], a[1], a[2]) || 1;
-  return [a[0] / l, a[1] / l, a[2] / l];
-};
 const offset = (p, ...terms) => {
   const o = [...p];
   for (const [v, k] of terms) for (let i = 0; i < 3; i++) o[i] += v[i] * k;

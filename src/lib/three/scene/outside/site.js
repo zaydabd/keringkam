@@ -9,6 +9,7 @@
 // painting's composition.
 
 import * as THREE from 'three';
+import { mulberry32 } from '../../../utils/rng.js';
 
 // The window shot's eye (interior.js SHOTS.window). Blades and leaf cards are wound to face it.
 export const WINDOW_EYE = [-0.475, 1.5, -4.62];
@@ -121,15 +122,6 @@ export function vnoise(x, y, seed) {
 }
 export const fbm = (x, y, seed) => vnoise(x, y, seed) * 0.6 + vnoise(x * 2.1, y * 2.1, seed + 1) * 0.3 + vnoise(x * 4.3, y * 4.3, seed + 2) * 0.1;
 
-export function mulberry32(a) {
-  return () => {
-    a |= 0;
-    a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
 
 export const rgb = (hex) => {
   const c = new THREE.Color(hex);

@@ -4,6 +4,8 @@
 // painted textures are made at load). The debug query switches (?dpr, ?maxpx, ?aores, ?aosamples,
 // ?aa, ?paint, ?fabrics) still win over these. Measured costs: research/INTERIOR-NOTES.md, pass p1.
 
+import { sceneOptions } from '../../utils/urlOptions.js';
+
 /**
  * The resolution: the most pixels a frame draws, whatever the screen, like a game's render
  * resolution. A screen with fewer pixels is drawn at its own resolution; one with more (a 2x
@@ -123,7 +125,7 @@ export function normalise(settings = {}) {
  * default. ?quality=low|medium|high picks a preset for this page load without saving it (captures).
  */
 export function loadQuality() {
-  const asked = new URLSearchParams(window.location.search).get('quality');
+  const asked = sceneOptions().get('quality');
   if (asked in PRESETS) return presetSettings(asked);
   try {
     return normalise(JSON.parse(localStorage.getItem(STORE) ?? '{}'));

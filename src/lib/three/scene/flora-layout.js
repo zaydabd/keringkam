@@ -2,7 +2,7 @@
 // (outside/banks.js), the far-bank planting, the room's plants and the vines beside the windows
 // (interior/vines.js). flora-stylised.js grows the stylised plants at these entries.
 
-import { mulberry32 } from './outside/site.js';
+import { mulberry32 } from '../../utils/rng.js';
 
 /**
  * The `?flora=` flag: 'stylised' (the stylised plants, flora-stylised.js; the default, the user's

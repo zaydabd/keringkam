@@ -8,6 +8,7 @@ import { INTERIOR_THEME as ORIGINAL_INTERIOR } from './interior.js';
 import { INTERIOR_THEME as DETAILED_INTERIOR } from './interior-detailed.js';
 import { OUTSIDE_THEME as ORIGINAL_OUTSIDE } from './outside.js';
 import { CLAY } from './clay.js';
+import { sceneOptions } from '../../../utils/urlOptions.js';
 
 /**
  * Each theme: its name in the picker, the room's look, the view outside's look, and `clay` (null,
@@ -32,7 +33,7 @@ export function themeFromSearch(search) {
 
 // Picked once, when the page loads (no window under Node: tools that import the scene modules
 // get the default).
-export const THEME_NAME = themeFromSearch(typeof window === 'undefined' ? '' : window.location.search);
+export const THEME_NAME = themeFromSearch(sceneOptions().toString());
 
 const active = THEMES[THEME_NAME];
 export const INTERIOR_THEME = active.interior;

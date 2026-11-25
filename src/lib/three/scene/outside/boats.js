@@ -21,6 +21,7 @@
 import { createContract } from './contract.js';
 import { rgbTable } from './site.js';
 import { OUTSIDE_THEME } from '../themes/index.js';
+import { cross, norm } from '../../../utils/vec3.js';
 
 export const PENAMBANG = {
   length: 6.2, // overall, stem to stern (B3: 892 px at ~143 px per metre)
@@ -272,11 +273,6 @@ function post(w, at, a, b, t, color) {
   const mid = A.map((p, i) => (p + Bp[i]) / 2);
   w.box('paint', mid, u.map((c) => (c * t) / 2), ax.map((c) => (c * len) / 2), v.map((c) => (c * t) / 2), color);
 }
-const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
-const norm = (a) => {
-  const l = Math.hypot(...a) || 1;
-  return a.map((c) => c / l);
-};
 
 /**
  * Compiles a plan into the writer's 'paint' slot, placed at `place` = { x, z, ry } on water level

@@ -18,7 +18,7 @@
 // Units: metres. The size (about 0.75 m wide, 1.25 m tall) is a design choice: the reference gives no scale.
 
 import * as THREE from 'three';
-import { mulberry32, range, shuffled, stratified } from './rng.js';
+import { mulberry32, range, shuffled, stratified } from '../../utils/rng.js';
 import { addTube, createMeshWriter } from './tube.js';
 import { LEAF_PAINT, createLeafGeometry } from './leaf.js';
 import { createCelLeafMaterial, setCelLeafAttributes } from './cel-foliage.js';

@@ -27,7 +27,7 @@
 // once per seed and emitted at two detail levels, so near and far share silhouette and colours.
 
 import * as THREE from 'three';
-import { mulberry32, range, stratified } from '../rng.js';
+import { mulberry32, range, stratified } from '../../../utils/rng.js';
 import { addTube, createMeshWriter } from '../tube.js';
 import { UP } from '../grow.js';
 import { FOLIAGE_SUN, toneUniforms } from '../cel-foliage.js';

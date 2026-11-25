@@ -66,6 +66,7 @@ import { shadeWalls, glossBoards, buildContactShadows } from './interior/surface
 import { drapeAll, fabricGeometry, partColour, fabricIndex } from './interior/fabrics.js';
 import { createTextureStore, fabrics as FABRIC_PHOTOS } from '../common.js';
 import { createAO } from './ao.js';
+import { sceneOptions } from '../../utils/urlOptions.js';
 export { PLAN } from './interior/plan.js';
 export { furnitureOverlaps } from './interior/furniture.js';
 
@@ -139,7 +140,7 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
   // detail. setQuality changes them while the page runs.
   const Q = normalise(quality);
   const startedAt = performance.now();
-  const params = new URLSearchParams(window.location.search);
+  const params = sceneOptions();
   const debug = params.get('debug');
   const clay = CLAY_LOOK !== null; // the clay theme: the look switched off (themes/clay.js)
   const off = new Set((params.get('off') ?? '').split(',').filter(Boolean));
@@ -507,7 +508,7 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
   camera.layers.enable(1);
 
   const { color: ink, lineWidth, ...inkLook } = THEME.ink;
-  const outline = createOutline(renderer, scene, camera, { ink, lineWidth, mask: [{ layer: 3, map: textures.lattice }, ...landscape.inkMasks] });
+  const outline = createOutline(renderer, scene, camera, { ink, lineWidth, mask: [{ layer: 3, map: textures.lattice }] });
   setUniforms(outline.material.uniforms, inkLook);
   // The theme's ink, which the outlines setting (quality.js OUTLINES) scales.
   const inkBase = Object.fromEntries(Object.keys(OUTLINES.full).map((k) => [k, outline.material.uniforms[k].value]));

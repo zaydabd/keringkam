@@ -21,7 +21,7 @@
 import * as THREE from 'three';
 import { addTube, createMeshWriter } from '../tube.js';
 import { FOLIAGE_SUN, toneUniforms } from '../cel-foliage.js';
-import { mulberry32, range } from '../rng.js';
+import { mulberry32, range } from '../../../utils/rng.js';
 
 const NIPAH = {
   fronds: [7, 10], // (guess)

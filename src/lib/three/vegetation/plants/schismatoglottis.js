@@ -35,7 +35,7 @@
 // each mesh carries its own outline copy.
 
 import * as THREE from 'three';
-import { mulberry32, range } from '../rng.js';
+import { mulberry32, range } from '../../../utils/rng.js';
 import { addTube, createMeshWriter } from '../tube.js';
 import { UP } from '../grow.js';
 import { CEL_RAMP_GLSL, toneUniforms } from '../cel-foliage.js';

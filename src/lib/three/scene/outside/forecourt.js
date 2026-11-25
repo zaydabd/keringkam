@@ -17,8 +17,8 @@
 import { createContract } from './contract.js';
 import { SITE, sampleLine, rgbTable } from './site.js';
 import { OUTSIDE_THEME } from '../themes/index.js';
+import { lerp } from '../../../utils/vec3.js';
 
-const lerp = (a, b, t) => a + (b - a) * t;
 
 export const FORECOURT = {
   from: 4, // x of the waterline where the left planter starts: the embankment is full height from here (SITE.far.lawnFrom)

@@ -25,9 +25,10 @@
 // where two colours meet (toon.js). The haze is the scene fog.
 
 import * as THREE from 'three';
-import { paintSoftSky, paintLeaves, paintPaving, paintAssembly, paintStylized, styleGain } from '../paint.js';
+import { paintSoftSky, paintPaving, paintAssembly, paintStylized, styleGain } from '../paint.js';
 import { SlotWriter, createContract } from './contract.js';
-import { SITE, WINDOW_EYE, mulberry32 } from './site.js';
+import { SITE, WINDOW_EYE } from './site.js';
+import { mulberry32 } from '../../../utils/rng.js';
 import { buildForecourt, forecourtFrame } from './forecourt.js';
 import { OUTSIDE_THEME } from '../themes/index.js';
 import { ASSEMBLY_STYLE } from '../themes/outside.js';
@@ -47,18 +48,6 @@ import { createWater, fresnelF0, WAVES } from './water.js';
 export { SITE };
 /** The mirrored camera of the river draws this layer: the outside without the water. Lights must be on it too. */
 export const MIRROR_LAYER = 2;
-/**
- * The leaf cards (leaves.js) are on this layer for the ink pass: they are cut out by the leaf
- * atlas, so the edge buffer (which ignores alpha) would outline whole rectangles. Instead they are
- * drawn on layer 1 (no ink) and mask the ink of what is behind them (toon.js createOutline).
- */
-export const LEAF_MASK_LAYER = 6;
-/** How much a leaf card's alpha is raised per mip level (keepCover below). */
-export const LEAF_COVER = 0.25;
-/** GLSL: the alpha scale for a cut-out sampled at `uv` from `map` (keepCover; toon.js's ink mask). */
-export const coverOf = (uv, map, k = LEAF_COVER) =>
-  `(1.0 + ${k.toFixed(3)} * max(0.0, 0.5 * log2(max(dot(dFdx(${uv} * vec2(textureSize(${map}, 0))), dFdx(${uv} * vec2(textureSize(${map}, 0)))), dot(dFdy(${uv} * vec2(textureSize(${map}, 0))), dFdy(${uv} * vec2(textureSize(${map}, 0))))))))`;
-
 export const OBJECTS = ['farbank', 'forecourt', 'waterfront', 'river', 'assembly', 'bridge', 'boats', 'sky'];
 
 // The sky is keyed down like the rest of the outdoors, so its blue survives an exposure set for
@@ -179,44 +168,25 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
   const textures = {
     sky: paintSoftSky(25 + skySeed, { ...OUTSIDE_THEME.sky[OUTSIDE_THEME.sky.style], haze: hazeStyle }),
   };
-  if (w.slots.has('leaf')) textures.leaves = paintLeaves(43 + seed, OUTSIDE_THEME.textures.leaves); // the leaf atlas (leaves.js); cut-outs, so painted in every mode
   if (w.slots.has('paving')) textures.paving = paintPaving(61, OUTSIDE_THEME.textures.paving); // the waterfront's street (pass e11)
   const asmStyle = OUTSIDE_THEME.textures.assemblyStyle;
   if (w.slots.has('assembly')) textures.assembly = paintAssembly(71, OUTSIDE_THEME.textures.assembly, ASSEMBLY_STYLE, asmStyle); // the Assembly's glass and concrete (pass e15)
   if (ASSEMBLY_STYLE && w.slots.has('gold')) textures.gold = paintStylized(73, ASSEMBLY_STYLE, asmStyle); // ?asm=c|d|cd (pass e16)
   disposables.push(...Object.values(textures));
-  // `alphaTest`: a cut-out (the leaf cards); its map is kept in every mode, for the shape.
-  const toon = ({ map, side = THREE.FrontSide, alphaTest = 0 } = {}) => {
+  const toon = ({ map, side = THREE.FrontSide } = {}) => {
     let m;
-    const cut = alphaTest ? { map, alphaTest } : {};
-    if (mode === 'silhouette') m = new THREE.MeshBasicMaterial({ color: '#000000', fog: false, side, ...cut });
-    else if (mode === 'flat') m = new THREE.MeshToonMaterial({ gradientMap, color: '#bdbdbd', side, ...cut });
+    if (mode === 'silhouette') m = new THREE.MeshBasicMaterial({ color: '#000000', fog: false, side });
+    else if (mode === 'flat') m = new THREE.MeshToonMaterial({ gradientMap, color: '#bdbdbd', side });
     else if (mode === 'clay') {
       // plain grey, lit as it is; keyed down like the paint so sunlit ground does not burn out
-      m = new THREE.MeshStandardMaterial({ color: CLAY.colour, roughness: 1, metalness: 0, side, ...cut });
+      m = new THREE.MeshStandardMaterial({ color: CLAY.colour, roughness: 1, metalness: 0, side });
       m.color.multiplyScalar(key);
     }
     else {
-      m = new THREE.MeshToonMaterial({ gradientMap, vertexColors: true, side, map: map ?? null, alphaTest });
+      m = new THREE.MeshToonMaterial({ gradientMap, vertexColors: true, side, map: map ?? null });
       m.color.multiplyScalar(key);
     }
     disposables.push(m);
-    return m;
-  };
-  /**
-   * A small cut-out is drawn from a smaller mip level of its map, whose alpha is averaged with the
-   * transparent space round each leaf: below the alpha test, so far leaves thin out and vanish.
-   * The alpha is raised by LEAF_COVER per mip level (B. Golus's anti-aliased alpha test, as described
-   * by lisyarus: alpha * (1 + level * 0.25)). The ink mask (toon.js) does the same.
-   */
-  const keepCover = (m) => {
-    m.onBeforeCompile = (shader) => {
-      shader.fragmentShader = shader.fragmentShader.replace('#include <alphatest_fragment>', `#ifdef USE_MAP
-  diffuseColor.a *= ${coverOf('vMapUv', 'map')};
-#endif
-#include <alphatest_fragment>`);
-    };
-    m.customProgramCacheKey = () => 'leaf-cover';
     return m;
   };
   const materials = {
@@ -237,17 +207,10 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
     }
     if (materials.assembly) materials.assembly.color.multiplyScalar(styleGain(asmStyle));
   }
-  // Leaf cards (leaves.js): two-sided, cut out by the atlas's alpha, which keeps its coverage when
-  // the card is small (keepCover).
-  if (textures.leaves) materials.leaf = keepCover(toon({ map: textures.leaves, side: THREE.DoubleSide, alphaTest: 0.5 }));
   for (const name of Object.keys(materials)) {
     if (!w.slots.has(name)) continue;
     const mesh = new THREE.Mesh(geometry(name), materials[name]);
     mesh.name = name;
-    if (name === 'leaf') {
-      mesh.layers.set(1); // no ink of its own...
-      mesh.layers.enable(LEAF_MASK_LAYER); // ...and it hides the ink behind its leaves
-    }
     // The paving is not mirrored: the river hides its reflection behind the kerb and the edge
     // face (pass e11 tidy: 0.003% of the window shot's pixels change, under the 1% rule).
     if (name !== 'paving') mesh.layers.enable(MIRROR_LAYER);
@@ -327,8 +290,6 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
     stats,
     /** ?flora=stylised: { copies, triangles, meshes } of the plants, or null. */
     floraStats: stylised?.stats ?? null,
-    /** For the ink pass (toon.js createOutline `mask`): the leaf cards' layer and atlas. */
-    inkMasks: textures.leaves ? [{ layer: LEAF_MASK_LAYER, map: textures.leaves, cover: LEAF_COVER }] : [],
     /** Moves the water. t in seconds. */
     update(t) {
       water.material.uniforms.uTime.value = t;

@@ -13,7 +13,7 @@
 // Nothing is copied from any image or model.
 
 import * as THREE from 'three';
-import { mulberry32 } from '../../rng.js';
+import { mulberry32 } from '../../../../utils/rng.js';
 
 const W = 128;
 const H = 256;

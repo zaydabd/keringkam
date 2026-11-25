@@ -23,7 +23,7 @@
 // Units: metres. Two draw calls per level: stems + pot + soil (one textured mesh), leaves.
 
 import * as THREE from 'three';
-import { mulberry32, range } from '../rng.js';
+import { mulberry32, range } from '../../../utils/rng.js';
 import { addTube, createMeshWriter } from '../tube.js';
 import { UP } from '../grow.js';
 

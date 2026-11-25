@@ -7,7 +7,7 @@ import { clumpCentres, growBranches, shapeBranches, writeBranches } from './tree
 import { createMeshWriter } from './tube.js';
 import { CEL_RAMP_GLSL, FOLIAGE_SUN, toneUniforms } from './cel-foliage.js';
 import { createBarkMaterial } from './bark.js';
-import { mulberry32, range } from './rng.js';
+import { mulberry32, range } from '../../utils/rng.js';
 
 /** Cel material for the far crown blobs: per-vertex normal → the same 3-tone ramp, times AO, with flecks. */
 function createBlobMaterial(tones) {

@@ -24,16 +24,8 @@
 import { createContract } from './contract.js';
 import { SITE, rgbTable } from './site.js';
 import { OUTSIDE_THEME } from '../themes/index.js';
+import { sub, add, scale, cross, dot, norm } from '../../../utils/vec3.js';
 
-const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
-const add = (a, b, s = 1) => [a[0] + b[0] * s, a[1] + b[1] * s, a[2] + b[2] * s];
-const scale = (a, s) => [a[0] * s, a[1] * s, a[2] * s];
-const cross = (a, b) => [a[1] * b[2] - a[2] * b[1], a[2] * b[0] - a[0] * b[2], a[0] * b[1] - a[1] * b[0]];
-const dot = (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-const norm = (a) => {
-  const l = Math.hypot(a[0], a[1], a[2]) || 1;
-  return [a[0] / l, a[1] / l, a[2] / l];
-};
 const UP = [0, 1, 0];
 
 export const FRONT_PAINT = rgbTable(OUTSIDE_THEME.waterfront.paint);
