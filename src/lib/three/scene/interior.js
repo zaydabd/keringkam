@@ -61,7 +61,7 @@ import { buildHangings } from './interior/hangings.js';
 import { buildVines } from './interior/vines.js';
 import { floraMode, windowVineLayout, vineMarkers, buildFloraBlockout, showFloraLegend, windowHangingProposal, roomPlantsProposal } from './flora-layout.js';
 import { buildFloraStylised } from './flora-stylised.js';
-import { gardenEntries } from './garden.js';
+import { gardenStage, buildGarden, buildBeds } from './garden.js';
 import { shadeWalls, glossBoards, buildContactShadows } from './interior/surfaces.js';
 import { drapeAll, fabricGeometry, partColour, fabricIndex } from './interior/fabrics.js';
 import { createTextureStore, fabrics as FABRIC_PHOTOS } from '../common.js';
@@ -374,6 +374,8 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
   // hidden as one (?off=house). Seen only from outside: the room's views do not change.
   const hb = new Builder();
   buildExterior(hb.as('house'));
+  const gardenStageName = gardenStage(params);
+  if (gardenStageName) buildBeds(hb.as('garden beds'));
   const house = new THREE.Group();
   house.name = 'house';
   house.add(...hb.build(materials));
@@ -496,12 +498,12 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
     console.info('[flora]', JSON.stringify(legend.map(({ group, kind, count }) => ({ group, kind, count }))));
     removeLegend = showFloraLegend(legend, `?flora=${flora}`);
   }
-  // Planting round the house (garden.js): ?garden=a|b|c, trial setups to choose from.
-  const gardenList = gardenEntries(params);
-  const garden = gardenList.length ? buildFloraStylised(gardenList) : null;
+  // Planting round the house (garden.js): ?garden=plan|plants|trim, the designer's stages.
+  const garden = gardenStageName ? buildGarden(gardenStageName) : null;
   if (garden) {
     garden.group.visible = !stage && !off.has('house');
     scene.add(garden.group);
+    console.info('[garden]', JSON.stringify(garden.stats));
   }
   if (debug) {
     console.info('outside', JSON.stringify(landscape.stats));
