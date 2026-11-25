@@ -100,6 +100,10 @@ const PLANT = {
   seedHead: '#a89058', // the grasses' seed heads (design choice; R3 shows none this small)
   fern: '#5c9638',
   fernLight: '#84b44a',
+  // the far bank as grass fur (?flora=stylised, grass.js and fur.js): dark greens like the trees' leaves
+  furGround: { path: '#3b5a2a', verge: '#3a5929', lawnFoot: '#3d5e2b', lawn: '#3f612c', terrace: '#3a5a2a', meadow: '#365427', meadowFar: '#334f26' },
+  furShort: ['#2c4a24', '#355a28', '#3b6229', '#2a4621'],
+  furTall: ['#4c7a33', '#5d8a3a', '#46702f'],
 };
 
 const WOOD = {
@@ -340,4 +344,7 @@ export const OUTSIDE_THEME = {
   kiosk: styled({ gold: BUILT.kioskGold, goldShade: BUILT.kioskGoldShade }, ASSEMBLY_STYLE),
 
   bridge: BUILT.bridge, // bridge.js, linear
+
+  // The far bank's grass fur (?flora=stylised): the ground under it (grass.js) and its blades (fur.js).
+  fur: { ground: PLANT.furGround, short: PLANT.furShort, tall: PLANT.furTall },
 };
