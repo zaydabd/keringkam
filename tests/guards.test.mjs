@@ -10,7 +10,7 @@ import { LAYOUTS, LAYERS } from '../src/lib/three/scene/house/garden/layouts.js'
 import { furnitureOverlaps } from '../src/lib/three/scene/house/furniture.js';
 import { planAssembly, compileAssembly } from '../src/lib/three/scene/riverside/assembly.js';
 
-const GARDEN_SHA1 = 'f005fba82641062fd75432431f2beca45fcb2621'; // the bougainvillea layout's slots and beds (the hedge outside the windows: the user, 2026-11-25)
+const GARDEN_SHA1 = '0e39c5c63f5b099b9ca8f589da5124ccc7f40363'; // the bougainvillea layout's slots and beds (the hedge outside the windows: the user, 2026-11-25)
 const sha1 = (value) => createHash('sha1').update(JSON.stringify(value)).digest('hex');
 
 test('seeded random numbers are unchanged', () => {
