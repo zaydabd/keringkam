@@ -47,10 +47,12 @@ export const GARDEN = {
   // `core`: a solid body of this share of the slot that only the AO sees (see bushCore).
   // `pink`: the share of flowers in the mix (the user: "60 green 40 pink"); `round`: a box hedge's
   // edge radius.
-  // `grow`: how far a box hedge's leaves grow out past its cut, in smooth patches (noise `growScale`
-  // per metre), and `sprig` the share of clumps that stick out further still (the user: "allow for
-  // some growth making it a bit uneven"). Guesses, tuned by eye.
-  bush: { spacing: 0.1, clump: 0.12, card: 0.2, cards: 14, core: 0.85, pink: 0.4, round: 0.14, grow: 0.12, growScale: 2.2, sprig: 0.06 },
+  // `grow`: how far a box hedge's leaves grow out past its cut, in patches (noise `growScale` per
+  // metre) on longer swells (`swell`, over a few metres), and `sprig` the share of clumps that stick
+  // out further still, by up to `sprigOut` (the user: "allow for some growth making it a bit
+  // uneven", then "more uneven"). `bract`: a flower card's size as a share of a leaf card's (the
+  // user: "spread out the flowers more or make it smaller"). Guesses, tuned by eye.
+  bush: { spacing: 0.1, clump: 0.12, card: 0.2, bract: 0.6, cards: 14, core: 0.85, pink: 0.4, round: 0.14, grow: 0.2, swell: 0.1, growScale: 3, sprig: 0.12, sprigOut: 0.2 },
 };
 
 const baseOf = (sl) => sl.base ?? GH; // where a slot stands
@@ -165,9 +167,10 @@ function hedgeClumps(sl, seed) {
     // Growth past the cut: smooth patches, and a few sprigs further out.
     const wx = x + sl.at[0];
     const wz = z + sl.at[1];
-    const patch = THREE.MathUtils.smoothstep(valueFbm((wx + wz) * B.growScale, (y + base) * B.growScale, seed, 3), 0.35, 0.85);
-    const sprig = rand() < B.sprig ? 0.05 + 0.07 * rand() : 0;
-    p.setLength(r * (0.95 + 0.1 * rand()) + B.grow * patch + sprig).add(q);
+    const patch = THREE.MathUtils.smoothstep(valueFbm((wx + wz) * B.growScale, (y + base) * B.growScale, seed, 3), 0.3, 0.85);
+    const swell = valueFbm((wx + wz) * 0.45, 0.5, seed + 7, 2);
+    const sprig = rand() < B.sprig ? B.sprigOut * (0.3 + 0.7 * rand()) : 0;
+    p.setLength(r * (0.95 + 0.1 * rand()) + B.grow * patch + B.swell * swell + sprig).add(q);
     p.x += sl.at[0];
     p.y += base;
     p.z += sl.at[1];
@@ -345,7 +348,7 @@ export function buildGarden({ layout }) {
 function bushParts(sl, n, coreMaterial, disposables, stats) {
   const B = GARDEN.bush;
   const clumps = sl.shape === 'box' ? hedgeClumps(sl, 101 + n) : bushClumps(sl, 101 + n);
-  const leaves = createBushFoliage(1 + n, clumps, { radius: B.clump, card: B.card, count: B.cards });
+  const leaves = createBushFoliage(1 + n, clumps, { radius: B.clump, card: B.card, bractCard: B.card * B.bract, count: B.cards });
   leaves.mesh.name = `bush ${n}`;
   cardsMaskInk(leaves.mesh);
   leaves.mesh.userData.noAO = true;
