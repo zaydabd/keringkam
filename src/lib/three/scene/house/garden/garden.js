@@ -57,10 +57,16 @@ export const GARDEN = {
 
 const baseOf = (sl) => sl.base ?? GH; // where a slot stands
 
-/** The garden's layout (the user's choice, 25 Nov 2026), or null for ?garden=off. */
+/**
+ * The garden's layout (the user's choice, 25 Nov 2026), or null for ?garden=off. ?off=vines leaves
+ * out the vines hanging from the window heads and the eaves, to see the bougainvillea behind them.
+ */
 export function gardenChoice(params) {
-  return params.get('garden') === 'off' ? null : { layout: LAYOUTS.bougainvillea };
+  const off = new Set((params.get('off') ?? '').split(','));
+  return params.get('garden') === 'off' ? null : { layout: LAYOUTS.bougainvillea, noVines: off.has('vines') };
 }
+
+const VINE_LAYERS = new Set(['curtain', 'hanging']);
 
 /** Is a bed edge along a wall of the house (no kerb there)? */
 function onWall([ax, az], [bx, bz]) {
@@ -277,7 +283,7 @@ function hang(vine, sl) {
  * The garden of a layout, trimmed. Returns { group, stats, dispose };
  * the beds go into the house's builder (buildBeds).
  */
-export function buildGarden({ layout }) {
+export function buildGarden({ layout, noVines = false }) {
   const group = new THREE.Group();
   group.name = 'garden';
   const disposables = [];
@@ -286,6 +292,7 @@ export function buildGarden({ layout }) {
   const coreMaterial = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false }); // seen by the AO only (bushCore)
   disposables.push(coreMaterial);
   for (const [n, sl] of slots.entries()) {
+    if (noVines && VINE_LAYERS.has(sl.layer)) continue;
     const kind = PLANTS[LAYERS[sl.layer].plant];
     if (sl.shape === 'box') {
       // A box hedge is its leaves alone, on a body only the AO sees: no shrub inside to trim.
