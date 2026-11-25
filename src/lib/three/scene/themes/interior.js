@@ -155,6 +155,18 @@ const CERAMIC = {
   plate: '#e6dcc0',
 };
 
+// The house seen from outside (interior/exterior.js). Picked by eye from the user's reference E1
+// (ochre walls, white trim, red zinc roof) and E4 (weathered timber): ESTIMATES, not measured.
+const HOUSE_OUTSIDE = {
+  clad: '#c8923c', // ochre-painted weatherboards (E1)
+  zinc: '#a4442c', // red-painted corrugated zinc (E1)
+  trim: '#eee8da', // white window surrounds, fascia, rails (E1)
+  post: '#6a5848', // dark timber: the lining behind the cladding, plinth vents (E4)
+  concrete: '#a29d93', // stumps and pads
+  ground: '#74903a', // grass round the house: the waterfront's grass (themes/outside.js rough)
+  earth: '#7c6a52', // bare earth along the plinth's foot
+};
+
 // --- 2. The theme -----------------------------------------------------------------------------------
 
 export const INTERIOR_THEME = {
@@ -174,6 +186,7 @@ export const INTERIOR_THEME = {
     decor: FABRIC.undyed, // mats and pictures: all colour is in the texture
     plate: CERAMIC.plate,
     leaf: PLANT.leaf,
+    ...HOUSE_OUTSIDE,
   },
   // The colour of the light through the curtains (emissive; strengths are in light.glow).
   glow: { valance: FABRIC.undyed, sheer: FABRIC.undyed, white: FABRIC.whiteGlow },
