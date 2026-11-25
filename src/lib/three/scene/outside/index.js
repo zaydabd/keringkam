@@ -76,7 +76,7 @@ const SKY_KEY = OUTSIDE_THEME.air.skyKey;
  * clay render of the clay theme (plain grey, no painted textures, no water shader); `stage` lists
  * the objects to build (default: all).
  */
-export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME.air.daylight, light = 1, key = 1, sun, mode, stage, flora = null }) {
+export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME.air.daylight, light = 1, key = 1, sun, mode, stage, flora = null, bush = true }) {
   const group = new THREE.Group();
   const disposables = [];
   const S = SITE;
@@ -112,7 +112,7 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
   }
   if (want('forecourt')) reports.forecourt = buildForecourt(w); // the Assembly's river front on the embankment (pass e7)
   if (want('waterfront')) reports.waterfront = buildNearWaterfront(w); // our side: the waterfront's street and railing (pass e11)
-  if (want('waterbush')) {
+  if (want('waterbush') && bush) { // bush: false when the house's garden replaces it (garden.js)
     // the bush on the grass right below the window; under ?flora=stylised its blobs give way to the bougainvillea
     reports.waterbush = buildWaterBush(flora === 'blockout' ? new SlotWriter() : w, { seed, body: flora === 'stylised' ? new SlotWriter() : undefined });
     if (flora) floraEntries.push(...reports.waterbush.layout);
@@ -120,7 +120,7 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
   // ?flora=stylised, the user's choice: a tall bougainvillea just outside the middle window, a
   // little left of it, its top showing over the sill from the seat; and a young nipah on the grass
   // to the right of the window view. Places and sizes are design guesses, tuned by eye.
-  if (flora === 'stylised' && want('waterbush')) {
+  if (flora === 'stylised' && want('waterbush') && bush) {
     floraEntries.push({ group: 'proposed: bougainvillea (middle window)', kind: 'bush', at: [-2.5, S.ground, -7.3], height: 3.9, width: 3.3, squash: 0.5, yaw: 0.3 });
     floraEntries.push({ group: 'proposed: nipah (window right)', kind: 'bush', at: [1.6, S.ground, -9.5], height: 3, width: 5, yaw: 1.1 });
   }

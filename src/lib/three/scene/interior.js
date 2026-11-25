@@ -61,6 +61,7 @@ import { buildHangings } from './interior/hangings.js';
 import { buildVines } from './interior/vines.js';
 import { floraMode, windowVineLayout, vineMarkers, buildFloraBlockout, showFloraLegend, windowHangingProposal, roomPlantsProposal } from './flora-layout.js';
 import { buildFloraStylised } from './flora-stylised.js';
+import { gardenEntries } from './garden.js';
 import { shadeWalls, glossBoards, buildContactShadows } from './interior/surfaces.js';
 import { drapeAll, fabricGeometry, partColour, fabricIndex } from './interior/fabrics.js';
 import { createTextureStore, fabrics as FABRIC_PHOTOS } from '../common.js';
@@ -473,7 +474,7 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
   // Outside: the Sarawak River at Kuching (outside/index.js). ?off=outside hides it (the windows
   // then show plain daylight). ?debug=flat and ?debug=silhouette also apply to it.
   const outsideAt = performance.now();
-  const landscape = createOutside({ gradientMap, seed, fog: scene.fog, haze: AIR.daylight, light: LIGHT, key: AIR.key, sun: sun.position.clone().sub(sun.target.position), mode: clay ? 'clay' : debug === 'flat' || debug === 'silhouette' ? debug : undefined, stage, flora });
+  const landscape = createOutside({ gradientMap, seed, fog: scene.fog, haze: AIR.daylight, light: LIGHT, key: AIR.key, sun: sun.position.clone().sub(sun.target.position), mode: clay ? 'clay' : debug === 'flat' || debug === 'silhouette' ? debug : undefined, stage, flora, bush: !params.get('garden') }); // a garden (garden.js) replaces the old bush below the window
   const outsideMs = performance.now() - outsideAt;
   if (clay) scene.fog = null; // no haze
   landscape.group.visible = !off.has('outside');
@@ -494,6 +495,13 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
     const legend = [...(landscape.flora ?? []), ...vineBlockout.legend];
     console.info('[flora]', JSON.stringify(legend.map(({ group, kind, count }) => ({ group, kind, count }))));
     removeLegend = showFloraLegend(legend, `?flora=${flora}`);
+  }
+  // Planting round the house (garden.js): ?garden=a|b|c, trial setups to choose from.
+  const gardenList = gardenEntries(params);
+  const garden = gardenList.length ? buildFloraStylised(gardenList) : null;
+  if (garden) {
+    garden.group.visible = !stage && !off.has('house');
+    scene.add(garden.group);
   }
   if (debug) {
     console.info('outside', JSON.stringify(landscape.stats));
@@ -985,6 +993,7 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
       contact.foot.dispose();
       landscape.dispose();
       vineBlockout?.dispose();
+      garden?.dispose();
       removeLegend?.();
       gradientMap.dispose();
       outline.dispose();
