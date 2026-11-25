@@ -59,6 +59,14 @@ const VIEWS = {
   'garden-bougainvillea-seat': ['garden=bougainvillea', WIDE],
   'garden-bougainvillea-window': ['garden=bougainvillea&view=window&look=0,0', WIDE],
   'garden-bougainvillea-wall': ['garden=bougainvillea&eye=-1.4,-0.1,-10.5&yaw=180&pitch=12&fov=55&look=0,0', WIDE], // facing the river wall
+  'garden-bougainvillea-plants-high': ['garden=bougainvillea&grow=plants&eye=-12,7,-14&yaw=139&pitch=-15&fov=50&look=0,0', WIDE],
+  'garden-bougainvillea-plants-wall': ['garden=bougainvillea&grow=plants&eye=-1.4,-0.1,-10.5&yaw=180&pitch=12&fov=55&look=0,0', WIDE],
+  'garden-bougainvillea-plants-seat': ['garden=bougainvillea&grow=plants', WIDE],
+  'garden-bougainvillea-plants-window': ['garden=bougainvillea&grow=plants&view=window&look=0,0', WIDE],
+  'garden-bougainvillea-trim-high': ['garden=bougainvillea&grow=trim&eye=-12,7,-14&yaw=139&pitch=-15&fov=50&look=0,0', WIDE],
+  'garden-bougainvillea-trim-wall': ['garden=bougainvillea&grow=trim&eye=-1.4,-0.1,-10.5&yaw=180&pitch=12&fov=55&look=0,0', WIDE],
+  'garden-bougainvillea-trim-seat': ['garden=bougainvillea&grow=trim', WIDE],
+  'garden-bougainvillea-trim-window': ['garden=bougainvillea&grow=trim&view=window&look=0,0', WIDE],
   'ext-river-clay': ['eye=-10,-0.25,-12&yaw=139&pitch=10&fov=50&look=0,0&theme=clay', WIDE],
   'bridge-close': ['eye=-112,10,-58&yaw=32&pitch=13&fov=52&look=0,0', WIDE],
   // the river's wave model: its normal, its mirror strength, and what the pixel filter keeps

@@ -23,7 +23,7 @@ export const LAYERS = {
   column: { plant: 'bougainvillea', label: 'Bougainvillea trained flat on the wall', colour: '#d9579b' },
   corner: { plant: 'bougainvillea', label: 'Bougainvillea, a rounded bush', colour: '#f0974a' },
   palm: { plant: 'nipah', label: 'Nipah palm', colour: '#2f7a4a' },
-  mound: { plant: 'bougainvillea', label: 'Bougainvillea bush, trimmed (tops about 1 m above the floor)', colour: '#c2407f' },
+  mound: { plant: 'bougainvillea', label: 'Bougainvillea bush, trimmed (tops about 1.3 m above the floor)', colour: '#c2407f' },
   climber: { plant: 'bougainvillea', label: 'Bougainvillea trained up the wall beside a window', colour: '#f08cc0' },
   tree: { plant: 'rainTree', label: 'Rain tree (kept smaller than a wild one)', colour: '#3d6b2f' },
 };
@@ -123,7 +123,7 @@ export const LAYOUTS = {
     ],
   },
   // 5. The user's design (2026-11-25): bougainvillea all along the river wall, wrapping round both
-  // corners, its tops trimmed about 1 m above the floor so a band of flowers shows at the bottom
+  // corners, its tops trimmed about 1.3 m above the floor so a band of flowers shows at the bottom
   // of the windows; a few trained up the wall beside the windows like creepers; a rain tree on
   // each side.
   bougainvillea: {
@@ -134,8 +134,8 @@ export const LAYOUTS = {
       [[sideX, wallZ], [sideX, Z0 + 1.7], [X1 + 1.0, Z0 + 1.7], [X1 + 1.0, wallZ]],
     ],
     slots: [
-      // the row along the river wall: overlapping mounds, tops between 0.9 and 1.1 m above the floor
-      ...Array.from({ length: 10 }, (_, k) => ({ layer: 'mound', at: [X0 - 0.85 + k * ((X1 - X0 + 1.7) / 9), Z0 - 0.5 + (k % 2 ? 0.06 : -0.04)], rx: 0.55, rz: 0.42, h: HOUSE_FLOOR_ABOVE_GROUND + [1.0, 0.92, 1.08, 0.95, 1.1, 0.9, 1.05, 0.97, 1.1, 0.93][k] })),
+      // the row along the river wall: overlapping mounds, tops between 1.2 and 1.4 m above the floor (raised from about 1 m: the user's choice, so they show from the seat too)
+      ...Array.from({ length: 10 }, (_, k) => ({ layer: 'mound', at: [X0 - 0.85 + k * ((X1 - X0 + 1.7) / 9), Z0 - 0.5 + (k % 2 ? 0.06 : -0.04)], rx: 0.55, rz: 0.42, h: HOUSE_FLOOR_ABOVE_GROUND + [1.3, 1.22, 1.38, 1.25, 1.4, 1.2, 1.35, 1.27, 1.4, 1.23][k] })),
       // round the corners, a little lower
       { layer: 'mound', at: [X0 - 0.5, Z0 + 0.45], rx: 0.45, rz: 0.55, h: 1.25 },
       { layer: 'mound', at: [X0 - 0.5, Z0 + 1.25], rx: 0.42, rz: 0.45, h: 1.05 },

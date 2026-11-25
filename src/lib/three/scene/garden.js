@@ -11,9 +11,10 @@ import { LAYOUTS, LAYERS, WALLS } from './garden-layouts.js';
 import { plant as bougainvillea } from '../vegetation/plants/bougainvillea.js';
 import { plant as aglaonema } from '../vegetation/plants/aglaonema.js';
 import { plant as nipah } from '../vegetation/plants/nipah.js';
+import { plant as rainTree } from '../vegetation/plants/rainTree.js';
 
 const GH = HOUSE.ground.y; // the terrace (-0.45)
-const PLANTS = { bougainvillea, aglaonema, nipah };
+const PLANTS = { bougainvillea, aglaonema, nipah, rainTree };
 
 export const GARDEN = {
   kerb: { w: 0.1, h: 0.12 }, // concrete edging round each bed
@@ -119,23 +120,26 @@ export function buildGarden({ layout, stage }) {
   }
   for (const [n, sl] of slots.entries()) {
     const kind = PLANTS[LAYERS[sl.layer].plant];
-    const made = kind.create({ seed: 1 + (n % 5), lod: 'near' });
+    const made = kind.create({ seed: 1 + (n % 5), lod: 'near', leaves: kind === rainTree ? 0.65 : undefined }); // 0.65: the rain tree's smaller clumps for trees seen close (rainTree.js)
     disposables.push(made);
     const plant = made.group;
     plant.traverse((o) => {
       if (o.isMesh) o.geometry = o.geometry.clone(); // each copy its own geometry: trimming changes it
     });
-    // Scaled to a little over their cut, so they grow past it; the bougainvillea keeps the size
-    // its generator gives (its cards are sized for that: flora-stylised.js NATURAL_SIZE).
-    if (kind !== bougainvillea) {
-      plant.updateMatrixWorld(true);
-      const top = new THREE.Box3().setFromObject(plant).max.y;
-      plant.scale.setScalar((sl.h * 1.15) / top);
-    }
+    // Sizes. The bougainvillea keeps its generator's width (its cards are sized for that:
+    // flora-stylised.js NATURAL_SIZE), but is drawn taller where its slot is taller than the
+    // shrub (~2 m): a climber is the shrub stretched up the wall, then cut narrow. Trees are
+    // scaled to fit their slot whole and never cut. The rest are scaled a little over their cut.
+    plant.updateMatrixWorld(true);
+    const box = new THREE.Box3().setFromObject(plant);
+    const top = box.max.y;
+    if (kind === bougainvillea) plant.scale.set(1, Math.max(1, (sl.h * 1.1) / top), 1);
+    else if (sl.layer === 'tree') plant.scale.setScalar(Math.min(sl.h / top, (2 * sl.rx) / Math.max(box.max.x - box.min.x, box.max.z - box.min.z)));
+    else plant.scale.setScalar((sl.h * 1.15) / top);
     plant.rotation.y = n * 1.7;
     plant.position.set(sl.at[0], GH, sl.at[1]);
     plant.updateMatrixWorld(true);
-    if (stage === 'trim') {
+    if (stage === 'trim' && sl.layer !== 'tree') {
       const kept = [];
       plant.traverse((o) => o.isMesh && kept.push(trim(o, sl)));
       stats.kept[`${sl.layer} ${n}`] = +(kept.reduce((a, k) => a + k, 0) / kept.length).toFixed(2);
