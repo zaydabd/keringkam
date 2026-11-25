@@ -150,11 +150,11 @@ export const LAYOUTS = {
       { layer: 'mound', at: [X0 - 0.5, Z0 + 1.25], rx: 0.42, rz: 0.45, h: 1.05 },
       { layer: 'mound', at: [X1 + 0.5, Z0 + 0.45], rx: 0.45, rz: 0.55, h: 1.25 },
       { layer: 'mound', at: [X1 + 0.5, Z0 + 1.25], rx: 0.42, rz: 0.45, h: 1.05 },
-      // climbers beside the windows, flat against the wall, up to just under the eaves
-      { layer: 'climber', at: [w1.x0 - 0.32, Z0 - 0.2], rx: 0.16, rz: 0.18, h: 3.2 },
-      { layer: 'climber', at: [pierL, Z0 - 0.2], rx: 0.18, rz: 0.18, h: 3.25 },
-      { layer: 'climber', at: [pierR, Z0 - 0.2], rx: 0.16, rz: 0.18, h: 3.15 },
-      { layer: 'climber', at: [w3.x1 + 0.3, Z0 - 0.2], rx: 0.14, rz: 0.18, h: 3.2 },
+      // climbers beside the windows, against the wall, up to just under the eaves (widened from rx 0.14-0.18: they read sparse once trimmed)
+      { layer: 'climber', at: [w1.x0 - 0.36, Z0 - 0.22], rx: 0.3, rz: 0.24, h: 3.2 },
+      { layer: 'climber', at: [pierL, Z0 - 0.22], rx: 0.26, rz: 0.24, h: 3.25 },
+      { layer: 'climber', at: [pierR, Z0 - 0.22], rx: 0.26, rz: 0.24, h: 3.15 },
+      { layer: 'climber', at: [w3.x1 + 0.34, Z0 - 0.22], rx: 0.28, rz: 0.24, h: 3.2 },
       // vines hanging from the window heads, over the top of each opening (top just under the head trim)
       { layer: 'curtain', shape: 'hang', at: [w1.x0 + 0.38, Z0 - 0.07], top: WIN_HEAD, w: 0.7, h: 1.1 },
       { layer: 'hanging', shape: 'hang', at: [w1.x1 - 0.2, Z0 - 0.07], top: WIN_HEAD, w: 0.4, h: 0.95 },

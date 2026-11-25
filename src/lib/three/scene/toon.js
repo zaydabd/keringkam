@@ -30,9 +30,18 @@ const EDGE_VERTEX = /* glsl */ `
   varying vec3 vNormal;
   flat varying vec3 vColor; // flat: a part id must not pick up interpolation error on large triangles
   void main() {
-    vNormal = normalize(normalMatrix * normal);
+    // Instanced meshes (the vines' leaves): three defines USE_INSTANCING and supplies instanceMatrix
+    // even under scene.overrideMaterial; without this every instance was inked at the mesh origin,
+    // stacked into a "web of thin lines" in the window shot.
+    #ifdef USE_INSTANCING
+      vec4 p = instanceMatrix * vec4(position, 1.0);
+      vNormal = normalize(normalMatrix * mat3(instanceMatrix) * normal);
+    #else
+      vec4 p = vec4(position, 1.0);
+      vNormal = normalize(normalMatrix * normal);
+    #endif
     vColor = color;
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    gl_Position = projectionMatrix * modelViewMatrix * p;
   }
 `;
 const EDGE_FRAGMENT = /* glsl */ `

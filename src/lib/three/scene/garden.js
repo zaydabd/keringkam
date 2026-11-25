@@ -12,13 +12,25 @@ import { plant as bougainvillea } from '../vegetation/plants/bougainvillea.js';
 import { plant as aglaonema } from '../vegetation/plants/aglaonema.js';
 import { plant as nipah } from '../vegetation/plants/nipah.js';
 import { plant as rainTree } from '../vegetation/plants/rainTree.js';
-import { createVineCurtain } from '../vegetation/vine-curtain.js';
-import { createHangingVine } from '../vegetation/hanging-vine.js';
+import { createVineCurtain, VINE_CURTAIN } from '../vegetation/vine-curtain.js';
+import { createHangingVine, HANGING_VINE } from '../vegetation/hanging-vine.js';
 
 const GH = HOUSE.ground.y; // the terrace (-0.45)
+// Garden copies of the vines, for the window shot (about 1.5 m off, where a pixel is about
+// 1.4 mm). The generators' tendrils (0.4-1.2 mm) and thin side shoots go below a pixel there and
+// alias into a web of thin lines, and 16 strands per panel read too dense. So: no tendrils, fewer
+// strands, every stem at least ~2.5 mm thick. ESTIMATED from the lens, not measured.
+const MIN_R = 0.0025;
+const thick = (o) => ({ ...o, radius: Math.max(o.radius, MIN_R), tipRadius: Math.max(o.tipRadius, MIN_R * 0.6) });
+const GARDEN_CURTAIN = {
+  ...VINE_CURTAIN,
+  strand: { ...thick(VINE_CURTAIN.strand), count: 9, tendril: 0, sideShoots: [0, 1] },
+  shoot: { ...thick(VINE_CURTAIN.shoot), tendril: 0 },
+};
+const GARDEN_HANGING = { ...HANGING_VINE, strand: { ...thick(HANGING_VINE.strand), count: 6, tendril: 0 } };
 // The vine generators made into plants: create({ seed }) -> { group, stats, dispose }.
-const vineCurtain = { id: 'vineCurtain', create: ({ seed }) => createVineCurtain({ seed }) };
-const hangingVine = { id: 'hangingVine', create: ({ seed }) => createHangingVine({ seed }) };
+const vineCurtain = { id: 'vineCurtain', create: ({ seed }) => createVineCurtain({ seed, species: GARDEN_CURTAIN }) };
+const hangingVine = { id: 'hangingVine', create: ({ seed }) => createHangingVine({ seed, species: GARDEN_HANGING }) };
 const PLANTS = { bougainvillea, aglaonema, nipah, rainTree, vineCurtain, hangingVine };
 
 export const GARDEN = {

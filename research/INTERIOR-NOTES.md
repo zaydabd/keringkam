@@ -2505,7 +2505,8 @@ the edges change here.
 - **Plans:** `node research/tools/garden-plans.mjs > plans.json && python3 research/tools/garden-plans.py plans.json out.png [layout]`
   draws the layouts top down; with a layout key, also its front view and a side cut with the
   seat's and window shot's sight lines.
-- **Open issues (last render, headless SwiftShader):** the window shot's vines are too dense and
+- **Fixed (2026-11-25):** the "web of thin lines" was the ink pass: its edge shader (toon.js) ignored `instanceMatrix`, so every instanced vine leaf was inked stacked at the vine's origin. Garden vines now have no tendrils, fewer strands and stems of at least 2.5 mm; climbers are wider; the `*-wall` captures stand outside the tree.
+- **Was open:** the window shot's vines are too dense and
   show a web of thin lines (cause not found); the `garden-bougainvillea-*-wall` capture's camera
   stands inside the tree; the climbers are sparse.
 - **Not done:** step 3, camera angles from outside.
