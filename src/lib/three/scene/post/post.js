@@ -1,4 +1,4 @@
-// The interior's post-processing (interior.js): the scene, ambient occlusion, the ink, the
+// The interior's post-processing (scene/index.js): the scene, ambient occlusion, the ink, the
 // watercolour pigment, the finish (tone map and grade) and anti-aliasing, in that order.
 
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';

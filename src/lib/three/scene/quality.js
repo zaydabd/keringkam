@@ -1,5 +1,5 @@
 // Graphics settings: every number that trades picture for speed, in one place, and the presets the
-// settings panel offers (components/Interior.svelte). createInterior takes the settings at load
+// settings panel offers (components/Interior.svelte). createScene takes the settings at load
 // and setQuality changes them while the page runs; only the texture detail needs a reload (the
 // painted textures are made at load). The debug query switches (?dpr, ?maxpx, ?aores, ?aosamples,
 // ?aa, ?paint, ?fabrics) still win over these. Measured costs: research/INTERIOR-NOTES.md, pass p1.
@@ -24,7 +24,7 @@ export const MAX_PIXEL_RATIO = 3;
 export const MIN_PIXEL_RATIO = 0.5;
 
 /**
- * Stepping the resolution down while frames come slowly (interior.js paceResolution): measured on
+ * Stepping the resolution down while frames come slowly (scene/index.js paceResolution): measured on
  * frames where the view moved, `frames` of them with a median over `slowMs` step to the next ratio
  * in `steps`; an interval over `hiddenMs` is a hidden tab, not a pace.
  */

@@ -12,7 +12,7 @@
 //       walls, a corrugated zinc roof.
 // Massing after E4 (one small room) but on the ground; finishes after E1. Every size below is an ESTIMATE
 // unless its comment says otherwise. Materials: clad, zinc, trim, post, concrete, ground, earth
-// (interior.js), and the room's frame for the door leaf.
+// (scene/index.js), and the room's frame for the door leaf.
 
 import * as THREE from 'three';
 import { PLAN } from '../world/plan.js';

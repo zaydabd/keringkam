@@ -1,22 +1,26 @@
 # The scene
 
-Three layers, in the order a frame is made:
+`index.js` (`createScene`) sets up the renderer, adds the two items, runs the frame loop and
+frees everything on `destroy()`.
 
-1. **The scene** (`interior.js`): wires the parts together, runs the frame loop and frees
-   everything on `destroy()`. `stage/` holds what frames the scene: lights, camera shots,
-   controls and frame pacing.
-2. **The items in the scene**:
-   - `room/`: the room, its furniture, curtains and fabrics
-   - `outside/`: the river view
-   - `garden/`: the garden and the plants' layout, built from `../vegetation/`
-   - `paint/` (via `paint.js`): the painted textures these items use
-3. **Post** (`post/`): the passes on the finished image: AO, ink, watercolour pigment, exposure
-   meter, finish and anti-aliasing.
+- **stage/**: what frames the scene. Lights, camera shots, controls and frame pacing.
+- **world/**: the shared layout. `PLAN` (the room), `HOUSE` (its shell), `SITE` and `WINDOW_EYE`
+  (the riverside).
+- **Items.** Each one returns `{ group, update(t, dt), dispose() }`:
+  - **house/** (`createHouse`): the room, furniture, curtains, fabrics, the house's shell, its
+    paint, and `garden/` (the garden and the house's plant placement).
+  - **riverside/** (`createRiverside`): from where the garden ends to the far bank. That covers
+    the waterfront, forecourt, river, boats, bridge, the Assembly building, the banks and the far
+    bank's grass and plants, plus its own paint and sky.
+- **post/**: the passes on the finished image. AO, ink, watercolour pigment, the exposure meter,
+  the finish and anti-aliasing.
 
-All three layers use the shared modules:
-- `themes/` for colours and looks
-- `layers.js` for render layers
-- `toon.js` for the toon ramp and outline
-- `quality.js` for settings
-- `debugMaterials.js` for the debug materials
-- `../../utils/` for random, noise and URL options
+Shared by all of them:
+- `themes/`: colours and looks
+- `layers.js`: render layers
+- `toon.js`: toon ramp and outline
+- `quality.js`: settings
+- `debugMaterials.js`
+- `paint/core.js`: the brush tools
+- `../vegetation/`: the plants, and `stylised.js`, the plant builder both items use
+- `../../utils/`: random, noise and URL options

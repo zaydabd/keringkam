@@ -19,7 +19,7 @@ export const LATTICE_TILE = {
 };
 
 /**
- * Lattice panels in the lower part of each window: alpha-cut planes (own mesh, see createInterior).
+ * Lattice panels in the lower part of each window: alpha-cut planes (own mesh, see createScene).
  * Each panel shows a whole number of motifs, so both edges end on the same part of the pattern.
  */
 export function buildLattice(b) {

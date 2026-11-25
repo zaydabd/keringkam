@@ -1,4 +1,4 @@
-// The interior's camera input (interior.js): the pointer's sway, walking with the keys, and
+// The interior's camera input (scene/index.js): the pointer's sway, walking with the keys, and
 // dragging to look. Each shot adds `walk` to its position and `turn` to its yaw and pitch.
 
 import * as THREE from 'three';

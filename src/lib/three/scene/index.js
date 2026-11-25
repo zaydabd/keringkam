@@ -61,7 +61,7 @@ export { furnitureOverlaps } from './house/furniture.js';
 
 const THEME = INTERIOR_THEME;
 
-export function createInterior(canvas, { onReady, onShot, onResolution, onFrameRate, quality } = {}) {
+export function createScene(canvas, { onReady, onShot, onResolution, onFrameRate, quality } = {}) {
   // The graphics settings (quality.js): the resolution, AO, shadows, anti-aliasing and texture
   // detail. setQuality changes them while the page runs.
   const Q = normalise(quality);

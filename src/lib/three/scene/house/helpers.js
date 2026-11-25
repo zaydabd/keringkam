@@ -1,4 +1,4 @@
-// Small helpers for the interior scene (interior.js).
+// Small helpers for the interior scene (scene/index.js).
 
 import * as THREE from 'three';
 

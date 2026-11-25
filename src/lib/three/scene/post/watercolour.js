@@ -116,6 +116,9 @@ export const PIGMENT_SHADER = {
   `,
 };
 
+// The wash's shift per seed wraps at this many px: the noise lattice repeats every 512 cells, 4096 px (toon.js).
+const FIELD_WRAP = 4096;
+
 /** Wires the pigment pass's noise into its uniforms. Call setView() each frame; seed moves the wash
  * (?seed=n), for seed sweeps. detail scales how fine the wash blotches are (the theme's
  * paint.detail: 1 as drawn, 2 twice as fine). */
@@ -125,7 +128,7 @@ export function createPigmentField(renderer, uniforms, { detail = 1 } = {}) {
   return {
     /** seed moves the wash (?seed=n). */
     update(seed) {
-      uniforms.fieldShift.value.set((613 * seed * detail) % 4096, (271 * seed * detail) % 4096);
+      uniforms.fieldShift.value.set((613 * seed * detail) % FIELD_WRAP, (271 * seed * detail) % FIELD_WRAP);
     },
     /** Keeps the wash on the world: call each frame after the camera moves. */
     setView(camera) {

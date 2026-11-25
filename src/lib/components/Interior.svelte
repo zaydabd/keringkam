@@ -1,7 +1,7 @@
 <script>
   import { onMount } from 'svelte';
   import { fade } from 'svelte/transition';
-  import { createInterior } from '../three/scene/interior.js';
+  import { createScene } from '../three/scene/index.js';
   import { loadQuality, saveQuality, loadShowFps, saveShowFps, loadWalk, saveWalk } from '../three/scene/quality.js';
   import GraphicsPanel from './interior/GraphicsPanel.svelte';
   import ViewMenus from './interior/ViewMenus.svelte';
@@ -39,7 +39,7 @@
   }
 
   onMount(() => {
-    scene = createInterior(canvas, {
+    scene = createScene(canvas, {
       quality: $state.snapshot(quality),
       onReady: () => (ready = true),
       onShot: (name) => (shot = name),

@@ -8,7 +8,7 @@
 //   cpuMs       time in the frame function (JS, culling, command submission); not the GPU's work
 //   gpuMs       GPU time of the frame, from EXT_disjoint_timer_query_webgl2 where the browser
 //               exposes it (null otherwise), split into the frame's passes (sections below)
-//   calls, triangles  renderer.info over all passes of the frame (interior.js sets autoReset off),
+//   calls, triangles  renderer.info over all passes of the frame (scene/index.js sets autoReset off),
 //               also split into the passes
 // Also: build and first-frame times, the cost of the shot switch itself (setShot meters the new
 // view at once: a small render, read back asynchronously), long frames, and memory counts.

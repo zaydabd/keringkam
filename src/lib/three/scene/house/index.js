@@ -1,6 +1,6 @@
 // The house, one of the scene's two items (the other is riverside/): the room, its furniture,
 // curtains and fabrics, the house's shell, and the garden and plants round it. Where the garden
-// ends, the riverside starts. interior.js wires it in; like every item it returns
+// ends, the riverside starts. scene/index.js wires it in; like every item it returns
 // { group, update(t, dt), dispose() }, plus what the rest of the scene needs from it.
 
 import * as THREE from 'three';
@@ -179,7 +179,7 @@ export function createHouse({ renderer, scene, camera, theme: THEME, params, deb
 
   let vineBlockout = null;
   if (flora === 'stylised') {
-    vineBlockout = own(buildFloraStylised([...windowHangingProposal(PLAN, { skipMiddle: true }), ...roomPlantsProposal(PLAN)]));
+    vineBlockout = own(buildFloraStylised([...windowHangingProposal(PLAN, { skipMiddle: true }), ...roomPlantsProposal(PLAN)], { potColour: THEME.materials.pot }));
     vineBlockout.group.visible = !stage;
     group.add(vineBlockout.group);
     stats.plants = vineBlockout.stats;

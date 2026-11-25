@@ -1,4 +1,4 @@
-// The frame rate for the settings panel's counter (interior.js onFrameRate): frames and the mean
+// The frame rate for the settings panel's counter (scene/index.js onFrameRate): frames and the mean
 // time between them, from the frames' own timestamps, about twice a second (every frame when they
 // are slower). A hidden tab draws no frames: the count starts again when the page is shown, so
 // that gap is not counted, while a slow frame, however long, is.

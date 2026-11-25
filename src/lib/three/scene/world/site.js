@@ -2,7 +2,7 @@
 //
 // Every number here is an estimate read off reference R3 (a painting supplied by the user; not
 // in the repo), not a surveyed fact. The painting was back-projected from the window shot
-// (interior.js SHOTS.window: eye then 4.7 m above the water, 5.7 m since the river was lowered in
+// (scene/index.js SHOTS.window: eye then 4.7 m above the water, 5.7 m since the river was lowered in
 // pass e13; 54 degree lens, horizon a little below the middle), so a point of the painting gets a
 // place in metres. The painting is not to scale
 // (its river is far narrower than the real Sarawak River at Kuching); the scene follows the
@@ -11,7 +11,7 @@
 import * as THREE from 'three';
 import { mulberry32 } from '../../../utils/rng.js';
 
-// The window shot's eye (interior.js SHOTS.window). Blades and leaf cards are wound to face it.
+// The window shot's eye (scene/index.js SHOTS.window). Blades and leaf cards are wound to face it.
 export const WINDOW_EYE = [-0.475, 1.5, -4.62];
 
 export const SITE = {

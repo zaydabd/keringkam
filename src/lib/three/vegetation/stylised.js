@@ -105,7 +105,7 @@ function copiesOf(entries, eye) {
  * pot: that plant was cancelled). `eye` picks each copy's level (null: all near). `layer` is
  * enabled on every mesh (the river's mirror). Returns { group, stats, dispose }.
  */
-export function buildFloraStylised(entries, { eye = null, layer } = {}) {
+export function buildFloraStylised(entries, { eye = null, layer, potColour = 'white' } = {}) {
   const root = new THREE.Group();
   root.name = 'flora-stylised';
   const models = new Map(); // `${id}|${seed}|${lod}|${leaves}` → { result, height, list: [copy] }
@@ -161,7 +161,7 @@ export function buildFloraStylised(entries, { eye = null, layer } = {}) {
   const pots = entries.filter((e) => e.kind === 'planter' && !(rubber && e.at[0] === rubber.at[0] && e.at[2] === rubber.at[2]) && !ownPots.some((re) => re.test(e.group)));
   if (pots.length) {
     const geo = new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0);
-    const mat = new THREE.MeshStandardMaterial({ color: '#9a8f84', roughness: 0.9 });
+    const mat = new THREE.MeshStandardMaterial({ color: potColour, roughness: 0.9 });
     const mesh = new THREE.InstancedMesh(geo, mat, pots.length);
     mesh.name = 'flora-stylised pots';
     pots.forEach((e, i) => mesh.setMatrixAt(i, m.compose(new THREE.Vector3(...e.at), q.setFromAxisAngle(up, e.yaw ?? 0), new THREE.Vector3(e.width, e.height, e.depth ?? e.width))));

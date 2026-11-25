@@ -2,7 +2,7 @@
   // The view controls at the bottom right: the seat/window button, the list of every view, the
   // theme picker, and the caption of a fabric's view.
   import { fade } from 'svelte/transition';
-  import { FABRIC_VIEWS } from '../../three/scene/interior.js';
+  import { FABRIC_VIEWS } from '../../three/scene/index.js';
   import { THEMES, THEME_NAME, DEFAULT_THEME } from '../../three/scene/themes/index.js';
   import { reloadWithOption } from '../../utils/urlOptions.js';
 

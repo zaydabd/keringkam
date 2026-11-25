@@ -9,7 +9,7 @@
 //   quality = low | medium | high      a graphics preset for this load, not saved (quality.js)
 //   view    = seat | window | fabric-<name>     the camera shot to start in
 //   fabrics = which fabric set         eye/yaw/pitch/fov = a free camera; look = x,y; cam = near | far
-//   debug, off, set, seed, t, perf, dpr, aa, stage, shot, maxpx: inspection (see interior.js's header)
+//   debug, off, set, seed, t, perf, dpr, aa, stage, shot, maxpx: inspection (see scene/index.js's header)
 // Plant preview (#/vegetation?…, read by VegetationPreview.svelte):
 //   plant, seed, lod, az, el, d, ty, leaves, bare, variant, clean
 

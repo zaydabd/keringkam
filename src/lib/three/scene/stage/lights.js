@@ -1,4 +1,4 @@
-// The room's lights (interior.js). The room's only openings are the three back windows and the
+// The room's lights (scene/index.js). The room's only openings are the three back windows and the
 // side window, so every light stands for one of them or for what bounces round the room
 // (themes/interior.js light):
 //   sun    through the back windows: hard patches on the boards just inside them
