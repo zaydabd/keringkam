@@ -424,8 +424,6 @@ export function clumpCentres(branches, species) {
     const tip = b.points[n - 1];
     const dir = tip.clone().sub(b.points[n - 2]).normalize();
     const c = tip.clone().addScaledVector(dir, F.radius * 0.3);
-    // `lift` (optional): raise the clump by a share of its radius, so it sits on top of the twig.
-    c.y += F.radius * (F.lift ?? 0);
     if (centres.every((o) => o.distanceTo(c) > F.radius * F.merge)) centres.push(c);
   }
   return centres;
@@ -517,8 +515,6 @@ export function createTree({ seed = 1, kind = 'birch', species = TREE_SPECIES[ki
       // Most leaves on the shell (a closed silhouette), a sparse fill inside so it never shows through.
       const shell = rand() < 0.85 ? range(rand, 0.82, 1) : range(rand, 0.3, 0.82);
       p.copy(c).addScaledVector(n, r * shell);
-      // `squash` (optional, 1 = round): a flatter clump, a pad of leaves on the branch.
-      p.y = c.y + (p.y - c.y) * (F.squash ?? 1);
       const roll = range(rand, 0, Math.PI * 2);
       const cr = Math.cos(roll);
       const sr = Math.sin(roll);
