@@ -96,7 +96,7 @@ function writeStems(stems, { radial, every = 1 }) {
  * `cells` = [leaf cell, bract cell] in the atlas. Bracts go on the outward, upper side of a
  * clump, in proportion to its bract share (guess).
  */
-function writeCards(rand, list, { radius, count, leafCard, bractCard, cells, aoScale = 1, bractBias = 1, tuck = false, crown }) {
+export function writeCards(rand, list, { radius, count, leafCard, bractCard, cells, aoScale = 1, bractBias = 1, tuck = false, crown, wrap }) {
   const frame = crownFrame(list.map((c) => c.centre), radius);
   const A = { position: [], normal: [], uv: [], corner: [], centre: [], color: [], ao: [], kind: [] };
   const indices = [];
@@ -108,7 +108,7 @@ function writeCards(rand, list, { radius, count, leafCard, bractCard, cells, aoS
   let leaves = 0;
   let bracts = 0;
   for (const c of list) {
-    const r = radius * range(rand, 0.8, 1.2);
+    const r = (c.r ?? radius) * range(rand, 0.8, 1.2);
     out.copy(c.centre).sub(frame.centre).divide(frame.half);
     const depth = Math.min(1, out.length());
     const away = out.lengthSq() > 1e-6 ? out.clone().normalize().dot(FOLIAGE_SUN) * 0.5 + 0.5 : 0.5;
@@ -160,7 +160,7 @@ function writeCards(rand, list, { radius, count, leafCard, bractCard, cells, aoS
   geometry.computeBoundingSphere();
   geometry.boundingSphere.radius += bractCard * 1.7;
   const atlas = createAtlas();
-  const material = createCardMaterial(atlas, LEAF_TONES, BRACT_TONES, { crown });
+  const material = createCardMaterial(atlas, LEAF_TONES, BRACT_TONES, { crown, wrap });
   const mesh = new THREE.Mesh(geometry, material);
   mesh.name = 'leaves and bracts';
   return {

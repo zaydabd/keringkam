@@ -7,6 +7,7 @@
 // --q      query parameters for the page (the free camera, debug=nopost, garden=off ...)
 // --window press "Look out of the window" once loaded, and shoot that view
 // --settle seconds to wait after the veil is gone (the veil fades for 1.2 s), default 1.5
+// --url=...#/vegetation?plant=id  a hash route (the plant preview) is used as it is
 // --console=text  print the page's console lines that contain `text` (e.g. --console=[garden])
 import { chromium } from 'playwright-core';
 
@@ -21,7 +22,7 @@ const argv = process.argv.slice(2);
 const args = Object.fromEntries(argv.filter((a) => a.startsWith('--')).map((a) => { const i = a.indexOf('='); return i < 0 ? [a.slice(2), ''] : [a.slice(2, i), a.slice(i + 1)]; }));
 const out = argv.find((a) => !a.startsWith('--')) ?? 'shot.png';
 const [width, height] = (args.size ?? '800x580').split('x').map(Number);
-const url = `${args.url ?? 'http://localhost:5173'}/${args.q ? `?${args.q}` : ''}`;
+const url = args.url?.includes('#') ? args.url : `${args.url ?? 'http://localhost:5173'}/${args.q ? `?${args.q}` : ''}`;
 const settle = Number(args.settle ?? 1.5) * 1000;
 
 const browser = await chromium.launch({

@@ -123,9 +123,9 @@ export function createAtlas(size = 128) {
  * round of its clump: 0.25 for a free shrub; a trimmed hedge uses more, so its light, mid and dark
  * bands fall over the whole hedge, not over each small clump.
  */
-export function createCardMaterial(map, leafTones, bractTones, { crown = 0.25 } = {}) {
+export function createCardMaterial(map, leafTones, bractTones, { crown = 0.25, wrap = 0.3 } = {}) {
   return new THREE.ShaderMaterial({
-    uniforms: { map: { value: map }, crown: { value: crown }, ...uniforms(leafTones, bractTones) },
+    uniforms: { map: { value: map }, crown: { value: crown }, wrap: { value: wrap }, ...uniforms(leafTones, bractTones) },
     vertexShader: /* glsl */ `
       attribute vec2 corner;
       attribute vec3 centre;
@@ -152,6 +152,7 @@ export function createCardMaterial(map, leafTones, bractTones, { crown = 0.25 } 
     fragmentShader: /* glsl */ `
       uniform sampler2D map;
       uniform vec3 sunDir;
+      uniform float wrap;
       ${CEL_RAMP_GLSL}
       ${BRACT_RAMP_GLSL}
       varying vec2 vUv;
@@ -164,8 +165,9 @@ export function createCardMaterial(map, leafTones, bractTones, { crown = 0.25 } 
         if (tex.a < 0.5) discard;
         vec3 L = normalize((viewMatrix * vec4(sunDir, 0.0)).xyz);
         // Wrapped light: leaves and bracts turned from the sun still get some, so a backlit bush
-        // keeps its greens and magentas instead of going black (design choice).
-        float shade = clamp((dot(normalize(vNormal), L) + 0.3) / 1.3, 0.0, 1.0) * vAo;
+        // keeps its greens and magentas instead of going black (design choice). wrap 0 is the
+        // trees' plain N.L, for hard light, mid and dark bands.
+        float shade = clamp((dot(normalize(vNormal), L) + wrap) / (1.0 + wrap), 0.0, 1.0) * vAo;
         vec3 col = (mod(vKind + 0.5, 2.0) > 1.0 ? bractRamp(shade) : celRamp(shade)) * vTint * tex.r;
         if (tex.g > 0.5) col = ${FLOWER} * (0.6 + 0.4 * shade);
         gl_FragColor = vec4(col, 1.0);
