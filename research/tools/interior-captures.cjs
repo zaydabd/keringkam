@@ -41,6 +41,13 @@ const VIEWS = {
   'outside-silhouette': ['view=window&look=0,0&debug=silhouette&off=ink,pigment,grade', WIDE],
   'assembly-close': ['eye=-40,25,-200&yaw=37&pitch=16&fov=40&look=0,0', WIDE],
   'assembly-close-flat': ['eye=-40,25,-200&yaw=37&pitch=16&fov=40&look=0,0&debug=flat', WIDE],
+  // outside the house (house-exterior): from the street by the river, the right side, the stairs side
+  'final-nohouse': ['off=house', WIDE], // the seat view without the house outside: must match 'final' before the house existed
+  'ext-river': ['eye=-10,-0.25,-12&yaw=139&pitch=10&fov=50&look=0,0', WIDE],
+  'ext-side': ['eye=9,1.15,4&yaw=-60&pitch=8&fov=50&look=0,0', WIDE],
+  'ext-front': ['eye=-2,1.15,11&yaw=3&pitch=8&fov=50&look=0,0', WIDE],
+  'ext-high': ['eye=-12,7,-14&yaw=139&pitch=-15&fov=50&look=0,0', WIDE],
+  'ext-river-clay': ['eye=-10,-0.25,-12&yaw=139&pitch=10&fov=50&look=0,0&theme=clay', WIDE],
   'bridge-close': ['eye=-112,10,-58&yaw=32&pitch=13&fov=52&look=0,0', WIDE],
   // the river's wave model: its normal, its mirror strength, and what the pixel filter keeps
   'water-normal': ['view=window&look=0,0&debug=water-normal&off=ink,pigment,grade', WIDE],

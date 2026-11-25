@@ -53,6 +53,7 @@ import { INTERIOR_THEME, OUTSIDE_THEME, CLAY_LOOK } from './themes/index.js';
 import { PLAN } from './interior/plan.js';
 import { V, Builder } from './interior/builder.js';
 import { buildRoom } from './interior/room.js';
+import { buildExterior } from './interior/exterior.js';
 import { buildLattice, LATTICE_TILE } from './interior/lattice.js';
 import { buildCurtains } from './interior/curtains.js';
 import { buildSeat, furnitureOverlaps, buildTable } from './interior/furniture.js';
@@ -304,6 +305,14 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
     ['decor', M.decor, textures.decor, { side: D }],
     ['plate', M.plate, null],
     ['leaf', M.leaf, null, { side: D }],
+    // The house outside (interior/exterior.js)
+    ['clad', M.clad, textures.wall],
+    ['zinc', M.zinc, null],
+    ['trim', M.trim, textures.planks],
+    ['post', M.post, textures.planks],
+    ['concrete', M.concrete, null],
+    ['ground', M.ground, null],
+    ['earth', M.earth, null],
   ]) {
     if (clay) {
       // Plain grey, lit as it is; the lattice and carving keep their holes (their texture as a mask).
@@ -359,6 +368,21 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
   const contact = buildContactShadows(textures.blob, sky.target.position.clone().sub(sky.position), textures.footBlob); // they fall the way the sky's light travels
   scene.add(contact.group);
   room.visible = contact.group.visible = !stage;
+
+  // The house outside the room (interior/exterior.js): its own builder, so it can be shown or
+  // hidden as one (?off=house). Seen only from outside: the room's views do not change.
+  const hb = new Builder();
+  buildExterior(hb.as('house'));
+  const house = new THREE.Group();
+  house.name = 'house';
+  house.add(...hb.build(materials));
+  // The house casts no sun shadow for now: its eaves shaded the curtains, and its deeper window
+  // reveals narrowed the sun on the floor, so both room views changed. The room's own walls still
+  // cast the house's shadow on the ground. The ground takes the haze: it runs far inland.
+  for (const mesh of house.children) mesh.castShadow = false;
+  if (!clay) materials.ground.fog = true;
+  house.visible = !stage && !off.has('house');
+  scene.add(house);
 
   // The fabrics (interior/fabrics.js): settled in Workers while the rest loads, then placed with
   // their 512 px photos. A fabric's 2048 px photo loads when its view is chosen (showFull). The

@@ -240,3 +240,12 @@ Technique only (how the brushwork and colour are built up). No image or texture 
 |---|---|---|
 | Look C (`?asm=c`): watercolour wash, light and shadow painted into the colour, pushed saturation | [A Guide on Creating a Stylized 3D House in Unreal Engine](https://80.lv/articles/a-guide-on-creating-a-stylized-3d-house-in-unreal-engine/) (80.lv) | Annie Xiao |
 | Look D (`?asm=d`): hand-painted dabs, lighter soft edges, warm light | [How to Create a Ghibli-Style Warm Environment with Hand-Painted Texture](https://80.lv/articles/how-to-create-a-ghibli-style-warm-environment-with-hand-painted-texture) (80.lv) | Abhishek Maity |
+
+# House exterior (2026-11-25, branch house-exterior)
+
+| ID | Photo | What it was used for | Author | Licence |
+|---|---|---|---|---|
+| E1 | Two-storey timber house: ochre walls, white trim, red zinc hipped roof (supplied by the user in chat; not in the repo) | Colours and finishes of the outside walls, trim and roof | Unknown | Unknown: not committed |
+| E4 | Small plank house on a river bank (supplied by the user in chat; not in the repo) | Massing: one small room | Unknown | Unknown: not committed |
+| — | [Sarawak.traditional.home.jpg](https://commons.wikimedia.org/wiki/File:Sarawak.traditional.home.jpg) ("A sarawakian-malay kampung house", Sarawak Cultural Village) | Found; not yet used | eulinky | CC BY 2.0 |
+| — | [Malay House](https://www.flickr.com/photos/92481623@N00/3430062533) (Sarawak Cultural Village) | Found; not yet used | williamnyk | CC BY 2.0 |

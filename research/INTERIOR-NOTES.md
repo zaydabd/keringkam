@@ -2459,3 +2459,34 @@ the edges change here.
 - **Roof rim:** its top outer edge is cut by 0.6 m (estimated).
 - **Triangle limit removed** (the user: "get rid of the limit"; it was 14,000). The building's
   triangles went from 11,170 to 15,766: rib 7,236, gold 4,892, stone 3,098, glass 540.
+### House exterior, step 1: the house on the ground (branch `house-exterior`, 2026-11-25)
+
+- **Request:** from outside, the room floated. Ground it and make it look like a house. The user
+  then asked for **no stilts**: the house sits on the ground.
+- **References:** four photos supplied by the user in chat (E1–E4; **not in the repo**, licences
+  unknown). E1: a two-storey timber house (ochre walls, white trim, red zinc hipped roof). E4: a
+  small plank house by a river. E2 and E3 are modern brick and concrete houses: not used.
+  Public Sarawak Malay exterior photos found so far: `Sarawak.traditional.home.jpg` on Commons
+  (eulinky, CC BY 2.0, "A sarawakian-malay kampung house") and williamnyk's
+  [Malay House](https://www.flickr.com/photos/92481623@N00/3430062533) (CC BY 2.0, Sarawak Cultural
+  Village). Not downloaded into the repo.
+- **What was built** (`src/lib/three/scene/interior/exterior.js`; all sizes **ESTIMATED**):
+  - The ground: a terrace with its top at y -0.45 (45 cm below the floor), from z -6.8 inland to
+    z 160, x -160..160, with a grass bank down to the street's grass (SITE.ground, -1.85) at z -8.
+    The street, river and window view keep their heights. The terrace and bank are under the
+    window shot's lowest sight line (worked out from the window eye and its 54° lens), so they do
+    not show from inside.
+  - A concrete plinth wall with small vents, from the ground to the cladding.
+  - Ochre horizontal weatherboards (18 cm, lapped), white corner boards, a skirting, a vented
+    white frieze above the ceiling line (2.84–3.1 m), white window and door surrounds with drip caps.
+  - A hipped roof of red corrugated zinc, pitch 35°, eaves 0.6 m, ridge along z, hip and ridge
+    cappings, white fascia and soffit.
+  - A planked door in the front wall (z 1.2, behind the seat camera), a landing level with the
+    floor, and two concrete steps down to the terrace.
+- **Interior views kept:** the house casts **no sun shadow** for now. With shadows on, the eaves
+  darkened the curtains in the window shot and the deeper window reveals narrowed the sun on the
+  floor (the seat view changed). Pixel check (CLOCK=5, 2% fuzz): window shot 106 px differ; seat
+  view 16.6k px, against 13.6k px between two runs without the house (run-to-run noise). The
+  user can choose to turn the house's shadows on (realistic, but the room changes).
+- **New captures** (`research/tools/interior-captures.cjs`): `ext-river`, `ext-side`,
+  `ext-front`, `ext-high`, `ext-river-clay`, `final-nohouse`. `?off=house` hides the house.
