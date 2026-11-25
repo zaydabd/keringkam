@@ -38,10 +38,12 @@ const barkOf = (light, dark, base = 0.4) => {
 // Leaf clumps per tree (tree.js foliage format). Tones are guesses from the user's photos:
 // kapok a light fresh green; rain tree a dark olive to shiny green; trumpet tree in pink
 // bloom as in the user's photo 5 (pink and white forms are planted in Malaysia, FRIM, above).
-const LEAVES = { merge: 1.1, density: 1.0, mask: { curve: 0.04 } };
-const KAPOK_LEAVES = { ...LEAVES, radius: 2.0, card: 0.42, density: 1.2, tones: ['#2d4a1e', '#5f8f37', '#b9d77a'] };
-const RAIN_LEAVES = { ...LEAVES, radius: 1.5, card: 0.4, density: 1.1, tones: ['#223b1f', '#4c7a33', '#a8c962'] };
-const TABEBUIA_LEAVES = { ...LEAVES, radius: 1.1, card: 0.32, density: 1.2, tones: ['#7a2d58', '#cf6a9f', '#f6bcd8'] };
+// Clumps kept small, a little flattened and lifted onto the twig tips, so the leaves read as
+// pads on top of the branches (as on the pedada, after the user's photo) and branches show between.
+const LEAVES = { merge: 1.1, density: 0.95, lift: 0.4, squash: 0.75, mask: { curve: 0.04 } };
+const KAPOK_LEAVES = { ...LEAVES, radius: 1.4, card: 0.4, tones: ['#2d4a1e', '#5f8f37', '#b9d77a'] };
+const RAIN_LEAVES = { ...LEAVES, radius: 1.1, card: 0.38, squash: 0.7, tones: ['#223b1f', '#4c7a33', '#a8c962'] };
+const TABEBUIA_LEAVES = { ...LEAVES, radius: 0.85, card: 0.3, squash: 0.85, tones: ['#7a2d58', '#cf6a9f', '#f6bcd8'] };
 
 export const TREE_STUDIES = {
   // Photo 1: the old kapok, huge pale trunk on wide plank buttresses, a few long horizontal tiers.
@@ -52,7 +54,7 @@ export const TREE_STUDIES = {
       { length: [17, 18], radius: 0.85, tip: 0.22, sections: 18, radial: 40, gnarl: 0.015, up: 0.05, lean: 0.02, base: { flare: 0.45, height: 4.0, lobes: 6, lobe: 1.8, sharp: 4 } },
       { count: 15, whorl: 3, emerge: [0.38, 0.97], angle: [1.35, 1.5], length: [0.5, 0.62], radius: 0.5, tip: 0.03, sections: 12, radial: 9, gnarl: 0.04, up: 0.025, shorten: 0.5, kink: 0.18, kinkRate: 0.25, flare: 0.5 },
       { count: 5, emerge: [0.35, 1], angle: [0.6, 1.0], length: [0.3, 0.42], radius: 0.55, tip: 0.015, sections: 5, radial: 5, gnarl: 0.12, up: 0.1, shorten: 0.3 },
-      { count: 4, emerge: [0.3, 1], angle: [0.6, 1.0], length: [0.4, 0.6], radius: 0.6, tip: 0.005, sections: 3, radial: 3, gnarl: 0.2, up: 0.05, shorten: 0.3 },
+      { count: 4, emerge: [0.3, 1], angle: [0.6, 1.0], length: [0.4, 0.6], radius: 0.6, tip: 0.005, sections: 3, radial: 3, gnarl: 0.2, up: 0.14, shorten: 0.3 },
     ],
     foliage: KAPOK_LEAVES,
   },
@@ -64,7 +66,7 @@ export const TREE_STUDIES = {
       { length: [19, 20], radius: 0.7, tip: 0.18, sections: 20, radial: 36, gnarl: 0.02, up: 0.05, lean: 0.03, base: { flare: 0.4, height: 3.0, lobes: 5, lobe: 1.3, sharp: 4 } },
       { count: 18, whorl: 3, emerge: [0.45, 0.97], angle: [1.25, 1.45], length: [0.36, 0.48], radius: 0.48, tip: 0.03, sections: 10, radial: 8, gnarl: 0.05, up: 0.06, shorten: 0.45, kink: 0.22, kinkRate: 0.3, flare: 0.5, elbow: 0.15 },
       { count: 6, emerge: [0.2, 1], angle: [0.5, 0.9], length: [0.3, 0.45], radius: 0.5, tip: 0.015, sections: 5, radial: 4, gnarl: 0.12, up: 0.08, shorten: 0.3 },
-      { count: 4, emerge: [0.3, 1], angle: [0.6, 1.0], length: [0.4, 0.6], radius: 0.6, tip: 0.005, sections: 3, radial: 3, gnarl: 0.2, up: 0.05, shorten: 0.3 },
+      { count: 4, emerge: [0.3, 1], angle: [0.6, 1.0], length: [0.4, 0.6], radius: 0.6, tip: 0.005, sections: 3, radial: 3, gnarl: 0.2, up: 0.14, shorten: 0.3 },
     ],
     foliage: KAPOK_LEAVES,
   },
@@ -74,9 +76,9 @@ export const TREE_STUDIES = {
     barkPattern: 'plates',
     levels: [
       { length: [3.6, 4.2], radius: 0.5, tip: 0.36, sections: 8, radial: 14, gnarl: 0.04, up: 0.02, lean: 0.25, base: { flare: 0.4, height: 1.0, lobes: 4, lobe: 0.2 }, dome: true },
-      { count: 4, emerge: [0.7, 1], angle: [0.8, 1.1], length: [2.4, 2.8], radius: 0.7, tip: 0.08, sections: 14, radial: 10, gnarl: 0.05, up: -0.02, shorten: 0.1, kink: 0.35, kinkRate: 0.3, flare: 0.45 },
-      { count: 7, emerge: [0.25, 1], angle: [0.6, 1.0], length: [0.4, 0.55], radius: 0.55, tip: 0.02, sections: 7, radial: 5, gnarl: 0.1, up: 0.05, shorten: 0.4, kink: 0.3, kinkRate: 0.3 },
-      { count: 5, emerge: [0.25, 1], angle: [0.6, 1.0], length: [0.35, 0.55], radius: 0.6, tip: 0.006, sections: 4, radial: 3, gnarl: 0.25, up: 0.04, shorten: 0.3 },
+      { count: 5, emerge: [0.65, 1], angle: [0.8, 1.1], length: [2.4, 2.8], radius: 0.7, tip: 0.08, sections: 14, radial: 10, gnarl: 0.05, up: -0.02, shorten: 0.1, kink: 0.35, kinkRate: 0.3, flare: 0.45 },
+      { count: 11, emerge: [0.2, 1], angle: [0.6, 1.0], length: [0.4, 0.55], radius: 0.55, tip: 0.02, sections: 7, radial: 5, gnarl: 0.1, up: 0.06, shorten: 0.4, kink: 0.3, kinkRate: 0.3 },
+      { count: 6, emerge: [0.25, 1], angle: [0.6, 1.0], length: [0.35, 0.55], radius: 0.6, tip: 0.006, sections: 4, radial: 3, gnarl: 0.25, up: 0.14, shorten: 0.3 },
     ],
     foliage: RAIN_LEAVES,
   },
@@ -89,7 +91,7 @@ export const TREE_STUDIES = {
       { count: 4, emerge: [0.75, 1], angle: [0.3, 0.55], length: [1.5, 1.8], radius: 0.8, tip: 0.06, sections: 7, radial: 9, gnarl: 0.06, up: 0.03, shorten: 0.1, kink: 0.2, kinkRate: 0.3, flare: 0.45 },
       { count: 4, emerge: [0.45, 1], angle: [0.35, 0.7], length: [0.6, 0.75], radius: 0.7, tip: 0.02, sections: 6, radial: 6, gnarl: 0.08, up: 0.04, shorten: 0.4, kink: 0.2, kinkRate: 0.3 },
       { count: 5, emerge: [0.3, 1], angle: [0.45, 0.85], length: [0.45, 0.6], radius: 0.6, tip: 0.008, sections: 4, radial: 4, gnarl: 0.12, up: 0.06, shorten: 0.4 },
-      { count: 4, emerge: [0.3, 1], angle: [0.5, 0.9], length: [0.4, 0.6], radius: 0.6, tip: 0.004, sections: 3, radial: 3, gnarl: 0.2, up: 0.06, shorten: 0.3 },
+      { count: 4, emerge: [0.3, 1], angle: [0.5, 0.9], length: [0.4, 0.6], radius: 0.6, tip: 0.004, sections: 3, radial: 3, gnarl: 0.2, up: 0.14, shorten: 0.3 },
     ],
     foliage: TABEBUIA_LEAVES,
   },
