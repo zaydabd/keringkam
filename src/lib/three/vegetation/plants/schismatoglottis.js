@@ -38,6 +38,7 @@ import * as THREE from 'three';
 import { mulberry32, range } from '../../../utils/rng.js';
 import { addTube, createMeshWriter } from '../tube.js';
 import { UP } from '../grow.js';
+import { fbm, hash2, sstep, mix3, hex, paintTextures, arcShares, toRegion } from './pottedKit.js';
 import { CEL_RAMP_GLSL, toneUniforms } from '../celFoliage.js';
 
 const GOLDEN = Math.PI * (3 - Math.sqrt(5));
@@ -54,68 +55,6 @@ const SOIL_Y = 0.12;
 const SOIL_R = 0.0715;
 
 // ---------------------------------------------------------------- noise and texture painting
-
-function hash2(x, y, s) {
-  const h = Math.sin(x * 127.1 + y * 311.7 + s * 74.7) * 43758.5453;
-  return h - Math.floor(h);
-}
-function vnoise(x, y, s = 0) {
-  const xi = Math.floor(x);
-  const yi = Math.floor(y);
-  const xf = x - xi;
-  const yf = y - yi;
-  const u = xf * xf * (3 - 2 * xf);
-  const v = yf * yf * (3 - 2 * yf);
-  const a = hash2(xi, yi, s);
-  const b = hash2(xi + 1, yi, s);
-  const c = hash2(xi, yi + 1, s);
-  const d = hash2(xi + 1, yi + 1, s);
-  return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
-}
-function fbm(x, y, s = 0, oct = 4) {
-  let sum = 0;
-  let amp = 0.5;
-  for (let i = 0; i < oct; i++) {
-    sum += amp * vnoise(x, y, s + i * 13);
-    x *= 2.03;
-    y *= 2.03;
-    amp *= 0.5;
-  }
-  return sum / (1 - 0.5 ** oct);
-}
-const sstep = (a, b, x) => THREE.MathUtils.smoothstep(x, a, b);
-const mix3 = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
-const hex = (h) => {
-  const c = new THREE.Color(h);
-  return [c.r, c.g, c.b];
-};
-
-/** Colour texture from fn(u, v) → [r, g, b] (linear 0..1, v up). */
-function paintTexture(w, h, fn) {
-  const canvas = typeof OffscreenCanvas !== 'undefined' ? new OffscreenCanvas(w, h) : Object.assign(document.createElement('canvas'), { width: w, height: h });
-  const ctx = canvas.getContext('2d');
-  const img = ctx.createImageData(w, h);
-  const toSrgb = (x) => {
-    x = Math.min(1, Math.max(0, x));
-    return 255 * (x <= 0.0031308 ? 12.92 * x : 1.055 * x ** (1 / 2.4) - 0.055);
-  };
-  for (let y = 0; y < h; y++) {
-    const v = 1 - (y + 0.5) / h;
-    for (let x = 0; x < w; x++) {
-      const [r, g, b] = fn((x + 0.5) / w, v);
-      const i = (y * w + x) * 4;
-      img.data[i] = toSrgb(r);
-      img.data[i + 1] = toSrgb(g);
-      img.data[i + 2] = toSrgb(b);
-      img.data[i + 3] = 255;
-    }
-  }
-  ctx.putImageData(img, 0, 0);
-  const map = new THREE.CanvasTexture(canvas);
-  map.colorSpace = THREE.SRGBColorSpace;
-  map.anisotropy = 4;
-  return map;
-}
 
 // Leaf texture: VARIANTS upper sides side by side, then one underside. Each slot: u across the
 // blade (s = −1..1), v along it. Stylised, graphic shapes with crisp edges: a few big silver
@@ -163,11 +102,7 @@ const ATLAS = { pot: [0, 0.25, 0.5, 1], soil: [0, 0, 0.5, 0.25], petiole: [0.5, 
 const PLASTIC = hex('#45474b'); // neutral charcoal (was slate blue)
 const SOIL = hex('#5a4231');
 
-const potArc = (() => {
-  const d = [0];
-  for (let i = 1; i < POT_PROFILE.length; i++) d.push(d[i - 1] + Math.hypot(POT_PROFILE[i][0] - POT_PROFILE[i - 1][0], POT_PROFILE[i][1] - POT_PROFILE[i - 1][1]));
-  return d.map((x) => x / d[d.length - 1]);
-})();
+const potArc = arcShares(POT_PROFILE);
 const WALL = [potArc[4], potArc[5]];
 const INSIDE = potArc[11];
 
@@ -297,15 +232,6 @@ function createCelMaterial({ map, tones, crown = null, crownPull = 0, rim = 0.25
       }`,
     side: THREE.DoubleSide,
   });
-}
-
-function toRegion(w, from, to, region, fn = (u, v) => [u, v]) {
-  const [u0, v0, u1, v1] = region;
-  for (let i = from; i < to; i++) {
-    const [u, v] = fn(w.uvs[i * 2], w.uvs[i * 2 + 1]);
-    w.uvs[i * 2] = u0 + (u1 - u0) * THREE.MathUtils.clamp(u, 0, 1);
-    w.uvs[i * 2 + 1] = v0 + (v1 - v0) * THREE.MathUtils.clamp(v, 0, 1);
-  }
 }
 
 // ---------------------------------------------------------------- layout
@@ -576,8 +502,8 @@ function createSchismatoglottis({ seed = 1, lod = 'near' } = {}) {
   const leafGeometry = withOutline(leafBase);
   const leafTris = leafGeometry.index.count / 3;
 
-  const atlas = paintTexture(near ? 1024 : 256, near ? 1024 : 256, atlasPaint);
-  const leafTex = near ? paintTexture(1280, 512, leafPaint) : paintTexture(320, 128, leafPaint);
+  const atlas = paintTextures(near ? 1024 : 256, near ? 1024 : 256, atlasPaint).map;
+  const leafTex = near ? paintTextures(1280, 512, leafPaint).map : paintTextures(320, 128, leafPaint).map;
 
   const group = new THREE.Group();
   group.name = `schismatoglottis (${near ? 'near' : 'far'})`;

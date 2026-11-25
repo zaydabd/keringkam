@@ -17,3 +17,5 @@ export const plant = {
 `stats` needs `leaves`, `triangles.total` and `bounds` (as `tree.js` returns).
 `preview.js` loads every file here, so adding a plant never edits a shared file.
 Preview: `#/vegetation?plant=<id>&lod=near|far|auto`.
+
+`pottedKit.js` is not a plant: it holds the noise, texture painting and atlas helpers that the potted plants share.

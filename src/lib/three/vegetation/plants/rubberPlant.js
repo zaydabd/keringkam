@@ -26,6 +26,7 @@ import * as THREE from 'three';
 import { mulberry32, range } from '../../../utils/rng.js';
 import { addTube, createMeshWriter } from '../tube.js';
 import { UP } from '../grow.js';
+import { fbm, vnoise, sstep, mix3, hex, paintTextures, arcShares, toRegion } from './pottedKit.js';
 
 const GOLDEN = Math.PI * (3 - Math.sqrt(5));
 const LEAF = { length: [0.22, 0.32], width: 0.5, petiole: [0.04, 0.06], thick: 0.012 };
@@ -40,84 +41,6 @@ const SOIL_R = 0.149;
 const STEM_BASE = SOIL_Y - 0.01;
 
 // ---------------------------------------------------------------- noise and texture painting
-
-function hash2(x, y, s) {
-  const h = Math.sin(x * 127.1 + y * 311.7 + s * 74.7) * 43758.5453;
-  return h - Math.floor(h);
-}
-function vnoise(x, y, s = 0) {
-  const xi = Math.floor(x);
-  const yi = Math.floor(y);
-  const xf = x - xi;
-  const yf = y - yi;
-  const u = xf * xf * (3 - 2 * xf);
-  const v = yf * yf * (3 - 2 * yf);
-  const a = hash2(xi, yi, s);
-  const b = hash2(xi + 1, yi, s);
-  const c = hash2(xi, yi + 1, s);
-  const d = hash2(xi + 1, yi + 1, s);
-  return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
-}
-function fbm(x, y, s = 0, oct = 4) {
-  let sum = 0;
-  let amp = 0.5;
-  for (let i = 0; i < oct; i++) {
-    sum += amp * vnoise(x, y, s + i * 13);
-    x *= 2.03;
-    y *= 2.03;
-    amp *= 0.5;
-  }
-  return sum / (1 - 0.5 ** oct);
-}
-const sstep = (a, b, x) => THREE.MathUtils.smoothstep(x, a, b);
-const mix3 = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
-const hex = (h) => {
-  const c = new THREE.Color(h);
-  return [c.r, c.g, c.b];
-};
-
-/**
- * Paints a colour texture and a bump texture from fn(u, v) → [r, g, b, height] (linear 0..1,
- * v up). Returns sRGB colour + linear bump as THREE textures.
- */
-function paintTextures(size, fn) {
-  const make = () => {
-    const c = typeof OffscreenCanvas !== 'undefined' ? new OffscreenCanvas(size, size) : Object.assign(document.createElement('canvas'), { width: size, height: size });
-    return c;
-  };
-  const colorCanvas = make();
-  const bumpCanvas = make();
-  const cctx = colorCanvas.getContext('2d');
-  const bctx = bumpCanvas.getContext('2d');
-  const cimg = cctx.createImageData(size, size);
-  const bimg = bctx.createImageData(size, size);
-  const toSrgb = (x) => {
-    x = Math.min(1, Math.max(0, x));
-    return 255 * (x <= 0.0031308 ? 12.92 * x : 1.055 * x ** (1 / 2.4) - 0.055);
-  };
-  for (let y = 0; y < size; y++) {
-    const v = 1 - (y + 0.5) / size;
-    for (let x = 0; x < size; x++) {
-      const u = (x + 0.5) / size;
-      const [r, g, b, h] = fn(u, v);
-      const i = (y * size + x) * 4;
-      cimg.data[i] = toSrgb(r);
-      cimg.data[i + 1] = toSrgb(g);
-      cimg.data[i + 2] = toSrgb(b);
-      cimg.data[i + 3] = 255;
-      const hb = Math.min(255, Math.max(0, h * 255));
-      bimg.data[i] = bimg.data[i + 1] = bimg.data[i + 2] = hb;
-      bimg.data[i + 3] = 255;
-    }
-  }
-  cctx.putImageData(cimg, 0, 0);
-  bctx.putImageData(bimg, 0, 0);
-  const map = new THREE.CanvasTexture(colorCanvas);
-  map.colorSpace = THREE.SRGBColorSpace;
-  map.anisotropy = 4;
-  const bump = new THREE.CanvasTexture(bumpCanvas);
-  return { map, bump };
-}
 
 // Leaf texture: left half the upper side, right half the underside. u across (s = −1..1), v along.
 const LEAF_TOP = hex('#1f5428');
@@ -171,11 +94,7 @@ const SOIL = hex('#2e2018');
 const BARK = hex('#e6e0d2');
 
 // Pot texture rows follow the profile: v along the profile arc (0 bottom centre → 1 soil line).
-const potArc = (() => {
-  const d = [0];
-  for (let i = 1; i < POT_PROFILE.length; i++) d.push(d[i - 1] + Math.hypot(POT_PROFILE[i][0] - POT_PROFILE[i - 1][0], POT_PROFILE[i][1] - POT_PROFILE[i - 1][1]));
-  return d.map((x) => x / d[d.length - 1]);
-})();
+const potArc = arcShares(POT_PROFILE);
 const LIP_START = potArc[6];
 const INSIDE_START = potArc[12];
 
@@ -222,15 +141,6 @@ function atlasPaint(u, v) {
 }
 
 /** Moves uvs of vertices [from, to) of a writer into an atlas region. */
-function toRegion(writer, from, to, region, fn = (u, v) => [u, v]) {
-  const [u0, v0, u1, v1] = region;
-  for (let i = from; i < to; i++) {
-    const [u, v] = fn(writer.uvs[i * 2], writer.uvs[i * 2 + 1]);
-    writer.uvs[i * 2] = u0 + (u1 - u0) * THREE.MathUtils.clamp(u, 0, 1);
-    writer.uvs[i * 2 + 1] = v0 + (v1 - v0) * THREE.MathUtils.clamp(v, 0, 1);
-  }
-}
-
 // ---------------------------------------------------------------- layout
 
 /** Seeded layout shared by both levels, so near and far are the same plant. */
@@ -515,8 +425,8 @@ function createRubberPlant({ seed = 1, lod = 'near' } = {}) {
   const leafTris = leafGeometry.index.count / 3;
 
   const texSize = near ? 1024 : 256;
-  const atlas = paintTextures(texSize, atlasPaint);
-  const leafTex = paintTextures(near ? 512 : 128, leafPaint);
+  const atlas = paintTextures(texSize, texSize, atlasPaint, { bump: true });
+  const leafTex = paintTextures(near ? 512 : 128, near ? 512 : 128, leafPaint, { bump: true });
 
   const group = new THREE.Group();
   group.name = `rubber plant (${near ? 'near' : 'far'})`;
