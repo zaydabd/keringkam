@@ -7,6 +7,7 @@ import { HOUSE } from '../../world/house.js';
 import { LAYOUTS, LAYERS, WALLS } from './layouts.js';
 import { plant as bougainvillea, createBushFoliage } from '../../../vegetation/plants/bougainvillea.js';
 import { mulberry32 } from '../../../../utils/rng.js';
+import { valueFbm } from '../../../../utils/noise.js';
 import { NO_INK_LAYER, CARD_MASK_LAYER } from '../../layers.js';
 import { plant as kuchingTree } from '../../../vegetation/plants/kuchingTree.js';
 // The garden's tree: main's new Kuching tree in its rain-tree design (treeStudies.js rainRoadside).
@@ -46,7 +47,10 @@ export const GARDEN = {
   // `core`: a solid body of this share of the slot that only the AO sees (see bushCore).
   // `pink`: the share of flowers in the mix (the user: "60 green 40 pink"); `round`: a box hedge's
   // edge radius.
-  bush: { spacing: 0.1, clump: 0.12, card: 0.2, cards: 14, core: 0.85, pink: 0.4, round: 0.14 },
+  // `grow`: how far a box hedge's leaves grow out past its cut, in smooth patches (noise `growScale`
+  // per metre), and `sprig` the share of clumps that stick out further still (the user: "allow for
+  // some growth making it a bit uneven"). Guesses, tuned by eye.
+  bush: { spacing: 0.1, clump: 0.12, card: 0.2, cards: 14, core: 0.85, pink: 0.4, round: 0.14, grow: 0.12, growScale: 2.2, sprig: 0.06 },
 };
 
 const baseOf = (sl) => sl.base ?? GH; // where a slot stands
@@ -139,7 +143,8 @@ const bractAt = (height) => GARDEN.bush.pink * (1.0 + 0.4 * THREE.MathUtils.smoo
 
 /**
  * The clumps covering a box hedge (shape 'box'): a grid over its front, back, ends and flat top,
- * pushed onto a box with rounded edges (radius `round`), so it reads trimmed, not sharp.
+ * pushed onto a box with rounded edges (radius `round`), so it reads trimmed, not sharp, then out
+ * a little where it has grown since its last trim (`grow`, `sprig`).
  */
 function hedgeClumps(sl, seed) {
   const rand = mulberry32(seed);
@@ -157,7 +162,12 @@ function hedgeClumps(sl, seed) {
     q.set(THREE.MathUtils.clamp(x, -hw + r, hw - r), THREE.MathUtils.clamp(y, r, sl.h - r), THREE.MathUtils.clamp(z, -hd + r, hd - r));
     p.set(x, y, z).sub(q);
     if (p.lengthSq() < 1e-8) return;
-    p.setLength(r * (0.95 + 0.1 * rand())).add(q);
+    // Growth past the cut: smooth patches, and a few sprigs further out.
+    const wx = x + sl.at[0];
+    const wz = z + sl.at[1];
+    const patch = THREE.MathUtils.smoothstep(valueFbm((wx + wz) * B.growScale, (y + base) * B.growScale, seed, 3), 0.35, 0.85);
+    const sprig = rand() < B.sprig ? 0.05 + 0.07 * rand() : 0;
+    p.setLength(r * (0.95 + 0.1 * rand()) + B.grow * patch + sprig).add(q);
     p.x += sl.at[0];
     p.y += base;
     p.z += sl.at[1];
