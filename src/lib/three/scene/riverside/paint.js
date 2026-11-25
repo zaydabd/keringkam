@@ -1,10 +1,10 @@
 // Painted textures for the street outside: the paving, the Assembly building, and the stylised
 // tiles they share.
 
-import { rng, canvas, texture, css, vary, blot, brushDabs } from './core.js';
+import { rng, canvas, texture, css, vary, blot, brushDabs } from '../paint/core.js';
 
 /**
- * The Kuching Waterfront's street (outside/waterfront.js; pass e11), one tile of `P.tile` metres
+ * The Kuching Waterfront's street (riverside/waterfront.js; pass e11), one tile of `P.tile` metres
  * that repeats: small bricks in a basket weave (pairs of bricks, each pair turned against its
  * neighbours), with broad swirls of paler bricks set into them, after the user's photos U1, U3
  * and U4. Painted in its own colours (the street's vertex colour is white). Sizes are estimates
@@ -70,7 +70,7 @@ export function paintPaving(seed = 61, { colours: C, pattern: P }) {
 }
 
 /**
- * The Assembly building (outside/assembly.js; pass e15): one canvas of two halves, each `P.size`
+ * The Assembly building (riverside/assembly.js; pass e15): one canvas of two halves, each `P.size`
  * square. Left: one bay of the glazing behind the arcade, in its own colours (its vertex colour is
  * white): dark brown glass, lighter at the top where it takes the sky, with mullions and transoms.
  * Right: weathering for the cream concrete (columns, brim, podium), near white so the vertex
@@ -83,7 +83,7 @@ export function paintPaving(seed = 61, { colours: C, pattern: P }) {
  * strokes), 'd' (hand-painted after Abhishek Maity: short dabs and a warm glaze) or 'cd' (C with D
  * at half). Every quad repeats the tile, so nothing marks its edges: a first try with pooled edges,
  * edge highlights and a dark foot drew a tile grid over the cone (pass e16 gate). C's painted light
- * is a gradient over the whole building instead (outside/index.js).
+ * is a gradient over the whole building instead (riverside/index.js).
  */
 function styleTile(g, r, x0, S, style, P) {
   const C = P.colours;

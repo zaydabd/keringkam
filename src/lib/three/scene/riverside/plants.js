@@ -1,4 +1,4 @@
-// Where the riverside's plants stand, as data: the grass ticks of the far slope (outside/banks.js)
+// Where the riverside's plants stand, as data: the grass ticks of the far slope (riverside/banks.js)
 // and the far-bank planting. vegetation/stylised.js grows the plants at these entries.
 
 import { mulberry32 } from '../../../utils/rng.js';

@@ -2,7 +2,7 @@
 // masses on its horizon.
 
 import * as THREE from 'three';
-import { rng, canvas, texture, css, vary, wrapX, blot, detail } from './core.js';
+import { rng, canvas, texture, css, vary, wrapX, blot, detail } from '../paint/core.js';
 
 /**
  * A soft watercolour sky for the window view (R2): pale blue wash fading to the haze colour at

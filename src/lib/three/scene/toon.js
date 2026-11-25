@@ -258,7 +258,7 @@ const MASK_VERTEX = /* glsl */ `
     gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
   }
 `;
-// `cover` raises the alpha per mip level, as the leaf cards' own material does (outside/index.js
+// `cover` raises the alpha per mip level, as the leaf cards' own material does (riverside/index.js
 // keepCover), so the mask covers what the cards show.
 const MASK_FRAGMENT = /* glsl */ `
   uniform sampler2D map;
@@ -277,7 +277,7 @@ const MASK_FRAGMENT = /* glsl */ `
  * edge buffer for objects on `layer` (default 0). `mask` = { layer, map, cover } or a list of them:
  * objects on that layer are cut out by `map` (alpha: the window lattice, leaf cards outside);
  * they hide the ink of what is behind them and get none. `cover` (default 0) raises their alpha
- * per mip level, to match a material that does (outside/index.js keepCover).
+ * per mip level, to match a material that does (riverside/index.js keepCover).
  */
 export function createOutline(renderer, scene, camera, { layer = INK_LAYER, ink = '#000000', lineWidth = 1.3, mask = null } = {}) {
   const target = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType });

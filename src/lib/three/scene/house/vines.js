@@ -23,5 +23,5 @@ export function buildVines(b) {
       k++;
     }
   };
-  for (const l of windowVineLayout(PLAN)) vine(l.x, l.z, l.yTop, l.yBottom, l.alongX); // where: house/garden/plants.js and outside/plants.js
+  for (const l of windowVineLayout(PLAN)) vine(l.x, l.z, l.yTop, l.yBottom, l.alongX); // where: house/garden/plants.js and riverside/plants.js
 }

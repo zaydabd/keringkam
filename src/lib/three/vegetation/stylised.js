@@ -1,5 +1,5 @@
 // `?flora=stylised`: the approved stylised plants (vegetation/plants/*.js) stand at the proposed
-// layout entries (house/garden/plants.js and outside/plants.js) instead of the markers. Each entry gets one copy of its plant,
+// layout entries (house/garden/plants.js and riverside/plants.js) instead of the markers. Each entry gets one copy of its plant,
 // based at the entry's `at`, turned by its `yaw` and scaled so its height matches the entry's
 // (satin pothos, the table's Schismatoglottis and the bougainvillea keep their modelled size).
 // The level of detail is picked once per copy, by its distance from `eye` against the plant's
@@ -40,7 +40,7 @@ const PLANT_OF = [
   [/^proposed: Chinese evergreen \(floor\)$/, aglaonema],
   [/^proposed: Chinese evergreen \(table\)$/, schismatoglottis], // the user's choice: the Schismatoglottis on the table
   [/^proposed: satin pothos \((stand|ledge)\)$/, satinPothos],
-  [/^proposed: bougainvillea/, bougainvillea], // outside the middle window (outside/index.js)
+  [/^proposed: bougainvillea/, bougainvillea], // outside the middle window (riverside/index.js)
   [/^proposed: step planting \(oak bush\)$/, oakBush], // by the Assembly's side stairs
   [/^proposed: step planting \(bougainvillea\)$/, bougainvillea],
 ];

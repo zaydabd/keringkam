@@ -327,7 +327,7 @@ export const OUTSIDE_THEME = {
       colours: { light: '#fff6dc', dark: '#6b4a24', wash: '#8a6232' },
       c: { blots: 18, blotAlpha: [0.1, 0.12], strokes: { count: 8, length: [90, 80], width: [8, 8], opacity: [0.06, 0.08], angle: 0, turn: 0.15, darkShare: 0.4 } },
       d: { dabs: { count: 220, length: [14, 18], width: [4, 5], opacity: [0.1, 0.12], angle: 0.35, turn: 0.45, darkShare: 0.45 }, warm: 0.1 },
-      // C's light painted in: vertex colours scaled from the building's foot to its top (outside/index.js)
+      // C's light painted in: vertex colours scaled from the building's foot to its top (riverside/index.js)
       light: { c: [0.78, 1.12], d: [1, 1], cd: [0.88, 1.06] },
     },
   },

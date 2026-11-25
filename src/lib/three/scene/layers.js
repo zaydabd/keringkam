@@ -3,7 +3,7 @@
 
 export const INK_LAYER = 0; // drawn, and outlined by the ink pass (toon.js createOutline)
 export const NO_INK_LAYER = 1; // drawn, with no ink outline: cut-outs, the sky, painted shadows
-export const MIRROR_LAYER = 2; // seen in the river's mirror (outside/water.js)
+export const MIRROR_LAYER = 2; // seen in the river's mirror (riverside/water.js)
 export const INK_MASK_LAYER = 3; // cuts the ink of what is behind it by its texture: the window lattice
 // Cast the sky light's shadow. One direction stands for the three windows, so only the furniture
 // casts it: the window wall would otherwise shut it out (stage/lights.js).

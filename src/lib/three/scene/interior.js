@@ -39,8 +39,9 @@
 import * as THREE from 'three';
 import './stableShadows.js'; // soft shadow edges dithered on the world, not the screen
 import { toonGradient } from './toon.js';
-import { paintPlanks, paintCarving, paintWindowLattice, paintCurtain, paintDecor, paintGlow, setPaintDetail } from './paint.js';
-import { createOutside, OBJECTS } from './outside/index.js';
+import { paintPlanks, paintCarving, paintWindowLattice, paintCurtain, paintDecor, paintGlow } from './house/paint.js';
+import { setPaintDetail } from './paint/core.js';
+import { createOutside, OBJECTS } from './riverside/index.js';
 import { createMeter, REFERENCE_EXPOSURE } from './post/meter.js';
 import { RESOLUTIONS, MAX_PIXEL_RATIO, MIN_PIXEL_RATIO, PACE, SHADOWS, TEXTURES, normalise } from './quality.js';
 import { createPerfRun } from './perf.js';
@@ -96,7 +97,7 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
   const fovParam = num('fov');
   const dprParam = num('dpr');
   const clockParam = num('t');
-  // ?stage=farbank,trees,... shows only those objects of the view outside (outside/index.js
+  // ?stage=farbank,trees,... shows only those objects of the view outside (riverside/index.js
   // OBJECTS), without the room, from the window shot's eye; yaw, pitch, fov and eye then apply to
   // it. ?exposure=n sets the exposure instead of metering (the stage uses the window shot's, REFERENCE_EXPOSURE).
   const stage = params.get('stage')?.split(',').filter((n) => OBJECTS.includes(n)) ?? null;
@@ -302,7 +303,7 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
   if (off.has('contact')) contact.group.visible = false;
   if (clay) contact.group.visible = false; // painted shadows: the clay render shows only the sun's
 
-  // Outside: the Sarawak River at Kuching (outside/index.js). ?off=outside hides it (the windows
+  // Outside: the Sarawak River at Kuching (riverside/index.js). ?off=outside hides it (the windows
   // then show plain daylight). ?debug=flat and ?debug=silhouette also apply to it.
   const outsideAt = performance.now();
   const landscape = own(createOutside({ gradientMap, seed, fog: scene.fog, haze: AIR.daylight, light: LIGHT, key: AIR.key, sun: sun.position.clone().sub(sun.target.position), mode: clay ? 'clay' : debug === 'flat' || debug === 'silhouette' ? debug : undefined, stage, flora }));

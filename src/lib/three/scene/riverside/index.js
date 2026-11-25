@@ -25,7 +25,8 @@
 // where two colours meet (toon.js). The haze is the scene fog.
 
 import * as THREE from 'three';
-import { paintSoftSky, paintPaving, paintAssembly, paintStylized, styleGain } from '../paint.js';
+import { paintPaving, paintAssembly, paintStylized, styleGain } from './paint.js';
+import { paintSoftSky } from './sky.js';
 import { SlotWriter, createContract } from './contract.js';
 import { SITE, WINDOW_EYE } from '../world/site.js';
 import { mulberry32 } from '../../../utils/rng.js';
@@ -81,7 +82,7 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
   };
 
   // --- The banks (banks.js) ---------------------------------------------------------------------
-  // ?flora=stylised (the default; house/garden/plants.js and outside/plants.js): the entries where the stylised plants stand.
+  // ?flora=stylised (the default; house/garden/plants.js and riverside/plants.js): the entries where the stylised plants stand.
   const floraEntries = [];
   const bladeFrom = w.slot('blade').triangles;
   if (want('farbank')) reports.farbank = buildFarBank(w, { seed, paint: flora === 'stylised' ? FAR_GRASS_GROUND : null });
@@ -89,7 +90,7 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
     const ticks = { 'far slope ticks': BANK_PAINT.tick };
     floraEntries.push(...bladePatches(w.slot('blade'), bladeFrom, ticks));
   }
-  // Proposed far-bank planting (house/garden/plants.js and outside/plants.js): markers only, a composition to judge.
+  // Proposed far-bank planting (house/garden/plants.js and riverside/plants.js): markers only, a composition to judge.
   if (flora && want('farbank')) {
     const { place } = reports.farbank;
     floraEntries.push(...farBankProposal({ place, forecourt: forecourtFrame().xRange, rand: mulberry32(613 + seed), stepPlanting: flora === 'stylised' }));
