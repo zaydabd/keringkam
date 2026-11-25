@@ -31,8 +31,8 @@ import { FOLIAGE_SUN } from '../celFoliage.js';
 import { growSkeleton } from './bougainvillea/skeleton.js';
 import { createAtlas, createCardMaterial } from './bougainvillea/materials.js';
 
-const LEAF_TONES = ['#1d4521', '#3c7a32', '#93c95e']; // (guess)
-const BRACT_TONES = ['#6e1048', '#c21f7f', '#f27ac0']; // (guess) magenta, per VT
+const LEAF_TONES = ['#1d4521', '#356d2c', '#64963f']; // (guess; the light tone toned down: the user found it too bright)
+const BRACT_TONES = ['#6e1048', '#b81c78', '#cf4d9a']; // (guess) magenta, per VT; the light tone toned down (too bright)
 const FOLIAGE = { radius: 0.2, merge: 0.75, density: 1.0, leafCard: 0.09, bractCard: 0.11 }; // (guess)
 const FAR = { merge: 0.4, radius: 0.24, cards: 16, card: 0.34 }; // (guess)
 
