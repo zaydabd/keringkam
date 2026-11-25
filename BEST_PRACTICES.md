@@ -4,6 +4,7 @@ Each rule is labelled with where it comes from:
 
 - **[Official]**: from the official docs, linked under the rule.
 - **[Team]**: our own convention. It is a sensible choice, not an official standard.
+- **[Reference]**: from a well-known book, style guide or linter, linked under the rule.
 
 ---
 
@@ -16,6 +17,8 @@ Before you commit, check that:
 - [ ] Every three.js object you created is disposed when its component is removed.
 - [ ] Computed values use `$derived`, not `$effect`.
 - [ ] `npx sv check` passes.
+- [ ] No value or helper is copied into a second file: it is imported from the one place that owns it (section 6).
+- [ ] A number with a meaning has a name, not a bare literal (section 6).
 - [ ] `npm test` passes (tests/guards.test.mjs: seeds, garden layout, furniture, Assembly geometry; update a value there only when the change is meant).
 
 ---
@@ -110,6 +113,51 @@ src/
 2. **Give each component one job,** and keep it small.
 3. **Name files clearly:** `PascalCase.svelte` for components (`SceneView.svelte`) and `camelCase.js` for modules (`createScene.js`).
 4. **Run `npx sv check` before committing.** (The command comes from https://svelte.dev/docs/svelte/getting-started)
+
+---
+
+## 6. Structure, reuse and isolation
+
+### One place for each piece of knowledge (DRY) [Reference]
+- **Do:** Keep each value, rule or helper in one module and import it everywhere it is needed.
+- **Don't:** Copy a function or a constant into a second file "to keep it local". The copies drift apart.
+- **Why:** "Every piece of knowledge must have a single, unambiguous, authoritative representation within a system" (Hunt and Thomas, *The Pragmatic Programmer*).
+- **Source:** https://en.wikipedia.org/wiki/Don%27t_repeat_yourself
+
+### Extract shared code at the third copy [Reference]
+- **Do:** Two similar pieces of code may stay apart. When a third appears, or when the copies must always change together, move it into a shared module.
+- **Why:** Extracting too early makes a helper with too many options; extracting too late leaves copies to drift.
+- **Source:** https://en.wikipedia.org/wiki/Rule_of_three_(computer_programming)
+
+### Name your numbers [Reference]
+- **Do:** Give a number with a meaning a named constant (`const FURNITURE_LAYER = 4`), with a comment on where the value comes from (sourced, measured or a design choice).
+- **Don't:** Write the same bare literal in several places (`layers.set(1)`, `value / 1.85`).
+- **Why:** A "magic number" is a literal whose meaning is unclear to the reader; a name says what it is, and changing it changes it everywhere.
+- **Naming:** constants in `CONSTANT_CASE` (Google JavaScript Style Guide, 6.2.5).
+- **Sources:** https://en.wikipedia.org/wiki/Magic_number_(programming), https://eslint.org/docs/latest/rules/no-magic-numbers, https://google.github.io/styleguide/jsguide.html#625-constant-names
+
+### Shared values live in one config module [Team]
+- **Do:** A value used by more than one file goes in the module that owns it, and the others import it:
+  - looks and colours: `src/lib/three/scene/themes/`
+  - graphics settings: `src/lib/three/scene/quality.js`
+  - URL options: `src/lib/utils/urlOptions.js`
+  - the room's sizes: `src/lib/three/scene/interior/plan.js`; the house's: `interior/exterior.js` (`HOUSE`); the site's: `outside/site.js` (`SITE`)
+  - render layers and other engine-wide numbers: one constants module, not literals
+  - UI colours: CSS custom properties (`--name`), not the same hex in every component
+- A value used in one file only stays there, as a named constant near the top.
+
+### One concern per module, with a small interface [Reference]
+- **Do:** Split code by concern (lights, controls, post-processing, a plant, a building), each in its own module. A module exports a small interface, for example `createX(options) → { …, dispose() }`, and keeps its internals private.
+- **Don't:** Reach into another module's internals, or let one module do several unrelated jobs.
+- **Why:** Separation of concerns: each part can be read, changed and tested on its own.
+- **Sources:** https://en.wikipedia.org/wiki/Separation_of_concerns, https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Modules (named exports; "aggregating modules" for a file that re-exports a folder, like `paint.js`)
+
+### Pass options in; don't read globals deep inside [Team]
+- **Do:** Read the URL, `window` and settings at the top (`urlOptions.js`, the component), and pass the values into the modules as arguments.
+- **Why:** A module that takes its inputs as arguments can run under Node, so `npm test` can check it without a browser.
+
+### Shared helpers go in `src/lib/utils/` [Team]
+- **Do:** Put small helpers that any part could use (random numbers, vector maths, noise) in `src/lib/utils/`. Helpers for one area stay next to it (`vegetation/plants/pottedKit.js`).
 
 ---
 
