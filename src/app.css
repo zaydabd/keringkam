@@ -8,6 +8,14 @@
   --mono: 'IBM Plex Mono', ui-monospace, monospace;
   --soft: 'Figtree', 'Gill Sans', sans-serif;
   --accent: #c8102e;
+  /* The room's controls (Interior.svelte, components/interior): cream on a see-through brown. */
+  --cream-rgb: 246, 234, 210;
+  --cream: rgb(var(--cream-rgb));
+  --brown-rgb: 58, 36, 24;
+  --brown: rgb(var(--brown-rgb));
+  --paper: #e9dcc3; /* the veil while the room loads */
+  --panel: rgba(var(--brown-rgb), 0.55);
+  --panel-hover: rgba(var(--brown-rgb), 0.8);
 }
 
 html,

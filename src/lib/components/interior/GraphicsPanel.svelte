@@ -48,10 +48,10 @@
     display: grid;
     gap: 10px;
     padding: 16px 18px;
-    border: 1px solid rgba(246, 234, 210, 0.5);
+    border: 1px solid rgba(var(--cream-rgb), 0.5);
     border-radius: 14px;
-    background: rgba(58, 36, 24, 0.88);
-    color: #f6ead2;
+    background: rgba(var(--brown-rgb), 0.88);
+    color: var(--cream);
     font-size: 13px;
   }
   .settings label {
@@ -63,7 +63,7 @@
   .settings select {
     min-width: 7.5em;
     padding: 4px 6px;
-    border: 1px solid rgba(246, 234, 210, 0.5);
+    border: 1px solid rgba(var(--cream-rgb), 0.5);
     border-radius: 6px;
     background: transparent;
     color: inherit;
@@ -71,21 +71,21 @@
     cursor: pointer;
   }
   .settings select:focus-visible {
-    outline: 2px solid #f6ead2;
+    outline: 2px solid var(--cream);
     outline-offset: 2px;
   }
   .settings option {
-    color: #3a2418;
+    color: var(--brown);
   }
   .settings input[type='checkbox'] {
     width: 16px;
     height: 16px;
     margin: 0;
-    accent-color: #f6ead2;
+    accent-color: var(--cream);
     cursor: pointer;
   }
   .settings input[type='checkbox']:focus-visible {
-    outline: 2px solid #f6ead2;
+    outline: 2px solid var(--cream);
     outline-offset: 2px;
   }
   .settings .note {
