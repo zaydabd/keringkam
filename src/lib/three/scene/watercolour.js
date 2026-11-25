@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { VIEW_FIELD, setViewField, FIELD_NOISE, fieldNoiseTexture } from './toon.js';
+import { REFERENCE_EXPOSURE } from './meter.js';
 
 // Watercolour look, after R2 (a painting of the room supplied by the user; not in the repo).
 // Two passes, kept apart as the image-pipeline / colour-grading skills ask:
@@ -36,7 +37,7 @@ export const PIGMENT_SHADER = {
     edgeRadius: { value: 2.5 }, // px (CSS): how far apart the wet edge compares the value
     shadowTint: { value: new THREE.Color('#ffffff') }, // the hue shadows lean towards
     shadowTintAmount: { value: 0 },
-    exposure: { value: 1.85 }, // set from the meter: tone thresholds are judged on exposed values
+    exposure: { value: REFERENCE_EXPOSURE }, // set from the meter: tone thresholds are judged on exposed values
     fabricKeep: { value: 0 }, // on the fabrics (alpha 0): how much of the colour is kept unpainted
     view: { value: 0 }, // 0 final, 1 pigment field, 2 edge field, 3 bleed field
   },
@@ -49,7 +50,7 @@ export const PIGMENT_SHADER = {
     uniform vec3 shadowTint;
     varying vec2 vUv;
     // Luminance as it will be shown, relative to the exposure the thresholds were tuned at (1.85).
-    float luma(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)) * exposure / 1.85; }
+    float luma(vec3 c) { return dot(c, vec3(0.299, 0.587, 0.114)) * exposure / ${REFERENCE_EXPOSURE.toFixed(2)}; }
     ${VIEW_FIELD}
     ${FIELD_NOISE}
     // Three octaves, four independent channels at once.

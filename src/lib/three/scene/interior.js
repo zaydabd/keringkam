@@ -41,7 +41,7 @@ import './stableShadows.js'; // soft shadow edges dithered on the world, not the
 import { toonGradient } from './toon.js';
 import { paintPlanks, paintCarving, paintWindowLattice, paintCurtain, paintDecor, paintGlow, setPaintDetail } from './paint.js';
 import { createOutside, OBJECTS, MIRROR_LAYER } from './outside/index.js';
-import { createMeter } from './meter.js';
+import { createMeter, REFERENCE_EXPOSURE } from './meter.js';
 import { RESOLUTIONS, MAX_PIXEL_RATIO, MIN_PIXEL_RATIO, PACE, SHADOWS, TEXTURES, normalise } from './quality.js';
 import { createPerfRun } from './perf.js';
 import { INTERIOR_THEME, OUTSIDE_THEME, CLAY_LOOK } from './themes/index.js';
@@ -96,9 +96,9 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
   const clockParam = num('t');
   // ?stage=farbank,trees,... shows only those objects of the view outside (outside/index.js
   // OBJECTS), without the room, from the window shot's eye; yaw, pitch, fov and eye then apply to
-  // it. ?exposure=n sets the exposure instead of metering (the stage uses the window shot's 1.85).
+  // it. ?exposure=n sets the exposure instead of metering (the stage uses the window shot's, REFERENCE_EXPOSURE).
   const stage = params.get('stage')?.split(',').filter((n) => OBJECTS.includes(n)) ?? null;
-  const exposureParam = num('exposure') ?? (stage ? 1.85 : null);
+  const exposureParam = num('exposure') ?? (stage ? REFERENCE_EXPOSURE : null);
   // The stylised plants (floraStylised.js) are on by default; ?flora=off leaves them out.
   const flora = floraMode(params);
   // No MSAA on the screen under post-processing: the scene is drawn into the composer's own

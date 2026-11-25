@@ -23,7 +23,10 @@ const ENCODE = {
   `,
 };
 
-export const METER = { middleGrey: 0.18, min: 0.45, max: 1.85 };
+// The exposure the window shot meters to (the meter's upper limit). The ink and pigment passes'
+// tone thresholds were tuned at it, so they judge exposed values against it.
+export const REFERENCE_EXPOSURE = 1.85;
+export const METER = { middleGrey: 0.18, min: 0.45, max: REFERENCE_EXPOSURE };
 
 export function createMeter(renderer) {
   const hdr = new THREE.WebGLRenderTarget(W, H, { type: THREE.HalfFloatType });

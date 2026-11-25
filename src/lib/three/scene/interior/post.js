@@ -10,6 +10,7 @@ import { PIGMENT_SHADER, FINISH_SHADER, createPigmentField } from '../watercolou
 import { createAO } from '../ao.js';
 import { AO, OUTLINES } from '../quality.js';
 import { setUniforms } from './helpers.js';
+import { REFERENCE_EXPOSURE } from '../meter.js';
 
 /**
  * Builds the pass chain. `quality` is the live settings object (quality.js; setQuality changes it
@@ -107,7 +108,7 @@ export function createPost(renderer, scene, camera, { theme, quality: Q, params,
     // counts as a dark or a mid tone.
     setExposure(value) {
       finish.uniforms.toneMappingExposure.value = value;
-      outline.material.uniforms.exposure.value = value / 1.85; // 1.85: the exposure its thresholds were tuned at
+      outline.material.uniforms.exposure.value = value / REFERENCE_EXPOSURE; // its thresholds were tuned at that exposure
       pigment.uniforms.exposure.value = value;
       renderer.toneMappingExposure = value;
     },
