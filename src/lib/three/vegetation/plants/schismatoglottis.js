@@ -16,7 +16,7 @@
 //
 // Stylisation (method only; the guides are for trees and foliage, so only parts apply):
 //   - Anime foliage pipeline: normals pulled towards one crown volume so light and shadow fall
-//     in big grouped shapes, then the shared 3-tone cel ramp (cel-foliage.js). Its clumps of
+//     in big grouped shapes, then the shared 3-tone cel ramp (celFoliage.js). Its clumps of
 //     leaf cards do not apply: here each leaf keeps its own curved geometry.
 //     https://trungduyng.substack.com/p/tutorial-blender-anime-foliage-pipeline
 //   - Sven Mrđen, foliage study: leaves that are not flat, darker "near the stem and along the
@@ -38,7 +38,7 @@ import * as THREE from 'three';
 import { mulberry32, range } from '../../../utils/rng.js';
 import { addTube, createMeshWriter } from '../tube.js';
 import { UP } from '../grow.js';
-import { CEL_RAMP_GLSL, toneUniforms } from '../cel-foliage.js';
+import { CEL_RAMP_GLSL, toneUniforms } from '../celFoliage.js';
 
 const GOLDEN = Math.PI * (3 - Math.sqrt(5));
 const LEAF = { length: [0.13, 0.18], width: 0.7, thick: 0.03 };
@@ -205,7 +205,7 @@ function atlasPaint(u, v) {
 
 /**
  * Stylised cel material for a merged mesh (map × vertex colour): normals pulled towards the
- * crown volume, the shared 3-tone ramp (cel-foliage.js) used as a light multiplier with a cool
+ * crown volume, the shared 3-tone ramp (celFoliage.js) used as a light multiplier with a cool
  * shadow tone, AO deep in the crown, a crisp rim light and a small highlight band.
  */
 function createCelMaterial({ map, tones, crown = null, crownPull = 0, rim = 0.25, spec = [0.93, 0.96, 0.15], backLift = 1.1, outlineWidth = 0, outlineColor = '#000000' }) {

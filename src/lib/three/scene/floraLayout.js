@@ -1,11 +1,11 @@
 // Where the plants of #/interior stand, as data: the grass ticks of the far slope
 // (outside/banks.js), the far-bank planting, the room's plants and the vines beside the windows
-// (interior/vines.js). flora-stylised.js grows the stylised plants at these entries.
+// (interior/vines.js). floraStylised.js grows the stylised plants at these entries.
 
 import { mulberry32 } from '../../utils/rng.js';
 
 /**
- * The `?flora=` flag: 'stylised' (the stylised plants, flora-stylised.js; the default, the user's
+ * The `?flora=` flag: 'stylised' (the stylised plants, floraStylised.js; the default, the user's
  * choice, 25 Nov 2026) or null (?flora=off).
  */
 export function floraMode(params) {
@@ -69,7 +69,7 @@ export function bladePatches(slot, from, colours) {
 }
 
 /**
- * PROPOSED planting for the far bank (grown by flora-stylised.js): a
+ * PROPOSED planting for the far bank (grown by floraStylised.js): a
  * composition to try before the plants are made. Every position and size is a design guess,
  * not taken from a photo or survey. `place(xWater, offset)` comes from the far bank (banks.js);
  * `forecourt` is the x range of the waterline the Assembly's river front stands on, kept clear.
@@ -131,7 +131,7 @@ export function farBankProposal({ place, forecourt: [f0, f1], rand, stepPlanting
     const r = mulberry32(7717);
     for (const [dx, o] of [[-6, 19], [-9.5, 24], [-5, 27], [-13, 21], [-12, 30]]) add('proposed: rain tree (by the stairs)', 'tree', place(f0 + dx, o + r() * 2), 10 + r() * 4, 7);
     // The trees nearest the stairs turn their lit side to the window (the user's ask: "make it
-    // face us more"); flora-stylised.js sets the turn from the eye. The 45 m reach is a design choice.
+    // face us more"); floraStylised.js sets the turn from the eye. The 45 m reach is a design choice.
     const stairs = [place(f0, 14), place(f1, 14)];
     // They are also drawn with the near (detailed) model whatever their distance, with smaller leaf
   // clumps (0.65, by eye) so the crown reads as leaves, not big balls (the user's asks).

@@ -1,7 +1,7 @@
-// Prints the garden layouts (src/lib/three/scene/garden-layouts.js) as JSON, with the house's
+// Prints the garden layouts (src/lib/three/scene/gardenLayouts.js) as JSON, with the house's
 // walls and openings, for research/tools/garden-plans.py to draw as top-down plans.
 //   node research/tools/garden-plans.mjs > plans.json
-import { LAYOUTS, LAYERS, WALLS } from '../../src/lib/three/scene/garden-layouts.js';
+import { LAYOUTS, LAYERS, WALLS } from '../../src/lib/three/scene/gardenLayouts.js';
 import { PLAN } from '../../src/lib/three/scene/interior/plan.js';
 import { HOUSE } from '../../src/lib/three/scene/interior/exterior.js';
 import { WINDOW_EYE } from '../../src/lib/three/scene/outside/site.js';

@@ -17,7 +17,7 @@
 //     ratio, ring scars on the bare stem, the variegation layout and all colours;
 //   - no pot, no flowers.
 //   - the look: leaves textured in code after Cyprien Witkowski's foliage study (see
-//     aglaonema/leaf-texture.js): a "sculpted" normal map and a painted albedo; hue-shifted
+//     aglaonema/leafTexture.js): a "sculpted" normal map and a painted albedo; hue-shifted
 //     cel tones, a rim light and light through the undersides are our interpretation.
 // Nothing is copied from any model, texture or image.
 //
@@ -30,8 +30,8 @@ import * as THREE from 'three';
 import { mulberry32, range, stratified } from '../../../utils/rng.js';
 import { addTube, createMeshWriter } from '../tube.js';
 import { UP } from '../grow.js';
-import { FOLIAGE_SUN, toneUniforms } from '../cel-foliage.js';
-import { createLeafTextures } from './aglaonema/leaf-texture.js';
+import { FOLIAGE_SUN, toneUniforms } from '../celFoliage.js';
+import { createLeafTextures } from './aglaonema/leafTexture.js';
 
 // Sizes in metres (guess except where noted above).
 const SIZES = {

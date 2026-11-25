@@ -20,7 +20,7 @@
 
 import * as THREE from 'three';
 import { addTube, createMeshWriter } from '../tube.js';
-import { FOLIAGE_SUN, toneUniforms } from '../cel-foliage.js';
+import { FOLIAGE_SUN, toneUniforms } from '../celFoliage.js';
 import { mulberry32, range } from '../../../utils/rng.js';
 
 const NIPAH = {

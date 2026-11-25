@@ -19,7 +19,7 @@ import * as THREE from 'three';
 import { mulberry32, range, shuffled, stratified } from '../../utils/rng.js';
 import { addTube, createMeshWriter } from './tube.js';
 import { UP } from './grow.js';
-import { CEL_RAMP_GLSL, FOLIAGE_SUN, toneUniforms } from './cel-foliage.js';
+import { CEL_RAMP_GLSL, FOLIAGE_SUN, toneUniforms } from './celFoliage.js';
 import { barkRepeat, createBarkMaterial } from './bark.js';
 
 const birchBark = (() => {
@@ -193,7 +193,7 @@ function createLeafStrokeMask({ curve = 0.05 } = {}, size = 128) {
   return tex;
 }
 
-/** Sun direction used by the cel ramp (shared with the vines; see cel-foliage.js). */
+/** Sun direction used by the cel ramp (shared with the vines; see celFoliage.js). */
 export const TREE_SUN = FOLIAGE_SUN;
 
 /**

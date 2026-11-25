@@ -1,5 +1,5 @@
 // `?flora=stylised`: the approved stylised plants (vegetation/plants/*.js) stand at the proposed
-// layout entries (flora-layout.js) instead of the markers. Each entry gets one copy of its plant,
+// layout entries (floraLayout.js) instead of the markers. Each entry gets one copy of its plant,
 // based at the entry's `at`, turned by its `yaw` and scaled so its height matches the entry's
 // (satin pothos, the table's Schismatoglottis and the bougainvillea keep their modelled size).
 // The level of detail is picked once per copy, by its distance from `eye` against the plant's
@@ -17,7 +17,7 @@ import { plant as aglaonema } from '../vegetation/plants/aglaonema.js';
 import { plant as bougainvillea } from '../vegetation/plants/bougainvillea.js';
 import { plant as schismatoglottis } from '../vegetation/plants/schismatoglottis.js';
 import { createTree } from '../vegetation/tree.js';
-import { FOLIAGE_SUN } from '../vegetation/cel-foliage.js';
+import { FOLIAGE_SUN } from '../vegetation/celFoliage.js';
 
 // The oak bush preset (vegetation/tree.js) as a plant: one level of detail, used near and far.
 const oakBush = { id: 'oakBush', label: 'Oak bush', create: ({ seed }) => createTree({ seed, kind: 'oakBush' }), switchAt: Infinity };

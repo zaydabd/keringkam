@@ -26,7 +26,7 @@ import * as THREE from 'three';
 import { mulberry32, range, shuffled, stratified } from '../../../utils/rng.js';
 import { addTube, createMeshWriter } from '../tube.js';
 import { bladeRadius } from '../leaf.js';
-import { CEL_RAMP_GLSL, FOLIAGE_SUN, toneUniforms } from '../cel-foliage.js';
+import { CEL_RAMP_GLSL, FOLIAGE_SUN, toneUniforms } from '../celFoliage.js';
 import { UP, growHanging, pointAt, taper } from '../grow.js';
 
 // Ovate blade, heart-shaped base, entire margin (shape table: guess, in leaf.js's format).

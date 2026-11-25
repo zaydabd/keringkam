@@ -1,11 +1,11 @@
 // Cel materials for the bougainvillea: one shader draws leaf and bract cards, near and far
 // (one draw call per level), choosing the green or the magenta 3-tone ramp per card (`kind`).
-// The ramp is CEL_RAMP_GLSL from cel-foliage.js; the bract ramp is the same steps on a second
+// The ramp is CEL_RAMP_GLSL from celFoliage.js; the bract ramp is the same steps on a second
 // set of tones. Card normals follow tree.js: per corner from the clump centre, blended with
 // the crown normal. All colours are design choices (guess); magenta is the sourced common colour.
 
 import * as THREE from 'three';
-import { CEL_RAMP_GLSL, toneUniforms } from '../../cel-foliage.js';
+import { CEL_RAMP_GLSL, toneUniforms } from '../../celFoliage.js';
 
 const BRACT_RAMP_GLSL = /* glsl */ `
   uniform vec3 bract0;

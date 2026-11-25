@@ -4,8 +4,8 @@
 
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { createVineCurtain } from './vine-curtain.js';
-import { createHangingVine } from './hanging-vine.js';
+import { createVineCurtain } from './vineCurtain.js';
+import { createHangingVine } from './hangingVine.js';
 import { createTree } from './tree.js';
 import { makeLOD } from './lod.js';
 

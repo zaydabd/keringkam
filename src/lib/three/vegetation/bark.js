@@ -16,7 +16,7 @@
 // Every number in a pattern is a design choice (guess), set by eye.
 
 import * as THREE from 'three';
-import { FOLIAGE_SUN } from './cel-foliage.js';
+import { FOLIAGE_SUN } from './celFoliage.js';
 
 /**
  * Bark patterns. cell: [around, along] plate size in metres; jitter: how irregular the plates

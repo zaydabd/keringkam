@@ -27,7 +27,7 @@
 import * as THREE from 'three';
 import { mulberry32, range } from '../../../utils/rng.js';
 import { addTube, createMeshWriter } from '../tube.js';
-import { FOLIAGE_SUN } from '../cel-foliage.js';
+import { FOLIAGE_SUN } from '../celFoliage.js';
 import { growSkeleton } from './bougainvillea/skeleton.js';
 import { createAtlas, createCardMaterial } from './bougainvillea/materials.js';
 

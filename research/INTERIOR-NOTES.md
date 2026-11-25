@@ -311,7 +311,7 @@ OUTSIDE_SIGNOFF
   - **clay (blank):** the clay render, set in `themes/clay.js`. It is the scene with its look switched off: one grey and white light. It keeps the original's light levels and sun.
     - `?theme=off` still means clay. Both give pixel-identical captures with a fixed clock and sway.
     - The clay grey moved from `outside/index.js` into `themes/clay.js`.
-  - **detailed (Watercolour detail, branches `theme-detailed`, `theme-detailed-strong`):** `themes/interior-detailed.js`. The original painted with many more brush strokes. Colours, light, ink and grade are unchanged.
+  - **detailed (Watercolour detail, branches `theme-detailed`, `theme-detailed-strong`):** `themes/interiorDetailed.js`. The original painted with many more brush strokes. Colours, light, ink and grade are unchanged.
     - **Brush dabs on the surfaces** (branch `theme-detailed-surface`, `paint.js` brushDabs, the theme's `dabs` marks; the original has none):
       - Short tapered strokes painted into the wood (planks: walls, floor, ceiling, furniture, frames, table tops) and curtain textures, each a little lighter or darker than the paint under it.
       - Planks: 1,600 per 1024 × 256 tile, along the grain. Curtains: 400 per 256 px tile, down the cloth.
@@ -338,7 +338,7 @@ OUTSIDE_SIGNOFF
       - Triangles (327,813) and draw calls (61) are the same.
       - Mean screen brightness is 105.3 → 106.2.
       - Mean neighbour-pixel difference goes from 7.89 to 10.09 (+28%).
-- **To add a theme:** copy `interior.js` and `outside.js` under new names, change the copies, and list them in `THEMES`. A theme that only changes a few values can spread the original instead, as `interior-detailed.js` does.
+- **To add a theme:** copy `interior.js` and `outside.js` under new names, change the copies, and list them in `THEMES`. A theme that only changes a few values can spread the original instead, as `interiorDetailed.js` does.
 
 ## Open issues
 - [ ] R2 look: see "Known defects" in the sign-off record above.
@@ -2497,7 +2497,7 @@ the edges change here.
   `&grow=plants` plants it; `&grow=trim` cuts each plant back to its slot, with some growth left
   past the cut (`GARDEN.grown`). Without `?garden` the scene is unchanged. With a garden on, the
   old painted bush below the window is left out (`createOutside({ bush: false })`).
-- **Layouts** (`src/lib/three/scene/garden-layouts.js`; all places and sizes **ESTIMATED**):
+- **Layouts** (`src/lib/three/scene/gardenLayouts.js`; all places and sizes **ESTIMATED**):
   framed, open, drift, tropical, and **bougainvillea** (the user's design): a trimmed
   bougainvillea row along the river wall (tops about 1.3 m above the floor), four trained up the
   wall beside the windows, vine curtains and hanging vines from the window heads and the eaves,

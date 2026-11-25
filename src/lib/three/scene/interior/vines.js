@@ -3,7 +3,7 @@
 import * as THREE from 'three';
 import { PLAN } from './plan.js';
 import { M, dice } from './builder.js';
-import { windowVineLayout } from '../flora-layout.js';
+import { windowVineLayout } from '../floraLayout.js';
 
 /** Trailing vines beside the windows: small leaf cards along a gently swinging line. */
 export function buildVines(b) {
@@ -23,5 +23,5 @@ export function buildVines(b) {
       k++;
     }
   };
-  for (const l of windowVineLayout(PLAN)) vine(l.x, l.z, l.yTop, l.yBottom, l.alongX); // where: flora-layout.js
+  for (const l of windowVineLayout(PLAN)) vine(l.x, l.z, l.yTop, l.yBottom, l.alongX); // where: floraLayout.js
 }

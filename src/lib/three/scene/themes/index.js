@@ -5,7 +5,7 @@
 // to start from), and list it in THEMES.
 
 import { INTERIOR_THEME as ORIGINAL_INTERIOR } from './interior.js';
-import { INTERIOR_THEME as DETAILED_INTERIOR } from './interior-detailed.js';
+import { INTERIOR_THEME as DETAILED_INTERIOR } from './interiorDetailed.js';
 import { OUTSIDE_THEME as ORIGINAL_OUTSIDE } from './outside.js';
 import { CLAY } from './clay.js';
 import { sceneOptions } from '../../../utils/urlOptions.js';

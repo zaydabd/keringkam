@@ -36,8 +36,8 @@ import { CLAY } from '../themes/clay.js';
 import { buildFarBank, BANK_PAINT } from './banks.js';
 import { FAR_GRASS_GROUND } from './grass.js';
 import { buildFarFur } from './fur.js';
-import { bladePatches, farBankProposal } from '../flora-layout.js';
-import { buildFloraStylised } from '../flora-stylised.js';
+import { bladePatches, farBankProposal } from '../floraLayout.js';
+import { buildFloraStylised } from '../floraStylised.js';
 import { buildNearWaterfront } from './waterfront.js';
 import { planAssembly, compileAssembly } from './assembly.js';
 import { PENAMBANG, planBoat, compileBoat } from './boats.js';
@@ -81,7 +81,7 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
   };
 
   // --- The banks (banks.js) ---------------------------------------------------------------------
-  // ?flora=stylised (the default; flora-layout.js): the entries where the stylised plants stand.
+  // ?flora=stylised (the default; floraLayout.js): the entries where the stylised plants stand.
   const floraEntries = [];
   const bladeFrom = w.slot('blade').triangles;
   if (want('farbank')) reports.farbank = buildFarBank(w, { seed, paint: flora === 'stylised' ? FAR_GRASS_GROUND : null });
@@ -89,7 +89,7 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
     const ticks = { 'far slope ticks': BANK_PAINT.tick };
     floraEntries.push(...bladePatches(w.slot('blade'), bladeFrom, ticks));
   }
-  // Proposed far-bank planting (flora-layout.js): markers only, a composition to judge.
+  // Proposed far-bank planting (floraLayout.js): markers only, a composition to judge.
   if (flora && want('farbank')) {
     const { place } = reports.farbank;
     floraEntries.push(...farBankProposal({ place, forecourt: forecourtFrame().xRange, rand: mulberry32(613 + seed), stepPlanting: flora === 'stylised' }));
@@ -269,7 +269,7 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
   reports.budget = { contract: budget.assert() };
   const stats = { triangles: total, meshes: group.children.length, perMesh: triangles };
 
-  // ?flora=stylised: the approved plants at the same entries (flora-stylised.js), also after the budget.
+  // ?flora=stylised: the approved plants at the same entries (floraStylised.js), also after the budget.
   const stylised = flora === 'stylised' ? buildFloraStylised(floraEntries, { eye: WINDOW_EYE, layer: MIRROR_LAYER }) : null;
   if (stylised) group.add(stylised.group);
   // ?flora=stylised: the far bank covered in grass like fur (fur.js), over its dark-green ground

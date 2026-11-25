@@ -3,7 +3,7 @@
 // pale-green strands hanging almost straight down, leaves that shrink towards the tips, a few bare
 // strands, and small curls at some tips. Narrow: about a third as wide as it is tall.
 //
-// Same growth contract as vine-curtain.js: a per-level species table, a growth queue,
+// Same growth contract as vineCurtain.js: a per-level species table, a growth queue,
 // stratified slots with shuffled sides, gravity plus a seeded wander, leaves after the stems.
 // The branch (level 0) is grown, not authored. No wind: the reference does not move.
 // Units: metres. The size (about 0.45 m wide, 1.1 m tall) is a design choice: the reference gives no scale.
@@ -12,7 +12,7 @@ import * as THREE from 'three';
 import { mulberry32, range, shuffled, stratified } from '../../utils/rng.js';
 import { addTube, createMeshWriter } from './tube.js';
 import { HEART_LEAF_PAINT, HEART_LEAF_SHAPE, createLeafGeometry } from './leaf.js';
-import { createCelLeafMaterial, setCelLeafAttributes } from './cel-foliage.js';
+import { createCelLeafMaterial, setCelLeafAttributes } from './celFoliage.js';
 import { growHanging, growTendril, pointAt, taper } from './grow.js';
 
 export const HANGING_VINE = {
@@ -104,7 +104,7 @@ export function createHangingVine({ seed = 1, species = HANGING_VINE, paint = HA
   const x = new THREE.Vector3();
   const y = new THREE.Vector3();
   const z = new THREE.Vector3();
-  // Proxy normals for the cel shading (our adaptation; see cel-foliage.js): crown leaves take the
+  // Proxy normals for the cel shading (our adaptation; see celFoliage.js): crown leaves take the
   // direction from the crown centre, strand leaves the direction out from their strand.
   const branch = branches[0];
   const crownCentre = branch.points.reduce((c, q) => c.add(q), new THREE.Vector3()).divideScalar(branch.points.length);

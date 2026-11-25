@@ -59,8 +59,8 @@ import { buildCurtains } from './interior/curtains.js';
 import { buildSeat, furnitureOverlaps, buildTable } from './interior/furniture.js';
 import { buildHangings } from './interior/hangings.js';
 import { buildVines } from './interior/vines.js';
-import { floraMode, windowHangingProposal, roomPlantsProposal } from './flora-layout.js';
-import { buildFloraStylised } from './flora-stylised.js';
+import { floraMode, windowHangingProposal, roomPlantsProposal } from './floraLayout.js';
+import { buildFloraStylised } from './floraStylised.js';
 import { gardenChoice, buildGarden, buildBeds } from './garden.js';
 import { shadeWalls, glossBoards, buildContactShadows } from './interior/surfaces.js';
 import { drapeAll, fabricGeometry, partColour, fabricIndex } from './interior/fabrics.js';
@@ -105,7 +105,7 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
   // it. ?exposure=n sets the exposure instead of metering (the stage uses the window shot's 1.85).
   const stage = params.get('stage')?.split(',').filter((n) => OBJECTS.includes(n)) ?? null;
   const exposureParam = num('exposure') ?? (stage ? 1.85 : null);
-  // The stylised plants (flora-stylised.js) are on by default; ?flora=off leaves them out.
+  // The stylised plants (floraStylised.js) are on by default; ?flora=off leaves them out.
   const flora = floraMode(params);
   // No MSAA on the screen under post-processing: the scene is drawn into the composer's own
   // (single-sample) buffers and only the last full-screen pass reaches the screen, so screen MSAA

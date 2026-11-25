@@ -21,7 +21,7 @@ import * as THREE from 'three';
 import { mulberry32, range, shuffled, stratified } from '../../utils/rng.js';
 import { addTube, createMeshWriter } from './tube.js';
 import { LEAF_PAINT, createLeafGeometry } from './leaf.js';
-import { createCelLeafMaterial, setCelLeafAttributes } from './cel-foliage.js';
+import { createCelLeafMaterial, setCelLeafAttributes } from './celFoliage.js';
 import { UP, growHanging, growTendril, pointAt, resample, taper } from './grow.js';
 
 export const VINE_CURTAIN = {
@@ -211,7 +211,7 @@ export function createVineCurtain({ seed = 1, species = VINE_CURTAIN, paint = VI
   const y = new THREE.Vector3();
   const z = new THREE.Vector3();
 
-  // Proxy normals for the cel shading (our adaptation; see cel-foliage.js): arch leaves take the
+  // Proxy normals for the cel shading (our adaptation; see celFoliage.js): arch leaves take the
   // direction from the arch's leaf mass (behind the arch, at its middle), strand and shoot leaves
   // the direction out from their stem.
   const archPts = branches.find((b) => b.kind === 'arch').points;

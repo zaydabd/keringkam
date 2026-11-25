@@ -5,7 +5,7 @@
 import * as THREE from 'three';
 import { clumpCentres, growBranches, shapeBranches, writeBranches } from './tree.js';
 import { createMeshWriter } from './tube.js';
-import { CEL_RAMP_GLSL, FOLIAGE_SUN, toneUniforms } from './cel-foliage.js';
+import { CEL_RAMP_GLSL, FOLIAGE_SUN, toneUniforms } from './celFoliage.js';
 import { createBarkMaterial } from './bark.js';
 import { mulberry32, range } from '../../utils/rng.js';
 
