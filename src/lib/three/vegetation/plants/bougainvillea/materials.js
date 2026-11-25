@@ -157,7 +157,9 @@ export function createCardMaterial(map, leafTones, bractTones) {
         vec4 tex = texture2D(map, vUv);
         if (tex.a < 0.5) discard;
         vec3 L = normalize((viewMatrix * vec4(sunDir, 0.0)).xyz);
-        float shade = max(dot(normalize(vNormal), L), 0.0) * vAo;
+        // Wrapped light: leaves and bracts turned from the sun still get some, so a backlit bush
+        // keeps its greens and magentas instead of going black (design choice).
+        float shade = clamp((dot(normalize(vNormal), L) + 0.6) / 1.6, 0.0, 1.0) * vAo;
         vec3 col = (mod(vKind + 0.5, 2.0) > 1.0 ? bractRamp(shade) : celRamp(shade)) * vTint * tex.r;
         if (tex.g > 0.5) col = ${FLOWER} * (0.6 + 0.4 * shade);
         gl_FragColor = vec4(col, 1.0);

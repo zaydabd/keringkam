@@ -250,12 +250,19 @@ const OUTLINE_SHADER = {
 };
 
 // A cut-out panel in the edge buffer: "nothing here" (alpha 0), but at the panel's own depth.
+// Camera-facing cards (the bougainvillea's) carry `corner`, their offset in view space, and `kind`,
+// their cell in an atlas of `cells` side by side; a mesh without them reads both as 0.
 const MASK_VERTEX = /* glsl */ `
   uniform mat3 uvTransform;
+  uniform float cells;
+  attribute vec2 corner;
+  attribute float kind;
   varying vec2 vUv;
   void main() {
-    vUv = (uvTransform * vec3(uv, 1.0)).xy;
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    vUv = (uvTransform * vec3((uv.x + kind) / cells, uv.y, 1.0)).xy;
+    vec4 mv = modelViewMatrix * vec4(position, 1.0);
+    mv.xy += corner;
+    gl_Position = projectionMatrix * mv;
   }
 `;
 // `cover` raises the alpha per mip level, as the leaf cards' own material does (riverside/index.js
@@ -274,7 +281,7 @@ const MASK_FRAGMENT = /* glsl */ `
 
 /**
  * Creates the outline pass. Call render() each frame before the composer renders; it draws the
- * edge buffer for objects on `layer` (default 0). `mask` = { layer, map, cover } or a list of them:
+ * edge buffer for objects on `layer` (default 0). `mask` = { layer, map, cover, cells } or a list of them:
  * objects on that layer are cut out by `map` (alpha: the window lattice, leaf cards outside);
  * they hide the ink of what is behind them and get none. `cover` (default 0) raises their alpha
  * per mip level, to match a material that does (riverside/index.js keepCover).
@@ -285,9 +292,9 @@ export function createOutline(renderer, scene, camera, { layer = INK_LAYER, ink 
   target.texture.minFilter = target.texture.magFilter = THREE.NearestFilter;
   const edgeMaterial = new THREE.ShaderMaterial({ vertexShader: EDGE_VERTEX, fragmentShader: EDGE_FRAGMENT, side: THREE.DoubleSide });
   const material = new THREE.ShaderMaterial({ ...OUTLINE_SHADER, uniforms: THREE.UniformsUtils.clone(OUTLINE_SHADER.uniforms) });
-  const masks = (Array.isArray(mask) ? mask : mask ? [mask] : []).map(({ layer: maskLayer, map, cover = 0 }) => {
+  const masks = (Array.isArray(mask) ? mask : mask ? [mask] : []).map(({ layer: maskLayer, map, cover = 0, cells = 1 }) => {
     map.updateMatrix();
-    return { layer: maskLayer, material: new THREE.ShaderMaterial({ uniforms: { map: { value: map }, uvTransform: { value: map.matrix }, cover: { value: cover } }, vertexShader: MASK_VERTEX, fragmentShader: MASK_FRAGMENT, side: THREE.DoubleSide }) };
+    return { layer: maskLayer, material: new THREE.ShaderMaterial({ uniforms: { map: { value: map }, uvTransform: { value: map.matrix }, cover: { value: cover }, cells: { value: cells } }, vertexShader: MASK_VERTEX, fragmentShader: MASK_FRAGMENT, side: THREE.DoubleSide }) };
   });
   material.uniforms.ink.value.set(ink);
   const clear = new THREE.Color();

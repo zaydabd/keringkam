@@ -10,3 +10,7 @@ export const INK_MASK_LAYER = 3; // cuts the ink of what is behind it by its tex
 export const FURNITURE_LAYER = 4;
 // Cast the side window's shadow: walls, frames and furniture, not the curtain in the opening.
 export const SIDE_LAYER = 5;
+// Cuts the ink of what is behind it by the bougainvillea's card atlas: its leaf and bract cards,
+// which face the camera (toon.js MASK_VERTEX), so the stems and walls behind a bush are not inked
+// through its leaves.
+export const CARD_MASK_LAYER = 6;

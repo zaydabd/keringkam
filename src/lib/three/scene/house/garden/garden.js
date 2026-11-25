@@ -7,6 +7,7 @@ import { HOUSE } from '../../world/house.js';
 import { LAYOUTS, LAYERS, WALLS } from './layouts.js';
 import { plant as bougainvillea, createBushFoliage } from '../../../vegetation/plants/bougainvillea.js';
 import { mulberry32 } from '../../../../utils/rng.js';
+import { NO_INK_LAYER, CARD_MASK_LAYER } from '../../layers.js';
 import { plant as kuchingTree } from '../../../vegetation/plants/kuchingTree.js';
 // The garden's tree: main's new Kuching tree in its rain-tree design (treeStudies.js rainRoadside).
 const rainTree = { id: 'rainTree', create: (o) => kuchingTree.create({ ...o, variant: 'rainRoadside' }) };
@@ -42,7 +43,8 @@ export const GARDEN = {
   // A bougainvillea slot is a thick bush from the soil up (the user: "they should be thick bushes",
   // not clumps floating on bare stems). Its outside is covered in clumps of leaf and bract cards
   // `spacing` apart, on rings from just above the bed to the top of the dome. Sizes are guesses.
-  bush: { spacing: 0.2, clump: 0.2, card: 0.22, cards: 12 },
+  // `core`: a solid body of this share of the slot that only the AO sees (see bushCore).
+  bush: { spacing: 0.13, clump: 0.2, card: 0.22, cards: 18, core: 0.85 },
 };
 
 const baseOf = (sl) => sl.base ?? GH; // where a slot stands
@@ -89,6 +91,38 @@ function reachOf(sl, p) {
   return Math.hypot((p.x - sl.at[0]) / sl.rx, up / (sl.h / 2), (p.z - sl.at[1]) / sl.rz);
 }
 
+/** Leaf and bract cards: drawn without ink, and hiding the ink of what is behind them (toon.js masks). */
+function cardsMaskInk(mesh) {
+  mesh.layers.set(NO_INK_LAYER);
+  mesh.layers.enable(CARD_MASK_LAYER);
+}
+
+/** The slot's shape (straight sides to half height, then a dome) as a unit lathe: radius 1, height 1. */
+const BUSH_SHAPE = (() => {
+  const pts = [new THREE.Vector2(0, 0), new THREE.Vector2(1, 0), new THREE.Vector2(1, 0.5)];
+  for (let i = 1; i <= 8; i++) {
+    const a = (i / 8) * (Math.PI / 2);
+    pts.push(new THREE.Vector2(Math.cos(a), 0.5 + 0.5 * Math.sin(a)));
+  }
+  return new THREE.LatheGeometry(pts, 20);
+})();
+
+/**
+ * A solid body inside a bougainvillea bush, the slot's shape shrunk, that only the AO's depth and
+ * normal render sees (post/ao.js): it draws no colour, no depth and no ink. The AO's render does
+ * not turn the cards to the camera, so without it the AO saw the stems and the wall behind the
+ * leaves and shaded their shapes through them (the user: "how come it is see through?").
+ */
+function bushCore(sl, material) {
+  const k = GARDEN.bush.core;
+  const mesh = new THREE.Mesh(BUSH_SHAPE, material);
+  mesh.name = 'bush core';
+  mesh.layers.set(NO_INK_LAYER);
+  mesh.scale.set(sl.rx * k, sl.h * k, sl.rz * k);
+  mesh.position.set(sl.at[0], baseOf(sl), sl.at[1]);
+  return mesh;
+}
+
 /**
  * The clumps covering a bougainvillea slot's outside (world space): rings up its straight sides
  * and over its dome. None close enough to the house for a card to show through the wall into the
@@ -127,7 +161,7 @@ const inHouse = (p, m = 0.03) => p.x > WALLS.X0 - m && p.x < WALLS.X1 + m && p.z
  * Keeps the triangles of `mesh` whose vertices all lie inside the slot's volume grown by
  * `grown` (± noise), out of the house's walls and above the ground. Returns the share kept.
  */
-function trim(mesh, sl) {
+function trim(mesh, sl, grown = GARDEN.grown) {
   const g = mesh.geometry;
   const pos = g.attributes.position;
   const index = g.index ? g.index.array : [...Array(pos.count).keys()];
@@ -135,7 +169,7 @@ function trim(mesh, sl) {
   const inside = new Uint8Array(pos.count);
   for (let v = 0; v < pos.count; v++) {
     p.fromBufferAttribute(pos, v).applyMatrix4(mesh.matrixWorld);
-    const reach = 1 + GARDEN.grown + GARDEN.grownNoise * noise(Math.round(p.x * 6), Math.round(p.y * 6), Math.round(p.z * 6));
+    const reach = 1 + grown + GARDEN.grownNoise * noise(Math.round(p.x * 6), Math.round(p.y * 6), Math.round(p.z * 6));
     inside[v] = reachOf(sl, p) <= reach && p.y >= baseOf(sl) - 0.05 && !inHouse(p) ? 1 : 0;
   }
   const kept = [];
@@ -169,6 +203,8 @@ export function buildGarden({ layout }) {
   const disposables = [];
   const slots = layout.slots;
   const stats = { layout: layout.label, slots: slots.length, kept: {} };
+  const coreMaterial = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false }); // seen by the AO only (bushCore)
+  disposables.push(coreMaterial);
   for (const [n, sl] of slots.entries()) {
     const kind = PLANTS[LAYERS[sl.layer].plant];
     const made = kind.create({ seed: 1 + (n % 5), lod: 'near', leaves: kind === rainTree ? 0.65 : undefined }); // 0.65: the rain tree's smaller clumps for trees seen close (kuchingTree.js)
@@ -204,16 +240,26 @@ export function buildGarden({ layout }) {
     plant.updateMatrixWorld(true);
     if (sl.layer !== 'tree') {
       const kept = [];
-      plant.traverse((o) => o.isMesh && kept.push(trim(o, sl)));
+      // A bougainvillea's stems stay inside its leaves (the bush's cards sit on the slot's surface).
+      const stemsIn = kind === bougainvillea ? -0.2 : GARDEN.grown;
+      plant.traverse((o) => o.isMesh && kept.push(trim(o, sl, o.name === 'stems' ? stemsIn : GARDEN.grown)));
       stats.kept[`${sl.layer} ${n}`] = +(kept.reduce((a, k) => a + k, 0) / kept.length).toFixed(2);
     }
     plant.traverse((o) => o.isMesh && disposables.push(o.geometry));
+    if (kind === bougainvillea) {
+      plant.traverse((o) => o.isMesh && o.geometry.attributes.corner && cardsMaskInk(o));
+      // Out of the AO's depth and normal render (post/ao.js): its cards face the camera, which that
+      // render does not do, so the AO saw the stems behind them and drew them through the leaves.
+      plant.traverse((o) => o.isMesh && (o.userData.noAO = true));
+    }
     group.add(plant);
     if (kind === bougainvillea) {
       const B = GARDEN.bush;
       const leaves = createBushFoliage(1 + n, bushClumps(sl, 101 + n), { radius: B.clump, card: B.card, count: B.cards });
       leaves.mesh.name = `bush ${n}`;
-      group.add(leaves.mesh);
+      cardsMaskInk(leaves.mesh);
+      leaves.mesh.userData.noAO = true;
+      group.add(leaves.mesh, bushCore(sl, coreMaterial));
       disposables.push(leaves);
     }
   }

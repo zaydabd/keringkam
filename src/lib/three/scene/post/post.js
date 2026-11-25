@@ -10,7 +10,8 @@ import { PIGMENT_SHADER, FINISH_SHADER, createPigmentField } from './watercolour
 import { createAO } from './ao.js';
 import { AO, OUTLINES } from '../quality.js';
 import { REFERENCE_EXPOSURE } from './meter.js';
-import { INK_MASK_LAYER } from '../layers.js';
+import { INK_MASK_LAYER, CARD_MASK_LAYER } from '../layers.js';
+import { createAtlas, CELLS } from '../../vegetation/plants/bougainvillea/materials.js';
 
 /** Sets a pass's uniforms from a theme section: colours take a hex, vectors an array, the rest a number. */
 function setUniforms(uniforms, values) {
@@ -29,7 +30,9 @@ export function createPost(renderer, scene, camera, { theme, quality: Q, params,
   const num = (k) => (params.has(k) ? Number(params.get(k)) || 0 : null);
 
   const { color: ink, lineWidth, ...inkLook } = theme.ink;
-  const outline = createOutline(renderer, scene, camera, { ink, lineWidth, mask: [{ layer: INK_MASK_LAYER, map: inkMask }] });
+  // The bougainvillea's leaf and bract cards mask the ink behind them by their atlas (a copy of it).
+  const cardAtlas = createAtlas();
+  const outline = createOutline(renderer, scene, camera, { ink, lineWidth, mask: [{ layer: INK_MASK_LAYER, map: inkMask }, { layer: CARD_MASK_LAYER, map: cardAtlas, cells: CELLS }] });
   setUniforms(outline.material.uniforms, inkLook);
   // The theme's ink, which the outlines setting (quality.js OUTLINES) scales.
   const inkBase = Object.fromEntries(Object.keys(OUTLINES.full).map((k) => [k, outline.material.uniforms[k].value]));
@@ -135,6 +138,7 @@ export function createPost(renderer, scene, camera, { theme, quality: Q, params,
     dispose() {
       ao?.dispose(); // GTAOPass's own targets and materials
       outline.dispose();
+      cardAtlas.dispose();
       pigment.dispose();
       pigmentField.dispose();
       finish.dispose();
