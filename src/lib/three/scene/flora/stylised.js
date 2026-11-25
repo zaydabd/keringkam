@@ -1,5 +1,5 @@
 // `?flora=stylised`: the approved stylised plants (vegetation/plants/*.js) stand at the proposed
-// layout entries (floraLayout.js) instead of the markers. Each entry gets one copy of its plant,
+// layout entries (flora/layout.js) instead of the markers. Each entry gets one copy of its plant,
 // based at the entry's `at`, turned by its `yaw` and scaled so its height matches the entry's
 // (satin pothos, the table's Schismatoglottis and the bougainvillea keep their modelled size).
 // The level of detail is picked once per copy, by its distance from `eye` against the plant's

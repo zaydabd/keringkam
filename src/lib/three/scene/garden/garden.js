@@ -148,7 +148,7 @@ export function buildGarden({ layout }) {
       }
     });
     // Sizes. The bougainvillea keeps its generator's width (its cards are sized for that:
-    // floraStylised.js NATURAL_SIZE), but is drawn taller where its slot is taller than the
+    // flora/stylised.js NATURAL_SIZE), but is drawn taller where its slot is taller than the
     // shrub (~2 m): a climber is the shrub stretched up the wall, then cut narrow. Trees are
     // scaled to fit their slot whole and never cut. The rest are scaled a little over their cut.
     plant.updateMatrixWorld(true);
