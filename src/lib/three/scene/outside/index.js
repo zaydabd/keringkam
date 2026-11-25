@@ -32,7 +32,6 @@ import { mulberry32 } from '../../../utils/rng.js';
 import { buildForecourt, forecourtFrame } from './forecourt.js';
 import { OUTSIDE_THEME } from '../themes/index.js';
 import { ASSEMBLY_STYLE } from '../themes/outside.js';
-import { CLAY } from '../themes/clay.js';
 import { buildFarBank, BANK_PAINT } from './banks.js';
 import { FAR_GRASS_GROUND } from './grass.js';
 import { buildFarFur } from './fur.js';
@@ -44,6 +43,7 @@ import { PENAMBANG, planBoat, compileBoat } from './boats.js';
 import { checkBoats } from './placement.js';
 import { buildBridge } from './bridge.js';
 import { createWater, fresnelF0, WAVES } from './water.js';
+import { clayMaterial, FLAT_GREY } from '../debugMaterials.js';
 
 export { SITE };
 /** The mirrored camera of the river draws this layer: the outside without the water. Lights must be on it too. */
@@ -176,10 +176,10 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
   const toon = ({ map, side = THREE.FrontSide } = {}) => {
     let m;
     if (mode === 'silhouette') m = new THREE.MeshBasicMaterial({ color: '#000000', fog: false, side });
-    else if (mode === 'flat') m = new THREE.MeshToonMaterial({ gradientMap, color: '#bdbdbd', side });
+    else if (mode === 'flat') m = new THREE.MeshToonMaterial({ gradientMap, color: FLAT_GREY, side });
     else if (mode === 'clay') {
       // plain grey, lit as it is; keyed down like the paint so sunlit ground does not burn out
-      m = new THREE.MeshStandardMaterial({ color: CLAY.colour, roughness: 1, metalness: 0, side });
+      m = clayMaterial({ side });
       m.color.multiplyScalar(key);
     }
     else {

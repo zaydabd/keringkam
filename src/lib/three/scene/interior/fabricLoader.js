@@ -4,11 +4,11 @@
 
 import * as THREE from 'three';
 import { toonGradient } from '../toon.js';
-import { CLAY_LOOK } from '../themes/index.js';
 import { PLAN } from './plan.js';
 import { drapeAll, fabricGeometry, partColour, fabricIndex } from './fabrics.js';
 import { FURNITURE_LAYER, SIDE_LAYER } from './lights.js';
 import { createTextureStore, fabrics as FABRIC_PHOTOS } from '../../common.js';
+import { clayMaterial, FLAT_GREY } from '../debugMaterials.js';
 
 /**
  * Starts settling the fabrics and adds their group to `scene`. `onPlaced(stats)` is called once
@@ -40,9 +40,9 @@ export function loadFabrics({ renderer, scene, camera, theme, clay, flat, stage,
         const g = fabricGeometry(results[k], FABRIC_PHOTOS[fabricIndex(f.fabric)].crop, f);
         partColour(g, k);
         const material = clay
-          ? new THREE.MeshStandardMaterial({ color: CLAY_LOOK.colour, roughness: 1, metalness: 0, fog: false, side: THREE.DoubleSide })
+          ? clayMaterial({ fog: false, side: THREE.DoubleSide })
           : new THREE.MeshToonMaterial({
-              map: flat ? null : maps[k], color: flat ? new THREE.Color('#bdbdbd') : new THREE.Color(...theme.fabric.balance), gradientMap: gradient, fog: false, side: THREE.DoubleSide,
+              map: flat ? null : maps[k], color: flat ? new THREE.Color(FLAT_GREY) : new THREE.Color(...theme.fabric.balance), gradientMap: gradient, fog: false, side: THREE.DoubleSide,
               transparent: true, opacity: 1, depthWrite: true, // opaque, as in the photos: at 0.95 the chair showed through the black scarf (5% of a lit chair is half the cloth's own value)
               // The photo's own colours (no part tint; the ink still reads the part id from the
               // colour attribute). Alpha 0 in the scene buffer marks the cloth, so the ink, the

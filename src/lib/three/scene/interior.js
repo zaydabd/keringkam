@@ -66,6 +66,7 @@ import { createControls } from './interior/controls.js';
 import { createFrameCounter } from './interior/frameRate.js';
 import { createPost } from './interior/post.js';
 import { loadFabrics } from './interior/fabricLoader.js';
+import { clayMaterial, FLAT_GREY } from './debugMaterials.js';
 export { SHOTS, FABRIC_VIEWS } from './interior/shots.js';
 export { PLAN } from './interior/plan.js';
 export { furnitureOverlaps } from './interior/furniture.js';
@@ -209,14 +210,14 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
       // Plain grey, lit as it is; the lattice and carving keep their holes (their texture as a mask).
       const cut = key === 'lattice' || key === 'carve';
       if (cut) masks.push(own(maskOf(map)));
-      materials[key] = new THREE.MeshStandardMaterial({ color: CLAY_LOOK.colour, roughness: 1, metalness: 0, fog: false, side: extra?.side ?? THREE.FrontSide, map: cut ? masks.at(-1) : null, alphaTest: cut ? 0.5 : 0 });
+      materials[key] = clayMaterial({ fog: false, side: extra?.side ?? THREE.FrontSide, map: cut ? masks.at(-1) : null, alphaTest: cut ? 0.5 : 0 });
       continue;
     }
     materials[key] = new THREE.MeshToonMaterial({ color, map, vertexColors: true, gradientMap, fog: false, ...extra });
     materials[key].emissiveIntensity *= LIGHT;
     if (debug === 'flat' && key !== 'lattice' && key !== 'carve') {
       materials[key].map = null;
-      materials[key].color.set('#bdbdbd');
+      materials[key].color.set(FLAT_GREY);
     }
   }
 
