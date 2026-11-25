@@ -4,18 +4,14 @@
   import { fade } from 'svelte/transition';
   import { FABRIC_VIEWS } from '../../three/scene/interior.js';
   import { THEMES, THEME_NAME, DEFAULT_THEME } from '../../three/scene/themes/index.js';
+  import { reloadWithOption } from '../../utils/urlOptions.js';
 
   let { shot, onshot } = $props();
   const fabricView = $derived(FABRIC_VIEWS.find((v) => v.shot === shot));
 
   // The theme (?theme=, themes/index.js) is picked when the page loads: choosing another reloads
   // the page, since every texture and material is built at load.
-  function pickTheme(name) {
-    const url = new URL(window.location.href);
-    if (name === DEFAULT_THEME) url.searchParams.delete('theme');
-    else url.searchParams.set('theme', name);
-    window.location.assign(url);
-  }
+  const pickTheme = (name) => reloadWithOption('theme', name === DEFAULT_THEME ? null : name);
 </script>
 
 <button class="shot" type="button" onclick={() => onshot(shot === 'seat' ? 'window' : 'seat')}>

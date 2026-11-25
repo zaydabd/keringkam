@@ -24,3 +24,11 @@ export function sceneOptions() {
 export function hashOptions() {
   return new URLSearchParams(NO_WINDOW ? '' : (window.location.hash.split('?')[1] ?? ''));
 }
+
+/** Loads the page again with one scene option set, or removed when `value` is null. */
+export function reloadWithOption(name, value) {
+  const url = new URL(window.location.href);
+  if (value == null) url.searchParams.delete(name);
+  else url.searchParams.set(name, value);
+  window.location.assign(url);
+}
