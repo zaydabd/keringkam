@@ -1,18 +1,5 @@
-// Where the house's plants stand, as data: the vines beside the windows (house/vines.js), the
-// room's plants and the window-ledge troughs. vegetation/stylised.js grows the plants at these entries.
-
-/** The vines beside the windows (house/vines.js): anchor, top and bottom of each. */
-export function windowVineLayout(PLAN) {
-  const { z0, x1 } = PLAN.room;
-  const [w1, w2, w3] = PLAN.backWindows;
-  return [
-    { x: w1.x1 + 0.2, z: z0, yTop: 2.3, yBottom: 1.45, alongX: true },
-    { x: w2.x0 - 0.16, z: z0, yTop: 2.3, yBottom: 1.7, alongX: true },
-    { x: w3.x1 + 0.08, z: z0, yTop: 2.45, yBottom: 1.25, alongX: true },
-    { x: w3.x1 + 0.03, z: z0 + 0.15, yTop: 2.4, yBottom: 1.6, alongX: true },
-    { x: x1, z: PLAN.sideWindow.z0 - 0.2, yTop: 2.35, yBottom: 1.0, alongX: false },
-  ];
-}
+// Where the house's plants stand, as data: the room's plants and the window-ledge troughs.
+// vegetation/stylised.js grows the plants at these entries.
 
 /**
  * Placeholder plants inside the room, away from the window ledges. After interior-design guides:

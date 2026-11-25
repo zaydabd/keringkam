@@ -14,7 +14,6 @@ import { buildLattice, LATTICE_TILE } from './lattice.js';
 import { buildCurtains } from './curtains.js';
 import { buildSeat, furnitureOverlaps, buildTable } from './furniture.js';
 import { buildHangings } from './hangings.js';
-import { buildVines } from './vines.js';
 import { windowHangingProposal, roomPlantsProposal } from './garden/plants.js';
 import { buildFloraStylised } from '../../vegetation/stylised.js';
 import { gardenChoice, buildGarden, buildBeds } from './garden/garden.js';
@@ -142,10 +141,6 @@ export function createHouse({ renderer, scene, camera, theme: THEME, params, deb
     if (['lattice', 'carve', 'sheer', 'white'].includes(mesh.name)) mesh.userData.noAO = true; // cut-outs and sheer cloth (ao.js)
   }
   group.add(room);
-  // The vines beside the windows inside (house/vines.js): the garden's hanging vine.
-  const vines = own(buildVines());
-  vines.group.visible = !stage;
-  group.add(vines.group);
   const contact = buildContactShadows(textures.blob, sky.target.position.clone().sub(sky.position), textures.footBlob); // they fall the way the sky's light travels
   group.add(contact.group);
   own(contact.mat), own(contact.core), own(contact.foot);

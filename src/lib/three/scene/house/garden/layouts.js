@@ -63,8 +63,10 @@ export const LAYOUTS = {
       // edge, half over the wall beside; top just under the head trim
       { layer: 'curtain', shape: 'hang', at: [w1.x0 + 0.08, Z0 - 0.07], top: WIN_HEAD, w: 0.7, h: 1.1 },
       { layer: 'hanging', shape: 'hang', at: [w1.x1 - 0.12, Z0 - 0.07], top: WIN_HEAD, w: 0.4, h: 0.95 },
-      { layer: 'hanging', shape: 'hang', at: [w2.x0 + 0.12, Z0 - 0.07], top: WIN_HEAD, w: 0.4, h: 0.9 },
-      { layer: 'curtain', shape: 'hang', at: [w2.x1 - 0.08, Z0 - 0.07], top: WIN_HEAD, w: 0.7, h: 1.2 },
+      // the middle window: its curtain on the left, a third narrower (the user, 2026-11-25: "a bit
+      // less thick", and "don't make too many vines block the middle")
+      { layer: 'curtain', shape: 'hang', at: [w2.x0 + 0.06, Z0 - 0.07], top: WIN_HEAD, w: 0.47, sx: 0.67, h: 1.2 },
+      { layer: 'hanging', shape: 'hang', at: [w2.x1 - 0.12, Z0 - 0.07], top: WIN_HEAD, w: 0.4, h: 0.9 },
       // the narrow right window: one each side, half on the wall beside it
       { layer: 'hanging', shape: 'hang', at: [w3.x0 - 0.02, Z0 - 0.07], top: WIN_HEAD, w: 0.4, h: 1.0 },
       { layer: 'hanging', shape: 'hang', at: [w3.x1 + 0.02, Z0 - 0.07], top: WIN_HEAD, w: 0.4, h: 0.9 },
