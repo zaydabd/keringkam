@@ -6,6 +6,6 @@
 // The textures are split by where they are used (paint/): the room, the sky, the street.
 
 export { setPaintDetail } from './paint/core.js';
-export { paintPlanks, paintCarving, paintWindowLattice, paintCurtain, paintDecor, paintGlow } from './paint/room.js';
+export { paintPlanks, paintCarving, paintWindowLattice, paintCurtain, paintDecor, paintGlow } from './house/paint.js';
 export { paintSoftSky } from './paint/sky.js';
 export { paintPaving, styleGain, paintStylized, paintAssembly } from './paint/outside.js';

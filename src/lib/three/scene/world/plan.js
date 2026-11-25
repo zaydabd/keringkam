@@ -27,7 +27,7 @@ export const PLAN = {
     { x0: -1.45, x1: -0.36, z0: -4.5, z1: -4.1, h: 0.46 },
     { x0: -1.45, x1: -0.45, z0: -3.8, z1: -3.0, h: 0.45, stretcher: true },
   ],
-  // Fabrics laid on the furniture and over a window rail (room/fabrics.js). Each names its
+  // Fabrics laid on the furniture and over a window rail (house/fabrics.js). Each names its
   // photo (manifest.json), its size in metres (estimated from the photo's proportions: the real
   // sizes are not recorded) and how it starts before it falls: `path` is the line its length
   // follows, in the piece's own frame (front = +z), in the y-z plane (plane 'yz', its width along

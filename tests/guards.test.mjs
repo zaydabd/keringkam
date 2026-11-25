@@ -6,8 +6,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { mulberry32, shuffled, stratified } from '../src/lib/utils/rng.js';
-import { LAYOUTS, LAYERS } from '../src/lib/three/scene/gardenLayouts.js';
-import { furnitureOverlaps } from '../src/lib/three/scene/interior/furniture.js';
+import { LAYOUTS, LAYERS } from '../src/lib/three/scene/house/garden/layouts.js';
+import { furnitureOverlaps } from '../src/lib/three/scene/house/furniture.js';
 import { planAssembly, compileAssembly } from '../src/lib/three/scene/outside/assembly.js';
 
 const GARDEN_SHA1 = '834c9680d0a4b373bccbbc4186b67c2e3d4ccdf8'; // the bougainvillea layout's slots and beds

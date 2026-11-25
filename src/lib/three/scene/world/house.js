@@ -1,4 +1,4 @@
-// The house's shell around the room (room/exterior.js builds it): cladding, roof, door, stairs and
+// The house's shell around the room (house/exterior.js builds it): cladding, roof, door, stairs and
 // the terrace it stands on. Sizes are estimates unless a comment says otherwise.
 
 export const HOUSE = {

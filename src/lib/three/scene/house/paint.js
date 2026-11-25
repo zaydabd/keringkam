@@ -2,7 +2,7 @@
 // soft glows under the furniture.
 
 import * as THREE from 'three';
-import { rng, canvas, texture, css, vary, wrapX, blot, brushDabs } from './core.js';
+import { rng, canvas, texture, css, vary, wrapX, blot, brushDabs } from '../paint/core.js';
 
 /**
  * Wood planks. One tile is 2 m along the grain (canvas x) by 0.5 m across (canvas y), so with
@@ -201,7 +201,7 @@ export function paintCarving(seed = 17, { colours: C, pattern: P }) {
  * paired scroll rings and vase-shaped straps between them. The design is simplified, not traced.
  * One tile is one motif `unit` wide (metres, wraps left to right) and the whole panel `height`
  * tall (no vertical repeat), so the bands and the rings keep their size whatever the window.
- * Sizes in metres (the tile, its rails and bands) come from LATTICE_TILE (room/lattice.js);
+ * Sizes in metres (the tile, its rails and bands) come from LATTICE_TILE (house/lattice.js);
  * strap widths, the red-brown fade and the tone from the theme.
  */
 export function paintWindowLattice(seed, { colours: C, pattern: P }, { unit, height, rail, band }) {

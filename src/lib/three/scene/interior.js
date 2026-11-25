@@ -46,31 +46,31 @@ import { RESOLUTIONS, MAX_PIXEL_RATIO, MIN_PIXEL_RATIO, PACE, SHADOWS, TEXTURES,
 import { createPerfRun } from './perf.js';
 import { INTERIOR_THEME, OUTSIDE_THEME, CLAY_LOOK } from './themes/index.js';
 import { PLAN } from './world/plan.js';
-import { V, Builder } from './room/builder.js';
-import { buildRoom } from './room/room.js';
-import { buildExterior } from './room/exterior.js';
-import { buildLattice, LATTICE_TILE } from './room/lattice.js';
-import { buildCurtains } from './room/curtains.js';
-import { buildSeat, furnitureOverlaps, buildTable } from './room/furniture.js';
-import { buildHangings } from './room/hangings.js';
-import { buildVines } from './room/vines.js';
-import { floraMode, windowHangingProposal, roomPlantsProposal } from './flora/layout.js';
-import { buildFloraStylised } from './flora/stylised.js';
-import { gardenChoice, buildGarden, buildBeds } from './garden/garden.js';
-import { shadeWalls, glossBoards, buildContactShadows } from './room/surfaces.js';
+import { V, Builder } from './house/builder.js';
+import { buildRoom } from './house/room.js';
+import { buildExterior } from './house/exterior.js';
+import { buildLattice, LATTICE_TILE } from './house/lattice.js';
+import { buildCurtains } from './house/curtains.js';
+import { buildSeat, furnitureOverlaps, buildTable } from './house/furniture.js';
+import { buildHangings } from './house/hangings.js';
+import { buildVines } from './house/vines.js';
+import { windowHangingProposal, roomPlantsProposal } from './house/garden/plants.js';
+import { floraMode, buildFloraStylised } from '../vegetation/stylised.js';
+import { gardenChoice, buildGarden, buildBeds } from './house/garden/garden.js';
+import { shadeWalls, glossBoards, buildContactShadows } from './house/surfaces.js';
 import { sceneOptions } from '../../utils/urlOptions.js';
-import { maskOf } from './room/helpers.js';
+import { maskOf } from './house/helpers.js';
 import { createLights } from './stage/lights.js';
 import { NO_INK_LAYER, MIRROR_LAYER, INK_MASK_LAYER, FURNITURE_LAYER, SIDE_LAYER } from './layers.js';
 import { SHOTS, SHOT_MOVE_SECONDS } from './stage/shots.js';
 import { createControls } from './stage/controls.js';
 import { createFrameCounter } from './stage/frameRate.js';
 import { createPost } from './post/post.js';
-import { loadFabrics } from './room/fabricLoader.js';
+import { loadFabrics } from './house/fabricLoader.js';
 import { clayMaterial, FLAT_GREY } from './debugMaterials.js';
 export { SHOTS, FABRIC_VIEWS } from './stage/shots.js';
 export { PLAN } from './world/plan.js';
-export { furnitureOverlaps } from './room/furniture.js';
+export { furnitureOverlaps } from './house/furniture.js';
 
 const THEME = INTERIOR_THEME;
 
@@ -101,7 +101,7 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
   // it. ?exposure=n sets the exposure instead of metering (the stage uses the window shot's, REFERENCE_EXPOSURE).
   const stage = params.get('stage')?.split(',').filter((n) => OBJECTS.includes(n)) ?? null;
   const exposureParam = num('exposure') ?? (stage ? REFERENCE_EXPOSURE : null);
-  // The stylised plants (flora/stylised.js) are on by default; ?flora=off leaves them out.
+  // The stylised plants (vegetation/stylised.js) are on by default; ?flora=off leaves them out.
   const flora = floraMode(params);
   // No MSAA on the screen under post-processing: the scene is drawn into the composer's own
   // (single-sample) buffers and only the last full-screen pass reaches the screen, so screen MSAA
@@ -198,7 +198,7 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
     ['decor', M.decor, textures.decor, { side: D }],
     ['plate', M.plate, null],
     ['leaf', M.leaf, null, { side: D }],
-    // The house outside (room/exterior.js)
+    // The house outside (house/exterior.js)
     ['clad', M.clad, textures.wall],
     ['zinc', M.zinc, null],
     ['trim', M.trim, textures.planks],
@@ -230,7 +230,7 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
     glossBoards(materials.top, { window: windowGloss, ...L.gloss.top, light: LIGHT, view: debug === 'gloss' });
   }
   const b = new Builder();
-  // Each object rolls its own dice (room/builder.js), so this order does not change the look.
+  // Each object rolls its own dice (house/builder.js), so this order does not change the look.
   buildRoom(b.as('room'));
   buildLattice(b.as('lattice'));
   buildCurtains(b.as('curtains'));
@@ -264,7 +264,7 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
   own(contact.mat), own(contact.core), own(contact.foot);
   room.visible = contact.group.visible = !stage;
 
-  // The house outside the room (room/exterior.js): its own builder, so it can be shown or
+  // The house outside the room (house/exterior.js): its own builder, so it can be shown or
   // hidden as one (?off=house). Seen only from outside: the room's views do not change.
   const hb = new Builder();
   buildExterior(hb.as('house'));
@@ -281,7 +281,7 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
   house.visible = !stage && !off.has('house');
   scene.add(house);
 
-  // The fabrics (room/fabricLoader.js). The first frame waits for them (see tick), so they do
+  // The fabrics (house/fabricLoader.js). The first frame waits for them (see tick), so they do
   // not pop in. Low texture detail or ?fabrics=preview keeps their 512 px previews.
   const fabrics = own(loadFabrics({
     renderer, scene, camera, theme: THEME, clay, flat: debug === 'flat', stage,

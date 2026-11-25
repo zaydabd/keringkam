@@ -1,16 +1,16 @@
-// Planting round the house: the bougainvillea layout (gardenLayouts.js), each plant cut back to
+// Planting round the house: the bougainvillea layout (layouts.js), each plant cut back to
 // its slot with some growth left past the cut (`grown`). On by default; ?garden=off leaves it
 // out. research/tools/garden-plans.mjs draws the layout as a plan.
 
 import * as THREE from 'three';
-import { HOUSE } from '../world/house.js';
-import { LAYOUTS, LAYERS, WALLS } from './gardenLayouts.js';
-import { plant as bougainvillea } from '../../vegetation/plants/bougainvillea.js';
-import { plant as kuchingTree } from '../../vegetation/plants/kuchingTree.js';
+import { HOUSE } from '../../world/house.js';
+import { LAYOUTS, LAYERS, WALLS } from './layouts.js';
+import { plant as bougainvillea } from '../../../vegetation/plants/bougainvillea.js';
+import { plant as kuchingTree } from '../../../vegetation/plants/kuchingTree.js';
 // The garden's tree: main's new Kuching tree in its rain-tree design (treeStudies.js rainRoadside).
 const rainTree = { id: 'rainTree', create: (o) => kuchingTree.create({ ...o, variant: 'rainRoadside' }) };
-import { createVineCurtain, VINE_CURTAIN } from '../../vegetation/vineCurtain.js';
-import { createHangingVine, HANGING_VINE } from '../../vegetation/hangingVine.js';
+import { createVineCurtain, VINE_CURTAIN } from '../../../vegetation/vineCurtain.js';
+import { createHangingVine, HANGING_VINE } from '../../../vegetation/hangingVine.js';
 
 const GH = HOUSE.ground.y; // the terrace (-0.45)
 // Garden copies of the vines, for the window shot (about 1.5 m off, where a pixel is about
@@ -148,7 +148,7 @@ export function buildGarden({ layout }) {
       }
     });
     // Sizes. The bougainvillea keeps its generator's width (its cards are sized for that:
-    // flora/stylised.js NATURAL_SIZE), but is drawn taller where its slot is taller than the
+    // vegetation/stylised.js NATURAL_SIZE), but is drawn taller where its slot is taller than the
     // shrub (~2 m): a climber is the shrub stretched up the wall, then cut narrow. Trees are
     // scaled to fit their slot whole and never cut. The rest are scaled a little over their cut.
     plant.updateMatrixWorld(true);

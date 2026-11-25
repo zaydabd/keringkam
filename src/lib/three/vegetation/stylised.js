@@ -1,5 +1,5 @@
 // `?flora=stylised`: the approved stylised plants (vegetation/plants/*.js) stand at the proposed
-// layout entries (flora/layout.js) instead of the markers. Each entry gets one copy of its plant,
+// layout entries (house/garden/plants.js and outside/plants.js) instead of the markers. Each entry gets one copy of its plant,
 // based at the entry's `at`, turned by its `yaw` and scaled so its height matches the entry's
 // (satin pothos, the table's Schismatoglottis and the bougainvillea keep their modelled size).
 // The level of detail is picked once per copy, by its distance from `eye` against the plant's
@@ -9,15 +9,24 @@
 
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { plant as kuchingTree } from '../../vegetation/plants/kuchingTree.js';
-import { plant as pedada } from '../../vegetation/plants/pedada.js';
-import { plant as nipah } from '../../vegetation/plants/nipah.js';
-import { plant as satinPothos } from '../../vegetation/plants/satinPothos.js';
-import { plant as aglaonema } from '../../vegetation/plants/aglaonema.js';
-import { plant as bougainvillea } from '../../vegetation/plants/bougainvillea.js';
-import { plant as schismatoglottis } from '../../vegetation/plants/schismatoglottis.js';
-import { createTree } from '../../vegetation/tree.js';
-import { FOLIAGE_SUN } from '../../vegetation/celFoliage.js';
+import { plant as kuchingTree } from './plants/kuchingTree.js';
+import { plant as pedada } from './plants/pedada.js';
+import { plant as nipah } from './plants/nipah.js';
+import { plant as satinPothos } from './plants/satinPothos.js';
+import { plant as aglaonema } from './plants/aglaonema.js';
+import { plant as bougainvillea } from './plants/bougainvillea.js';
+import { plant as schismatoglottis } from './plants/schismatoglottis.js';
+import { createTree } from './tree.js';
+import { FOLIAGE_SUN } from './celFoliage.js';
+
+/**
+ * The `?flora=` flag: 'stylised' (the stylised plants, vegetation/stylised.js; the default, the user's
+ * choice, 25 Nov 2026) or null (?flora=off).
+ */
+export function floraMode(params) {
+  const f = params.get('flora') ?? 'stylised';
+  return f === 'stylised' ? f : null;
+}
 
 // The oak bush preset (vegetation/tree.js) as a plant: one level of detail, used near and far.
 const oakBush = { id: 'oakBush', label: 'Oak bush', create: ({ seed }) => createTree({ seed, kind: 'oakBush' }), switchAt: Infinity };

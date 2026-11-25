@@ -3,7 +3,7 @@
 //
 // Scene (query before the #, read by scene/interior.js unless noted):
 //   garden  = off                      hide the planting round the house (garden.js)
-//   flora   = off                      hide the stylised plants and the far bank's trees (flora/layout.js)
+//   flora   = off                      hide the stylised plants and the far bank's trees (house/garden/plants.js and outside/plants.js)
 //   theme   = original | detailed | clay (themes/index.js; off = clay)
 //   asm     = c | d | cd | none        the Assembly building's look (themes/outside.js; default d)
 //   quality = low | medium | high      a graphics preset for this load, not saved (quality.js)
