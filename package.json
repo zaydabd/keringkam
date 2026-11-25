@@ -10,7 +10,8 @@
     "copy:basis": "node scripts/copy-basis.mjs",
     "textures": "node scripts/build-textures.mjs",
     "check": "svelte-check",
-    "test": "node --test tests/"
+    "test": "node --test tests/",
+    "shot": "node scripts/shot.mjs"
   },
   "dependencies": {
     "svelte": "^5.57.3",
@@ -19,6 +20,7 @@
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^7.3.1",
     "ktx2-encoder": "^0.6.0",
+    "playwright-core": "^1.65.1",
     "sharp": "^0.35.5",
     "svelte-check": "^4.7.8",
     "vite": "^8.3.7"
