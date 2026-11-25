@@ -54,17 +54,16 @@ const pedadaBark = (() => {
 export const PEDADA_SPECIES = {
   bark: pedadaBark,
   levels: [
-    { length: [6.5, 7.5], radius: 0.25, tip: 0.07, sections: 16, radial: 12, gnarl: 0.05, up: 0.1, lean: 0.08 },
-    // Limbs ~0.75 of the trunk (shorter than before), so no single limb runs far out (guess).
-    { count: 7, emerge: [0.45, 1], angle: [1.1, 1.35], length: [0.72, 0.82], radius: 0.6, tip: 0.03, sections: 12, radial: 7, gnarl: 0.07, up: -0.02, shorten: 0.45 },
-    { count: 6, emerge: [0.25, 1], angle: [0.55, 0.9], length: [0.45, 0.58], radius: 0.55, tip: 0.01, sections: 7, radial: 5, gnarl: 0.1, up: -0.08, shorten: 0.3 },
-    // Hanging twigs: leave their branch at a low angle and turn down soon (the weeping curtain),
-    // so they never arch bare above the crown.
-    { count: 5, emerge: [0.2, 1], angle: [0.5, 0.8], length: [1.1, 1.4], radius: 0.6, tip: 0.004, sections: 7, radial: 3, gnarl: 0.03, up: -1.1, shorten: 0.2 },
-    // Leaf twigs all along the hanging twig, so leaves cover it (not just its end).
-    { count: 4, emerge: [0.1, 1], angle: [0.5, 0.9], length: [0.18, 0.26], radius: 0.6, tip: 0.002, sections: 2, radial: 3, gnarl: 0.05, up: -0.6, shorten: 0.2 },
+    // Shape after the user's photo of a pedada standing in water (not in the repo): a slender
+    // trunk, limbs rising steeply, leaves in clumps at the branch ends, a crown taller than wide
+    // and open. All numbers are guesses set by eye against that photo.
+    { length: [7.5, 8.5], radius: 0.2, tip: 0.07, sections: 16, radial: 12, gnarl: 0.04, up: 0.1, lean: 0.06 },
+    { count: 7, emerge: [0.22, 1], angle: [0.6, 0.95], length: [0.6, 0.74], radius: 0.6, tip: 0.03, sections: 10, radial: 7, gnarl: 0.08, up: 0.06, shorten: 0.55 },
+    { count: 6, emerge: [0.25, 1], angle: [0.55, 0.9], length: [0.45, 0.58], radius: 0.55, tip: 0.012, sections: 7, radial: 5, gnarl: 0.1, up: 0.06, shorten: 0.35 },
+    // Twigs end pointing up or out, so each leaf clump sits on top of its branch.
+    { count: 4, emerge: [0.35, 1], angle: [0.5, 0.9], length: [0.35, 0.5], radius: 0.6, tip: 0.004, sections: 4, radial: 3, gnarl: 0.1, up: 0.06, shorten: 0.3 },
   ],
-  foliage: { radius: 0.34, merge: 0.75, density: 1.1, card: 0.22, mask: { curve: 0.03 }, tones: TONES },
+  foliage: { radius: 0.5, merge: 0.85, density: 1.0, card: 0.22, mask: { curve: 0.03 }, tones: TONES },
 };
 
 const rootColor = new THREE.Color('#5a5145');
@@ -232,7 +231,7 @@ export const plant = {
   label: 'Pedada (mangrove)',
   create: ({ seed = 1, lod = 'near' } = {}) => (lod === 'far' ? createFar(seed) : createNear(seed)),
   switchAt: 60, // guess; tune
-  target: [0, 5, 0],
+  target: [0, 6, 0],
   distance: 35,
   background: '#1d2a33',
 };
