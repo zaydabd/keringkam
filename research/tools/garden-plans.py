@@ -44,7 +44,11 @@ def plan(key, lay):
     for sl in sorted(lay['slots'], key=lambda s: s['h']):
         col = data['layers'][sl['layer']]['colour']
         x, z = sl['at']
-        if sl.get('shape') == 'box':
+        if sl.get('shape') == 'hang':
+            side = abs(sl.get('yaw', 0)) > 0.1
+            hw, hd = (0.05, sl['w'] / 2) if side else (sl['w'] / 2, 0.05)
+            d.rectangle([*P(x - hw, z - hd), *P(x + hw, z + hd)], fill=col, outline='#1a3a10')
+        elif sl.get('shape') == 'box':
             d.rectangle([*P(x - sl['w'] / 2, z - sl['d'] / 2), *P(x + sl['w'] / 2, z + sl['d'] / 2)], fill=col + 'd0', outline='#2a3a20')
         else:
             d.ellipse([*P(x - sl['rx'], z - sl['rz']), *P(x + sl['rx'], z + sl['rz'])], fill=col + 'c8', outline='#2a3a20')
@@ -116,7 +120,12 @@ if len(sys.argv) > 3:
             col = data['layers'][sl['layer']]['colour']
             x, h = sl['at'][0], sl['h']
             rx = sl.get('rx', sl.get('w', 1) / 2)
-            d.ellipse([*F(x - rx, T + h), *F(x + rx, T)], fill=col + 'c0', outline='#2a3a20')
+            if sl.get('shape') == 'hang':
+                if abs(sl.get('yaw', 0)) < 0.1:
+                    d.rectangle([*F(x - rx, sl['top']), *F(x + rx, sl['top'] - h)], fill=col + 'd0', outline='#1a3a10')
+                continue
+            b0 = sl.get('base', T)
+            d.ellipse([*F(x - rx, b0 + h), *F(x + rx, b0)], fill=col + 'c0', outline='#2a3a20')
         d.text((10, Hd + 8), 'Front: the river wall seen from the river', fill='#111', font=big)
         return im
 
@@ -143,6 +152,9 @@ if len(sys.argv) > 3:
             if abs(sl['at'][0] - x) > rx or sl['layer'] == 'tree':
                 continue
             col = data['layers'][sl['layer']]['colour']
+            if sl.get('shape') == 'hang':
+                d.rectangle([*F(sl['at'][1] - 0.04, sl['top']), *F(sl['at'][1] + 0.04, sl['top'] - sl['h'])], fill=col)
+                continue
             rz = sl.get('rz', sl.get('d', 1) / 2)
             d.ellipse([*F(sl['at'][1] - rz, T + sl['h']), *F(sl['at'][1] + rz, T)], fill=col + 'c0', outline='#2a3a20')
         import math

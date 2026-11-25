@@ -2,17 +2,22 @@
 // can be made from the same numbers as the scene (research/tools/garden-plans.mjs). garden.js
 // builds them. Each layout is a set of beds (polygons in plan, [x, z]) and plant slots. A slot
 // is the volume its plant is cut to: an upright ellipsoid (rx, rz across, h tall) or, for a
-// hedge, a box (shape 'box', w along x, d along z). Every place and size is a design choice:
+// hedge, a box (shape 'box', w along x, d along z). A hanging slot (shape 'hang') is a flat
+// panel w wide and h tall, its top at y = top: vines hang in it, uncut. A slot stands on the
+// terrace unless it gives its own ground height, `base`. Every place and size is a design choice:
 // ESTIMATES.
 
 import { HOUSE } from './interior/exterior.js';
 import { PLAN } from './interior/plan.js';
+import { SITE } from './outside/site.js';
 
 const R = PLAN.room;
 export const WALLS = { X0: R.x0 - HOUSE.out, X1: R.x1 + HOUSE.out, Z0: R.z0 - HOUSE.out, Z1: R.z1 + HOUSE.out }; // the cladding's faces
 const { X0, X1, Z0 } = WALLS;
 const EDGE = HOUSE.ground.z0;
-const HOUSE_FLOOR_ABOVE_GROUND = -HOUSE.ground.y; // 0.45: a slot's h is from the terrace, the floor is this much higher // the terrace's edge, where the bank drops to the street (-6.8)
+const HOUSE_FLOOR_ABOVE_GROUND = -HOUSE.ground.y;
+const WIN_HEAD = PLAN.window.y1 + 0.06; // just under the head trim outside
+const SOFFIT = HOUSE.plate + 0.06 - HOUSE.roof.overhang * Math.tan((HOUSE.roof.pitch * Math.PI) / 180) - 0.17; // under the eaves' lining // 0.45: a slot's h is from the terrace, the floor is this much higher // the terrace's edge, where the bank drops to the street (-6.8)
 const [w1, w2, w3] = PLAN.backWindows;
 const s = PLAN.sideWindow;
 
@@ -25,7 +30,9 @@ export const LAYERS = {
   palm: { plant: 'nipah', label: 'Nipah palm', colour: '#2f7a4a' },
   mound: { plant: 'bougainvillea', label: 'Bougainvillea bush, trimmed (tops about 1.3 m above the floor)', colour: '#c2407f' },
   climber: { plant: 'bougainvillea', label: 'Bougainvillea trained up the wall beside a window', colour: '#f08cc0' },
-  tree: { plant: 'rainTree', label: 'Rain tree (kept smaller than a wild one)', colour: '#3d6b2f' },
+  curtain: { plant: 'vineCurtain', label: 'Vine curtain hanging from a window head', colour: '#4f9e3a' },
+  hanging: { plant: 'hangingVine', label: 'Hanging vine from the eaves', colour: '#7cc24f' },
+  tree: { plant: 'rainTree', label: 'Rain tree, kept small (about 4 m tall)', colour: '#3d6b2f' },
 };
 
 const wallZ = Z0 - 0.02; // a bed's edge along the river wall
@@ -124,10 +131,12 @@ export const LAYOUTS = {
   },
   // 5. The user's design (2026-11-25): bougainvillea all along the river wall, wrapping round both
   // corners, its tops trimmed about 1.3 m above the floor so a band of flowers shows at the bottom
-  // of the windows; a few trained up the wall beside the windows like creepers; a rain tree on
-  // each side.
+  // of the windows; a few trained up the wall beside the windows like creepers; vines hanging
+  // from the window heads and the eaves, so they show hanging at the top of the windows from
+  // inside; one rain tree on the grass below the bank in front of the left window, so it shows
+  // through that window from the seat (the user's choice; the two side trees were taken out).
   bougainvillea: {
-    label: '5. Bougainvillea all along, trees at the sides',
+    label: '5. Bougainvillea all along, hanging vines',
     beds: [
       [[X0 - 1.2, wallZ], [X1 + 1.2, wallZ], [X1 + 1.2, Z0 - 1.02], [X0 - 1.2, Z0 - 1.02]],
       [[X0 - 0.02, wallZ], [X0 - 0.02, Z0 + 1.7], [X0 - 1.0, Z0 + 1.7], [X0 - 1.0, wallZ]],
@@ -146,9 +155,17 @@ export const LAYOUTS = {
       { layer: 'climber', at: [pierL, Z0 - 0.2], rx: 0.18, rz: 0.18, h: 3.25 },
       { layer: 'climber', at: [pierR, Z0 - 0.2], rx: 0.16, rz: 0.18, h: 3.15 },
       { layer: 'climber', at: [w3.x1 + 0.3, Z0 - 0.2], rx: 0.14, rz: 0.18, h: 3.2 },
-      // a rain tree on each side, clear of the roof
-      { layer: 'tree', at: [X0 - 8.5, Z0 + 2.5], rx: 6, rz: 6, h: 9 },
-      { layer: 'tree', at: [X1 + 8.0, Z0 + 1.5], rx: 5.5, rz: 5.5, h: 8.5 },
+      // vines hanging from the window heads, over the top of each opening (top just under the head trim)
+      { layer: 'curtain', shape: 'hang', at: [w1.x0 + 0.38, Z0 - 0.07], top: WIN_HEAD, w: 0.7, h: 1.1 },
+      { layer: 'hanging', shape: 'hang', at: [w1.x1 - 0.2, Z0 - 0.07], top: WIN_HEAD, w: 0.4, h: 0.95 },
+      { layer: 'hanging', shape: 'hang', at: [w2.x0 + 0.2, Z0 - 0.07], top: WIN_HEAD, w: 0.4, h: 0.9 },
+      { layer: 'curtain', shape: 'hang', at: [w2.x1 - 0.38, Z0 - 0.07], top: WIN_HEAD, w: 0.7, h: 1.2 },
+      { layer: 'hanging', shape: 'hang', at: [(w3.x0 + w3.x1) / 2, Z0 - 0.07], top: WIN_HEAD, w: 0.4, h: 1.0 },
+      // ...and a row from under the eaves, half a metre out, between and in front of the windows
+      ...[X0 + 0.25, w1.x0 + 0.1, pierL, w2.x0 + 0.55, pierR, w3.x1 + 0.1, X1 - 0.1].map((x, k) => ({ layer: 'hanging', shape: 'hang', at: [x, Z0 - 0.45 - (k % 2) * 0.06], top: SOFFIT, w: 0.4, h: [1.0, 0.85, 1.15, 0.9, 1.05, 0.8, 1.1][k] })),
+      { layer: 'curtain', shape: 'hang', at: [X1 + 0.07, (s.z0 + s.z1) / 2], top: WIN_HEAD, w: 0.7, h: 1.0, yaw: Math.PI / 2 },
+      // the tree: on the street's grass (y -1.85), about 4.5 m out from the river wall
+      { layer: 'tree', at: [-3.5, -10.0], base: SITE.ground, rx: 3.5, rz: 3.5, h: 5.5 },
     ],
   },
 };
