@@ -9,6 +9,7 @@
 // and Maxime Heckel, "Moebius-style post-processing and other stylized shaders" (2024).
 
 import * as THREE from 'three';
+import { INK_LAYER } from './layers.js';
 
 /**
  * A three-band toon ramp: shadow, mid, light. Each band is an RGB colour, so the shadow band can
@@ -278,7 +279,7 @@ const MASK_FRAGMENT = /* glsl */ `
  * they hide the ink of what is behind them and get none. `cover` (default 0) raises their alpha
  * per mip level, to match a material that does (outside/index.js keepCover).
  */
-export function createOutline(renderer, scene, camera, { layer = 0, ink = '#000000', lineWidth = 1.3, mask = null } = {}) {
+export function createOutline(renderer, scene, camera, { layer = INK_LAYER, ink = '#000000', lineWidth = 1.3, mask = null } = {}) {
   const target = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType });
   target.depthTexture = new THREE.DepthTexture(1, 1);
   target.texture.minFilter = target.texture.magFilter = THREE.NearestFilter;

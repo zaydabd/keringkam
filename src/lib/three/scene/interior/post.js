@@ -10,6 +10,7 @@ import { PIGMENT_SHADER, FINISH_SHADER, createPigmentField } from '../watercolou
 import { createAO } from '../ao.js';
 import { AO, OUTLINES } from '../quality.js';
 import { setUniforms } from './helpers.js';
+import { INK_MASK_LAYER } from '../layers.js';
 
 /**
  * Builds the pass chain. `quality` is the live settings object (quality.js; setQuality changes it
@@ -19,7 +20,7 @@ export function createPost(renderer, scene, camera, { theme, quality: Q, params,
   const num = (k) => (params.has(k) ? Number(params.get(k)) || 0 : null);
 
   const { color: ink, lineWidth, ...inkLook } = theme.ink;
-  const outline = createOutline(renderer, scene, camera, { ink, lineWidth, mask: [{ layer: 3, map: inkMask }] });
+  const outline = createOutline(renderer, scene, camera, { ink, lineWidth, mask: [{ layer: INK_MASK_LAYER, map: inkMask }] });
   setUniforms(outline.material.uniforms, inkLook);
   // The theme's ink, which the outlines setting (quality.js OUTLINES) scales.
   const inkBase = Object.fromEntries(Object.keys(OUTLINES.full).map((k) => [k, outline.material.uniforms[k].value]));

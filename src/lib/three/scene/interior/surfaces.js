@@ -5,6 +5,7 @@ import * as THREE from 'three';
 import { INTERIOR_THEME as THEME } from '../themes/index.js';
 import { PLAN } from './plan.js';
 import { seatFeet, tableFeet } from './furniture.js';
+import { NO_INK_LAYER } from '../layers.js';
 
 const vec3 = (a) => `vec3(${a.map((n) => n.toFixed(2)).join(', ')})`; // a linear colour, written into GLSL
 
@@ -145,7 +146,7 @@ export function buildContactShadows(texture, light, footTexture = texture) {
     const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, d).rotateX(-Math.PI / 2), m);
     mesh.position.set(x, 0.004, z);
     mesh.rotation.y = ry;
-    mesh.layers.set(1); // no ink outline
+    mesh.layers.set(NO_INK_LAYER); // no ink outline
     group.add(mesh);
   };
   // Each patch is pulled the way the light travels along the floor: the soft one further, the core a little.
@@ -170,7 +171,7 @@ export function buildContactShadows(texture, light, footTexture = texture) {
   const m = new THREE.Matrix4();
   feet.forEach(([x, z], i) => dots.setMatrixAt(i, m.makeTranslation(x, 0.005, z)));
   dots.computeBoundingSphere(); // round the instances, not the origin, or the camera culls them
-  dots.layers.set(1); // no ink outline
+  dots.layers.set(NO_INK_LAYER); // no ink outline
   group.add(dots);
   return { group, mat, core, foot };
 }

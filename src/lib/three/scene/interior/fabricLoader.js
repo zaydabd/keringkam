@@ -7,7 +7,7 @@ import { toonGradient } from '../toon.js';
 import { CLAY_LOOK } from '../themes/index.js';
 import { PLAN } from './plan.js';
 import { drapeAll, fabricGeometry, partColour, fabricIndex } from './fabrics.js';
-import { FURNITURE_LAYER, SIDE_LAYER } from './lights.js';
+import { FURNITURE_LAYER, SIDE_LAYER } from '../layers.js';
 import { createTextureStore, fabrics as FABRIC_PHOTOS } from '../../common.js';
 
 /**
