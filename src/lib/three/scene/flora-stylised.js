@@ -28,7 +28,6 @@ const PLANT_OF = [
   [/^proposed: rain tree/, kuchingTree], // the user's Kuching trees: rain tree, kapok, trumpet tree
   [/^proposed: pedada/, pedada],
   [/^proposed: nipah/, nipah],
-  [/^bush blobs$/, bougainvillea], // the bush below the window (outside/waterbush.js)
   [/^proposed: Chinese evergreen \(floor\)$/, aglaonema],
   [/^proposed: Chinese evergreen \(table\)$/, schismatoglottis], // the user's choice: the Schismatoglottis on the table
   [/^proposed: satin pothos \((stand|ledge)\)$/, satinPothos],
@@ -70,11 +69,9 @@ function bake(geometry, matrix, rotation, scale) {
 /** Turns layout entries into copies: [{ plant, at, yaw, height, index }]. */
 function copiesOf(entries, eye) {
   const out = [];
-  const blobs = [];
   entries.forEach((e, index) => {
     const plant = PLANT_OF.find(([re]) => re.test(e.group))?.[1];
     if (!plant) return;
-    if (e.group === 'bush blobs') return blobs.push(e);
     if (plant === satinPothos) {
       // A ledge trough is longer than one pothos: one every POTHOS_SPACING along it.
       const n = Math.max(1, Math.round(e.width / POTHOS_SPACING));
@@ -91,13 +88,6 @@ function copiesOf(entries, eye) {
     if (e.faceEye && eye) yaw = Math.atan2(eye[0] - at[0], eye[2] - at[2]) - SUN_YAW + (((yaw % 1) + 1) % 1 - 0.5) * 2 * FACE_SPREAD;
     out.push({ plant, at, yaw, height: e.height, squash: e.squash ?? 1, index, lod: e.lod, leaves: e.leaves });
   });
-  if (blobs.length) {
-    // One bougainvillea over the bush's blobs: centred on them, as tall as the tallest.
-    const x0 = Math.min(...blobs.map((b) => b.at[0] - b.width / 2)), x1 = Math.max(...blobs.map((b) => b.at[0] + b.width / 2));
-    const z0 = Math.min(...blobs.map((b) => b.at[2] - b.width / 2)), z1 = Math.max(...blobs.map((b) => b.at[2] + b.width / 2));
-    const y0 = Math.min(...blobs.map((b) => b.at[1])), y1 = Math.max(...blobs.map((b) => b.at[1] + b.height));
-    out.push({ plant: bougainvillea, at: [(x0 + x1) / 2, y0, (z0 + z1) / 2], yaw: 0.6, height: y1 - y0, squash: 1, index: 0 });
-  }
   return out;
 }
 

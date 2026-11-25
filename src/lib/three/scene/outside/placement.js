@@ -9,13 +9,24 @@
 // photos, an estimate; Zaini et al. 2024 give 8-10 passengers on side benches and no length,
 // https://tuengr.com/V15/15A4E.pdf).
 //
-// Measured in the shot (waterbush.js inShot: the place across the opening, f, and the slope of the
+// Measured in the shot (inShot below: the place across the opening, f, and the slope of the
 // sight line, tan) and checked by a contract that throws. Every threshold is a named allowance, a
 // design choice judged in the window shot (ESTIMATED), not a measurement.
 
 import { createContract } from './contract.js';
 import { SITE, WINDOW_EYE } from './site.js';
-import { inShot } from './waterbush.js';
+
+// The window shot, as the window's opening sees it (interior/plan.js: the wall at z = -5.5, the
+// opening from x -1.0 to 0.05, the lattice rail's top at y 1.16, the opening's top at 2.25): `f`
+// across the opening from its left edge (0) to its right (1), and the slope of the sight line,
+// `tan` (rise over the distance along -z). Visible when f is in 0..1 and tan above the sill.
+const OPENING = { wall: -5.5, x0: -1.0, x1: 0.05, sill: 1.16, top: 2.25 };
+function inShot(p) {
+  const E = WINDOW_EYE;
+  const dz = E[2] - p[2];
+  const xw = E[0] + ((p[0] - E[0]) * (E[2] - OPENING.wall)) / dz;
+  return { f: (xw - OPENING.x0) / (OPENING.x1 - OPENING.x0), tan: (p[1] - E[1]) / dz, dz };
+}
 import { WATERFRONT } from './waterfront.js';
 import { PENAMBANG } from './boats.js';
 

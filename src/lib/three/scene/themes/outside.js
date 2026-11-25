@@ -268,23 +268,6 @@ export const OUTSIDE_THEME = {
     flagYellow: '#f0c83a',
   },
 
-  // The bush below the window, on the grass behind our street (waterbush.js), as vertex colours. The leaf ramp
-  // runs from a warm yellow-green in the sun to a cool blue-green in the shade: watercolour
-  // shadows are cool, not grey (Homer, Sargent; research/INTERIOR-NOTES.md, pass e5). Design
-  // choices, tuned in the window shot.
-  waterBush: {
-    ramp: ['#d4e290', '#a8c666', '#7ca64e', '#507c46', '#2e5038'], // sun to deep shade: R4's greens (pass e5b; its sampled pixels include ink lines, so tuned by eye in the window shot), the shade a little cool
-    core: '#2a4434', // the dark inside, between the leaves
-    stem: '#5a4c36',
-    flower: '#fff6f2', // the flowers' vertex tints: the atlas paints their red (textures.leaves)
-    flowerDeep: '#e6d4d0',
-    fern: PLANT.fern,
-    fernLight: PLANT.fernLight,
-    blade: PLANT.blades,
-    straw: PLANT.straw,
-    seedHead: PLANT.seedHead,
-  },
-
   // The Kuching Waterfront below the window (waterfront.js; pass e11): vertex colours; the street's
   // tint is white, its colour is the texture's (textures.paving).
   waterfront: {

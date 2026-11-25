@@ -18,7 +18,7 @@ export const SITE = {
   water: -4.2, // pass e13: 1 m lower (was -3.2), the user's choice, so the near boat sits lower behind the railing (ESTIMATED)
   // The far waterline as [x, z], upstream (far left of the view) to downstream (right). The first
   // point only carries the river out of sight. Our side is the waterfront street (`near` below;
-  // waterfront.js), with the bush below the window on its grass (waterbush.js).
+  // waterfront.js).
   farLine: [[-900, -585], [-420, -360], [-260, -285], [-122, -207], [-27, -147], [3, -109], [19.6, -83.5], [30, -67], [34, -57], [40, -40], [52, -10], [70, 30], [85, 70]],
   // The far bank, as distances inland from its waterline (metres) and heights (y).
   far: {

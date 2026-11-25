@@ -1,16 +1,11 @@
-// Planting round the house (branch house-exterior, step 2), worked the way a garden designer
-// does. ?garden=<layout> (garden-layouts.js: framed | open | drift | tropical) shows its beds and
-// a placeholder per plant slot. &grow= then goes on with that layout:
-//   plants — the plants in their slots, grown as their generators make them;
-//   trim   — the plants cut back to their slots, with some growth left past the cut (`grown`).
-// Without ?garden nothing is added. research/tools/garden-plans.mjs draws the layouts as plans.
+// Planting round the house: the bougainvillea layout (garden-layouts.js), each plant cut back to
+// its slot with some growth left past the cut (`grown`). On by default; ?garden=off leaves it
+// out. research/tools/garden-plans.mjs draws the layout as a plan.
 
 import * as THREE from 'three';
 import { HOUSE } from './interior/exterior.js';
 import { LAYOUTS, LAYERS, WALLS } from './garden-layouts.js';
 import { plant as bougainvillea } from '../vegetation/plants/bougainvillea.js';
-import { plant as aglaonema } from '../vegetation/plants/aglaonema.js';
-import { plant as nipah } from '../vegetation/plants/nipah.js';
 import { plant as kuchingTree } from '../vegetation/plants/kuchingTree.js';
 // The garden's tree: main's new Kuching tree in its rain-tree design (treeStudies.js rainRoadside).
 const rainTree = { id: 'rainTree', create: (o) => kuchingTree.create({ ...o, variant: 'rainRoadside' }) };
@@ -33,7 +28,7 @@ const GARDEN_HANGING = { ...HANGING_VINE, strand: { ...thick(HANGING_VINE.strand
 // The vine generators made into plants: create({ seed }) -> { group, stats, dispose }.
 const vineCurtain = { id: 'vineCurtain', create: ({ seed }) => createVineCurtain({ seed, species: GARDEN_CURTAIN }) };
 const hangingVine = { id: 'hangingVine', create: ({ seed }) => createHangingVine({ seed, species: GARDEN_HANGING }) };
-const PLANTS = { bougainvillea, aglaonema, nipah, rainTree, vineCurtain, hangingVine };
+const PLANTS = { bougainvillea, rainTree, vineCurtain, hangingVine };
 
 export const GARDEN = {
   kerb: { w: 0.1, h: 0.12 }, // concrete edging round each bed
@@ -47,16 +42,9 @@ export const GARDEN = {
 
 const baseOf = (sl) => sl.base ?? GH; // where a slot stands
 
-/**
- * The layout and stage: ?garden=<layout>&grow=plan|plants|trim, or null for ?garden=off.
- * Default (the user's choice, 25 Nov 2026): the bougainvillea layout, trimmed.
- */
+/** The garden's layout (the user's choice, 25 Nov 2026), or null for ?garden=off. */
 export function gardenChoice(params) {
-  const key = params.get('garden') ?? 'bougainvillea';
-  const layout = LAYOUTS[key];
-  if (!layout) return null;
-  const grow = params.get('grow') ?? (params.has('garden') ? 'plan' : 'trim');
-  return { layout, stage: grow === 'plants' || grow === 'trim' ? grow : 'plan' };
+  return params.get('garden') === 'off' ? null : { layout: LAYOUTS.bougainvillea };
 }
 
 /** Is a bed edge along a wall of the house (no kerb there)? */
@@ -79,30 +67,6 @@ export function buildBeds(b, layout) {
   }
 }
 
-/** A placeholder per slot: the volume it is cut to, flat-coloured by layer. */
-function placeholders(slots, disposables) {
-  const group = new THREE.Group();
-  const sphere = new THREE.SphereGeometry(1, 20, 12);
-  const box = new THREE.BoxGeometry(1, 1, 1);
-  disposables.push(sphere, box);
-  const mats = Object.fromEntries(Object.entries(LAYERS).map(([k, L]) => [k, new THREE.MeshLambertMaterial({ color: L.colour, transparent: true, opacity: 0.8 })]));
-  disposables.push(...Object.values(mats));
-  for (const sl of slots) {
-    const isBox = sl.shape === 'box' || sl.shape === 'hang';
-    const m = new THREE.Mesh(isBox ? box : sphere, mats[sl.layer]);
-    if (sl.shape === 'hang') {
-      m.scale.set(sl.w, sl.h, 0.08);
-      m.rotation.y = sl.yaw ?? 0;
-      m.position.set(sl.at[0], sl.top - sl.h / 2, sl.at[1]);
-    } else {
-      m.scale.set(isBox ? sl.w : sl.rx, isBox ? sl.h : sl.h / 2, isBox ? sl.d : sl.rz);
-      m.position.set(sl.at[0], baseOf(sl) + sl.h / 2, sl.at[1]);
-    }
-    group.add(m);
-  }
-  return group;
-}
-
 /** A cheap hash noise in [-1, 1] for a point: the uneven edge of a cut. */
 function noise(x, y, z) {
   const h = Math.sin(x * 12.9898 + y * 78.233 + z * 37.719) * 43758.5453;
@@ -112,7 +76,6 @@ function noise(x, y, z) {
 /** How far a world point is into a slot's volume: below 1 inside, 1 on its surface. */
 function reachOf(sl, p) {
   const cy = baseOf(sl) + sl.h / 2;
-  if (sl.shape === 'box') return Math.max(Math.abs(p.x - sl.at[0]) / (sl.w / 2), Math.abs(p.y - cy) / (sl.h / 2), Math.abs(p.z - sl.at[1]) / (sl.d / 2));
   return Math.hypot((p.x - sl.at[0]) / sl.rx, (p.y - cy) / (sl.h / 2), (p.z - sl.at[1]) / sl.rz);
 }
 
@@ -155,19 +118,15 @@ function hang(vine, sl) {
 }
 
 /**
- * The garden of a layout at a stage (plan | plants | trim). Returns { group, stats, dispose };
+ * The garden of a layout, trimmed. Returns { group, stats, dispose };
  * the beds go into the house's builder (buildBeds).
  */
-export function buildGarden({ layout, stage }) {
+export function buildGarden({ layout }) {
   const group = new THREE.Group();
   group.name = 'garden';
   const disposables = [];
   const slots = layout.slots;
-  const stats = { layout: layout.label, stage, slots: slots.length, kept: {} };
-  if (stage === 'plan') {
-    group.add(placeholders(slots, disposables));
-    return { group, stats, dispose: () => disposables.forEach((d) => d.dispose()) };
-  }
+  const stats = { layout: layout.label, slots: slots.length, kept: {} };
   for (const [n, sl] of slots.entries()) {
     const kind = PLANTS[LAYERS[sl.layer].plant];
     const made = kind.create({ seed: 1 + (n % 5), lod: 'near', leaves: kind === rainTree ? 0.65 : undefined }); // 0.65: the rain tree's smaller clumps for trees seen close (kuchingTree.js)
@@ -201,7 +160,7 @@ export function buildGarden({ layout, stage }) {
     plant.rotation.y = n * 1.7;
     plant.position.set(sl.at[0], baseOf(sl), sl.at[1]);
     plant.updateMatrixWorld(true);
-    if (stage === 'trim' && sl.layer !== 'tree') {
+    if (sl.layer !== 'tree') {
       const kept = [];
       plant.traverse((o) => o.isMesh && kept.push(trim(o, sl)));
       stats.kept[`${sl.layer} ${n}`] = +(kept.reduce((a, k) => a + k, 0) / kept.length).toFixed(2);

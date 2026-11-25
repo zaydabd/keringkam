@@ -5,15 +5,13 @@
 // muddy river curving past the house, a mown embankment on the far side, two roofed boats, the bridge on the left, the gold-roofed Assembly
 // building on the right, blue sky with cumulus. site.js holds the layout (estimates read off the
 // painting); sourced sizes are in assembly.js and bridge.js. Our own bank is the Kuching
-// Waterfront's street and railing (pass e11, the user's choice and photos; waterfront.js), and a
-// bush on the grass right below the window covers the lower left of the view (waterbush.js; R4,
-// the user's second image).
+// Waterfront's street and railing (pass e11, the user's choice and photos; waterfront.js). The
+// house's garden (garden.js) replaced the old painted bush below the window.
 //
 // The view is built object by object, each after its skill in .claude/skills:
 //   farbank            banks.js     procedural-geometry (swept cross-sections, contracts)
 //   forecourt          forecourt.js procedural-architecture (the Assembly's river front; pass e7)
 //   waterfront         waterfront.js procedural-geometry (pass e11: our side's street and railing)
-//   waterbush          waterbush.js procedural-vegetation (pass e5; e11: on the grass right below the window)
 //   river              water.js     water-optics
 //   assembly: rebuilt from the user's Sketchfab model (pass w5, research/INTERIOR-NOTES.md).
 //   boats: Kuching river taxis (penambang) in boats.js, gated against photos (pass w6).
@@ -37,8 +35,7 @@ import { CLAY } from '../themes/clay.js';
 import { buildFarBank, BANK_PAINT } from './banks.js';
 import { FAR_GRASS_GROUND } from './grass.js';
 import { buildFarFur } from './fur.js';
-import { bladePatches, dropTriangles, buildFloraBlockout, farBankProposal } from '../flora-layout.js';
-import { buildWaterBush } from './waterbush.js';
+import { bladePatches, farBankProposal } from '../flora-layout.js';
 import { buildFloraStylised } from '../flora-stylised.js';
 import { buildNearWaterfront } from './waterfront.js';
 import { planAssembly, compileAssembly } from './assembly.js';
@@ -62,7 +59,7 @@ export const LEAF_COVER = 0.25;
 export const coverOf = (uv, map, k = LEAF_COVER) =>
   `(1.0 + ${k.toFixed(3)} * max(0.0, 0.5 * log2(max(dot(dFdx(${uv} * vec2(textureSize(${map}, 0))), dFdx(${uv} * vec2(textureSize(${map}, 0)))), dot(dFdy(${uv} * vec2(textureSize(${map}, 0))), dFdy(${uv} * vec2(textureSize(${map}, 0))))))))`;
 
-export const OBJECTS = ['farbank', 'forecourt', 'waterfront', 'waterbush', 'river', 'assembly', 'bridge', 'boats', 'sky'];
+export const OBJECTS = ['farbank', 'forecourt', 'waterfront', 'river', 'assembly', 'bridge', 'boats', 'sky'];
 
 // The sky is keyed down like the rest of the outdoors, so its blue survives an exposure set for
 // the shaded room (themes/outside.js air.skyKey).
@@ -76,7 +73,7 @@ const SKY_KEY = OUTSIDE_THEME.air.skyKey;
  * clay render of the clay theme (plain grey, no painted textures, no water shader); `stage` lists
  * the objects to build (default: all).
  */
-export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME.air.daylight, light = 1, key = 1, sun, mode, stage, flora = null, bush = true }) {
+export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME.air.daylight, light = 1, key = 1, sun, mode, stage, flora = null }) {
   const group = new THREE.Group();
   const disposables = [];
   const S = SITE;
@@ -95,15 +92,13 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
   };
 
   // --- The banks (banks.js) ---------------------------------------------------------------------
-  // ?flora=blockout|both (flora-layout.js): where the plants stand, as markers. In blockout the
-  // plants are still grown (same contracts, same random draws) but not drawn.
+  // ?flora=stylised (the default; flora-layout.js): the entries where the stylised plants stand.
   const floraEntries = [];
   const bladeFrom = w.slot('blade').triangles;
   if (want('farbank')) reports.farbank = buildFarBank(w, { seed, paint: flora === 'stylised' ? FAR_GRASS_GROUND : null });
   if (flora && want('farbank')) {
     const ticks = { 'far slope ticks': BANK_PAINT.tick };
     floraEntries.push(...bladePatches(w.slot('blade'), bladeFrom, ticks));
-    if (flora === 'blockout') dropTriangles(w.slot('blade'), bladeFrom, ticks);
   }
   // Proposed far-bank planting (flora-layout.js): markers only, a composition to judge.
   if (flora && want('farbank')) {
@@ -112,18 +107,6 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
   }
   if (want('forecourt')) reports.forecourt = buildForecourt(w); // the Assembly's river front on the embankment (pass e7)
   if (want('waterfront')) reports.waterfront = buildNearWaterfront(w); // our side: the waterfront's street and railing (pass e11)
-  if (want('waterbush') && bush) { // bush: false when the house's garden replaces it (garden.js)
-    // the bush on the grass right below the window; under ?flora=stylised its blobs give way to the bougainvillea
-    reports.waterbush = buildWaterBush(flora === 'blockout' ? new SlotWriter() : w, { seed, body: flora === 'stylised' ? new SlotWriter() : undefined });
-    if (flora) floraEntries.push(...reports.waterbush.layout);
-  }
-  // ?flora=stylised, the user's choice: a tall bougainvillea just outside the middle window, a
-  // little left of it, its top showing over the sill from the seat; and a young nipah on the grass
-  // to the right of the window view. Places and sizes are design guesses, tuned by eye.
-  if (flora === 'stylised' && want('waterbush') && bush) {
-    floraEntries.push({ group: 'proposed: bougainvillea (middle window)', kind: 'bush', at: [-2.5, S.ground, -7.3], height: 3.9, width: 3.3, squash: 0.5, yaw: 0.3 });
-    floraEntries.push({ group: 'proposed: nipah (window right)', kind: 'bush', at: [1.6, S.ground, -9.5], height: 3, width: 5, yaw: 1.1 });
-  }
 
   // --- Assembly building (planned, then compiled; measured on the user's Sketchfab model) -------
   if (want('assembly')) {
@@ -323,9 +306,6 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
   reports.budget = { contract: budget.assert() };
   const stats = { triangles: total, meshes: group.children.length, perMesh: triangles };
 
-  // The flora markers come after the budget: they are a layout aid, not part of the view.
-  const blockout = flora && flora !== 'stylised' ? buildFloraBlockout(floraEntries, { opacity: flora === 'both' ? 0.55 : 1, layer: MIRROR_LAYER }) : null;
-  if (blockout) group.add(blockout.group);
   // ?flora=stylised: the approved plants at the same entries (flora-stylised.js), also after the budget.
   const stylised = flora === 'stylised' ? buildFloraStylised(floraEntries, { eye: WINDOW_EYE, layer: MIRROR_LAYER }) : null;
   if (stylised) group.add(stylised.group);
@@ -345,8 +325,6 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
     group,
     reports,
     stats,
-    /** ?flora: the markers' legend ([{ group, kind, count, colour }]), or null. */
-    flora: blockout?.legend ?? null,
     /** ?flora=stylised: { copies, triangles, meshes } of the plants, or null. */
     floraStats: stylised?.stats ?? null,
     /** For the ink pass (toon.js createOutline `mask`): the leaf cards' layer and atlas. */
@@ -365,7 +343,6 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
     dispose() {
       group.traverse((o) => o.geometry?.dispose());
       for (const d of disposables) d.dispose();
-      blockout?.dispose();
       stylised?.dispose();
     },
   };

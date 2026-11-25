@@ -59,7 +59,7 @@ import { buildCurtains } from './interior/curtains.js';
 import { buildSeat, furnitureOverlaps, buildTable } from './interior/furniture.js';
 import { buildHangings } from './interior/hangings.js';
 import { buildVines } from './interior/vines.js';
-import { floraMode, windowVineLayout, vineMarkers, buildFloraBlockout, showFloraLegend, windowHangingProposal, roomPlantsProposal } from './flora-layout.js';
+import { floraMode, windowHangingProposal, roomPlantsProposal } from './flora-layout.js';
 import { buildFloraStylised } from './flora-stylised.js';
 import { gardenChoice, buildGarden, buildBeds } from './garden.js';
 import { shadeWalls, glossBoards, buildContactShadows } from './interior/surfaces.js';
@@ -161,8 +161,7 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
   // it. ?exposure=n sets the exposure instead of metering (the stage uses the window shot's 1.85).
   const stage = params.get('stage')?.split(',').filter((n) => OBJECTS.includes(n)) ?? null;
   const exposureParam = num('exposure') ?? (stage ? 1.85 : null);
-  // ?flora=blockout draws a flat marker where each plant stands instead of the plant; ?flora=both
-  // draws the markers over the plants (flora-layout.js). For trying a layout before replanting.
+  // The stylised plants (flora-stylised.js) are on by default; ?flora=off leaves them out.
   const flora = floraMode(params);
   // No MSAA on the screen under post-processing: the scene is drawn into the composer's own
   // (single-sample) buffers and only the last full-screen pass reaches the screen, so screen MSAA
@@ -347,7 +346,7 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
   const overlaps = furnitureOverlaps();
   if (overlaps.length) console.warn('furniture overlaps:', overlaps.join('; '));
   buildHangings(b.as('hangings'));
-  if (flora !== 'blockout') buildVines(b.as('vines'));
+  buildVines(b.as('vines'));
   const room = new THREE.Group();
   room.add(...b.build(materials));
   // The lattice is cut out by its texture: give its shadow the same holes, and keep it out of the
@@ -476,7 +475,7 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
   // Outside: the Sarawak River at Kuching (outside/index.js). ?off=outside hides it (the windows
   // then show plain daylight). ?debug=flat and ?debug=silhouette also apply to it.
   const outsideAt = performance.now();
-  const landscape = createOutside({ gradientMap, seed, fog: scene.fog, haze: AIR.daylight, light: LIGHT, key: AIR.key, sun: sun.position.clone().sub(sun.target.position), mode: clay ? 'clay' : debug === 'flat' || debug === 'silhouette' ? debug : undefined, stage, flora, bush: !gardenChoice(params) }); // a garden (garden.js) replaces the old bush below the window
+  const landscape = createOutside({ gradientMap, seed, fog: scene.fog, haze: AIR.daylight, light: LIGHT, key: AIR.key, sun: sun.position.clone().sub(sun.target.position), mode: clay ? 'clay' : debug === 'flat' || debug === 'silhouette' ? debug : undefined, stage, flora });
   const outsideMs = performance.now() - outsideAt;
   if (clay) scene.fog = null; // no haze
   landscape.group.visible = !off.has('outside');
@@ -484,21 +483,14 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
   scene.traverse((o) => o.isLight && o.layers.enable(MIRROR_LAYER)); // the river's mirror is lit like the view itself
   landscape.group.userData.noAO = true; // the view outside is too far for AO, and it moves
   scene.add(landscape.group);
-  let vineBlockout = null, removeLegend = null;
+  let vineBlockout = null;
   if (flora === 'stylised') {
     vineBlockout = buildFloraStylised([...windowHangingProposal(PLAN, { skipMiddle: true }), ...roomPlantsProposal(PLAN)]);
     vineBlockout.group.visible = !stage;
     scene.add(vineBlockout.group);
     console.info('[flora] stylised', JSON.stringify({ outside: landscape.floraStats, room: vineBlockout.stats }));
-  } else if (flora) {
-    vineBlockout = buildFloraBlockout([...vineMarkers(windowVineLayout(PLAN)), ...windowHangingProposal(PLAN), ...roomPlantsProposal(PLAN)], { opacity: flora === 'both' ? 0.55 : 1, firstColour: landscape.flora?.length ?? 0 });
-    vineBlockout.group.visible = !stage;
-    scene.add(vineBlockout.group);
-    const legend = [...(landscape.flora ?? []), ...vineBlockout.legend];
-    console.info('[flora]', JSON.stringify(legend.map(({ group, kind, count }) => ({ group, kind, count }))));
-    removeLegend = showFloraLegend(legend, `?flora=${flora}`);
   }
-  // Planting round the house (garden.js): ?garden=<layout>[&grow=plants|trim].
+  // Planting round the house (garden.js); ?garden=off leaves it out.
   const garden = gardenPick ? buildGarden(gardenPick) : null;
   if (garden) {
     garden.group.visible = !stage && !off.has('house');
@@ -996,7 +988,6 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
       landscape.dispose();
       vineBlockout?.dispose();
       garden?.dispose();
-      removeLegend?.();
       gradientMap.dispose();
       outline.dispose();
       pigment.dispose();
