@@ -67,73 +67,16 @@ import { drapeAll, fabricGeometry, partColour, fabricIndex } from './interior/fa
 import { createTextureStore, fabrics as FABRIC_PHOTOS } from '../common.js';
 import { createAO } from './ao.js';
 import { sceneOptions } from '../../utils/urlOptions.js';
+import { setUniforms, maskOf } from './interior/helpers.js';
+import { createLights, FURNITURE_LAYER, SIDE_LAYER } from './interior/lights.js';
+import { SHOTS, SHOT_MOVE_SECONDS } from './interior/shots.js';
+import { createControls } from './interior/controls.js';
+import { createFrameCounter } from './interior/frameRate.js';
+export { SHOTS, FABRIC_VIEWS } from './interior/shots.js';
 export { PLAN } from './interior/plan.js';
 export { furnitureOverlaps } from './interior/furniture.js';
 
 const THEME = INTERIOR_THEME;
-
-/** Sets a pass's uniforms from a theme section: colours take a hex, vectors an array, the rest a number. */
-function setUniforms(uniforms, values) {
-  for (const [k, v] of Object.entries(values)) {
-    if (uniforms[k].value?.isColor) uniforms[k].value.set(v);
-    else if (uniforms[k].value?.isVector3) uniforms[k].value.fromArray(v);
-    else uniforms[k].value = v;
-  }
-}
-
-/** A white copy of a cut-out texture with the same alpha: keeps the holes, drops the paint (clay render). */
-function maskOf(texture) {
-  const src = texture.image;
-  const c = document.createElement('canvas');
-  c.width = src.width;
-  c.height = src.height;
-  const g = c.getContext('2d');
-  g.drawImage(src, 0, 0);
-  g.globalCompositeOperation = 'source-in';
-  g.fillStyle = '#ffffff';
-  g.fillRect(0, 0, c.width, c.height);
-  const t = new THREE.CanvasTexture(c);
-  t.wrapS = texture.wrapS;
-  t.wrapT = texture.wrapT;
-  t.repeat.copy(texture.repeat);
-  t.anisotropy = texture.anisotropy;
-  return t;
-}
-
-/** A light's colour turned to the grey of the same luminance (linear), so the clay render keeps its balance. */
-function neutral(color) {
-  const y = 0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b;
-  return color.setRGB(y, y, y);
-}
-
-// ---------------------------------------------------------------------------------------------
-// Camera shots (after .claude/skills/threejs-camera-direction): each is an authored frame with its
-// own lens, its own limits on how far the pointer may turn the view, and its own exposure
-// compensation. `seat` is the design view (R1). `window` stands at the middle window and looks
-// out over the lattice, framed by the curtains (R3).
-export const SHOTS = {
-  seat: { look: [0.06, 0.03], ev: 0 }, // eye, pitch and lens come from PLAN.camera
-  window: { eye: [-0.475, 1.5, -4.62], pitch: 4.3, fov: 54, look: [0.36, 0.1], ev: 1.3 }, // +1.3 stops: outdoors is meant to read as full daylight
-};
-// One shot per fabric (PLAN.fabrics), 'fabric-<name>': standing or sitting where a person would
-// look at it, aimed at it (`at`), the cloth filling about half the frame.
-const FABRIC_SHOTS = {
-  armchair: { eye: [0.0, 1.1, -0.55], at: [0.45, 0.6, -1.62] },
-  settee: { eye: [-0.7, 1.45, -3.7], at: [-0.8, 0.8, -4.9], fov: 45 },
-  table: { eye: [-0.3, 1.45, -2.1], at: [-0.95, 0.35, -3.4] },
-  'left-chair': { eye: [-0.55, 1.1, -3.35], at: [-1.6, 0.6, -4.0] },
-  'right-chair': { eye: [-1.25, 1.1, -3.35], at: [-0.1, 0.6, -4.0] },
-  window: { eye: [-2.47, 1.3, -4.3], at: [-2.47, 0.85, -5.5] },
-};
-for (const f of PLAN.fabrics) SHOTS[`fabric-${f.name}`] = { fov: 50, look: [0.12, 0.06], ev: 0, ...FABRIC_SHOTS[f.name], fabric: f.name };
-
-/** The fabric views for the menu: shot name, place, and the photo's real name (from its file name). */
-export const FABRIC_VIEWS = PLAN.fabrics.map((f) => {
-  const photo = FABRIC_PHOTOS[fabricIndex(f.fabric)];
-  const words = photo.group.split('-').join(' ');
-  return { shot: `fabric-${f.name}`, label: f.label, fabric: `${words.replace(/^./, (c) => c.toUpperCase())}, no. ${Number(photo.name.split('-').pop())}` };
-});
-const SHOT_MOVE_SECONDS = 2.2;
 
 export function createInterior(canvas, { onReady, onShot, onResolution, onFrameRate, quality } = {}) {
   // The graphics settings (quality.js): the resolution, AO, shadows, anti-aliasing and texture
@@ -205,61 +148,10 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
   const C = PLAN.camera;
   const camera = new THREE.PerspectiveCamera(C.fov, C.aspect, 0.2, 1600); // at 0.05 the big ground plane outside drew over the near floor on tall screens
 
-  // Light. The room's only openings are the three back windows and the side window, so every
-  // light stands for one of them or for what bounces round the room (themes/interior.js light):
-  //   sun    through the back windows: hard patches on the boards just inside them
-  //   sky    through the back windows: soft, low light towards the viewer, so the room is backlit
-  //   side   sky through the side window: a pool of soft light across the foreground
-  //   bounce what the boards and walls give back, from all round (no shadow; the AO pass stands in)
-  const sun = new THREE.DirectionalLight(L.sun.color, L.sun.intensity * LIGHT);
-  sun.target.position.set(-1, 0, -4);
-  sun.position.set(-4, 11, -14);
-  sun.castShadow = true;
+  // The lights (interior/lights.js).
   const shadowSize = () => SHADOWS[Q.shadows]; // quality.js
-  sun.shadow.mapSize.setScalar(shadowSize().sun);
-  Object.assign(sun.shadow.camera, { left: -7, right: 7, top: 7, bottom: -7, near: 1, far: 40 });
-  sun.shadow.radius = L.sun.shadowSoftness;
-  sun.shadow.bias = -0.0005;
-  sun.shadow.normalBias = 0.004; // small: a larger one opens a gap between a leg and its shadow
-  const hemi = new THREE.HemisphereLight(L.bounce.sky, L.bounce.ground, L.bounce.intensity * LIGHT);
-  // The sky: one direction stands for the three windows. Only the furniture casts its shadow
-  // (FURNITURE_LAYER): the window wall would otherwise shut it out, as one direction cannot go
-  // round the wall the way the whole sky does. Its shadows fall towards the viewer.
-  const FURNITURE_LAYER = 4;
-  const sky = new THREE.DirectionalLight(L.sky.color, L.sky.intensity * LIGHT);
-  sky.target.position.set(-0.7, 0.4, -3.4); // the middle of the furniture
-  sky.position.copy(sky.target.position).addScaledVector(V(...L.sky.from).normalize(), 8);
-  sky.castShadow = !off.has('skyshadow');
-  sky.shadow.mapSize.setScalar(shadowSize().sky); // at 2048, about 2.3 mm a texel over the furniture, so thin legs keep their shadow
-  Object.assign(sky.shadow.camera, { left: -2.4, right: 2.4, top: 2.4, bottom: -2.4, near: 0.5, far: 16 });
-  sky.shadow.camera.layers.set(FURNITURE_LAYER);
-  sky.shadow.radius = L.sky.shadowSoftness;
-  sky.shadow.bias = -0.0005;
-  sky.shadow.normalBias = 0.004;
-  // The side window: a lamp outside it, shining in. The wall casts its shadow (SIDE_LAYER: walls,
-  // frames and furniture, not the curtain that hangs in the opening), so the light keeps the
-  // window's shape, widens across the room and fades with distance.
-  const SIDE_LAYER = 5;
-  const sw = PLAN.sideWindow;
-  const side = new THREE.SpotLight(L.side.color, L.side.intensity * LIGHT, L.side.reach, 0.62, 0.5, 2);
-  side.position.set(PLAN.room.x1 + L.side.outside, 1.7, (sw.z0 + sw.z1) / 2);
-  side.target.position.set(PLAN.room.x1 - 2.2, 0.2, (sw.z0 + sw.z1) / 2 - 0.25);
-  side.castShadow = true;
-  side.shadow.mapSize.setScalar(shadowSize().side);
-  side.shadow.camera.near = 0.5;
-  side.shadow.camera.far = L.side.reach;
-  side.shadow.camera.layers.set(SIDE_LAYER);
-  side.shadow.radius = L.side.shadowSoftness;
-  side.shadow.bias = -0.0008;
-  side.shadow.normalBias = 0.004;
-  const lights = { sun, sky, side, bounce: hemi };
-  scene.add(sun, sun.target, sky, sky.target, side, side.target, hemi);
-  // ?off=sun,sky,side,bounce switches lights off, to see what each one does (one alone: the others off).
-  for (const [name, light] of Object.entries(lights)) if (off.has(name)) light.intensity = 0;
-  if (clay) {
-    for (const c of [sun.color, sky.color, side.color, hemi.color, hemi.groundColor]) neutral(c);
-    scene.background = new THREE.Color(CLAY_LOOK.colour).multiplyScalar(LIGHT);
-  }
+  const { sun, sky, side } = createLights(scene, { L, level: LIGHT, size: shadowSize(), off, clay });
+  if (clay) scene.background = new THREE.Color(CLAY_LOOK.colour).multiplyScalar(LIGHT);
 
   const gradientMap = toonGradient(THEME.shading.bands, { smooth: THEME.shading.smooth });
   const T = THEME.textures;
@@ -653,77 +545,10 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
     console.info(`interior: frames took ${median.toFixed(1)} ms while moving; drawing at pixel ratio ${metrics.pixelRatio}`);
   }
 
-  const pointer = new THREE.Vector2();
+  // The pointer's sway, walking with the keys and dragging to look (interior/controls.js).
+  const controls = createControls(canvas, camera, { fixedLook });
+  const { pointer, walk, turn } = controls;
   const look = new THREE.Vector2();
-  function onPointerMove(e) {
-    if (fixedLook) return;
-    pointer.set((e.clientX / window.innerWidth) * 2 - 1, (e.clientY / window.innerHeight) * 2 - 1);
-  }
-  window.addEventListener('pointermove', onPointerMove);
-  // Walking, the user's ask ("make my camera movable with the arrow keys", "it should use wasd",
-  // with a button to turn it on and off): `walk` is added to every shot's position. Keys are read by
-  // e.code, the key's place on the keyboard, so WASD sits in the same spot on any layout.
-  // Speeds are design choices.
-  const WALK_SPEED = 1.5; // m/s; four times that with Shift
-  const KEYS = {
-    ArrowUp: [0, 1], ArrowDown: [0, -1], ArrowLeft: [-1, 0], ArrowRight: [1, 0],
-    KeyW: [0, 1], KeyS: [0, -1], KeyA: [-1, 0], KeyD: [1, 0],
-  };
-  const walk = new THREE.Vector3();
-  const held = new Set();
-  let fast = false;
-  let walkOn = false;
-  function onKey(e) {
-    fast = e.shiftKey;
-    if (!walkOn || !(e.code in KEYS) || e.ctrlKey || e.metaKey || e.altKey) return;
-    if (e.target instanceof Element && e.target.closest('input, select, textarea, [contenteditable]')) return;
-    e.preventDefault(); // no page scroll
-    if (e.type === 'keydown') held.add(e.code);
-    else held.delete(e.code);
-  }
-  const onBlur = () => held.clear();
-  window.addEventListener('keydown', onKey);
-  window.addEventListener('keyup', onKey);
-  window.addEventListener('blur', onBlur);
-  // Drag to look (the user: "my mouse doesnt move the camera"; the pointer sway alone turns a few
-  // degrees): dragging on the view adds to the shot's yaw and pitch. 0.005 rad a pixel is a design
-  // choice; the pitch stops short of straight up and down.
-  const turn = new THREE.Vector2(); // x: yaw, y: pitch, radians
-  const DRAG_SPEED = 0.005;
-  let drag = null;
-  function onDragStart(e) {
-    if (e.button !== 0) return;
-    drag = { id: e.pointerId, x: e.clientX, y: e.clientY };
-    canvas.setPointerCapture(e.pointerId);
-  }
-  function onDragMove(e) {
-    if (!drag || e.pointerId !== drag.id) return;
-    turn.x += (e.clientX - drag.x) * DRAG_SPEED;
-    turn.y = THREE.MathUtils.clamp(turn.y - (e.clientY - drag.y) * DRAG_SPEED, -1.3, 1.3);
-    drag.x = e.clientX;
-    drag.y = e.clientY;
-  }
-  function onDragEnd(e) {
-    if (drag && e.pointerId === drag.id) drag = null;
-  }
-  canvas.style.touchAction = 'none'; // a touch drag turns the view instead of scrolling the page
-  canvas.style.cursor = 'grab';
-  canvas.addEventListener('pointerdown', onDragStart);
-  canvas.addEventListener('pointermove', onDragMove);
-  canvas.addEventListener('pointerup', onDragEnd);
-  canvas.addEventListener('pointercancel', onDragEnd);
-  const fwd = new THREE.Vector3(), rightward = new THREE.Vector3();
-  function stepWalk(dt) {
-    if (!held.size) return;
-    let f = 0, r = 0;
-    for (const k of held) { r += KEYS[k][0]; f += KEYS[k][1]; }
-    fwd.set(0, 0, -1).applyQuaternion(camera.quaternion).setY(0);
-    if (fwd.lengthSq() < 1e-6) return;
-    fwd.normalize();
-    rightward.set(-fwd.z, 0, fwd.x);
-    const d = WALK_SPEED * (fast ? 4 : 1) * dt;
-    walk.addScaledVector(fwd, f * d).addScaledVector(rightward, r * d);
-  }
 
   const eye = V(...C.eye);
   eye.z += camOffset;
@@ -784,8 +609,7 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
     move.from.quaternion.copy(camera.quaternion);
     move.from.fov = camera.fov;
     shot = name;
-    walk.set(0, 0, 0); // a view from the menu starts where that view stands, facing its way
-    turn.set(0, 0);
+    controls.reset(); // a view from the menu starts where that view stands, facing its way
     move.t = immediate ? 1 : 0;
     if (SHOTS[name].fabric) showFull(SHOTS[name].fabric);
     if (width) meterFor(name); // start adapting now, so the light changes during the move, not after it
@@ -793,23 +617,7 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
   }
   const timer = new THREE.Timer();
   let frame = 0;
-  // The frame rate for the settings panel's counter (onFrameRate): frames and the mean time between
-  // them, from the frames' own timestamps, about twice a second (every frame when they are slower).
-  // A hidden tab draws no frames: the count starts again when the page is shown, so that gap is not
-  // counted, while a slow frame, however long, is.
-  const rate = { from: null, frames: 0 };
-  function countFrames(now) {
-    if (!onFrameRate) return;
-    if (rate.from === null) Object.assign(rate, { from: now, frames: 0 });
-    else rate.frames++;
-    const span = now - rate.from;
-    if (span < 500 || !rate.frames) return;
-    const fps = (rate.frames * 1000) / span;
-    onFrameRate({ fps: fps < 10 ? +fps.toFixed(1) : Math.round(fps), ms: +(span / rate.frames).toFixed(1) });
-    Object.assign(rate, { from: now, frames: 0 });
-  }
-  const onVisibility = () => (rate.from = null);
-  document.addEventListener('visibilitychange', onVisibility);
+  const frames = createFrameCounter(onFrameRate); // the settings panel's counter (interior/frameRate.js)
   let readyCalled = false;
   function tick(now) {
     frame = requestAnimationFrame(tick);
@@ -830,7 +638,7 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
       const [lx, ly] = SHOTS[shot].look;
       if (Math.abs(pointer.x - look.x) * lx * f < 0.05 && Math.abs(pointer.y - look.y) * ly * f < 0.05) look.copy(pointer);
     }
-    stepWalk(dt);
+    controls.step(dt);
     poseOf(shot, poseCam);
     if (move.t < 1) {
       // A move between shots is one interpolation and nothing else: no second smoother on top.
@@ -858,7 +666,7 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
     // The ink's hand and the wash stay on the room when the view turns (toon.js VIEW_FIELD).
     camera.updateMatrixWorld();
     paceResolution(now);
-    countFrames(now);
+    frames.count(now);
     outline.setView();
     pigmentField.setView(camera);
     perf?.section('mirror');
@@ -933,10 +741,7 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
     setShot,
     getShot: () => shot,
     /** Turns walking with WASD and the arrow keys on or off; off stops any held key. */
-    setWalk(on) {
-      walkOn = !!on;
-      if (!walkOn) held.clear();
-    },
+    setWalk: (on) => controls.setWalk(on),
     /**
      * Changes the graphics settings while the page runs (quality.js). Returns whether the page must
      * reload for them: the texture detail is made at load.
@@ -964,15 +769,8 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
       cancelAnimationFrame(frame);
       perf?.dispose();
       resizeObserver.disconnect();
-      document.removeEventListener('visibilitychange', onVisibility);
-      window.removeEventListener('pointermove', onPointerMove);
-      window.removeEventListener('keydown', onKey);
-      window.removeEventListener('keyup', onKey);
-      window.removeEventListener('blur', onBlur);
-      canvas.removeEventListener('pointerdown', onDragStart);
-      canvas.removeEventListener('pointermove', onDragMove);
-      canvas.removeEventListener('pointerup', onDragEnd);
-      canvas.removeEventListener('pointercancel', onDragEnd);
+      frames.dispose();
+      controls.dispose();
       scene.traverse((o) => {
         if (o.geometry) o.geometry.dispose();
       });
