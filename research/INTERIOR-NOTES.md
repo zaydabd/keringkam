@@ -2422,3 +2422,24 @@ part of its frame.
   gold struts over a dark ground, as in the photos. The photos' struts are thinner and more
   numerous.
 - **Checks:** the build is clean, and the assembly contract (including its triangle limit) passes.
+
+### Pass e16: three stylized looks for the Assembly (`assembly-stylized`)
+The user asked for the DUN building to be more stylized. Of the guides shown, they asked for C, D
+and a mix of the two, to compare. Picked with `?asm=c|d|cd`. With no parameter, the e15c look stays.
+Credits: research/CREDITS.md (pass e16).
+- **C** (Annie Xiao, 80.lv): watercolour blots and a few long loose strokes. Light is painted in
+  over the whole building (vertex colours ×0.78 at the foot to ×1.12 at the top; the glass is
+  left alone). Saturation is ×1.2 round the luminance. All values estimated.
+- **D** (Abhishek Maity, 80.lv): short brush dabs and a warm glaze. Shade colours are warmed
+  (×1.08, 1, 0.84, estimated).
+- **CD:** C's blots and strokes, D's dabs at half, saturation ×1.1, the light ×0.88 to ×1.06,
+  and half the warming.
+- **Gate 1 → fix:** the first try also marked each tile's edges (pooled pigment in C; light soft
+  edges and a dark foot in D) and painted C's light per tile. Every quad repeats the tile, so this
+  drew a tile grid over the cone and the brim in all three looks. The edge marks were removed, and
+  the light became the building-wide gradient. D's soft edges would need bevelled geometry: not done.
+- **How** (paint.js `paintStylized`, `styleTile`): the gold gets its own 256 px tile, one per facet
+  quad. Triangles written without uvs take the tile's middle. The concrete half of the Assembly map
+  gets the same brushwork; the glass keeps its own look. Both maps are painted on a paper of sRGB
+  214, and the materials are brightened by its inverse (`styleGain`), so light strokes can rise
+  above the plain colour. There is no new mesh (still 8), one more texture (256², about 0.25 MB).

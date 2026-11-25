@@ -232,3 +232,11 @@ estimate.
 | The street's width and the railing seen along it | [Kuching Waterfront (17586892988).jpg](https://commons.wikimedia.org/wiki/File:Kuching_Waterfront_(17586892988).jpg) | Marufish | CC BY-SA 2.0 |
 | The vertical concrete edge from the street down to the water | [Kuching, Sarawak, Malaysia 03.jpg](https://commons.wikimedia.org/wiki/File:Kuching,_Sarawak,_Malaysia_03.jpg) | StormChase | CC BY-SA 3.0 |
 | Where the waterfront is (south bank, opposite the Assembly) | [Kuching Waterfront](https://en.wikipedia.org/wiki/Kuching_Waterfront) | Wikipedia | CC BY-SA 4.0 (text) |
+
+# Window view: stylized looks for the Assembly building (2026-11-25, pass e16)
+Technique only (how the brushwork and colour are built up). No image or texture from these articles is copied or in the repo.
+
+| What it gave | Article | Author |
+|---|---|---|
+| Look C (`?asm=c`): watercolour wash, light and shadow painted into the colour, pushed saturation | [A Guide on Creating a Stylized 3D House in Unreal Engine](https://80.lv/articles/a-guide-on-creating-a-stylized-3d-house-in-unreal-engine/) (80.lv) | Annie Xiao |
+| Look D (`?asm=d`): hand-painted dabs, lighter soft edges, warm light | [How to Create a Ghibli-Style Warm Environment with Hand-Painted Texture](https://80.lv/articles/how-to-create-a-ghibli-style-warm-environment-with-hand-painted-texture) (80.lv) | Abhishek Maity |
