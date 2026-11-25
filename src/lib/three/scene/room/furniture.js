@@ -2,7 +2,7 @@
 // footprints do not overlap. Materials: wood, carve, top.
 
 import * as THREE from 'three';
-import { PLAN } from './plan.js';
+import { PLAN } from '../world/plan.js';
 import { V, Q, ONE, M, roundedBoxWithGrainUVs, indexed } from './builder.js';
 import { SEAT } from './seat.js';
 

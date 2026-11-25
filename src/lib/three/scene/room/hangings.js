@@ -2,7 +2,7 @@
 // Materials: decor, frame, plate.
 
 import * as THREE from 'three';
-import { PLAN } from './plan.js';
+import { PLAN } from '../world/plan.js';
 import { M, dice, boxWithGrainUVs } from './builder.js';
 
 /** Woven mats and framed pictures hung as diamonds on the right wall; a plate on the back wall. */

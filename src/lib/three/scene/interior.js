@@ -45,7 +45,7 @@ import { createMeter, REFERENCE_EXPOSURE } from './post/meter.js';
 import { RESOLUTIONS, MAX_PIXEL_RATIO, MIN_PIXEL_RATIO, PACE, SHADOWS, TEXTURES, normalise } from './quality.js';
 import { createPerfRun } from './perf.js';
 import { INTERIOR_THEME, OUTSIDE_THEME, CLAY_LOOK } from './themes/index.js';
-import { PLAN } from './room/plan.js';
+import { PLAN } from './world/plan.js';
 import { V, Builder } from './room/builder.js';
 import { buildRoom } from './room/room.js';
 import { buildExterior } from './room/exterior.js';
@@ -69,7 +69,7 @@ import { createPost } from './post/post.js';
 import { loadFabrics } from './room/fabricLoader.js';
 import { clayMaterial, FLAT_GREY } from './debugMaterials.js';
 export { SHOTS, FABRIC_VIEWS } from './stage/shots.js';
-export { PLAN } from './room/plan.js';
+export { PLAN } from './world/plan.js';
 export { furnitureOverlaps } from './room/furniture.js';
 
 const THEME = INTERIOR_THEME;

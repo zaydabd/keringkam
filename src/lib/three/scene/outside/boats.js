@@ -19,7 +19,7 @@
 //     (pass e9); the sizes above were still scaled by his head in the photos.
 
 import { createContract } from './contract.js';
-import { rgbTable } from './site.js';
+import { rgbTable } from '../world/site.js';
 import { OUTSIDE_THEME } from '../themes/index.js';
 import { cross, norm } from '../../../utils/vec3.js';
 

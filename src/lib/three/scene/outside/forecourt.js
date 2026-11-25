@@ -15,7 +15,7 @@
 // Writes slot 'paint'.
 
 import { createContract } from './contract.js';
-import { SITE, sampleLine, rgbTable } from './site.js';
+import { SITE, sampleLine, rgbTable } from '../world/site.js';
 import { OUTSIDE_THEME } from '../themes/index.js';
 import { lerp } from '../../../utils/vec3.js';
 

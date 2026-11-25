@@ -11,7 +11,7 @@
 
 import * as THREE from 'three';
 import { createContract } from './contract.js';
-import { SITE, sampleLine, smooth, rgbTable, fbm } from './site.js';
+import { SITE, sampleLine, smooth, rgbTable, fbm } from '../world/site.js';
 import { mulberry32 } from '../../../utils/rng.js';
 import { OUTSIDE_THEME } from '../themes/index.js';
 import { underForecourt } from './forecourt.js';

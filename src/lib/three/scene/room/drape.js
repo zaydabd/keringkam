@@ -5,7 +5,7 @@
 // (drapeWorker.js) or in Node (research/tools/drape-check.mjs).
 
 import { ClothSim } from './cloth.js';
-import { PLAN } from './plan.js';
+import { PLAN } from '../world/plan.js';
 import { SEAT } from './seat.js';
 
 const SPACING = 0.04; // metres between particles

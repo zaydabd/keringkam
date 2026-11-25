@@ -4,7 +4,7 @@
 
 import * as THREE from 'three';
 import { toonGradient } from '../toon.js';
-import { PLAN } from './plan.js';
+import { PLAN } from '../world/plan.js';
 import { drapeAll, fabricGeometry, partColour, fabricIndex } from './fabrics.js';
 import { FURNITURE_LAYER, SIDE_LAYER } from '../layers.js';
 import { createTextureStore, fabrics as FABRIC_PHOTOS } from '../../common.js';

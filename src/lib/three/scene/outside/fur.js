@@ -7,7 +7,7 @@
 // Every number here is a design choice tuned in the window shot, not a measurement.
 
 import * as THREE from 'three';
-import { SITE, WINDOW_EYE, fbm, rgb } from './site.js';
+import { SITE, WINDOW_EYE, fbm, rgb } from '../world/site.js';
 import { mulberry32 } from '../../../utils/rng.js';
 import { underForecourt } from './forecourt.js';
 import { OUTSIDE_THEME } from '../themes/index.js';

@@ -27,7 +27,7 @@
 import * as THREE from 'three';
 import { paintSoftSky, paintPaving, paintAssembly, paintStylized, styleGain } from '../paint.js';
 import { SlotWriter, createContract } from './contract.js';
-import { SITE, WINDOW_EYE } from './site.js';
+import { SITE, WINDOW_EYE } from '../world/site.js';
 import { mulberry32 } from '../../../utils/rng.js';
 import { buildForecourt, forecourtFrame } from './forecourt.js';
 import { OUTSIDE_THEME } from '../themes/index.js';

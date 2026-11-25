@@ -5,7 +5,7 @@
 // cloth and no transparent margin shows.
 
 import * as THREE from 'three';
-import { PLAN } from './plan.js';
+import { PLAN } from '../world/plan.js';
 import { drape } from './drape.js';
 import { fabrics } from '../../textures.js';
 

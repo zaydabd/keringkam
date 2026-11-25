@@ -2,7 +2,7 @@
 // (PLAN.room, backWindows, window, sideWindow, dado). Materials: floor, wall, ceiling, frame.
 
 import { INTERIOR_THEME as THEME } from '../themes/index.js';
-import { PLAN } from './plan.js';
+import { PLAN } from '../world/plan.js';
 import { dice } from './builder.js';
 
 /** Splits [from, to] into boards of uneven width (0.15–0.22 m), with joints at every `edges` value. */

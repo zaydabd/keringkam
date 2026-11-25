@@ -22,7 +22,7 @@
 // outside builders.
 
 import { createContract } from './contract.js';
-import { SITE, rgbTable } from './site.js';
+import { SITE, rgbTable } from '../world/site.js';
 import { OUTSIDE_THEME } from '../themes/index.js';
 import { sub, add, scale, cross, dot, norm } from '../../../utils/vec3.js';
 

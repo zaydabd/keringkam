@@ -2,7 +2,7 @@
 // Materials: valance, sheer, white.
 
 import * as THREE from 'three';
-import { PLAN } from './plan.js';
+import { PLAN } from '../world/plan.js';
 import { M } from './builder.js';
 
 /** A pleated valance: a strip folded in a sine along its width, scalloped a little at the hem. */

@@ -35,7 +35,7 @@ export function intHash(i, j, seed) {
   return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
 }
 
-/** Value noise in -1..1 from intHash (the outside's ground and grass, outside/site.js). */
+/** Value noise in -1..1 from intHash (the outside's ground and grass, world/site.js). */
 export function latticeNoise(x, y, seed) {
   const i = Math.floor(x), j = Math.floor(y), fx = x - i, fy = y - j;
   const u = fx * fx * (3 - 2 * fx), v = fy * fy * (3 - 2 * fy);

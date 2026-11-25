@@ -3,7 +3,7 @@
 
 import * as THREE from 'three';
 import { INTERIOR_THEME as THEME } from '../themes/index.js';
-import { PLAN } from './plan.js';
+import { PLAN } from '../world/plan.js';
 import { seatFeet, tableFeet } from './furniture.js';
 import { NO_INK_LAYER } from '../layers.js';
 

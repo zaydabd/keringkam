@@ -2,7 +2,7 @@
 // after the user's photo W1 (paintWindowLattice). Material: lattice (cut out by its texture).
 
 import * as THREE from 'three';
-import { PLAN } from './plan.js';
+import { PLAN } from '../world/plan.js';
 import { M } from './builder.js';
 
 const BOTTOM = 0.09; // the panel starts above the bottom rail (room.js)

@@ -3,7 +3,7 @@
 // out. research/tools/garden-plans.mjs draws the layout as a plan.
 
 import * as THREE from 'three';
-import { HOUSE } from '../room/exterior.js';
+import { HOUSE } from '../world/house.js';
 import { LAYOUTS, LAYERS, WALLS } from './gardenLayouts.js';
 import { plant as bougainvillea } from '../../vegetation/plants/bougainvillea.js';
 import { plant as kuchingTree } from '../../vegetation/plants/kuchingTree.js';

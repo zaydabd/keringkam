@@ -1,7 +1,7 @@
 // The vines around the windows (PLAN.room, backWindows, sideWindow). Material: leaf.
 
 import * as THREE from 'three';
-import { PLAN } from './plan.js';
+import { PLAN } from '../world/plan.js';
 import { M, dice } from './builder.js';
 import { windowVineLayout } from '../garden/floraLayout.js';
 
