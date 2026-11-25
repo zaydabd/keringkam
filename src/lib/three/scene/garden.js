@@ -47,11 +47,15 @@ export const GARDEN = {
 
 const baseOf = (sl) => sl.base ?? GH; // where a slot stands
 
-/** The layout and stage asked for: ?garden=<layout>&grow=plants|trim, or null. */
+/**
+ * The layout and stage: ?garden=<layout>&grow=plan|plants|trim, or null for ?garden=off.
+ * Default (the user's choice, 25 Nov 2026): the bougainvillea layout, trimmed.
+ */
 export function gardenChoice(params) {
-  const layout = LAYOUTS[params.get('garden')];
+  const key = params.get('garden') ?? 'bougainvillea';
+  const layout = LAYOUTS[key];
   if (!layout) return null;
-  const grow = params.get('grow');
+  const grow = params.get('grow') ?? (params.has('garden') ? 'plan' : 'trim');
   return { layout, stage: grow === 'plants' || grow === 'trim' ? grow : 'plan' };
 }
 

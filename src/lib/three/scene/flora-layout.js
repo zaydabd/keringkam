@@ -8,9 +8,12 @@ import * as THREE from 'three';
 import { mulberry32 } from './outside/site.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 
-/** The `?flora=` flag: 'blockout', 'both', 'stylised' (the stylised plants, flora-stylised.js) or null. */
+/**
+ * The `?flora=` flag: 'blockout', 'both', 'stylised' (the stylised plants, flora-stylised.js) or
+ * null (?flora=off). Default (the user's choice, 25 Nov 2026): 'stylised'.
+ */
 export function floraMode(params) {
-  const f = params.get('flora');
+  const f = params.get('flora') ?? 'stylised';
   return f === 'blockout' || f === 'both' || f === 'stylised' ? f : null;
 }
 
