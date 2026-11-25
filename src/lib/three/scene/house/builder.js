@@ -6,8 +6,9 @@ import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { INTERIOR_THEME as THEME } from '../themes/index.js';
 import { mulberry32 } from '../../../utils/rng.js';
+import { V } from '../../../utils/three.js';
 
-export const V = (x, y, z) => new THREE.Vector3(x, y, z);
+export { V }; // (utils/three.js) for the house's builders
 
 export const Q = (rx = 0, ry = 0, rz = 0) => new THREE.Quaternion().setFromEuler(new THREE.Euler(rx, ry, rz));
 

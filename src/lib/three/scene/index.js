@@ -46,7 +46,7 @@ import { RESOLUTIONS, MAX_PIXEL_RATIO, MIN_PIXEL_RATIO, PACE, SHADOWS, TEXTURES,
 import { createPerfRun } from './perf.js';
 import { INTERIOR_THEME, OUTSIDE_THEME, CLAY_LOOK } from './themes/index.js';
 import { PLAN } from './world/plan.js';
-import { V } from './house/builder.js';
+import { V } from '../../utils/three.js';
 import { floraMode } from '../vegetation/stylised.js';
 import { sceneOptions } from '../../utils/urlOptions.js';
 import { createLights } from './stage/lights.js';
@@ -60,6 +60,7 @@ export { PLAN } from './world/plan.js';
 export { furnitureOverlaps } from './house/furniture.js';
 
 const THEME = INTERIOR_THEME;
+const WALK_MARGIN = 0.3; // m: how close walking gets to a wall
 
 export function createScene(canvas, { onReady, onShot, onResolution, onFrameRate, quality } = {}) {
   // The graphics settings (quality.js): the resolution, AO, shadows, anti-aliasing and texture
@@ -281,6 +282,13 @@ export function createScene(canvas, { onReady, onShot, onResolution, onFrameRate
     const aim = sh.at ? [Math.atan2(sh.at[0] - at.x, at.z - sh.at[2]), Math.atan2(sh.at[1] - at.y, Math.hypot(sh.at[0] - at.x, sh.at[2] - at.z))] : [0, THREE.MathUtils.degToRad(seat ? C.pitch : sh.pitch)];
     const yaw = aim[0] + (free ? yawParam : 0) - look.x * sh.look[0] + turn.x;
     const pitch = THREE.MathUtils.clamp(aim[1] + (free ? pitchParam : 0) - look.y * sh.look[1] + turn.y, -1.4, 1.4);
+    // Walking stays inside the room (PLAN.room, WALK_MARGIN from the walls), when the shot's eye is
+    // inside it; the stage and an eye placed outside (?eye=) walk freely.
+    const R = PLAN.room;
+    if (!stage && at.x > R.x0 && at.x < R.x1 && at.z > R.z0 && at.z < R.z1) {
+      walk.x = THREE.MathUtils.clamp(at.x + walk.x, R.x0 + WALK_MARGIN, R.x1 - WALK_MARGIN) - at.x;
+      walk.z = THREE.MathUtils.clamp(at.z + walk.z, R.z0 + WALK_MARGIN, R.z1 - WALK_MARGIN) - at.z;
+    }
     into.position.copy(at).add(walk);
     target.set(into.position.x + Math.sin(yaw) * Math.cos(pitch), into.position.y + Math.sin(pitch), into.position.z - Math.cos(yaw) * Math.cos(pitch));
     into.lookAt(target);

@@ -8,8 +8,7 @@
 
 import * as THREE from 'three';
 import { PLAN } from '../world/plan.js';
-import { V } from '../house/builder.js';
-import { neutral } from '../house/helpers.js';
+import { V, neutral } from '../../../utils/three.js';
 import { FURNITURE_LAYER, SIDE_LAYER } from '../layers.js';
 
 // The sky: one direction stands for the three windows. Only the furniture casts its shadow

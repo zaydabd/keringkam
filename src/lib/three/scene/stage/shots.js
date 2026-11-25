@@ -4,7 +4,7 @@
 // out over the lattice, framed by the curtains (R3).
 
 import { PLAN } from '../world/plan.js';
-import { fabricIndex } from '../house/fabrics.js';
+import { fabricIndex } from '../world/fabrics.js';
 import { fabrics as FABRIC_PHOTOS } from '../../common.js';
 
 export const SHOTS = {

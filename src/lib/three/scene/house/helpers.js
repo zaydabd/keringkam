@@ -20,9 +20,3 @@ export function maskOf(texture) {
   t.anisotropy = texture.anisotropy;
   return t;
 }
-
-/** A light's colour turned to the grey of the same luminance (linear), so the clay render keeps its balance. */
-export function neutral(color) {
-  const y = 0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b;
-  return color.setRGB(y, y, y);
-}

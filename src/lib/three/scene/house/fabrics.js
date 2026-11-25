@@ -7,10 +7,10 @@
 import * as THREE from 'three';
 import { PLAN } from '../world/plan.js';
 import { drape } from './drape.js';
-import { fabrics } from '../../textures.js';
+import { fabricIndex } from '../world/fabrics.js';
 
 /** The manifest index of a fabric photo by name. */
-export const fabricIndex = (name) => fabrics.findIndex((f) => f.name === name);
+export { fabricIndex }; // (world/fabrics.js) for the fabric loader
 
 /**
  * Settles every fabric. Resolves with the results in PLAN order. Each runs in its own Worker
