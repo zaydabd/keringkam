@@ -44,7 +44,9 @@ export const GARDEN = {
   // not clumps floating on bare stems). Its outside is covered in clumps of leaf and bract cards
   // `spacing` apart, on rings from just above the bed to the top of the dome. Sizes are guesses.
   // `core`: a solid body of this share of the slot that only the AO sees (see bushCore).
-  bush: { spacing: 0.1, clump: 0.12, card: 0.2, cards: 14, core: 0.85 },
+  // `pink`: the share of flowers in the mix (the user: "60 green 40 pink"); `round`: a box hedge's
+  // edge radius.
+  bush: { spacing: 0.1, clump: 0.12, card: 0.2, cards: 14, core: 0.85, pink: 0.4, round: 0.14 },
 };
 
 const baseOf = (sl) => sl.base ?? GH; // where a slot stands
@@ -115,12 +117,77 @@ const BUSH_SHAPE = (() => {
  */
 function bushCore(sl, material) {
   const k = GARDEN.bush.core;
-  const mesh = new THREE.Mesh(BUSH_SHAPE, material);
+  const box = sl.shape === 'box';
+  const mesh = new THREE.Mesh(box ? UNIT_BOX : BUSH_SHAPE, material);
   mesh.name = 'bush core';
   mesh.layers.set(NO_INK_LAYER);
-  mesh.scale.set(sl.rx * k, sl.h * k, sl.rz * k);
+  if (box) mesh.scale.set(sl.w - 0.15, sl.h - 0.08, sl.d - 0.15);
+  else mesh.scale.set(sl.rx * k, sl.h * k, sl.rz * k);
   mesh.position.set(sl.at[0], baseOf(sl), sl.at[1]);
   return mesh;
+}
+
+const UNIT_BOX = new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0); // standing on its base
+
+/**
+ * Bract share of a clump at `height` (0 at the bed, 1 at the top): the user's mix, 60% leaves and
+ * 40% flowers over the bush (GARDEN.bush.pink), evenly, only a little more towards the top (the top is
+ * what the window looks down on). Tuned so the bract
+ * cards come to about that share (stats.pink).
+ */
+const bractAt = (height) => GARDEN.bush.pink * (1.0 + 0.4 * THREE.MathUtils.smoothstep(height, 0.2, 1));
+
+/**
+ * The clumps covering a box hedge (shape 'box'): a grid over its front, back, ends and flat top,
+ * pushed onto a box with rounded edges (radius `round`), so it reads trimmed, not sharp.
+ */
+function hedgeClumps(sl, seed) {
+  const rand = mulberry32(seed);
+  const B = GARDEN.bush;
+  const base = baseOf(sl);
+  const hw = sl.w / 2;
+  const hd = sl.d / 2;
+  const r = Math.min(B.round, hd, sl.h / 2);
+  const clear = B.clump + B.card * 0.75;
+  const out = [];
+  const p = new THREE.Vector3();
+  const q = new THREE.Vector3();
+  const add = (x, y, z) => {
+    // Onto the rounded box: the nearest point of the box shrunk by r, pushed out by r.
+    q.set(THREE.MathUtils.clamp(x, -hw + r, hw - r), THREE.MathUtils.clamp(y, r, sl.h - r), THREE.MathUtils.clamp(z, -hd + r, hd - r));
+    p.set(x, y, z).sub(q);
+    if (p.lengthSq() < 1e-8) return;
+    p.setLength(r * (0.95 + 0.1 * rand())).add(q);
+    p.x += sl.at[0];
+    p.y += base;
+    p.z += sl.at[1];
+    if (inHouse(p, clear)) return;
+    out.push({ centre: p.clone(), b: bractAt((p.y - base) / sl.h) });
+  };
+  const jit = () => (rand() - 0.5) * B.spacing * 0.4;
+  const steps = (len) => Math.max(1, Math.round(len / B.spacing));
+  const nx = steps(sl.w);
+  const ny = steps(sl.h);
+  const nz = steps(sl.d);
+  const y0 = B.clump * 0.4;
+  for (let i = 0; i <= nx; i++) {
+    const x = -hw + (i / nx) * sl.w;
+    for (let j = 0; j <= ny; j++) {
+      const y = y0 + (j / ny) * (sl.h - y0);
+      add(x + jit(), y + jit(), -hd); // front and back
+      add(x + jit(), y + jit(), hd);
+    }
+    for (let k = 1; k < nz; k++) add(x + jit(), sl.h, -hd + (k / nz) * sl.d + jit()); // top
+  }
+  for (let k = 1; k < nz; k++) {
+    const z = -hd + (k / nz) * sl.d;
+    for (let j = 0; j <= ny; j++) {
+      const y = y0 + (j / ny) * (sl.h - y0);
+      add(-hw, y + jit(), z + jit()); // the two ends
+      add(hw, y + jit(), z + jit());
+    }
+  }
+  return out;
 }
 
 /**
@@ -149,7 +216,7 @@ function bushClumps(sl, seed) {
       p.set(sl.at[0] + ex * r * Math.cos(a), y + (rand() - 0.5) * B.spacing * 0.3, sl.at[1] + ez * r * Math.sin(a));
       if (inHouse(p, clear)) continue;
       const height = (p.y - base) / sl.h;
-      out.push({ centre: p.clone(), b: 0.15 + 0.6 * THREE.MathUtils.smoothstep(height, 0.25, 1) });
+      out.push({ centre: p.clone(), b: bractAt(height) });
     }
   }
   return out;
@@ -207,6 +274,11 @@ export function buildGarden({ layout }) {
   disposables.push(coreMaterial);
   for (const [n, sl] of slots.entries()) {
     const kind = PLANTS[LAYERS[sl.layer].plant];
+    if (sl.shape === 'box') {
+      // A box hedge is its leaves alone, on a body only the AO sees: no shrub inside to trim.
+      group.add(...bushParts(sl, n, coreMaterial, disposables, stats));
+      continue;
+    }
     const made = kind.create({ seed: 1 + (n % 5), lod: 'near', leaves: kind === rainTree ? 0.65 : undefined }); // 0.65: the rain tree's smaller clumps for trees seen close (kuchingTree.js)
     if (sl.shape === 'hang') {
       // A vine hangs whole in its panel: scaled to its height, its top at the panel's top, uncut.
@@ -254,15 +326,21 @@ export function buildGarden({ layout }) {
       plant.traverse((o) => o.isMesh && (o.userData.noAO = true));
     }
     group.add(plant);
-    if (kind === bougainvillea) {
-      const B = GARDEN.bush;
-      const leaves = createBushFoliage(1 + n, bushClumps(sl, 101 + n), { radius: B.clump, card: B.card, count: B.cards });
-      leaves.mesh.name = `bush ${n}`;
-      cardsMaskInk(leaves.mesh);
-      leaves.mesh.userData.noAO = true;
-      group.add(leaves.mesh, bushCore(sl, coreMaterial));
-      disposables.push(leaves);
-    }
+    if (kind === bougainvillea) group.add(...bushParts(sl, n, coreMaterial, disposables, stats));
   }
   return { group, stats, dispose: () => disposables.forEach((d) => d.dispose()) };
+}
+
+/** A bougainvillea slot's leaves (cards on clumps over its outside) and its AO body. */
+function bushParts(sl, n, coreMaterial, disposables, stats) {
+  const B = GARDEN.bush;
+  const clumps = sl.shape === 'box' ? hedgeClumps(sl, 101 + n) : bushClumps(sl, 101 + n);
+  const leaves = createBushFoliage(1 + n, clumps, { radius: B.clump, card: B.card, count: B.cards });
+  leaves.mesh.name = `bush ${n}`;
+  cardsMaskInk(leaves.mesh);
+  leaves.mesh.userData.noAO = true;
+  disposables.push(leaves);
+  stats.pink ??= {};
+  stats.pink[`${sl.layer} ${n}`] = +(leaves.bracts / (leaves.leaves + leaves.bracts)).toFixed(2);
+  return [leaves.mesh, bushCore(sl, coreMaterial)];
 }

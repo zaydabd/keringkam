@@ -7,6 +7,7 @@
 // --q      query parameters for the page (the free camera, debug=nopost, garden=off ...)
 // --window press "Look out of the window" once loaded, and shoot that view
 // --settle seconds to wait after the veil is gone (the veil fades for 1.2 s), default 1.5
+// --console=text  print the page's console lines that contain `text` (e.g. --console=[garden])
 import { chromium } from 'playwright-core';
 
 const t0 = Date.now();
@@ -40,6 +41,8 @@ const browser = await chromium.launch({
 const page = await browser.newPage({ viewport: { width, height } });
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
+const logs = [];
+if (args.console) page.on('console', (m) => m.text().includes(args.console) && logs.push(m.text()));
 mark('start browser');
 
 await page.goto(url, { waitUntil: 'domcontentloaded' });
@@ -63,4 +66,5 @@ await browser.close();
 for (const [step, s] of times) console.log(`${step.padEnd(16)} ${s} s`);
 console.log(`${'total'.padEnd(16)} ${((Date.now() - t0) / 1000).toFixed(1)} s`);
 console.log(`saved ${out} (${gpu})`);
+if (logs.length) console.log(logs.join('\n'));
 if (errors.length) console.log(`page errors:\n${errors.join('\n')}`);

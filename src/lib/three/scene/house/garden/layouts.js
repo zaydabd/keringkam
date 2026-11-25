@@ -27,6 +27,7 @@ const PLACEHOLDER_COLOURS = { mound: '#c2407f', climber: '#f08cc0', curtain: '#4
 // What each layer is, its plant, and its placeholder colour.
 export const LAYERS = {
   mound: { plant: 'bougainvillea', label: 'Bougainvillea bush, trimmed (tops about 1.3 m above the floor)', colour: PLACEHOLDER_COLOURS.mound },
+  hedge: { plant: 'bougainvillea', label: 'Bougainvillea hedge, trimmed square (top about 1.3 m above the floor)', colour: PLACEHOLDER_COLOURS.mound },
   climber: { plant: 'bougainvillea', label: 'Bougainvillea trained up the wall beside a window', colour: PLACEHOLDER_COLOURS.climber },
   curtain: { plant: 'vineCurtain', label: 'Vine curtain hanging from a window head', colour: PLACEHOLDER_COLOURS.curtain },
   hanging: { plant: 'hangingVine', label: 'Hanging vine from the eaves', colour: PLACEHOLDER_COLOURS.hanging },
@@ -51,13 +52,13 @@ export const LAYOUTS = {
       [[sideX, wallZ], [sideX, Z0 + 1.7], [X1 + 1.0, Z0 + 1.7], [X1 + 1.0, wallZ]],
     ],
     slots: [
-      // the row along the river wall: overlapping mounds, tops between 1.2 and 1.4 m above the floor (raised from about 1 m: the user's choice, so they show from the seat too)
-      ...Array.from({ length: 10 }, (_, k) => ({ layer: 'mound', at: [X0 - 0.85 + k * ((X1 - X0 + 1.7) / 9), Z0 - 0.5 + (k % 2 ? 0.06 : -0.04)], rx: 0.55, rz: 0.42, h: HOUSE_FLOOR_ABOVE_GROUND + [1.3, 1.22, 1.38, 1.25, 1.4, 1.2, 1.35, 1.27, 1.4, 1.23][k] })),
-      // round the corners, a little lower
-      { layer: 'mound', at: [X0 - 0.5, Z0 + 0.45], rx: 0.45, rz: 0.55, h: 1.25 },
-      { layer: 'mound', at: [X0 - 0.5, Z0 + 1.25], rx: 0.42, rz: 0.45, h: 1.05 },
-      { layer: 'mound', at: [X1 + 0.5, Z0 + 0.45], rx: 0.45, rz: 0.55, h: 1.25 },
-      { layer: 'mound', at: [X1 + 0.5, Z0 + 1.25], rx: 0.42, rz: 0.45, h: 1.05 },
+      // the row outside the windows: one long trimmed hedge, a box with rounded edges and a flat top
+      // 1.3 m above the floor (the user, 2026-11-25: "it should look like one rectangle", not a row
+      // of round mounds). rx and rz are its half sizes, for the plan drawing.
+      { layer: 'hedge', shape: 'box', at: [(X0 + X1) / 2, Z0 - 0.5], w: X1 - X0 + 2.2, d: 0.84, rx: (X1 - X0 + 2.2) / 2, rz: 0.42, h: HOUSE_FLOOR_ABOVE_GROUND + 1.3 },
+      // round the corners: short hedges along the side walls, a little lower
+      { layer: 'hedge', shape: 'box', at: [X0 - 0.5, Z0 + 0.8], w: 0.84, d: 1.6, rx: 0.42, rz: 0.8, h: 1.25 },
+      { layer: 'hedge', shape: 'box', at: [X1 + 0.5, Z0 + 0.8], w: 0.84, d: 1.6, rx: 0.42, rz: 0.8, h: 1.25 },
       // climbers beside the windows, against the wall, up to just under the eaves (widened from rx 0.14-0.18: they read sparse once trimmed)
       { layer: 'climber', at: [w1.x0 - 0.36, Z0 - 0.22], rx: 0.3, rz: 0.24, h: 3.2 },
       { layer: 'climber', at: [pierL, Z0 - 0.22], rx: 0.26, rz: 0.24, h: 3.25 },
