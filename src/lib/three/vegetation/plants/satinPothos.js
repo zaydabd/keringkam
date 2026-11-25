@@ -28,6 +28,7 @@ import { addTube, createMeshWriter } from '../tube.js';
 import { bladeRadius } from '../leaf.js';
 import { CEL_RAMP_GLSL, FOLIAGE_SUN, toneUniforms } from '../celFoliage.js';
 import { UP, growHanging, pointAt, taper } from '../grow.js';
+import { sinHash } from '../../../utils/noise.js';
 
 // Ovate blade, heart-shaped base, entire margin (shape table: guess, in leaf.js's format).
 const SATIN_LEAF_SHAPE = {
@@ -71,10 +72,7 @@ function createLeafAtlas(seed, cell = 128) {
   const size = cell * 2;
   const data = new Uint8Array(size * size * 4);
   const rand = mulberry32(seed * 31 + 5);
-  const hash = (x, y, k) => {
-    const s = Math.sin(x * 127.1 + y * 311.7 + k * 74.7) * 43758.5453;
-    return s - Math.floor(s);
-  };
+  const hash = sinHash;
   const noise = (x, y, k) => {
     const ix = Math.floor(x);
     const iy = Math.floor(y);

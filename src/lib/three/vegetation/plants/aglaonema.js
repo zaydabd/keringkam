@@ -32,6 +32,7 @@ import { addTube, createMeshWriter } from '../tube.js';
 import { UP } from '../grow.js';
 import { FOLIAGE_SUN, toneUniforms } from '../celFoliage.js';
 import { createLeafTextures } from './aglaonema/leafTexture.js';
+import { sinHash } from '../../../utils/noise.js';
 
 // Sizes in metres (guess except where noted above).
 const SIZES = {
@@ -175,10 +176,7 @@ function pushLeafVertex(w, pos, nrm, u, v, tu, tv, face, ao) {
   w.ao.push(ao);
 }
 
-const hash = (a, b) => {
-  const s = Math.sin(a * 127.1 + b * 311.7) * 43758.5453;
-  return s - Math.floor(s);
-};
+const hash = sinHash;
 
 /** Grows the layout: stems and, per leaf, node, petiole curve and blade frame. */
 function layout(rand, S) {

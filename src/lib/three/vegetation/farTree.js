@@ -8,6 +8,7 @@ import { createMeshWriter } from './tube.js';
 import { CEL_RAMP_GLSL, FOLIAGE_SUN, toneUniforms } from './celFoliage.js';
 import { createBarkMaterial } from './bark.js';
 import { mulberry32, range } from '../../utils/rng.js';
+import { HASH3_GLSL } from '../../utils/noise.js';
 
 /** Cel material for the far crown blobs: per-vertex normal → the same 3-tone ramp, times AO, with flecks. */
 function createBlobMaterial(tones) {
@@ -30,7 +31,7 @@ function createBlobMaterial(tones) {
       varying vec3 vNormal;
       varying vec3 vWorld;
       varying float vAo;
-      float hash(vec3 p) { return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
+      ${HASH3_GLSL}
       void main() {
         vec3 L = normalize((viewMatrix * vec4(sunDir, 0.0)).xyz);
         // Leaf flecks: a value per ~0.4 m cell (about one near leaf card) nudges the shade, so the

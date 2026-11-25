@@ -22,6 +22,7 @@ import * as THREE from 'three';
 import { addTube, createMeshWriter } from '../tube.js';
 import { FOLIAGE_SUN, toneUniforms } from '../celFoliage.js';
 import { mulberry32, range } from '../../../utils/rng.js';
+import { HASH3_GLSL } from '../../../utils/noise.js';
 
 const NIPAH = {
   fronds: [7, 10], // (guess)
@@ -100,7 +101,7 @@ function createNipahMaterial(tones, outline, proxyWeight = 0.75) {
       varying vec3 vWorld;
       varying vec2 vUv;
       varying float vAo;
-      float hash(vec3 p) { return fract(sin(dot(p, vec3(127.1, 311.7, 74.7))) * 43758.5453); }
+      ${HASH3_GLSL}
       // Blocky value noise: a few soft cells per frond.
       float blocky(vec3 p) {
         vec3 i = floor(p);

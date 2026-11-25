@@ -21,6 +21,7 @@ import { addTube, createMeshWriter } from './tube.js';
 import { UP } from './grow.js';
 import { CEL_RAMP_GLSL, FOLIAGE_SUN, toneUniforms } from './celFoliage.js';
 import { barkRepeat, createBarkMaterial } from './bark.js';
+import { sinHash } from '../../utils/noise.js';
 
 const birchBark = (() => {
   const white = new THREE.Color('#e9e6dd');
@@ -28,10 +29,7 @@ const birchBark = (() => {
   const grey = new THREE.Color('#b9b5aa');
   const out = new THREE.Color();
   // Dark horizontal marks (lenticels) in bands, a darker base. Hash, so it is stable per vertex.
-  const hash = (a, b) => {
-    const s = Math.sin(a * 127.1 + b * 311.7) * 43758.5453;
-    return s - Math.floor(s);
-  };
+  const hash = sinHash;
   return (v, u, t, level) => {
     const band = Math.floor(v * 9);
     const mark = hash(band, Math.floor(u * 5)) > 0.72 && level < 2;
