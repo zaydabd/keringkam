@@ -10,6 +10,7 @@ import * as THREE from 'three';
 import { SITE, WINDOW_EYE, fbm, rgb } from './site.js';
 import { mulberry32 } from '../../../utils/rng.js';
 import { underForecourt } from './forecourt.js';
+import { OUTSIDE_THEME } from '../themes/index.js';
 
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 
@@ -22,8 +23,8 @@ export const FAR_FUR = {
   height: { base: 0.3, from: 60, max: 4 }, // m; drawn taller beyond `from` m, up to `max` times
   blade: { width: 0.34, lean: 0.35 }, // per unit of footprint; lean outward per unit of height
   patches: { size: 13, lawn: 0.28, meadow: 0.05 }, // taller, lighter grass where the noise is over the threshold
-  short: ['#2c4a24', '#355a28', '#3b6229', '#2a4621'],
-  tall: ['#4c7a33', '#5d8a3a', '#46702f'],
+  short: OUTSIDE_THEME.fur.short, // colours: themes/outside.js
+  tall: OUTSIDE_THEME.fur.tall,
   root: 0.38, // vertex colour at a blade's root (times the tuft's green): the dark under-fur
   clear: { centre: [SITE.assembly.x, SITE.assembly.z], radius: 46 }, // none under the Assembly building
 };
