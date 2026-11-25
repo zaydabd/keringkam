@@ -9,7 +9,8 @@
     "preview": "vite preview",
     "copy:basis": "node scripts/copy-basis.mjs",
     "textures": "node scripts/build-textures.mjs",
-    "check": "svelte-check"
+    "check": "svelte-check",
+    "test": "node --test tests/"
   },
   "dependencies": {
     "svelte": "^5.57.3",

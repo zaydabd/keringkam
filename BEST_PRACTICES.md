@@ -16,6 +16,7 @@ Before you commit, check that:
 - [ ] Every three.js object you created is disposed when its component is removed.
 - [ ] Computed values use `$derived`, not `$effect`.
 - [ ] `npx sv check` passes.
+- [ ] `npm test` passes (tests/guards.test.mjs: seeds, garden layout, furniture, Assembly geometry; update a value there only when the change is meant).
 
 ---
 
