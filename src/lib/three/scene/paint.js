@@ -1215,7 +1215,62 @@ export function paintPaving(seed = 61, { colours: C, pattern: P }) {
  * colour sets the hue: rain streaks, a dirty foot, faint formwork joints. Each quad of the
  * building maps the whole of one half (index.js), u round the building, v up. Sizes are estimates.
  */
-export function paintAssembly(seed = 71, { colours: C, pattern: P }) {
+/**
+ * Pass e16: one tile of stylized brushwork at (x0, 0), size S, clipped to the tile and wrapping on
+ * every edge. `style` is 'c' (watercolour after Annie Xiao: wash blots and a few long loose
+ * strokes), 'd' (hand-painted after Abhishek Maity: short dabs and a warm glaze) or 'cd' (C with D
+ * at half). Every quad repeats the tile, so nothing marks its edges: a first try with pooled edges,
+ * edge highlights and a dark foot drew a tile grid over the cone (pass e16 gate). C's painted light
+ * is a gradient over the whole building instead (outside/index.js).
+ */
+function styleTile(g, r, x0, S, style, P) {
+  const C = P.colours;
+  const half = style === 'cd' ? 0.5 : 1;
+  g.save();
+  g.beginPath();
+  g.rect(x0, 0, S, S);
+  g.clip();
+  g.translate(x0, 0);
+  if (style === 'c' || style === 'cd') {
+    const W = P.c;
+    for (let i = 0; i < W.blots; i++) {
+      const rx = S * (0.12 + r() * 0.25);
+      const x = r() * S, y = r() * S, ry = rx * (0.5 + r() * 0.5), rgb = css(r() < 0.5 ? C.wash : C.light), a = vary(r, W.blotAlpha);
+      for (const dy of [-S, 0, S]) blot(g, S, x, y + dy, rx, ry, rgb, a);
+    }
+    brushDabs(g, S, S, r, W.strokes, [C.dark, C.light]);
+  }
+  if (style === 'd' || style === 'cd') {
+    const D = P.d;
+    brushDabs(g, S, S, r, { ...D.dabs, count: Math.round(D.dabs.count * half) }, [C.dark, C.light]);
+    g.fillStyle = `rgba(255,200,130,${D.warm * half})`; // the warm light, glazed over
+    g.fillRect(0, 0, S, S);
+  }
+  g.restore();
+}
+
+/** The paper's brightness in linear light: a styled material is brightened by its inverse. */
+export function styleGain(P) {
+  const v = P.base / 255;
+  return 1 / (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4);
+}
+
+/** Pass e16: the gold's map in a style, one tile of brushwork on the paper (P: themes assemblyStyle). */
+export function paintStylized(seed, style, P) {
+  const r = rng(seed);
+  const S = P.size;
+  const [c, g] = canvas(S, S);
+  g.fillStyle = `rgb(${P.base},${P.base},${P.base})`;
+  g.fillRect(0, 0, S, S);
+  styleTile(g, r, 0, S, style, P);
+  return texture(c, [1, 1], false);
+}
+
+/**
+ * The Assembly's glass and concrete. With `style` (pass e16) the canvas is darkened to the paper of
+ * SP (themes assemblyStyle) and the brushwork laid over the concrete; the material is brightened back.
+ */
+export function paintAssembly(seed = 71, { colours: C, pattern: P }, style = null, SP = null) {
   const r = rng(seed);
   const S = P.size;
   const [c, g] = canvas(S * 2, S);
@@ -1261,5 +1316,11 @@ export function paintAssembly(seed = 71, { colours: C, pattern: P }) {
   foot.addColorStop(1, `rgba(${css(C.grime)},0.35)`);
   g.fillStyle = foot;
   g.fillRect(x0, S * (1 - P.grime), S, S * P.grime);
+  if (style) {
+    // multiplying by the paper in sRGB is about the same as in linear light (a power law)
+    g.fillStyle = `rgba(0,0,0,${1 - SP.base / 255})`;
+    g.fillRect(0, 0, 2 * S, S);
+    styleTile(g, rng(seed + 5), S, S, style, SP); // the concrete only: the dark glass keeps its own look
+  }
   return texture(c, [1, 1], false);
 }

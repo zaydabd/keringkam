@@ -27,11 +27,12 @@
 // where two colours meet (toon.js). The haze is the scene fog.
 
 import * as THREE from 'three';
-import { paintSoftSky, paintLeaves, paintPaving, paintAssembly } from '../paint.js';
+import { paintSoftSky, paintLeaves, paintPaving, paintAssembly, paintStylized, styleGain } from '../paint.js';
 import { SlotWriter, createContract } from './contract.js';
 import { SITE, WINDOW_EYE, mulberry32 } from './site.js';
 import { buildForecourt, forecourtFrame } from './forecourt.js';
 import { OUTSIDE_THEME } from '../themes/index.js';
+import { ASSEMBLY_STYLE } from '../themes/outside.js';
 import { CLAY } from '../themes/clay.js';
 import { buildFarBank, BANK_PAINT } from './banks.js';
 import { FAR_GRASS_GROUND } from './grass.js';
@@ -132,6 +133,20 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
     // (paint.js paintAssembly): each quad's 0..1 uv goes into the left half (glass) or the right
     // (concrete), inset so the halves do not bleed into each other.
     const slotOf = { gold: 'gold', rib: 'assembly', glass: 'assembly', stone: 'assembly' };
+    // Pass e16 (?asm=c|cd): light painted in, as in a Ghibli background: darker at the foot, lighter
+    // to the top, over the whole building (the glass keeps its colour).
+    const lit = ASSEMBLY_STYLE && OUTSIDE_THEME.textures.assemblyStyle.light[ASSEMBLY_STYLE];
+    if (lit && lit[0] !== lit[1]) {
+      let y0 = Infinity, y1 = -Infinity;
+      for (const s of building.slots.values()) for (let i = 1; i < s.position.length; i += 3) { y0 = Math.min(y0, s.position[i]); y1 = Math.max(y1, s.position[i]); }
+      for (const [name, s] of building.slots) {
+        if (name === 'glass') continue;
+        for (let i = 0; i < s.color.length; i++) {
+          const t = (s.position[i - (i % 3) + 1] - y0) / (y1 - y0);
+          s.color[i] = Math.min(1, s.color[i] * (lit[0] + (lit[1] - lit[0]) * t));
+        }
+      }
+    }
     const inset = 4 / 512;
     const half = { glass: 0, rib: 0.5, stone: 0.5 };
     for (const [name, s] of building.slots) {
@@ -139,6 +154,15 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
         const uv = s.uv.map((v, i) => (i % 2 === 0 ? half[name] + inset + v * (0.5 - 2 * inset) : inset * 2 + v * (1 - 4 * inset)));
         s.uv.length = 0;
         s.uv.push(...uv);
+      } else if (name === 'gold' && ASSEMBLY_STYLE) {
+        // pass e16: the gold's own brushwork tile. A triangle written without uvs (all 0, 0) takes
+        // the tile's middle, not its corner, so it is not all edge highlight.
+        const uv = s.uv.slice();
+        for (let t = 0; t < uv.length; t += 6) {
+          if (uv.slice(t, t + 6).every((v) => v === 0)) uv.splice(t, 6, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5);
+        }
+        s.uv.length = 0;
+        s.uv.push(...uv.map((v) => inset * 2 + v * (1 - 4 * inset)));
       }
       copy(s, slotOf[name], S.assembly.x, S.lawn, S.assembly.z);
     }
@@ -174,7 +198,9 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
   };
   if (w.slots.has('leaf')) textures.leaves = paintLeaves(43 + seed, OUTSIDE_THEME.textures.leaves); // the leaf atlas (leaves.js); cut-outs, so painted in every mode
   if (w.slots.has('paving')) textures.paving = paintPaving(61, OUTSIDE_THEME.textures.paving); // the waterfront's street (pass e11)
-  if (w.slots.has('assembly')) textures.assembly = paintAssembly(71, OUTSIDE_THEME.textures.assembly); // the Assembly's glass and concrete (pass e15)
+  const asmStyle = OUTSIDE_THEME.textures.assemblyStyle;
+  if (w.slots.has('assembly')) textures.assembly = paintAssembly(71, OUTSIDE_THEME.textures.assembly, ASSEMBLY_STYLE, asmStyle); // the Assembly's glass and concrete (pass e15)
+  if (ASSEMBLY_STYLE && w.slots.has('gold')) textures.gold = paintStylized(73, ASSEMBLY_STYLE, asmStyle); // ?asm=c|d|cd (pass e16)
   disposables.push(...Object.values(textures));
   // `alphaTest`: a cut-out (the leaf cards); its map is kept in every mode, for the shape.
   const toon = ({ map, side = THREE.FrontSide, alphaTest = 0 } = {}) => {
@@ -219,6 +245,15 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
   if (textures.paving) materials.paving = toon({ map: mode ? null : textures.paving });
   // The Assembly's concrete and glass (pass e15): vertex colours times the painted map.
   if (textures.assembly) materials.assembly = toon({ map: mode ? null : textures.assembly });
+  // Pass e16 (?asm=c|d|cd): the gold gets its brushwork map, and both are brightened by the
+  // paper's inverse so the light strokes can rise above the plain colour.
+  if (ASSEMBLY_STYLE && !mode) {
+    if (textures.gold) {
+      materials.gold = toon({ side: THREE.DoubleSide, map: textures.gold });
+      materials.gold.color.multiplyScalar(styleGain(asmStyle));
+    }
+    if (materials.assembly) materials.assembly.color.multiplyScalar(styleGain(asmStyle));
+  }
   // Leaf cards (leaves.js): two-sided, cut out by the atlas's alpha, which keeps its coverage when
   // the card is small (keepCover).
   if (textures.leaves) materials.leaf = keepCover(toon({ map: textures.leaves, side: THREE.DoubleSide, alphaTest: 0.5 }));

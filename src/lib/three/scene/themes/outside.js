@@ -137,6 +137,40 @@ const STREET = {
 const GLASS = { cabin: '#1f2326' };
 const SHADE = { cabin: '#2a2220' }; // the dark inside of a boat's cabin
 
+// Pass e16: three stylized looks for the Assembly, picked with ?asm=c|d|cd for a side-by-side
+// comparison. C after Annie Xiao's Ghibli-style house (80.lv): a
+// watercolour wash, light and shadow painted in, saturation pushed. D after Abhishek Maity's
+// hand-painted warm environment (80.lv): brush dabs, lighter soft edges, warm light. CD: both at
+// about half. Technique only; nothing copied (research/CREDITS.md).
+export const ASSEMBLY_STYLES = ['c', 'd', 'cd'];
+// D is the default since pass e16b (the user picked it); ?asm=none gives the plain e15c paint.
+export const ASSEMBLY_STYLE = (() => {
+  if (typeof window === 'undefined') return 'd';
+  const asked = new URLSearchParams(window.location.search).get('asm');
+  if (asked === 'none') return null;
+  return ASSEMBLY_STYLES.includes(asked) ? asked : 'd';
+})();
+const LUMA = [0.2126, 0.7152, 0.0722];
+/** A linear colour with its saturation scaled by k round its own luminance, kept in 0..1. */
+const saturate = (rgb, k) => {
+  const l = rgb.reduce((a, v, i) => a + v * LUMA[i], 0);
+  return rgb.map((v) => Math.min(1, Math.max(0, l + (v - l) * k)));
+};
+const tint = (rgb, t) => rgb.map((v, i) => Math.min(1, v * t[i]));
+/** The Assembly's colours in a style: C saturates, D warms the shade colours (estimated, tuned by eye). */
+function styled(base, style) {
+  if (!style) return base;
+  const sat = { c: 1.2, d: 1, cd: 1.1 }[style];
+  const warm = { c: [1, 1, 1], d: [1.08, 1, 0.84], cd: [1.04, 1, 0.92] }[style];
+  const out = {};
+  for (const [k, v] of Object.entries(base)) {
+    let c = k === 'glassTint' ? v : saturate(v, sat);
+    if (/Shade$|Edge$|soffit/.test(k)) c = tint(c, warm);
+    out[k] = c;
+  }
+  return out;
+}
+
 const BUILT = {
   riverWall: '#efe7d1', // the far bank's wall
   // The State Legislative Assembly building (linear).
@@ -295,6 +329,19 @@ export const OUTSIDE_THEME = {
         joints: 4, // faint horizontal formwork joints
       },
     },
+    // Pass e16 (?asm=c|d|cd): the stylized brushwork (paint.js paintStylized), laid on the gold's
+    // own map and over both halves of the Assembly's map. Near white with room above it: `base` is
+    // the paper (sRGB 0-255) and the material is brightened by its inverse, so light strokes show.
+    // Sizes in px of a 256 px tile (one roof facet or one quad). All values estimated.
+    assemblyStyle: {
+      size: 256,
+      base: 214,
+      colours: { light: '#fff6dc', dark: '#6b4a24', wash: '#8a6232' },
+      c: { blots: 18, blotAlpha: [0.1, 0.12], strokes: { count: 8, length: [90, 80], width: [8, 8], opacity: [0.06, 0.08], angle: 0, turn: 0.15, darkShare: 0.4 } },
+      d: { dabs: { count: 220, length: [14, 18], width: [4, 5], opacity: [0.1, 0.12], angle: 0.35, turn: 0.45, darkShare: 0.45 }, warm: 0.1 },
+      // C's light painted in: vertex colours scaled from the building's foot to its top (outside/index.js)
+      light: { c: [0.78, 1.12], d: [1, 1], cd: [0.88, 1.06] },
+    },
     // The leaf atlas (paint.js paintLeaves): light greys, the plant's vertex colour sets the green.
     // The edge line stands in for the ink the leaf cards do not get. Sizes are fractions of a cell.
     leaves: {
@@ -328,8 +375,8 @@ export const OUTSIDE_THEME = {
   },
 
   // The State Legislative Assembly building (assembly.js), linear.
-  assembly: BUILT.assembly,
-  kiosk: { gold: BUILT.kioskGold, goldShade: BUILT.kioskGoldShade },
+  assembly: styled(BUILT.assembly, ASSEMBLY_STYLE),
+  kiosk: styled({ gold: BUILT.kioskGold, goldShade: BUILT.kioskGoldShade }, ASSEMBLY_STYLE),
 
   bridge: BUILT.bridge, // bridge.js, linear
 };

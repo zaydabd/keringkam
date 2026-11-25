@@ -42,6 +42,12 @@ export const ASSEMBLY = {
   // struts per roof fold, an X lattice, and a rib up each fold's tip). ESTIMATES from the photos:
   // width and depth (m), how far they stand out from the bowl (m), straight pieces per strut.
   struts: { perFold: 2, width: 0.9, depth: 0.6, out: 0.7, segments: 6, posts: true },
+  // Worn, sculpted edges (pass e16b, after Abhishek Maity's hand-painted environment, 80.lv: edges
+  // sculpted with Clay Buildup and Flatten, then baked). ESTIMATES: members at least `minWidth`
+  // wide (all of them since the triangle limit went) get their front corners cut by `chamfer` of their half width, varied by up to `wear`
+  // either way at each joint (seeded by its position, so joined pieces agree); the brim's two
+  // outer edges and the roof rim's top edge are cut by `slab` metres.
+  edges: { minWidth: 0, chamfer: 0.35, wear: 0.45, slab: 0.6 },
   roof: {
     folds: 18,
     tip: [42.5, 56], // where a fold's tip meets the rim: radius, height
@@ -138,11 +144,35 @@ function beam(writer, slot, a, b, out, w, d, color, back = false) {
   const axis = sub(b, a);
   const side = norm(cross(axis, out));
   const front = norm(cross(side, axis));
+  const E = ASSEMBLY.edges;
+  if (w >= E.minWidth) {
+    // the front corners cut (pass e16b): front, two chamfers, two sides; how much is cut wears a
+    // little from joint to joint
+    const cut = (p) => Math.min(0.9, E.chamfer * (1 + E.wear * (2 * wearAt(p) - 1)));
+    const c = (p, sx, sf) => offset(p, [side, (sx * w) / 2], [front, (sf * d) / 2]);
+    const ring = (p) => {
+      const k = cut(p);
+      const kx = 1 - k, kf = 1 - (k * w) / d; // the cut is the same length along both faces
+      return [c(p, -1, -1), c(p, -1, Math.max(-0.9, kf)), c(p, -kx, 1), c(p, kx, 1), c(p, 1, Math.max(-0.9, kf)), c(p, 1, -1)];
+    };
+    const A = ring(a), B = ring(b);
+    for (let i = 0; i < 5; i++) writer.quad(slot, A[i], A[i + 1], B[i + 1], B[i], color);
+    if (back) writer.quad(slot, A[5], A[0], B[0], B[5], color);
+    return;
+  }
   const c = (p, sx, sf) => offset(p, [side, (sx * w) / 2], [front, (sf * d) / 2]);
   writer.quad(slot, c(a, -1, 1), c(a, 1, 1), c(b, 1, 1), c(b, -1, 1), color); // front
   writer.quad(slot, c(a, 1, 1), c(a, 1, -1), c(b, 1, -1), c(b, 1, 1), color); // +side
   writer.quad(slot, c(a, -1, -1), c(a, -1, 1), c(b, -1, 1), c(b, -1, -1), color); // -side
   if (back) writer.quad(slot, c(a, 1, -1), c(a, -1, -1), c(b, -1, -1), c(b, 1, -1), color);
+}
+
+/** 0..1, fixed for a point (rounded to 1 cm): where two pieces meet they get the same wear. */
+function wearAt(p) {
+  let h = 2166136261;
+  for (const v of p) h = Math.imul(h ^ Math.round(v * 100), 16777619);
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
 }
 
 /** A band of quads between two circles (r0 at y0, r1 at y1), facing outwards (or inwards). */
@@ -384,11 +414,16 @@ const MODULES = {
     const B = s.brim;
     const y0 = s.arcade.top;
     const lipIn = (a) => shape.brim(a) - 0.7;
+    const k = s.edges.slab; // its top and bottom outer edges cut (pass e16b)
+    const cutIn = (a) => shape.brim(a) - k;
+    const yTop = B.top + B.lip;
     annulus(writer, 'stone', 90, B.inner, lipIn, B.top, C.brim);
-    band(writer, 'stone', 90, shape.brim, y0, shape.brim, B.top + B.lip, C.brimEdge);
-    band(writer, 'stone', 90, lipIn, B.top, lipIn, B.top + B.lip, C.rim, true);
-    annulus(writer, 'stone', 90, lipIn, shape.brim, B.top + B.lip, C.brim);
-    annulus(writer, 'stone', 90, shape.infill, shape.brim, y0, C.soffit, true);
+    band(writer, 'stone', 90, cutIn, y0, shape.brim, y0 + k, C.brimEdge);
+    band(writer, 'stone', 90, shape.brim, y0 + k, shape.brim, yTop - k, C.brimEdge);
+    band(writer, 'stone', 90, shape.brim, yTop - k, cutIn, yTop, C.brim);
+    band(writer, 'stone', 90, lipIn, B.top, lipIn, yTop, C.rim, true);
+    annulus(writer, 'stone', 90, lipIn, cutIn, yTop, C.brim);
+    annulus(writer, 'stone', 90, shape.infill, cutIn, y0, C.soffit, true);
   },
   bowl({ s, C, writer }) {
     // the roof's underside: a deep dark bowl from the brim out to the rim's lower edge. Its folds
@@ -439,8 +474,9 @@ const MODULES = {
     const R = s.roof;
     const rim = ctxRim(R);
     // the grey rim: a ledge round the gold, then the fascia hanging from its outer edge
-    loft(writer, 'stone', rim.fasciaBottom, rim.outer, (i) => (i % 2 ? C.rimShade : C.rim));
-    loft(writer, 'stone', rim.outer, rim.inner, () => C.rim);
+    loft(writer, 'stone', rim.fasciaBottom, rim.outerLow, (i) => (i % 2 ? C.rimShade : C.rim));
+    loft(writer, 'stone', rim.outerLow, rim.outerIn, () => C.rim); // its top edge cut (pass e16b)
+    loft(writer, 'stone', rim.outerIn, rim.inner, () => C.rim);
     // the gold folds: tips follow the measured outline, valleys sit inside them, both narrowing to
     // the neck
     const rings = [];
@@ -485,9 +521,12 @@ const MODULES = {
 function ctxRim(R) {
   const out = (rh) => [rh[0] + R.rim, rh[1]];
   const down = (rh) => [rh[0] + R.rim, rh[1] - R.fascia];
+  const k = ASSEMBLY.edges.slab;
   return {
     inner: zigzag(R.folds, R.tip, R.valley),
     outer: zigzag(R.folds, out(R.tip), out(R.valley)),
+    outerLow: zigzag(R.folds, [R.tip[0] + R.rim, R.tip[1] - k], [R.valley[0] + R.rim, R.valley[1] - k]),
+    outerIn: zigzag(R.folds, [R.tip[0] + R.rim - k, R.tip[1]], [R.valley[0] + R.rim - k, R.valley[1]]),
     fasciaBottom: zigzag(R.folds, down(R.tip), down(R.valley)),
   };
 }
@@ -551,6 +590,6 @@ export function compileAssembly(plan, writer) {
   }
   contract.min('pyramid corners inside the brim lip (m)', worst, 0.5);
   contract.min('pyramid inner edge outside the bowl foot (m)', s.pyramid.radius - s.pyramid.base / 2 - s.bowl.profile[0][0], 0);
-  contract.max('triangles', Object.values(triangles).reduce((a, b) => a + b, 0), 14000);
+  // no triangle limit since pass e16b (the user: "get rid of the limit"; it was 14,000); the count is still reported
   return { tiers: plan.tiers, moduleUsage: usage, triangles, contract: contract.assert() };
 }
