@@ -25,8 +25,8 @@ export const PLANTS = {
 };
 
 // lod: 'near' | 'far' builds one level; 'auto' builds both behind a THREE.LOD at def.switchAt.
-// leaves: the leaf-clump factor, for plants that take one (rain tree); undefined → the plant's own.
-// variant: a named design variant, for plants that have them (rain tree branch studies).
+// leaves: the leaf-clump factor, for plants that take one (kuchingTree); undefined → the plant's own.
+// variant: a named design variant, for plants that have them (kuchingTree, treeStudy).
 function build(def, seed, lod, leaves, variant) {
   if (lod === 'auto' && def.switchAt) {
     return makeLOD(def.create({ seed, lod: 'near', leaves, variant }), def.create({ seed, lod: 'far', variant }), def.switchAt);

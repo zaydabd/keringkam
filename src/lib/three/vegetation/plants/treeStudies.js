@@ -9,7 +9,11 @@
 //     https://apps.worldagroforestry.org/treedb2/speciesprofile.php/docs/policydocument.pdf?Spid=501
 //     Kuching's kapok on Padang Merdeka is a listed heritage tree:
 //     https://www.lonelyplanet.com/malaysia/malaysian-borneo-sarawak/kuching/attractions/kapok-tree/a/poi-sig/1333763/356979
-//   - Rain tree (Samanea saman): see rainTree.js.
+//   - Rain tree (Samanea saman): "relatively short trunk", "crown of long stout nearly horizontal
+//     branches broader than tall", "bark gray, rough, thick, furrowed into long plates".
+//     Little & Skolmen, Common Forest Trees of Hawaii (USDA Agriculture Handbook 679):
+//     https://www3.ctahr.hawaii.edu/gsp/doc/Forestry/Little_Skolmen_CFT/CFT_Pithecellobium_saman.pdf
+//     https://en.wikipedia.org/wiki/Samanea_saman
 //   - Trumpet tree (Tabebuia rosea): broadly conical, crown sparse and irregular when young,
 //     denser and rounded when mature; pink and white forms planted in Malaysia.
 //     https://nparks.gov.sg/activities/family-time-with-nature/recommended-activities/know-10-trees/9-trumpet-tree
@@ -32,7 +36,7 @@ const barkOf = (light, dark, base = 0.4) => {
 };
 
 // Leaf clumps per tree (tree.js foliage format). Tones are guesses from the user's photos:
-// kapok a light fresh green; rain tree the rain tree's own (rainTree.js); trumpet tree in pink
+// kapok a light fresh green; rain tree a dark olive to shiny green; trumpet tree in pink
 // bloom as in the user's photo 5 (pink and white forms are planted in Malaysia, FRIM, above).
 const LEAVES = { merge: 1.1, density: 1.0, mask: { curve: 0.04 } };
 const KAPOK_LEAVES = { ...LEAVES, radius: 2.0, card: 0.42, density: 1.2, tones: ['#2d4a1e', '#5f8f37', '#b9d77a'] };

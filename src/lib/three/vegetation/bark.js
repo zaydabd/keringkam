@@ -24,7 +24,7 @@ import { FOLIAGE_SUN } from './cel-foliage.js';
  * moss / lichen: [colour, amount]; rings: ring-scar amount and spacing [amount, metres].
  */
 export const BARK_PATTERNS = {
-  // Rain tree: dark grey bark "furrowed into long plates" (Little & Skolmen, see rainTree.js);
+  // Rain tree: dark grey bark "furrowed into long plates" (Little & Skolmen, see treeStudies.js);
   // moss and pale lichen as on the Taiping and Kuching photos (guess).
   plates: { cell: [0.12, 0.75], line: [0.24, 0.05], keep: 0.8, dark: 0.6, wobble: 0.32, twist: 0, rough: 0.28, rim: 0.22, moss: ['#55702c', 0.45], lichen: ['#b9bcae', 0.18], rings: [0, 1] },
   // Birch: short dark horizontal marks on white.

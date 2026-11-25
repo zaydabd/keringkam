@@ -3,7 +3,7 @@
   import { PLANTS, init } from '../three/vegetation/preview.js';
 
   // #/vegetation?plant=vine&seed=1&lod=near&az=0&el=4&d=2.6 (the fixed views use these)
-  // lod: near | far | auto (auto switches at the plant's switchAt distance); leaves: leaf-clump factor (rain tree)
+  // lod: near | far | auto (auto switches at the plant's switchAt distance); leaves: leaf-clump factor (kuchingTree)
   // ty: camera target height (m), with d; bare: hide the leaves (branches only); variant: a named design variant, where the plant has them
   const params = new URLSearchParams(location.hash.split('?')[1] ?? '');
   const num = (k, d) => (params.has(k) ? Number(params.get(k)) : d);

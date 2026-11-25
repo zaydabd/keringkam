@@ -55,13 +55,16 @@ export const PEDADA_SPECIES = {
   bark: pedadaBark,
   levels: [
     { length: [6.5, 7.5], radius: 0.25, tip: 0.07, sections: 16, radial: 12, gnarl: 0.05, up: 0.1, lean: 0.08 },
-    { count: 7, emerge: [0.35, 1], angle: [1.15, 1.45], length: [0.9, 1.1], radius: 0.6, tip: 0.03, sections: 12, radial: 7, gnarl: 0.08, up: 0.0, shorten: 0.5 },
-    { count: 6, emerge: [0.25, 1], angle: [0.6, 1.0], length: [0.4, 0.55], radius: 0.55, tip: 0.01, sections: 7, radial: 5, gnarl: 0.12, up: -0.04, shorten: 0.3 },
-    // Hanging twigs: start sideways, then bend down hard (the weeping curtain).
-    { count: 5, emerge: [0.2, 1], angle: [0.7, 1.1], length: [1.1, 1.6], radius: 0.6, tip: 0.004, sections: 6, radial: 3, gnarl: 0.03, up: -0.7, shorten: 0.2 },
-    { count: 3, emerge: [0.3, 1], angle: [0.5, 0.9], length: [0.2, 0.28], radius: 0.6, tip: 0.002, sections: 2, radial: 3, gnarl: 0.05, up: -0.6, shorten: 0.2 },
+    // Limbs ~0.75 of the trunk (shorter than before), so no single limb runs far out (guess).
+    { count: 7, emerge: [0.45, 1], angle: [1.1, 1.35], length: [0.72, 0.82], radius: 0.6, tip: 0.03, sections: 12, radial: 7, gnarl: 0.07, up: -0.02, shorten: 0.45 },
+    { count: 6, emerge: [0.25, 1], angle: [0.55, 0.9], length: [0.45, 0.58], radius: 0.55, tip: 0.01, sections: 7, radial: 5, gnarl: 0.1, up: -0.08, shorten: 0.3 },
+    // Hanging twigs: leave their branch at a low angle and turn down soon (the weeping curtain),
+    // so they never arch bare above the crown.
+    { count: 5, emerge: [0.2, 1], angle: [0.5, 0.8], length: [1.1, 1.4], radius: 0.6, tip: 0.004, sections: 7, radial: 3, gnarl: 0.03, up: -1.1, shorten: 0.2 },
+    // Leaf twigs all along the hanging twig, so leaves cover it (not just its end).
+    { count: 4, emerge: [0.1, 1], angle: [0.5, 0.9], length: [0.18, 0.26], radius: 0.6, tip: 0.002, sections: 2, radial: 3, gnarl: 0.05, up: -0.6, shorten: 0.2 },
   ],
-  foliage: { radius: 0.34, merge: 0.8, density: 1.1, card: 0.22, mask: { curve: 0.03 }, tones: TONES },
+  foliage: { radius: 0.34, merge: 0.75, density: 1.1, card: 0.22, mask: { curve: 0.03 }, tones: TONES },
 };
 
 const rootColor = new THREE.Color('#5a5145');
