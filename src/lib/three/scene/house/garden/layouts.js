@@ -58,14 +58,18 @@ export const LAYOUTS = {
       // round the corners: short hedges along the side walls, a little lower
       { layer: 'hedge', shape: 'box', at: [X0 - 0.5, Z0 + 0.8], w: 0.84, d: 1.6, rx: 0.42, rz: 0.8, h: 1.05 },
       { layer: 'hedge', shape: 'box', at: [X1 + 0.5, Z0 + 0.8], w: 0.84, d: 1.6, rx: 0.42, rz: 0.8, h: 1.05 },
-      // vines hanging from the window heads, over the top of each opening (top just under the head trim)
-      { layer: 'curtain', shape: 'hang', at: [w1.x0 + 0.38, Z0 - 0.07], top: WIN_HEAD, w: 0.7, h: 1.1 },
-      { layer: 'hanging', shape: 'hang', at: [w1.x1 - 0.2, Z0 - 0.07], top: WIN_HEAD, w: 0.4, h: 0.95 },
-      { layer: 'hanging', shape: 'hang', at: [w2.x0 + 0.2, Z0 - 0.07], top: WIN_HEAD, w: 0.4, h: 0.9 },
-      { layer: 'curtain', shape: 'hang', at: [w2.x1 - 0.38, Z0 - 0.07], top: WIN_HEAD, w: 0.7, h: 1.2 },
-      { layer: 'hanging', shape: 'hang', at: [(w3.x0 + w3.x1) / 2, Z0 - 0.07], top: WIN_HEAD, w: 0.4, h: 1.0 },
-      // ...and a row from under the eaves, half a metre out, between and in front of the windows
-      ...[X0 + 0.25, w1.x0 + 0.1, pierL, w2.x0 + 0.55, pierR, w3.x1 + 0.1, X1 - 0.1].map((x, k) => ({ layer: 'hanging', shape: 'hang', at: [x, Z0 - 0.45 - (k % 2) * 0.06], top: SOFFIT, w: 0.4, h: [1.0, 0.85, 1.15, 0.9, 1.05, 0.8, 1.1][k] })),
+      // vines hanging from the window heads, at the sides of each opening so its middle stays open
+      // (the user, 2026-11-25: "make it on the sides a bit"); the wide curtains centred near the
+      // edge, half over the wall beside; top just under the head trim
+      { layer: 'curtain', shape: 'hang', at: [w1.x0 + 0.08, Z0 - 0.07], top: WIN_HEAD, w: 0.7, h: 1.1 },
+      { layer: 'hanging', shape: 'hang', at: [w1.x1 - 0.12, Z0 - 0.07], top: WIN_HEAD, w: 0.4, h: 0.95 },
+      { layer: 'hanging', shape: 'hang', at: [w2.x0 + 0.12, Z0 - 0.07], top: WIN_HEAD, w: 0.4, h: 0.9 },
+      { layer: 'curtain', shape: 'hang', at: [w2.x1 - 0.08, Z0 - 0.07], top: WIN_HEAD, w: 0.7, h: 1.2 },
+      // the narrow right window: one each side, half on the wall beside it
+      { layer: 'hanging', shape: 'hang', at: [w3.x0 - 0.02, Z0 - 0.07], top: WIN_HEAD, w: 0.4, h: 1.0 },
+      { layer: 'hanging', shape: 'hang', at: [w3.x1 + 0.02, Z0 - 0.07], top: WIN_HEAD, w: 0.4, h: 0.9 },
+      // ...and a row from under the eaves, half a metre out, between the windows and at their sides (none over the middle of one)
+      ...[X0 + 0.25, w1.x0 + 0.1, pierL, w2.x0 + 0.1, pierR, w3.x1 + 0.1, X1 - 0.1].map((x, k) => ({ layer: 'hanging', shape: 'hang', at: [x, Z0 - 0.45 - (k % 2) * 0.06], top: SOFFIT, w: 0.4, h: [1.0, 0.85, 1.15, 0.9, 1.05, 0.8, 1.1][k] })),
       { layer: 'curtain', shape: 'hang', at: [X1 + 0.07, (s.z0 + s.z1) / 2], top: WIN_HEAD, w: 0.7, h: 1.0, yaw: Math.PI / 2 },
       // the tree: on the street's grass (y -1.85), about 4.5 m out from the river wall
       { layer: 'tree', at: [-3.5, -10.0], base: SITE.ground, rx: 3.5, rz: 3.5, h: 5.5 },

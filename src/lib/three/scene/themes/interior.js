@@ -147,7 +147,6 @@ const PAPER = {
 };
 
 const PLANT = {
-  leaf: '#84a552', // lighter, yellower leaves (R2)
   paintedStem: '#4c7a3a', // the stems in the framed pictures
   pot: '#9a8f84', // the planters and plant stand: the neutral grey of unglazed pots (vegetation/stylised.js)
 };
@@ -186,7 +185,6 @@ export const INTERIOR_THEME = {
     white: FABRIC.white,
     decor: FABRIC.undyed, // mats and pictures: all colour is in the texture
     plate: CERAMIC.plate,
-    leaf: PLANT.leaf,
     pot: PLANT.pot,
     ...HOUSE_OUTSIDE,
   },

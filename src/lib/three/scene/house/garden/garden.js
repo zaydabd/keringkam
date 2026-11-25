@@ -28,7 +28,7 @@ const GARDEN_CURTAIN = {
   strand: { ...thick(VINE_CURTAIN.strand), count: 9, tendril: 0, sideShoots: [0, 1] },
   shoot: { ...thick(VINE_CURTAIN.shoot), tendril: 0 },
 };
-const GARDEN_HANGING = { ...HANGING_VINE, strand: { ...thick(HANGING_VINE.strand), count: 6, tendril: 0 } };
+export const GARDEN_HANGING = { ...HANGING_VINE, strand: { ...thick(HANGING_VINE.strand), count: 6, tendril: 0 } };
 // The vine generators made into plants: create({ seed }) -> { group, stats, dispose }.
 const vineCurtain = { id: 'vineCurtain', create: ({ seed }) => createVineCurtain({ seed, species: GARDEN_CURTAIN }) };
 const hangingVine = { id: 'hangingVine', create: ({ seed }) => createHangingVine({ seed, species: GARDEN_HANGING }) };
@@ -286,7 +286,7 @@ function trim(mesh, sl, grown = GARDEN.grown) {
 }
 
 /** Places a vine in its hanging panel: scaled to the panel's height, its top centre at the top. */
-function hang(vine, sl) {
+export function hang(vine, sl) {
   const holder = new THREE.Group();
   vine.updateMatrixWorld(true);
   const box = new THREE.Box3().setFromObject(vine);

@@ -81,7 +81,6 @@ export function createHouse({ renderer, scene, camera, theme: THEME, params, deb
     ['white', M.white, textures.pale, { side: D, emissive: G.white, emissiveMap: textures.pale, emissiveIntensity: L.glow.white }],
     ['decor', M.decor, textures.decor, { side: D }],
     ['plate', M.plate, null],
-    ['leaf', M.leaf, null, { side: D }],
     // The house outside (house/exterior.js)
     ['clad', M.clad, textures.wall],
     ['zinc', M.zinc, null],
@@ -124,7 +123,6 @@ export function createHouse({ renderer, scene, camera, theme: THEME, params, deb
   const overlaps = furnitureOverlaps();
   if (overlaps.length) console.warn('furniture overlaps:', overlaps.join('; '));
   buildHangings(b.as('hangings'));
-  buildVines(b.as('vines'));
   const room = new THREE.Group();
   room.name = 'room';
   room.add(...b.build(materials));
@@ -138,12 +136,16 @@ export function createHouse({ renderer, scene, camera, theme: THEME, params, deb
       mesh.layers.set(NO_INK_LAYER);
       if (mesh.name === 'lattice') mesh.layers.enable(INK_MASK_LAYER); // and masks the ink of the view behind it (toon.js)
     }
-    if (['leaf', 'decor'].includes(mesh.name)) mesh.castShadow = mesh.name === 'leaf';
+    if (mesh.name === 'decor') mesh.castShadow = false;
     if (['wood', 'top', 'carve'].includes(mesh.name)) mesh.layers.enable(FURNITURE_LAYER);
     if (['wood', 'top', 'carve', 'wall', 'frame'].includes(mesh.name)) mesh.layers.enable(SIDE_LAYER);
     if (['lattice', 'carve', 'sheer', 'white'].includes(mesh.name)) mesh.userData.noAO = true; // cut-outs and sheer cloth (ao.js)
   }
   group.add(room);
+  // The vines beside the windows inside (house/vines.js): the garden's hanging vine.
+  const vines = own(buildVines());
+  vines.group.visible = !stage;
+  group.add(vines.group);
   const contact = buildContactShadows(textures.blob, sky.target.position.clone().sub(sky.position), textures.footBlob); // they fall the way the sky's light travels
   group.add(contact.group);
   own(contact.mat), own(contact.core), own(contact.foot);
