@@ -38,10 +38,11 @@ const barkOf = (light, dark, base = 0.4) => {
 // Leaf clumps per tree (tree.js foliage format). Tones are guesses from the user's photos:
 // kapok a light fresh green; rain tree a dark olive to shiny green; trumpet tree in pink
 // bloom as in the user's photo 5 (pink and white forms are planted in Malaysia, FRIM, above).
+// Densities about 0.7× the first version: the same clumps with fewer leaves (user's request).
 const LEAVES = { merge: 1.1, density: 1.0, mask: { curve: 0.04 } };
-const KAPOK_LEAVES = { ...LEAVES, radius: 2.0, card: 0.42, density: 1.2, tones: ['#2d4a1e', '#5f8f37', '#b9d77a'] };
-const RAIN_LEAVES = { ...LEAVES, radius: 1.5, card: 0.4, density: 1.1, tones: ['#223b1f', '#4c7a33', '#a8c962'] };
-const TABEBUIA_LEAVES = { ...LEAVES, radius: 1.1, card: 0.32, density: 1.2, tones: ['#7a2d58', '#cf6a9f', '#f6bcd8'] };
+const KAPOK_LEAVES = { ...LEAVES, radius: 2.0, card: 0.42, density: 0.85, tones: ['#2d4a1e', '#5f8f37', '#b9d77a'] };
+const RAIN_LEAVES = { ...LEAVES, radius: 1.5, card: 0.4, density: 0.8, tones: ['#223b1f', '#4c7a33', '#a8c962'] };
+const TABEBUIA_LEAVES = { ...LEAVES, radius: 1.1, card: 0.32, density: 0.85, tones: ['#7a2d58', '#cf6a9f', '#f6bcd8'] };
 
 export const TREE_STUDIES = {
   // Photo 1: the old kapok, huge pale trunk on wide plank buttresses, a few long horizontal tiers.
