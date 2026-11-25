@@ -55,6 +55,10 @@ const VIEWS = {
   'garden-drift-seat': ['garden=drift', WIDE],
   'garden-tropical-high': ['garden=tropical&eye=-12,7,-14&yaw=139&pitch=-15&fov=50&look=0,0', WIDE],
   'garden-tropical-seat': ['garden=tropical', WIDE],
+  'garden-bougainvillea-high': ['garden=bougainvillea&eye=-12,7,-14&yaw=139&pitch=-15&fov=50&look=0,0', WIDE],
+  'garden-bougainvillea-seat': ['garden=bougainvillea', WIDE],
+  'garden-bougainvillea-window': ['garden=bougainvillea&view=window&look=0,0', WIDE],
+  'garden-bougainvillea-wall': ['garden=bougainvillea&eye=-1.4,-0.1,-10.5&yaw=180&pitch=12&fov=55&look=0,0', WIDE], // facing the river wall
   'ext-river-clay': ['eye=-10,-0.25,-12&yaw=139&pitch=10&fov=50&look=0,0&theme=clay', WIDE],
   'bridge-close': ['eye=-112,10,-58&yaw=32&pitch=13&fov=52&look=0,0', WIDE],
   // the river's wave model: its normal, its mirror strength, and what the pixel filter keeps

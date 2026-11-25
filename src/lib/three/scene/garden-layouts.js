@@ -11,7 +11,8 @@ import { PLAN } from './interior/plan.js';
 const R = PLAN.room;
 export const WALLS = { X0: R.x0 - HOUSE.out, X1: R.x1 + HOUSE.out, Z0: R.z0 - HOUSE.out, Z1: R.z1 + HOUSE.out }; // the cladding's faces
 const { X0, X1, Z0 } = WALLS;
-const EDGE = HOUSE.ground.z0; // the terrace's edge, where the bank drops to the street (-6.8)
+const EDGE = HOUSE.ground.z0;
+const HOUSE_FLOOR_ABOVE_GROUND = -HOUSE.ground.y; // 0.45: a slot's h is from the terrace, the floor is this much higher // the terrace's edge, where the bank drops to the street (-6.8)
 const [w1, w2, w3] = PLAN.backWindows;
 const s = PLAN.sideWindow;
 
@@ -22,6 +23,9 @@ export const LAYERS = {
   column: { plant: 'bougainvillea', label: 'Bougainvillea trained flat on the wall', colour: '#d9579b' },
   corner: { plant: 'bougainvillea', label: 'Bougainvillea, a rounded bush', colour: '#f0974a' },
   palm: { plant: 'nipah', label: 'Nipah palm', colour: '#2f7a4a' },
+  mound: { plant: 'bougainvillea', label: 'Bougainvillea bush, trimmed (tops about 1 m above the floor)', colour: '#c2407f' },
+  climber: { plant: 'bougainvillea', label: 'Bougainvillea trained up the wall beside a window', colour: '#f08cc0' },
+  tree: { plant: 'rainTree', label: 'Rain tree (kept smaller than a wild one)', colour: '#3d6b2f' },
 };
 
 const wallZ = Z0 - 0.02; // a bed's edge along the river wall
@@ -116,6 +120,35 @@ export const LAYOUTS = {
       { layer: 'palm', at: [X1 + 0.85, Z0 - 0.55], rx: 1.2, rz: 1.0, h: 3.0 },
       ...underSide(X1 + 0.4),
       { layer: 'palm', at: [X1 + 0.6, -0.9], rx: 0.9, rz: 0.9, h: 2.8 },
+    ],
+  },
+  // 5. The user's design (2026-11-25): bougainvillea all along the river wall, wrapping round both
+  // corners, its tops trimmed about 1 m above the floor so a band of flowers shows at the bottom
+  // of the windows; a few trained up the wall beside the windows like creepers; a rain tree on
+  // each side.
+  bougainvillea: {
+    label: '5. Bougainvillea all along, trees at the sides',
+    beds: [
+      [[X0 - 1.2, wallZ], [X1 + 1.2, wallZ], [X1 + 1.2, Z0 - 1.02], [X0 - 1.2, Z0 - 1.02]],
+      [[X0 - 0.02, wallZ], [X0 - 0.02, Z0 + 1.7], [X0 - 1.0, Z0 + 1.7], [X0 - 1.0, wallZ]],
+      [[sideX, wallZ], [sideX, Z0 + 1.7], [X1 + 1.0, Z0 + 1.7], [X1 + 1.0, wallZ]],
+    ],
+    slots: [
+      // the row along the river wall: overlapping mounds, tops between 0.9 and 1.1 m above the floor
+      ...Array.from({ length: 10 }, (_, k) => ({ layer: 'mound', at: [X0 - 0.85 + k * ((X1 - X0 + 1.7) / 9), Z0 - 0.5 + (k % 2 ? 0.06 : -0.04)], rx: 0.55, rz: 0.42, h: HOUSE_FLOOR_ABOVE_GROUND + [1.0, 0.92, 1.08, 0.95, 1.1, 0.9, 1.05, 0.97, 1.1, 0.93][k] })),
+      // round the corners, a little lower
+      { layer: 'mound', at: [X0 - 0.5, Z0 + 0.45], rx: 0.45, rz: 0.55, h: 1.25 },
+      { layer: 'mound', at: [X0 - 0.5, Z0 + 1.25], rx: 0.42, rz: 0.45, h: 1.05 },
+      { layer: 'mound', at: [X1 + 0.5, Z0 + 0.45], rx: 0.45, rz: 0.55, h: 1.25 },
+      { layer: 'mound', at: [X1 + 0.5, Z0 + 1.25], rx: 0.42, rz: 0.45, h: 1.05 },
+      // climbers beside the windows, flat against the wall, up to just under the eaves
+      { layer: 'climber', at: [w1.x0 - 0.32, Z0 - 0.2], rx: 0.16, rz: 0.18, h: 3.2 },
+      { layer: 'climber', at: [pierL, Z0 - 0.2], rx: 0.18, rz: 0.18, h: 3.25 },
+      { layer: 'climber', at: [pierR, Z0 - 0.2], rx: 0.16, rz: 0.18, h: 3.15 },
+      { layer: 'climber', at: [w3.x1 + 0.3, Z0 - 0.2], rx: 0.14, rz: 0.18, h: 3.2 },
+      // a rain tree on each side, clear of the roof
+      { layer: 'tree', at: [X0 - 8.5, Z0 + 2.5], rx: 6, rz: 6, h: 9 },
+      { layer: 'tree', at: [X1 + 8.0, Z0 + 1.5], rx: 5.5, rz: 5.5, h: 8.5 },
     ],
   },
 };
