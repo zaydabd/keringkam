@@ -20,7 +20,7 @@ export const HEDGE = {
   round: 0.14, // edge radius of the trimmed box
   lump: 0.26, // lump radius
   step: 0.3, // lump spacing over the surface
-  inset: 0.55, // how far a lump's centre sits inside the cut, as a share of its radius
+  inset: 0.3, // how far a lump's centre sits inside the cut, as a share of its radius
   grow: 0.12, // how far lumps grow out past the cut, in patches
   growScale: 1.6, // patch noise per metre
   card: 0.13, // spray card size
@@ -47,7 +47,7 @@ export function hedgeLumps([w, d, h], seed, H = HEDGE) {
     const lr = H.lump * range(rand, 0.7, 1.25);
     const patch = THREE.MathUtils.smoothstep(valueFbm((x + z) * H.growScale, y * H.growScale, seed, 3), 0.3, 0.85);
     const centre = q.clone().addScaledVector(n, r + H.grow * patch - lr * H.inset * range(rand, 0.8, 1.2));
-    out.push({ centre, normal: n, r: lr, b: H.pink * (0.75 + 0.5 * THREE.MathUtils.smoothstep(y / h, 0.2, 1)) });
+    out.push({ centre, normal: n, r: lr, b: H.pink * (0.85 + 0.2 * THREE.MathUtils.smoothstep(y / h, 0.2, 1)) });
   };
   const steps = (len) => Math.max(1, Math.round(len / H.step));
   const jit = () => (rand() - 0.5) * H.step * 0.6;
@@ -78,17 +78,18 @@ export function hedgeLumps([w, d, h], seed, H = HEDGE) {
 }
 
 /** The hedge's leaves and flowers on the given lumps (any space). */
-export function createHedgeFoliage(seed, lumps, H = HEDGE) {
+export function createHedgeFoliage(seed, lumps, H = HEDGE, keep) {
   return writeCards(mulberry32(seed * 7919 + 53), lumps, {
     radius: H.lump,
     count: (r) => Math.max(16, Math.round((H.density * 4 * Math.PI * r * r) / (H.card * H.card))),
     leafCard: H.card,
     bractCard: H.card * H.bract,
     cells: [2, 3],
-    bractBias: 1.2,
+    bractBias: 1.4,
     tuck: true,
     crown: H.crown,
     wrap: H.wrap,
+    keep,
   });
 }
 

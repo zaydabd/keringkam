@@ -8,6 +8,7 @@ import { LAYOUTS, LAYERS, WALLS } from './layouts.js';
 import { plant as bougainvillea, createBushFoliage } from '../../../vegetation/plants/bougainvillea.js';
 import { mulberry32 } from '../../../../utils/rng.js';
 import { valueFbm } from '../../../../utils/noise.js';
+import { HEDGE, hedgeLumps, createHedgeFoliage } from '../../../vegetation/plants/bougainvilleaHedge.js';
 import { NO_INK_LAYER, CARD_MASK_LAYER } from '../../layers.js';
 import { plant as kuchingTree } from '../../../vegetation/plants/kuchingTree.js';
 // The garden's tree: main's new Kuching tree in its rain-tree design (treeStudies.js rainRoadside).
@@ -148,6 +149,23 @@ const UNIT_BOX = new THREE.BoxGeometry(1, 1, 1).translate(0, 0.5, 0); // standin
  * cards come to about that share (stats.pink).
  */
 const bractAt = (height) => GARDEN.bush.pink * (1.0 + 0.4 * THREE.MathUtils.smoothstep(height, 0.2, 1));
+
+/**
+ * A box hedge's leaf lumps (the isolated hedge in the plant preview, layered like the trees),
+ * moved onto its slot. Lumps with their centre in the house are left out; single leaf cards that
+ * would reach into it are dropped in createHedgeFoliage.
+ */
+function placedLumps(sl, seed) {
+  const base = baseOf(sl);
+  const out = [];
+  for (const l of hedgeLumps([sl.w, sl.d, sl.h], seed)) {
+    l.centre.x += sl.at[0];
+    l.centre.y += base;
+    l.centre.z += sl.at[1];
+    if (!inHouse(l.centre)) out.push(l);
+  }
+  return out;
+}
 
 /**
  * The clumps covering a box hedge (shape 'box'): a grid over its front, back, ends and flat top,
@@ -357,8 +375,9 @@ export function buildGarden({ layout, noVines = false }) {
 /** A bougainvillea slot's leaves (cards on clumps over its outside) and its AO body. */
 function bushParts(sl, n, coreMaterial, disposables, stats) {
   const B = GARDEN.bush;
-  const clumps = sl.shape === 'box' ? hedgeClumps(sl, 101 + n) : bushClumps(sl, 101 + n);
-  const leaves = createBushFoliage(1 + n, clumps, { radius: B.clump, card: B.card, bractCard: B.card * B.bract, count: B.cards });
+  const leaves = sl.shape === 'box'
+    ? createHedgeFoliage(1 + n, placedLumps(sl, 101 + n), HEDGE, (p, size) => !inHouse(p, size * 0.75))
+    : createBushFoliage(1 + n, bushClumps(sl, 101 + n), { radius: B.clump, card: B.card, bractCard: B.card * B.bract, count: B.cards });
   leaves.mesh.name = `bush ${n}`;
   cardsMaskInk(leaves.mesh);
   leaves.mesh.userData.noAO = true;

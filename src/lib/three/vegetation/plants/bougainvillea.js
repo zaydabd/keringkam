@@ -96,7 +96,7 @@ function writeStems(stems, { radial, every = 1 }) {
  * `cells` = [leaf cell, bract cell] in the atlas. Bracts go on the outward, upper side of a
  * clump, in proportion to its bract share (guess).
  */
-export function writeCards(rand, list, { radius, count, leafCard, bractCard, cells, aoScale = 1, bractBias = 1, tuck = false, crown, wrap }) {
+export function writeCards(rand, list, { radius, count, leafCard, bractCard, cells, aoScale = 1, bractBias = 1, tuck = false, crown, wrap, keep }) {
   const frame = crownFrame(list.map((c) => c.centre), radius);
   const A = { position: [], normal: [], uv: [], corner: [], centre: [], color: [], ao: [], kind: [] };
   const indices = [];
@@ -129,6 +129,7 @@ export function writeCards(rand, list, { radius, count, leafCard, bractCard, cel
       if (isBract && tuck) shell = range(rand, 0.55, 0.9);
       p.copy(c.centre).addScaledVector(n, r * shell);
       const size = (isBract ? bractCard : leafCard) * range(rand, 0.8, 1.2);
+      if (keep && !keep(p, size)) continue; // e.g. a card that would reach into the house
       const roll = range(rand, 0, Math.PI * 2);
       const cr = Math.cos(roll);
       const sr = Math.sin(roll);
