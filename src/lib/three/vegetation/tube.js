@@ -9,12 +9,16 @@ export function createMeshWriter() {
   const uvs = [];
   const colors = [];
   const indices = [];
+  // Bark cells around each tube vertex (addTube's uRepeat), so the bark shader can wrap its
+  // pattern without a seam. Written only by addTube; kept when every vertex has one.
+  const reps = [];
   return {
     positions,
     normals,
     uvs,
     colors,
     indices,
+    reps,
     get vertexCount() {
       return positions.length / 3;
     },
@@ -24,6 +28,7 @@ export function createMeshWriter() {
       g.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3));
       g.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
       g.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+      if (reps.length === positions.length / 3) g.setAttribute('barkRep', new THREE.Float32BufferAttribute(reps, 1));
       g.setIndex(indices);
       g.computeBoundingSphere();
       return g;
@@ -43,9 +48,13 @@ const _d = new THREE.Vector3();
  * Adds a tapered tube. `points` are THREE.Vector3, `radii` one per point. A tip whose radius is
  * under `closeBelow` ends in a point vertex; a thicker end gets a flat cap with its own normal.
  * `colorAt(v, u, t)` (optional) returns a colour per vertex: v in metres, u around, t 0..1 along.
+ * `uRepeat` (integer, default 1) multiplies the around coordinate of the UVs, so a bark pattern
+ * can keep about the same width in metres on thick and thin stems without a seam.
+ * `shape(i, angle)` (optional) returns a factor on ring i's radius at that angle (0..2π), e.g.
+ * buttress lobes at a trunk base.
  * Returns the number of triangles written.
  */
-export function addTube(writer, points, radii, { radial = 6, color, colorAt, closeStart = false } = {}) {
+export function addTube(writer, points, radii, { radial = 6, color, colorAt, closeStart = false, uRepeat = 1, shape } = {}) {
   const n = points.length;
   if (n < 2) return 0;
   const base = writer.vertexCount;
@@ -80,12 +89,13 @@ export function addTube(writer, points, radii, { radial = 6, color, colorAt, clo
       const s = Math.sin(ang);
       _d.set(_n.x * c + _b.x * s, _n.y * c + _b.y * s, _n.z * c + _b.z * s);
       const p = points[i];
-      const r = radii[i];
+      const r = shape ? radii[i] * shape(i, ang) : radii[i];
       writer.positions.push(p.x + _d.x * r, p.y + _d.y * r, p.z + _d.z * r);
       writer.normals.push(_d.x, _d.y, _d.z);
-      writer.uvs.push(k / radial, along);
+      writer.uvs.push((k / radial) * uRepeat, along);
       const col = colorAt ? colorAt(along, k / radial, i / (n - 1)) : color;
       writer.colors.push(col.r, col.g, col.b);
+      writer.reps.push(uRepeat);
     }
   }
 
@@ -111,6 +121,7 @@ export function addTube(writer, points, radii, { radial = 6, color, colorAt, clo
     writer.uvs.push(0.5, along);
     const c = colorAt ? colorAt(along, 0.5, i / (n - 1)) : color;
     writer.colors.push(c.r, c.g, c.b);
+    writer.reps.push(uRepeat);
     const first = base + i * ring;
     for (let k = 0; k < radial; k++) {
       if (sign > 0) writer.indices.push(first + k, first + k + 1, centre);

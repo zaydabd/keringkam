@@ -20,6 +20,7 @@ import { mulberry32, range, shuffled, stratified } from './rng.js';
 import { addTube, createMeshWriter } from './tube.js';
 import { UP } from './grow.js';
 import { CEL_RAMP_GLSL, FOLIAGE_SUN, toneUniforms } from './cel-foliage.js';
+import { barkRepeat, createBarkMaterial } from './bark.js';
 
 const birchBark = (() => {
   const white = new THREE.Color('#e9e6dd');
@@ -110,10 +111,19 @@ function perpendiculars(t) {
   _b.crossVectors(t, _n);
 }
 
-/** Grows one branch as a polyline. Gnarl is a curvature that persists, so bends stay smooth. */
-function growBranch(rand, origin, dir, length, spec) {
+/**
+ * Grows one branch as a polyline. Gnarl is a curvature that persists, so bends stay smooth.
+ * `elbow` (0..1, optional per level): the branch leaves that much closer to its parent's
+ * direction `from`, then turns to its own direction over the first `elbowLen` of its sections,
+ * so it curves out of the fork instead of leaving at a hard angle. No extra random numbers.
+ * `kink` (radians-ish, optional): sharp sideways turns at a `kinkRate` share of the sections.
+ */
+function growBranch(rand, origin, dir, length, spec, from) {
   const points = [origin.clone()];
-  const d = dir.clone().normalize();
+  const target = dir.clone().normalize();
+  const d = target.clone();
+  const k = spec.elbow && from ? Math.max(1, Math.round(spec.sections * (spec.elbowLen ?? 0.35))) : 0;
+  if (k) d.lerp(from, spec.elbow).normalize();
   const bend = new THREE.Vector3();
   const kick = new THREE.Vector3();
   const p = origin.clone();
@@ -121,6 +131,14 @@ function growBranch(rand, origin, dir, length, spec) {
   for (let i = 0; i < spec.sections; i++) {
     kick.set(range(rand, -1, 1), range(rand, -1, 1), range(rand, -1, 1));
     bend.multiplyScalar(0.6).addScaledVector(kick, spec.gnarl);
+    if (i < k) d.lerp(target, 1 / (k - i)).normalize();
+    // Kinks (optional per level): now and then the branch turns sharply sideways, the zigzag
+    // of an old rain tree limb. Extra random numbers only for levels that set `kink`.
+    if (spec.kink && i >= Math.max(1, Math.round(spec.sections * 0.25)) && rand() < (spec.kinkRate ?? 0.35)) {
+      kick.set(range(rand, -1, 1), range(rand, -0.5, 0.5), range(rand, -1, 1));
+      kick.addScaledVector(d, -kick.dot(d));
+      if (kick.lengthSq() > 1e-6) d.addScaledVector(kick.normalize(), spec.kink).normalize();
+    }
     d.add(bend).addScaledVector(UP, spec.up).normalize();
     p.addScaledVector(d, step);
     points.push(p.clone());
@@ -227,32 +245,51 @@ function createClumpMaterial(map, tones) {
   });
 }
 
-export function createTree({ seed = 1, kind = 'birch', species = TREE_SPECIES[kind] } = {}) {
-  const rand = mulberry32(seed);
-  const stems = createMeshWriter();
-  const L = species.levels;
-  const stats = { seed, kind, levels: L.map(() => 0), triangles: { stems: 0, leaves: 0 }, leaves: 0 };
+const radiiFor = (n, r0, r1) => Array.from({ length: n }, (_, i) => r0 + (r1 - r0) * (i / (n - 1)) ** 0.8);
 
+/**
+ * Grows the branch skeleton of a species: [{ level, points, radii, length, parent, t }], where
+ * `parent` is the index of the parent branch and `t` (0..1) where along it this one leaves.
+ * The near and far levels of a plant both call this, so they grow the same limbs for a seed.
+ * `rand` is a mulberry32 stream for the seed; it is left where the growth stopped.
+ * The radii are the plain taper; `shapeBranches` adds the flares.
+ */
+export function growBranches(rand, species) {
+  const L = species.levels;
   // ---- Level 0: the trunk, leaning a little in a seeded direction.
   const T = L[0];
   const leanAz = range(rand, 0, Math.PI * 2);
   const trunkDir = new THREE.Vector3(Math.cos(leanAz) * T.lean, 1, Math.sin(leanAz) * T.lean);
   const trunkLen = range(rand, ...T.length);
   const trunkPts = growBranch(rand, new THREE.Vector3(0, -0.05, 0), trunkDir, trunkLen, T);
-  const radiiFor = (n, r0, r1) => Array.from({ length: n }, (_, i) => r0 + (r1 - r0) * (i / (n - 1)) ** 0.8);
-  const queue = [{ level: 0, points: trunkPts, radii: radiiFor(trunkPts.length, T.radius, T.tip), length: trunkLen }];
+  const queue = [{ level: 0, points: trunkPts, radii: radiiFor(trunkPts.length, T.radius, T.tip), length: trunkLen, parent: -1, t: 0 }];
   const branches = [];
 
   while (queue.length) {
     const job = queue.shift();
-    stats.levels[job.level]++;
+    const index = branches.length;
     branches.push(job);
     const spec = L[job.level + 1];
     if (!spec) continue;
     // Stratified heights; angular slots spread around the parent then shuffled.
-    const heights = stratified(rand, spec.count, ...spec.emerge);
+    let heights = stratified(rand, spec.count, ...spec.emerge);
     const turn = range(rand, 0, Math.PI * 2);
-    const azimuths = shuffled(rand, heights.map((_, i) => turn + (i / spec.count) * Math.PI * 2 + range(rand, -0.3, 0.3)));
+    let azimuths = shuffled(rand, heights.map((_, i) => turn + (i / spec.count) * Math.PI * 2 + range(rand, -0.3, 0.3)));
+    if (spec.whorl) {
+      // Whorls (optional): `whorl` children at each of count/whorl heights, evenly spaced round
+      // the parent, each tier turned from the last (the kapok's tiers of horizontal branches).
+      const tiers = Math.max(1, Math.round(spec.count / spec.whorl));
+      const tierT = stratified(rand, tiers, ...spec.emerge);
+      heights = [];
+      azimuths = [];
+      tierT.forEach((t, j) => {
+        const spin = range(rand, 0, Math.PI * 2);
+        for (let w = 0; w < spec.whorl; w++) {
+          heights.push(t);
+          azimuths.push(spin + (w / spec.whorl) * Math.PI * 2 + range(rand, -0.25, 0.25));
+        }
+      });
+    }
     heights.forEach((t, i) => {
       const at = pointAndRadius(job.points, job.radii, t);
       perpendiculars(at.tangent);
@@ -263,26 +300,167 @@ export function createTree({ seed = 1, kind = 'birch', species = TREE_SPECIES[ki
       // Children near the top of their parent are shorter, which rounds the crown.
       const length = job.length * range(rand, ...spec.length) * (1 - spec.shorten * t);
       const r0 = Math.max(spec.tip * 1.5, at.radius * spec.radius);
-      const points = growBranch(rand, at.point, dir, length, spec);
-      queue.push({ level: job.level + 1, points, radii: radiiFor(points.length, r0, spec.tip), length });
+      const points = growBranch(rand, at.point, dir, length, spec, at.tangent);
+      queue.push({ level: job.level + 1, points, radii: radiiFor(points.length, r0, spec.tip), length, parent: index, t });
     });
   }
+  if (species.pipe) pipeRadii(branches, species.pipe, T.radius);
+  return branches;
+}
 
-  for (const b of branches) {
+/**
+ * Optional (species.pipe): replaces the plain taper with Leonardo's rule. At any point a branch's
+ * cross-section is the sum of the cross-sections it still has to carry: its own tip plus every
+ * child that leaves further up, so `r^e = tip^e + sum(child^e)` with e about 2.
+ * See Eloy 2011, https://doi.org/10.1103/PhysRevLett.107.258101.
+ * A branch therefore steps down from thick to medium to thin. It stays thick while most of its
+ * children are still above, and ends about as thick as one of its children.
+ * Children are later in `branches` than their parents, so one pass from the end works.
+ * The whole tree is then scaled so the trunk keeps its designed base radius.
+ *   pipe: { twig, end, hold, exponent, fade }
+ *   twig: base radius of a branch with no children, in metres before scaling.
+ *   end: tip radius as a fraction of twig. hold: how long a childless twig keeps its thickness.
+ *   fade: how far below a fork, as a fraction of the parent, the child's share starts to fade.
+ */
+function pipeRadii(branches, P, trunkRadius) {
+  const e = P.exponent ?? 2;
+  const fade = P.fade ?? 0.12;
+  const tipR = P.twig * (P.end ?? 0.45);
+  const kids = branches.map(() => []);
+  branches.forEach((b, i) => { if (b.parent >= 0) kids[b.parent].push(i); });
+  const base = new Array(branches.length);
+  for (let i = branches.length - 1; i >= 0; i--) {
+    const b = branches[i];
+    const n = b.points.length;
+    if (!kids[i].length) {
+      b.radii = Array.from({ length: n }, (_, j) => P.twig * THREE.MathUtils.lerp(1, P.end ?? 0.45, (j / (n - 1)) ** (P.hold ?? 1.6)));
+    } else {
+      b.radii = Array.from({ length: n }, (_, j) => {
+        const u = j / (n - 1);
+        // Above its last fork the branch carries on as one more stream about its children's size,
+        // so it ends at medium thickness instead of a point.
+        let a = Math.max(tipR ** e, kids[i].reduce((sum, k) => sum + base[k] ** e, 0) / kids[i].length);
+        // Each child's share fades out smoothly just below the point where it leaves.
+        for (const k of kids[i]) a += base[k] ** e * THREE.MathUtils.smoothstep(branches[k].t - u, -0.02, fade);
+        return a ** (1 / e);
+      });
+    }
+    base[i] = b.radii[0];
+  }
+  const s = trunkRadius / base[0];
+  for (const b of branches) b.radii = b.radii.map((r) => r * s);
+}
+
+/** Inserts points (and linearly interpolated radii) so spacing is at most `step` up to `upTo` metres from the start. */
+function densify(b, upTo, step) {
+  const pts = [b.points[0]];
+  const rad = [b.radii[0]];
+  let along = 0;
+  for (let i = 1; i < b.points.length; i++) {
+    const a = b.points[i - 1];
+    const seg = a.distanceTo(b.points[i]);
+    if (along < upTo && seg > step) {
+      const m = Math.ceil(Math.min(seg, upTo - along + step) / step);
+      const parts = Math.min(m, Math.ceil(seg / step));
+      for (let k = 1; k < parts; k++) {
+        const f = k / parts;
+        pts.push(a.clone().lerp(b.points[i], f));
+        rad.push(THREE.MathUtils.lerp(b.radii[i - 1], b.radii[i], f));
+      }
+    }
+    pts.push(b.points[i]);
+    rad.push(b.radii[i]);
+    along += seg;
+  }
+  b.points = pts;
+  b.radii = rad;
+}
+
+/** Distance in metres from the start of a polyline to each of its points. */
+function distances(points) {
+  const out = [0];
+  for (let i = 1; i < points.length; i++) out.push(out[i - 1] + points[i].distanceTo(points[i - 1]));
+  return out;
+}
+
+/**
+ * Shapes the skeleton's radii after growth (in place), so joins read as grown, not glued:
+ *   - collar: a parent swells a little where a child leaves it (wood thickens at a fork);
+ *   - flare: a child is wider at its base, out to about its parent's radius, then narrows to
+ *     its own taper, so it blends into the parent instead of meeting it at a hard seam;
+ *   - root flare: the trunk widens towards the ground, with `lobes` low buttresses;
+ *   - dome: a thick trunk top is rounded off above its last limbs instead of cut flat.
+ * Extra rings are added only where a flare needs them. Per-level options (species levels):
+ * `flare` (0..1, default 0.6 on levels ≥ 1 except the last), `collar` (default 0.35); trunk `base`:
+ * { flare, height, lobes, lobe, sharp }. All the amounts are design choices.
+ * `detail` (default 1): 0 skips the extra rings (the far levels).
+ */
+export function shapeBranches(branches, species, { detail = 1 } = {}) {
+  const L = species.levels;
+  const orig = branches.map((b) => ({ points: b.points, radii: b.radii.slice() }));
+  // Collars on the parent, from the children's plain base radii (before any flare).
+  branches.forEach((c) => {
+    if (c.parent < 0) return;
+    const P = branches[c.parent];
+    const collar = L[c.level].collar ?? 0.35;
+    if (!collar) return;
+    const n = P.points.length;
+    const width = Math.max(c.radii[0] * 2.5, P.length / (n - 1));
+    for (let j = 0; j < n; j++) {
+      const dist = (Math.abs(j / (n - 1) - c.t) * P.length) / width;
+      P.radii[j] += c.radii[0] * collar * Math.exp(-dist * dist);
+    }
+  });
+  // Cap the collars so many children at one height do not balloon the parent.
+  branches.forEach((b, i) => {
+    b.radii = b.radii.map((r, j) => Math.min(r, orig[i].radii[j] * 1.35));
+  });
+  // Each child's parent radius where it leaves, on the parent as it is now (before densify).
+  const parentR = branches.map((b) => (b.parent < 0 ? 0 : pointAndRadius(branches[b.parent].points, branches[b.parent].radii, b.t).radius));
+
+  branches.forEach((b, bi) => {
     const spec = L[b.level];
-    stats.triangles.stems += addTube(stems, b.points, b.radii, {
-      radial: spec.radial,
-      colorAt: (v, u, t) => species.bark(v, u, t, b.level),
-      closeStart: b.level === 0,
+    if (b.level === 0) {
+      const B = spec.base;
+      if (B) {
+        if (detail) densify(b, B.height, B.height / (B.sharp ? 10 : 4));
+        const d = distances(b.points);
+        b.radii = b.radii.map((r, i) => r * (1 + B.flare * Math.exp(-d[i] / (B.height * 0.45))));
+        b.baseLobes = { ...B, d };
+      }
+      if (spec.dome && b.radii.at(-1) > 0.05) {
+        const n = b.points.length;
+        const tip = b.points[n - 1];
+        const tan = tip.clone().sub(b.points[n - 2]).normalize();
+        const r = b.radii[n - 1];
+        for (const a of [0.45, 0.85, 1.25]) {
+          b.points.push(tip.clone().addScaledVector(tan, r * Math.sin(a) * 0.7));
+          b.radii.push(r * Math.max(0.12, Math.cos(a)));
+        }
+      }
+      return;
+    }
+    const R = parentR[bi];
+    // Default: flare every level but the twigs (too thin to see; they would cost the most rings).
+    const flare = spec.flare ?? (b.level < L.length - 1 ? 0.6 : 0);
+    if (!flare) return;
+    const r0 = b.radii[0];
+    if (detail) densify(b, R * 2.4, Math.max(R * 0.8, 0.01));
+    const d = distances(b.points);
+    const fall = Math.max(R, r0) * 0.8;
+    b.radii = b.radii.map((r, i) => {
+      const f = r * (1 + flare * Math.exp(-d[i] / fall));
+      // The base ring sits on the parent's axis: keep it inside the parent.
+      return i === 0 ? Math.min(f, Math.max(r0, R * 0.95)) : Math.min(f, Math.max(r, R * 1.05));
     });
-  }
+  });
+  return branches;
+}
 
-  // ---- Foliage, after the branches are final (method: research/CREDITS.md, "Stylised foliage").
-  // A few large clumps sit at the ends of the outer twigs; close ones merge. Each clump is a
-  // "bush" of camera-facing leaf cards, varied in size, with card count growing with its area.
-  // The shader takes each corner's normal from the clump centre, so a clump shades as one ball.
+/** Leaf-clump centres at the outer twig ends (close ones merge), as createTree places them. */
+export function clumpCentres(branches, species) {
   const F = species.foliage;
-  const last = L.length - 1;
+  const last = species.levels.length - 1;
   const centres = [];
   for (const b of branches) {
     if (b.level !== last) continue;
@@ -292,6 +470,58 @@ export function createTree({ seed = 1, kind = 'birch', species = TREE_SPECIES[ki
     const c = tip.clone().addScaledVector(dir, F.radius * 0.3);
     if (centres.every((o) => o.distanceTo(c) > F.radius * F.merge)) centres.push(c);
   }
+  return centres;
+}
+
+/**
+ * Writes the branches as tubes into `writer` with the species' bark colours; UVs scaled for its
+ * bark pattern. `radial(level)` overrides the sides per level. Returns the triangle count.
+ */
+export function writeBranches(writer, branches, species, { radial } = {}) {
+  const pattern = species.barkPattern ?? 'plates';
+  let tris = 0;
+  for (const b of branches) {
+    const spec = species.levels[b.level];
+    const lobes = b.baseLobes;
+    const shape = lobes && lobes.lobes
+      ? (i, ang) => {
+          // Buttress fins: `sharp` narrows each lobe into a plank (kapok); each fin its own size.
+          const fin = Math.max(0, Math.cos(lobes.lobes * ang + 0.7)) ** (lobes.sharp ?? 2);
+          const size = 0.65 + 0.35 * Math.sin(Math.round((lobes.lobes * ang + 0.7) / (2 * Math.PI)) * 2.4 + 1.3);
+          // Height profile: plank fins run up the trunk and die out at `height`; round lobes fade fast.
+          const h = lobes.d[i] / lobes.height;
+          const rise = lobes.sharp ? Math.max(0, 1 - h) ** 2.2 : Math.exp(-h / 0.35);
+          return 1 + lobes.lobe * rise * (fin * size - 0.3 / (lobes.sharp ?? 2));
+        }
+      : undefined;
+    tris += addTube(writer, b.points, b.radii, {
+      radial: radial ? radial(b.level) : spec.radial,
+      colorAt: (v, u, t) => species.bark(v, u, t, b.level),
+      closeStart: b.level === 0,
+      uRepeat: barkRepeat(pattern, b.radii[Math.min(b.radii.length - 1, 2)]),
+      shape: lobes && lobes.d.length === b.points.length ? shape : undefined,
+    });
+  }
+  return tris;
+}
+
+export function createTree({ seed = 1, kind = 'birch', species = TREE_SPECIES[kind] } = {}) {
+  // One random stream: the branches, then the leaf cards.
+  const rand = mulberry32(seed);
+  const stems = createMeshWriter();
+  const L = species.levels;
+  const stats = { seed, kind, levels: L.map(() => 0), triangles: { stems: 0, leaves: 0 }, leaves: 0 };
+  const branches = growBranches(rand, species);
+  for (const b of branches) stats.levels[b.level]++;
+  const centres = clumpCentres(branches, species);
+  shapeBranches(branches, species);
+  stats.triangles.stems += writeBranches(stems, branches, species);
+
+  // ---- Foliage, after the branches are final (method: research/CREDITS.md, "Stylised foliage").
+  // A few large clumps sit at the ends of the outer twigs; close ones merge. Each clump is a
+  // "bush" of camera-facing leaf cards, varied in size, with card count growing with its area.
+  // The shader takes each corner's normal from the clump centre, so a clump shades as one ball.
+  const F = species.foliage;
   const crown = new THREE.Box3().setFromPoints(centres);
   crown.expandByScalar(F.radius);
   const crownCentre = crown.getCenter(new THREE.Vector3());
@@ -358,7 +588,7 @@ export function createTree({ seed = 1, kind = 'birch', species = TREE_SPECIES[ki
   const group = new THREE.Group();
   group.name = `${kind} tree`;
   const stemGeometry = stems.toGeometry();
-  const stemMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85 });
+  const stemMaterial = createBarkMaterial(species.barkPattern);
   const stemMesh = new THREE.Mesh(stemGeometry, stemMaterial);
   stemMesh.name = 'branches';
   group.add(stemMesh);

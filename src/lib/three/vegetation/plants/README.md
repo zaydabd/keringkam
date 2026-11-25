@@ -4,8 +4,8 @@ Each `<id>.js` here exports `plant`:
 
 ```js
 export const plant = {
-  id: 'rainTree',
-  label: 'Rain tree',
+  id: 'pedada',
+  label: 'Pedada (mangrove)',
   create: ({ seed, lod }) => ({ group, stats, dispose }), // lod is 'near' or 'far'
   switchAt: 60, // metres; used by makeLOD for lod=auto
   target: [0, 6, 0],

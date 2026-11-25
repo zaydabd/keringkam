@@ -1,69 +1,13 @@
-// Rain tree (Samanea saman), stylised, in the style of the oak/birch in tree.js.
-//
-// Sourced shape facts:
-//   - 15–25 m tall, "large symmetrical umbrella-shaped crown", spread up to ~30 m;
-//     leaves pinnate, diamond leaflets 2–4 cm; leaves fold in rain and at evening.
-//     https://en.wikipedia.org/wiki/Samanea_saman
-//   - "relatively short trunk 2–4 ft (0.6–1.2 m) in diameter"; "Crown of long stout nearly
-//     horizontal branches broader than tall, becoming 80–100 ft (24–30 m) across";
-//     "Bark gray, rough, thick, furrowed into long plates"; "dense foliage"; leaflets
-//     "upper surface shiny green"; 15–23 m tall.
-//     Little & Skolmen, Common Forest Trees of Hawaii (USDA Agriculture Handbook 679), reprint:
-//     https://www3.ctahr.hawaii.edu/gsp/doc/Forestry/Little_Skolmen_CFT/CFT_Pithecellobium_saman.pdf
-//   - Crown spread greater than height when open-grown (a narrower vase in plantations):
-//     https://webarchive.library.unt.edu/web/20090116112216/http:/www.agroforestry.net/tti/Samanea-raintree.pdf
-//
-// Stylised choices (guess): ~12–13.5 m tall and ~20–24 m across, i.e. smaller than the sourced
-// 15–25 m height and 24–30 m spread, so it fits a waterfront meadow; still wider than tall, as
-// sourced. 7 main limbs; trunk ~3.4 m to the first fork; leaf cards stand for leaf
-// tufts (~0.4 m), not single 2–4 cm leaflets; the three cel tones (dark olive → shiny green);
-// no pink flower heads and no pods; switchAt 60 m.
-//
-// near: createTree (tree.js) with a wide spreading preset, 2 draw calls (bark, leaf cards).
-// far:  the same skeleton (skeleton.js) as trunk + main limbs only, and the crown as a few
-//       squashed low-poly blobs with the same cel tones, 2 draw calls.
+// Far level of detail for the Kuching trees (plants/kuchingTree.js): the same skeleton as the near
+// tree (tree.js growBranches), as trunk + main limbs only, and the crown as a few squashed
+// low-poly blobs with the same cel tones. 2 draw calls (bark, crown).
 
 import * as THREE from 'three';
-import { createTree } from '../tree.js';
-import { addTube, createMeshWriter } from '../tube.js';
-import { CEL_RAMP_GLSL, FOLIAGE_SUN, toneUniforms } from '../cel-foliage.js';
-import { mulberry32, range } from '../rng.js';
-import { growSkeleton } from './rainTree/skeleton.js';
-
-// Grey, rough bark furrowed into long vertical plates (sourced); the colours are a guess.
-const rainBark = (() => {
-  const light = new THREE.Color('#8b857a');
-  const dark = new THREE.Color('#3f3a34');
-  const out = new THREE.Color();
-  const hash = (a) => {
-    const s = Math.sin(a * 127.1) * 43758.5453;
-    return s - Math.floor(s);
-  };
-  return (v, u, t, level) => {
-    const plate = Math.floor(u * 9);
-    const ridge = 0.5 + 0.5 * Math.sin(u * 9 * Math.PI * 2 + hash(plate) * 2);
-    out.copy(dark).lerp(light, ridge ** 0.7 * (0.75 + 0.25 * hash(plate + Math.floor(v * 0.8) * 13)));
-    // Twigs stout greenish (sourced); the amount is a guess.
-    if (level >= 3) out.lerp(new THREE.Color('#5d6b45'), 0.5);
-    return out;
-  };
-})();
-
-// Preset in TREE_SPECIES format. Lengths are relative to the parent; all numbers are design choices.
-export const RAIN_TREE_SPECIES = {
-  bark: rainBark,
-  levels: [
-    // Short stout trunk (sourced), ~1.1 m across at the base.
-    { length: [3.2, 3.6], radius: 0.65, tip: 0.42, sections: 10, radial: 14, gnarl: 0.03, up: 0.1, lean: 0.03 },
-    // Long stout nearly horizontal limbs (sourced); 7 of them (guess), rising a little as they go (guess).
-    { count: 7, emerge: [0.8, 1], angle: [1.22, 1.36], length: [3.5, 3.9], radius: 0.62, tip: 0.07, sections: 16, radial: 9, gnarl: 0.03, up: 0.03, shorten: 0.1 },
-    // Secondary branches turn up to build the dome (guess).
-    { count: 8, emerge: [0.18, 1], angle: [0.55, 0.9], length: [0.24, 0.32], radius: 0.5, tip: 0.025, sections: 6, radial: 5, gnarl: 0.12, up: 0.24, shorten: 0.45 },
-    { count: 5, emerge: [0.25, 1], angle: [0.6, 1.0], length: [0.35, 0.55], radius: 0.6, tip: 0.008, sections: 4, radial: 3, gnarl: 0.25, up: 0.08, shorten: 0.3 },
-  ],
-  // Dense foliage (sourced); dark olive → shiny green tones (guess).
-  foliage: { radius: 1.7, merge: 1.1, density: 1.1, card: 0.42, mask: { curve: 0.04 }, tones: ['#223b1f', '#4c7a33', '#a8c962'] },
-};
+import { clumpCentres, growBranches, shapeBranches, writeBranches } from './tree.js';
+import { createMeshWriter } from './tube.js';
+import { CEL_RAMP_GLSL, FOLIAGE_SUN, toneUniforms } from './cel-foliage.js';
+import { createBarkMaterial } from './bark.js';
+import { mulberry32, range } from './rng.js';
 
 /** Cel material for the far crown blobs: per-vertex normal → the same 3-tone ramp, times AO, with flecks. */
 function createBlobMaterial(tones) {
@@ -102,21 +46,21 @@ function createBlobMaterial(tones) {
   });
 }
 
-function createFar(seed, species) {
-  const { branches, centres } = growSkeleton(seed, species);
+export function createFar(seed, species) {
+  // The same growth as near (tree.js), so the limbs match; no extra flare rings.
+  const all = growBranches(mulberry32(seed), species);
+  const centres = clumpCentres(all, species);
+  shapeBranches(all, species, { detail: 0 });
   const F = species.foliage;
   const stems = createMeshWriter();
-  let stemTris = 0;
   // Trunk and main limbs only, every other section, fewer sides.
-  for (const b of branches) {
-    if (b.level > 1) continue;
-    const keep = b.points.map((_, i) => i).filter((i) => i % 2 === 0 || i === b.points.length - 1);
-    stemTris += addTube(stems, keep.map((i) => b.points[i]), keep.map((i) => b.radii[i]), {
-      radial: b.level === 0 ? 7 : 5,
-      colorAt: (v, u, t) => species.bark(v, u, t, b.level),
-      closeStart: b.level === 0,
+  const branches = all
+    .filter((b) => b.level <= 1)
+    .map((b) => {
+      const keep = b.points.map((_, i) => i).filter((i) => i % 2 === 0 || i === b.points.length - 1);
+      return { ...b, points: keep.map((i) => b.points[i]), radii: keep.map((i) => b.radii[i]) };
     });
-  }
+  const stemTris = writeBranches(stems, branches, species, { radial: (level) => (level === 0 ? 7 : 5) });
 
   // Greedy clusters of the clump centres; each cluster is one blob that covers its clumps.
   const R = F.radius * 1.3;
@@ -171,9 +115,9 @@ function createFar(seed, species) {
   ico.dispose();
 
   const group = new THREE.Group();
-  group.name = 'rain tree (far)';
+  group.name = 'tree (far)';
   const stemGeometry = stems.toGeometry();
-  const stemMaterial = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.85 });
+  const stemMaterial = createBarkMaterial(species.barkPattern);
   const stemMesh = new THREE.Mesh(stemGeometry, stemMaterial);
   stemMesh.name = 'branches';
   group.add(stemMesh);
@@ -190,7 +134,7 @@ function createFar(seed, species) {
   const blobTris = positions.length / 9;
   const stats = {
     seed,
-    kind: 'rainTree',
+    kind: 'tree',
     lod: 'far',
     leaves: 0,
     blobs: clusters.length,
@@ -208,23 +152,3 @@ function createFar(seed, species) {
     },
   };
 }
-
-export const plant = {
-  id: 'rainTree',
-  label: 'Rain tree',
-  // `leaves`: a factor on the near crown's leaf clumps (their radius and card size), e.g. 0.65 for
-  // smaller, less ball-like clumps on trees seen up close. Default 1.
-  create: ({ seed = 1, lod = 'near', leaves = 1 } = {}) => {
-    if (lod === 'far') return createFar(seed, RAIN_TREE_SPECIES);
-    const F = RAIN_TREE_SPECIES.foliage;
-    const species = leaves === 1 ? RAIN_TREE_SPECIES : { ...RAIN_TREE_SPECIES, foliage: { ...F, radius: F.radius * leaves, card: F.card * leaves } };
-    const tree = createTree({ seed, kind: 'rainTree', species });
-    tree.group.name = 'rain tree (near)';
-    tree.stats.lod = 'near';
-    return tree;
-  },
-  switchAt: 60, // guess, tuned by eye
-  target: [0, 6, 0],
-  distance: 45,
-  background: '#1d2a33',
-};
