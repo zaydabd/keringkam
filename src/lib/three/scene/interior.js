@@ -37,17 +37,12 @@
 //           picker in Interior.svelte sets it.
 
 import * as THREE from 'three';
-import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
-import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
-import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
-import { SMAAPass } from 'three/addons/postprocessing/SMAAPass.js';
 import './stableShadows.js'; // soft shadow edges dithered on the world, not the screen
-import { toonGradient, createOutline } from './toon.js';
+import { toonGradient } from './toon.js';
 import { paintPlanks, paintCarving, paintWindowLattice, paintCurtain, paintDecor, paintGlow, setPaintDetail } from './paint.js';
 import { createOutside, OBJECTS, MIRROR_LAYER } from './outside/index.js';
-import { PIGMENT_SHADER, FINISH_SHADER, createPigmentField } from './watercolour.js';
 import { createMeter } from './meter.js';
-import { RESOLUTIONS, MAX_PIXEL_RATIO, MIN_PIXEL_RATIO, PACE, AO, SHADOWS, TEXTURES, OUTLINES, normalise } from './quality.js';
+import { RESOLUTIONS, MAX_PIXEL_RATIO, MIN_PIXEL_RATIO, PACE, SHADOWS, TEXTURES, normalise } from './quality.js';
 import { createPerfRun } from './perf.js';
 import { INTERIOR_THEME, OUTSIDE_THEME, CLAY_LOOK } from './themes/index.js';
 import { PLAN } from './interior/plan.js';
@@ -63,15 +58,14 @@ import { floraMode, windowHangingProposal, roomPlantsProposal } from './floraLay
 import { buildFloraStylised } from './floraStylised.js';
 import { gardenChoice, buildGarden, buildBeds } from './garden.js';
 import { shadeWalls, glossBoards, buildContactShadows } from './interior/surfaces.js';
-import { drapeAll, fabricGeometry, partColour, fabricIndex } from './interior/fabrics.js';
-import { createTextureStore, fabrics as FABRIC_PHOTOS } from '../common.js';
-import { createAO } from './ao.js';
 import { sceneOptions } from '../../utils/urlOptions.js';
-import { setUniforms, maskOf } from './interior/helpers.js';
+import { maskOf } from './interior/helpers.js';
 import { createLights, FURNITURE_LAYER, SIDE_LAYER } from './interior/lights.js';
 import { SHOTS, SHOT_MOVE_SECONDS } from './interior/shots.js';
 import { createControls } from './interior/controls.js';
 import { createFrameCounter } from './interior/frameRate.js';
+import { createPost } from './interior/post.js';
+import { loadFabrics } from './interior/fabricLoader.js';
 export { SHOTS, FABRIC_VIEWS } from './interior/shots.js';
 export { PLAN } from './interior/plan.js';
 export { furnitureOverlaps } from './interior/furniture.js';
@@ -111,7 +105,11 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
   // (single-sample) buffers and only the last full-screen pass reaches the screen, so screen MSAA
   // would smooth nothing and still cost its memory and resolve. ?debug=nopost draws straight to
   // the screen and keeps it.
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: debug === 'nopost' });
+  // Everything with a dispose() that destroy() must free, in the order made: destroy() frees it
+  // in reverse, so the renderer goes last.
+  const owned = [];
+  const own = (x) => (x && owned.push(x), x);
+  const renderer = own(new THREE.WebGLRenderer({ canvas, antialias: debug === 'nopost' }));
   // The resolution (quality.js RESOLUTIONS): the device's own pixels up to the setting's pixel
   // count, like a game's render resolution. A 1080p screen is drawn at its own pixels at the
   // 1080p setting; a 2x laptop or a 4K monitor at about 1920 x 1080 pixels, stretched to fill it
@@ -153,7 +151,7 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
   const { sun, sky, side } = createLights(scene, { L, level: LIGHT, size: shadowSize(), off, clay });
   if (clay) scene.background = new THREE.Color(CLAY_LOOK.colour).multiplyScalar(LIGHT);
 
-  const gradientMap = toonGradient(THEME.shading.bands, { smooth: THEME.shading.smooth });
+  const gradientMap = own(toonGradient(THEME.shading.bands, { smooth: THEME.shading.smooth }));
   const T = THEME.textures;
   // The room's painted textures at twice their size on a drawing buffer of ratio 1.5 or more (the
   // texture detail setting, quality.js TEXTURES): seen from the seat, a plank texel covered about
@@ -177,7 +175,7 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
   setPaintDetail(paintWas);
   textures.carve.repeat.set(3.4, 3.4); // finer: chair-back carving
   const aniso = Math.min(TX.anisotropy, renderer.capabilities.getMaxAnisotropy());
-  for (const t of Object.values(textures)) t.anisotropy = aniso;
+  for (const t of Object.values(textures)) own(t).anisotropy = aniso;
   const D = THREE.DoubleSide;
   const M = THEME.materials;
   const G = THEME.glow;
@@ -210,7 +208,7 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
     if (clay) {
       // Plain grey, lit as it is; the lattice and carving keep their holes (their texture as a mask).
       const cut = key === 'lattice' || key === 'carve';
-      if (cut) masks.push(maskOf(map));
+      if (cut) masks.push(own(maskOf(map)));
       materials[key] = new THREE.MeshStandardMaterial({ color: CLAY_LOOK.colour, roughness: 1, metalness: 0, fog: false, side: extra?.side ?? THREE.FrontSide, map: cut ? masks.at(-1) : null, alphaTest: cut ? 0.5 : 0 });
       continue;
     }
@@ -222,6 +220,7 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
     }
   }
 
+  for (const m of Object.values(materials)) own(m);
   if (!clay) shadeWalls(materials.wall, PLAN.room.top, L.windowWallShade);
   if (!clay && !off.has('gloss')) {
     const { window: windowGloss } = L.gloss;
@@ -244,8 +243,8 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
   room.add(...b.build(materials));
   // The lattice is cut out by its texture: give its shadow the same holes, and keep it out of the
   // ink pass (the edge buffer would see a solid panel).
-  const latticeDepth = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: textures.lattice, alphaTest: 0.5 });
-  const carveDepth = new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: textures.carve, alphaTest: 0.5 });
+  const latticeDepth = own(new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: textures.lattice, alphaTest: 0.5 }));
+  const carveDepth = own(new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: textures.carve, alphaTest: 0.5 }));
   for (const mesh of room.children) {
     if (mesh.name === 'lattice' || mesh.name === 'carve') {
       mesh.customDepthMaterial = mesh.name === 'lattice' ? latticeDepth : carveDepth;
@@ -260,6 +259,7 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
   scene.add(room);
   const contact = buildContactShadows(textures.blob, sky.target.position.clone().sub(sky.position), textures.footBlob); // they fall the way the sky's light travels
   scene.add(contact.group);
+  own(contact.mat), own(contact.core), own(contact.foot);
   room.visible = contact.group.visible = !stage;
 
   // The house outside the room (interior/exterior.js): its own builder, so it can be shown or
@@ -279,96 +279,31 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
   house.visible = !stage && !off.has('house');
   scene.add(house);
 
-  // The fabrics (interior/fabrics.js): settled in Workers while the rest loads, then placed with
-  // their 512 px photos. A fabric's 2048 px photo loads when its view is chosen (showFull). The
-  // first frame waits for them (see tick), so they do not pop in.
-  const fabricGroup = new THREE.Group();
-  fabricGroup.visible = !stage;
-  scene.add(fabricGroup);
-  const fabricStore = clay ? null : createTextureStore(renderer);
-  const fabricMeshes = new Map();
-  let fabricsPending = true;
-  const fabricsAt = performance.now();
-  drapeAll()
-    .then(async (results) => {
-      if (destroyed) return;
-      const settledMs = performance.now() - fabricsAt;
-      const maps = clay ? [] : await Promise.all(PLAN.fabrics.map((f) => fabricStore.get(fabricIndex(f.fabric), 'preview')));
-      if (destroyed) return;
-      const staged = new THREE.Group();
-      // The room's light ramp, in grey: its bands are tinted (warm lights, rosy darks), which
-      // turned a lilac photo yellow-green. The cloth keeps the photo's own hues.
-      const fabricGradient = toonGradient(THEME.shading.bands.map((b) => Array(3).fill((b[0] + b[1] + b[2]) / 3)), { smooth: THEME.shading.smooth });
-      PLAN.fabrics.forEach((f, k) => {
-        const g = fabricGeometry(results[k], FABRIC_PHOTOS[fabricIndex(f.fabric)].crop, f);
-        partColour(g, k);
-        const flat = debug === 'flat';
-        const material = clay
-          ? new THREE.MeshStandardMaterial({ color: CLAY_LOOK.colour, roughness: 1, metalness: 0, fog: false, side: D })
-          : new THREE.MeshToonMaterial({
-              map: flat ? null : maps[k], color: flat ? new THREE.Color('#bdbdbd') : new THREE.Color(...THEME.fabric.balance), gradientMap: fabricGradient, fog: false, side: D,
-              transparent: true, opacity: 1, depthWrite: true, // opaque, as in the photos: at 0.95 the chair showed through the black scarf (5% of a lit chair is half the cloth's own value)
-              // The photo's own colours (no part tint; the ink still reads the part id from the
-              // colour attribute). Alpha 0 in the scene buffer marks the cloth, so the ink, the
-              // pigment and the grade leave it close to its photo (THEME.fabric).
-              blending: THREE.CustomBlending, blendSrc: THREE.SrcAlphaFactor, blendDst: THREE.OneMinusSrcAlphaFactor,
-              blendSrcAlpha: THREE.ZeroFactor, blendDstAlpha: THREE.ZeroFactor,
-            });
-        const mesh = new THREE.Mesh(g, material);
-        mesh.name = `fabric-${f.name}`;
-        mesh.castShadow = mesh.receiveShadow = true;
-        mesh.layers.enable(FURNITURE_LAYER); // casts the sky's and the side window's shadows, like the furniture
-        mesh.layers.enable(SIDE_LAYER);
-        staged.add(mesh);
-        fabricMeshes.set(f.name, mesh);
-      });
-      // Their shaders are compiled off the frame (in parallel where the driver can) before they
-      // join the room: compiled inside a frame, they held the first exposure reading back.
-      const compileAt = performance.now();
-      await renderer.compileAsync(staged, camera, scene).catch(() => {});
-      if (destroyed) return;
-      const compileMs = performance.now() - compileAt;
-      fabricGroup.add(...staged.children);
-      renderer.shadowMap.needsUpdate = true; // the shadows are drawn once: again, with the fabrics
+  // The fabrics (interior/fabricLoader.js). The first frame waits for them (see tick), so they do
+  // not pop in. Low texture detail or ?fabrics=preview keeps their 512 px previews.
+  const fabrics = own(loadFabrics({
+    renderer, scene, camera, theme: THEME, clay, flat: debug === 'flat', stage,
+    previewsOnly: (params.get('fabrics') ?? TX.fabrics) === 'preview',
+    onPlaced(stats) {
+      if (!stats) return;
       // They change what the camera sees: metered again. The page does not wait for that reading:
       // it comes back behind the frames already queued (a few ms on a GPU, but up to a minute in
       // software GL), and the exposure adapts to it as on a change of view.
       metered = false;
-      fabricsPending = false;
-      metrics.fabrics = { settledMs: Math.round(settledMs), compileMs: Math.round(compileMs), readyMs: Math.round(performance.now() - fabricsAt), steps: results.map((r) => r.steps), simMs: results.map((r) => Math.round(r.ms)) };
-      if (perf) Object.assign(perfLoad, { fabricsMs: metrics.fabrics.readyMs });
-      if (debug) console.info('fabrics', JSON.stringify(metrics.fabrics));
-      if (SHOTS[shot].fabric) showFull(SHOTS[shot].fabric);
-      // Then every fabric's full photo, one after another, so the room views show them sharp too
-      // (the 512 px previews blur at a laptop's 2x). Low texture detail or ?fabrics=preview keeps the previews.
-      if ((params.get('fabrics') ?? TX.fabrics) !== 'preview')
-        (async () => {
-          for (const name of fabricMeshes.keys()) if (!destroyed) await showFull(name);
-          metrics.fabricsFull = true;
-        })();
-    })
-    .catch((e) => {
-      console.error('fabrics', e);
-      fabricsPending = false;
-    });
-  /** Swaps a fabric's 512 px photo for its full one (once loaded); resolves when it is shown. */
-  function showFull(name) {
-    const mesh = fabricMeshes.get(name);
-    if (!fabricStore || !mesh || debug === 'flat') return Promise.resolve();
-    const place = PLAN.fabrics.find((f) => f.name === name);
-    return fabricStore.get(fabricIndex(place.fabric), 'full').then((t) => {
-      if (!t || destroyed) return;
-      mesh.material.map = t;
-      mesh.material.needsUpdate = true;
-    });
-  }
+      metrics.fabrics = stats;
+      if (perf) Object.assign(perfLoad, { fabricsMs: stats.readyMs });
+      if (debug) console.info('fabrics', JSON.stringify(stats));
+      if (SHOTS[shot].fabric) fabrics.showFull(SHOTS[shot].fabric);
+    },
+    onFull: () => (metrics.fabricsFull = true),
+  }));
   if (off.has('contact')) contact.group.visible = false;
   if (clay) contact.group.visible = false; // painted shadows: the clay render shows only the sun's
 
   // Outside: the Sarawak River at Kuching (outside/index.js). ?off=outside hides it (the windows
   // then show plain daylight). ?debug=flat and ?debug=silhouette also apply to it.
   const outsideAt = performance.now();
-  const landscape = createOutside({ gradientMap, seed, fog: scene.fog, haze: AIR.daylight, light: LIGHT, key: AIR.key, sun: sun.position.clone().sub(sun.target.position), mode: clay ? 'clay' : debug === 'flat' || debug === 'silhouette' ? debug : undefined, stage, flora });
+  const landscape = own(createOutside({ gradientMap, seed, fog: scene.fog, haze: AIR.daylight, light: LIGHT, key: AIR.key, sun: sun.position.clone().sub(sun.target.position), mode: clay ? 'clay' : debug === 'flat' || debug === 'silhouette' ? debug : undefined, stage, flora }));
   const outsideMs = performance.now() - outsideAt;
   if (clay) scene.fog = null; // no haze
   landscape.group.visible = !off.has('outside');
@@ -378,13 +313,13 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
   scene.add(landscape.group);
   let vineBlockout = null;
   if (flora === 'stylised') {
-    vineBlockout = buildFloraStylised([...windowHangingProposal(PLAN, { skipMiddle: true }), ...roomPlantsProposal(PLAN)]);
+    vineBlockout = own(buildFloraStylised([...windowHangingProposal(PLAN, { skipMiddle: true }), ...roomPlantsProposal(PLAN)]));
     vineBlockout.group.visible = !stage;
     scene.add(vineBlockout.group);
     console.info('[flora] stylised', JSON.stringify({ outside: landscape.floraStats, room: vineBlockout.stats }));
   }
   // Planting round the house (garden.js); ?garden=off leaves it out.
-  const garden = gardenPick ? buildGarden(gardenPick) : null;
+  const garden = gardenPick ? own(buildGarden(gardenPick)) : null;
   if (garden) {
     garden.group.visible = !stage && !off.has('house');
     scene.add(garden.group);
@@ -399,73 +334,9 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
   }
   camera.layers.enable(1);
 
-  const { color: ink, lineWidth, ...inkLook } = THEME.ink;
-  const outline = createOutline(renderer, scene, camera, { ink, lineWidth, mask: [{ layer: 3, map: textures.lattice }] });
-  setUniforms(outline.material.uniforms, inkLook);
-  // The theme's ink, which the outlines setting (quality.js OUTLINES) scales.
-  const inkBase = Object.fromEntries(Object.keys(OUTLINES.full).map((k) => [k, outline.material.uniforms[k].value]));
-  const composer = new EffectComposer(renderer);
-  composer.addPass(new RenderPass(scene, camera));
-  // Ambient occlusion (ao.js): darkens under the furniture and in the corners; before the ink.
-  // The AO setting (quality.js AO): full is at most one AO pixel a CSS pixel, half is half that a
-  // side, auto is half while the view moves and full when it holds still, off skips the pass.
-  // ?aores=k: the AO buffer at k times the drawing buffer; ?aosamples=n (debug,
-  // research/INTERIOR-NOTES.md, passes p1 and p2).
-  const aoRes = num('aores');
-  const aoScale = (moving = false) => aoRes ?? (moving ? (AO.moving[Q.ao] ?? AO.scale[Q.ao]) : AO.scale[Q.ao]) * Math.min(1, 1 / renderer.getPixelRatio());
-  const ao = off.has('ao') || stage ? null : createAO(scene, camera, L.ao, { view: debug === 'ao', bufferScale: aoScale, samples: num('aosamples') });
-  if (ao) composer.addPass(ao);
-  if (ao) ao.enabled = Q.ao !== 'off' || aoRes !== null;
-  const inkPass = !off.has('ink') && !clay;
-  if (inkPass) composer.addPass(new ShaderPass(outline.material));
-  // Watercolour (watercolour.js): pigment in linear light, then the finish pass.
-  const pigment = new ShaderPass(PIGMENT_SHADER);
-  const finish = new ShaderPass(FINISH_SHADER);
-  finish.material.toneMapped = false; // the shader tone-maps itself
-  const { detail: paintDetail, ...paintLook } = THEME.paint;
-  setUniforms(pigment.uniforms, paintLook);
-  setUniforms(finish.uniforms, THEME.grade);
-  const paintView = { 'paint-pigment': 1, 'paint-edge': 2, 'paint-bleed': 3 }[debug] ?? 0;
-  pigment.uniforms.view.value = paintView;
-  const pigmentField = createPigmentField(renderer, pigment.uniforms, { detail: paintDetail });
-  pigmentField.update(seed);
-  if (!off.has('pigment') && !clay) composer.addPass(pigment);
-  finish.uniforms.view.value = debug === 'fabric-mask' ? 2 : off.has('grade') || paintView || clay ? 1 : 0; // 1: tone map and encode only, no grade; 2: the fabric mask
-  // The fabrics keep most of their photo (THEME.fabric; their material marks them with alpha 0).
-  outline.material.uniforms.fabricKeep.value = pigment.uniforms.fabricKeep.value = finish.uniforms.fabricKeep.value = THEME.fabric.keep;
-  outline.material.uniforms.fabricInk.value = THEME.fabric.ink;
-  composer.addPass(finish);
-  // ?set=pass.uniform:value,... (debug): overrides a post uniform, e.g. set=pigment.bleed:0 or set=ink.wobble:0.
-  const overrides = [];
-  for (const kv of (params.get('set') ?? '').split(',').filter(Boolean)) {
-    const [path, v] = kv.split(':');
-    const [pass, name] = path.split('.');
-    const u = { ink: outline.material.uniforms, pigment: pigment.uniforms, finish: finish.uniforms }[pass]?.[name];
-    if (u && typeof u.value === 'number') overrides.push([u, Number(v)]);
-  }
-  /** The outlines setting, then the ?set overrides over it. Off also skips the edge buffer (a second draw of the room). */
-  function applyOutlines() {
-    const f = OUTLINES[Q.outlines];
-    outline.setLines(inkPass && !!f);
-    if (f) for (const k in f) outline.material.uniforms[k].value = inkBase[k] * f[k];
-    for (const [u, v] of overrides) u.value = v;
-  }
-  applyOutlines();
-  // Anti-aliasing (SMAA) on the finished, encoded image, where its edge thresholds were set: it
-  // smooths the 1 px ink lines and geometry edges, which otherwise crawl as the view turns.
-  // ?off=aa leaves it out. The anti-aliasing setting (quality.js): on, off, or auto: skipped at a
-  // pixel ratio of 2 or more (resize), where the lines are 2 device pixels wide and SMAA took 8%
-  // of the sharpness (34% of the fine detail) at 2x, measured (research/INTERIOR-NOTES.md,
-  // "Sharpness"). ?aa=1 keeps it at any ratio.
-  const smaa = off.has('aa') ? null : new SMAAPass();
-  if (smaa) {
-    // Switched off, it keeps its two buffers (edges and blend weights) at one pixel instead of a
-    // full screen each; resize() sets enabled before it sizes the passes.
-    const setSize = smaa.setSize.bind(smaa);
-    smaa.setSize = (w, h) => (smaa.enabled ? setSize(w, h) : setSize(1, 1));
-    composer.addPass(smaa);
-  }
-  const meter = createMeter(renderer);
+  // Post-processing (interior/post.js).
+  const post = own(createPost(renderer, scene, camera, { theme: THEME, quality: Q, params, off, debug, clay, stage, seed, inkMask: textures.lattice }));
+  const meter = own(createMeter(renderer));
   let metered = false;
   let meterToken = 0;
   let destroyed = false;
@@ -487,16 +358,11 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
     const ratio = ratioFor(w, h);
     if (ratio !== renderer.getPixelRatio()) {
       renderer.setPixelRatio(ratio);
-      composer.setPixelRatio(ratio);
+      post.setPixelRatio(ratio);
     }
     metrics.pixelRatio = ratio;
     renderer.setSize(w, h, false);
-    if (smaa) smaa.enabled = params.get('aa') === '1' || Q.aa === 'on' || (Q.aa === 'auto' && renderer.getPixelRatio() < 2);
-    composer.setSize(w, h);
-    outline.setSize(w, h, renderer.getPixelRatio());
-    pigment.uniforms.resolution.value.set(w * renderer.getPixelRatio(), h * renderer.getPixelRatio());
-    pigment.uniforms.scale.value = renderer.getPixelRatio();
-    finish.uniforms.texel.value.set(1 / w, 1 / h);
+    post.setSize(w, h);
     camera.aspect = w / h;
     // Keep R1's vertical view on wide screens; on narrow ones keep its horizontal view instead.
     if (move.t >= 1) {
@@ -546,7 +412,7 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
   }
 
   // The pointer's sway, walking with the keys and dragging to look (interior/controls.js).
-  const controls = createControls(canvas, camera, { fixedLook });
+  const controls = own(createControls(canvas, camera, { fixedLook }));
   const { pointer, walk, turn } = controls;
   const look = new THREE.Vector2();
 
@@ -594,14 +460,6 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
       })
       .catch(() => {}); // the scene was destroyed while the read was in flight
   }
-  // The ink and pigment passes work before the tone map: they need the exposure to judge what
-  // counts as a dark or a mid tone.
-  function applyExposure(value) {
-    finish.uniforms.toneMappingExposure.value = value;
-    outline.material.uniforms.exposure.value = value / 1.85; // 1.85: the exposure its thresholds were tuned at
-    pigment.uniforms.exposure.value = value;
-    renderer.toneMappingExposure = value;
-  }
   /** Moves to another shot: one eased interpolation of position, direction and lens. */
   function setShot(name, immediate = false) {
     if (!SHOTS[name] || (name === shot && move.t >= 1)) return;
@@ -611,13 +469,13 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
     shot = name;
     controls.reset(); // a view from the menu starts where that view stands, facing its way
     move.t = immediate ? 1 : 0;
-    if (SHOTS[name].fabric) showFull(SHOTS[name].fabric);
+    if (SHOTS[name].fabric) fabrics.showFull(SHOTS[name].fabric);
     if (width) meterFor(name); // start adapting now, so the light changes during the move, not after it
     onShot?.(name);
   }
   const timer = new THREE.Timer();
   let frame = 0;
-  const frames = createFrameCounter(onFrameRate); // the settings panel's counter (interior/frameRate.js)
+  const frames = own(createFrameCounter(onFrameRate)); // the settings panel's counter (interior/frameRate.js)
   let readyCalled = false;
   function tick(now) {
     frame = requestAnimationFrame(tick);
@@ -662,24 +520,19 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
       exposure += (exposureTarget - exposure) * (1 - Math.exp(-dt * rate));
       if (Math.abs(exposure - exposureTarget) < 0.002 || fixedLook) exposure = exposureTarget;
     }
-    if (exposure !== null) applyExposure(exposure);
-    // The ink's hand and the wash stay on the room when the view turns (toon.js VIEW_FIELD).
+    if (exposure !== null) post.setExposure(exposure);
     camera.updateMatrixWorld();
     paceResolution(now);
     frames.count(now);
-    outline.setView();
-    pigmentField.setView(camera);
+    post.setView();
     perf?.section('mirror');
     landscape.renderMirror(renderer, scene, camera);
     perf?.section(debug === 'nopost' ? 'scene' : 'ink-prep');
     if (debug === 'nopost') renderer.render(scene, camera);
-    else {
-      if (inkPass) outline.render();
-      composer.render(dt);
-    }
+    else post.render(dt);
     perf?.end(now, performance.now() - t0);
     if (perf && perfLoad.firstFrameMs == null) Object.assign(perfLoad, { firstFrameMs: +(performance.now() - t0).toFixed(1), firstFrameAtMs: Math.round(performance.now()) });
-    if (!readyCalled && exposure !== null && (!fabricsPending || performance.now() - startedAt > 12000)) {
+    if (!readyCalled && exposure !== null && (!fabrics.pending || performance.now() - startedAt > 12000)) {
       // Ready once a frame has been drawn at the metered exposure, with the fabrics in place (or
       // after 12 s without them).
       readyCalled = true;
@@ -704,7 +557,7 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
         metrics.textures = renderer.info.memory.textures;
         metrics.geometries = renderer.info.memory.geometries;
         const S = shadowSize();
-        metrics.targets = `composer 2 x ${Math.round(width * px)}x${Math.round(height * px)} half-float; ${outline.lines ? 'ink 1 x same + depth' : 'ink lines off'}; shadows sun ${S.sun}, sky ${S.sky}, side ${S.side}; meter 64x36 half-float + 64x36 bytes`;
+        metrics.targets = `composer 2 x ${Math.round(width * px)}x${Math.round(height * px)} half-float; ${post.outline.lines ? 'ink 1 x same + depth' : 'ink lines off'}; shadows sun ${S.sun}, sky ${S.sky}, side ${S.side}; meter 64x36 half-float + 64x36 bytes`;
         metrics.done = true;
         console.info('metrics', JSON.stringify(metrics));
       }
@@ -713,25 +566,23 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
   // ?perf: the timed run from the seat to the window (perf.js). It starts from the seat whatever
   // ?view says, so every run covers the same path.
   const perfLoad = { buildMs: +(performance.now() - startedAt).toFixed(1), outsideMs: +outsideMs.toFixed(1) };
-  const perf = params.has('perf') ? createPerfRun(renderer, { hold: Number(params.get('perf')) || 3, go: () => setShot('window'), moving: () => move.t < 1, load: perfLoad }) : null;
+  const perf = params.has('perf') ? own(createPerfRun(renderer, { hold: Number(params.get('perf')) || 3, go: () => setShot('window'), moving: () => move.t < 1, load: perfLoad })) : null;
   if (perf) {
     setShot('seat', true);
     // Time each composer pass on its own (scene, ao, ink, pigment, finish, aa).
-    for (const pass of composer.passes) perf.wrap(pass, pass === pigment ? 'pigment' : pass === finish ? 'finish' : pass === smaa ? 'aa' : pass === ao ? 'ao' : pass instanceof RenderPass ? 'scene' : 'ink');
+    for (const pass of post.composer.passes) perf.wrap(pass, post.passName(pass));
   }
   // Inspection handle for profiling scripts (?perf or ?debug only): stop the loop, draw one frame.
   if (perf || debug) {
     window.__interior = {
-      renderer, scene, camera, composer, outline, landscape, setShot,
-      get aoComputes() { return ao?.computes ?? null; }, // frames the AO was worked out (ao.js)
+      renderer, scene, camera, composer: post.composer, outline: post.outline, landscape, setShot,
+      get aoComputes() { return post.ao?.computes ?? null; }, // frames the AO was worked out (ao.js)
       stop: () => cancelAnimationFrame(frame),
       draw() {
         camera.updateMatrixWorld();
-        outline.setView();
-        pigmentField.setView(camera);
+        post.setView();
         landscape.renderMirror(renderer, scene, camera);
-        if (inkPass) outline.render();
-        composer.render(0);
+        post.render(0);
       },
     };
   }
@@ -751,8 +602,7 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
       const reload = n.textures !== Q.textures;
       const shadowsChanged = n.shadows !== Q.shadows;
       Object.assign(Q, n);
-      applyOutlines();
-      if (ao) ao.enabled = Q.ao !== 'off' || aoRes !== null;
+      post.applyQuality();
       if (shadowsChanged) {
         const S = shadowSize();
         sun.shadow.mapSize.setScalar(S.sun);
@@ -767,35 +617,9 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
     destroy() {
       destroyed = true;
       cancelAnimationFrame(frame);
-      perf?.dispose();
       resizeObserver.disconnect();
-      frames.dispose();
-      controls.dispose();
-      scene.traverse((o) => {
-        if (o.geometry) o.geometry.dispose();
-      });
-      for (const m of Object.values(materials)) m.dispose();
-      for (const m of fabricMeshes.values()) { m.material.gradientMap?.dispose(); m.material.dispose(); }
-      fabricStore?.dispose();
-      for (const t of Object.values(textures)) t.dispose();
-      for (const t of masks) t.dispose();
-      latticeDepth.dispose();
-      carveDepth.dispose();
-      contact.mat.dispose();
-      contact.core.dispose();
-      contact.foot.dispose();
-      landscape.dispose();
-      vineBlockout?.dispose();
-      garden?.dispose();
-      gradientMap.dispose();
-      outline.dispose();
-      pigment.dispose();
-      pigmentField.dispose();
-      finish.dispose();
-      smaa?.dispose();
-      meter.dispose();
-      composer.dispose();
-      renderer.dispose();
+      scene.traverse((o) => o.geometry?.dispose());
+      for (const x of owned.reverse()) x.dispose();
     },
   };
 }
