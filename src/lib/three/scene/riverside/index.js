@@ -63,7 +63,7 @@ const SKY_KEY = OUTSIDE_THEME.air.skyKey;
  * clay render of the clay theme (plain grey, no painted textures, no water shader); `stage` lists
  * the objects to build (default: all).
  */
-export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME.air.daylight, light = 1, key = 1, sun, mode, stage, flora = null }) {
+export function createRiverside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME.air.daylight, light = 1, key = 1, sun, mode, stage, flora = null }) {
   const group = new THREE.Group();
   const disposables = [];
   const S = SITE;
@@ -291,7 +291,7 @@ export function createOutside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME
     stats,
     /** ?flora=stylised: { copies, triangles, meshes } of the plants, or null. */
     floraStats: stylised?.stats ?? null,
-    /** Moves the water. t in seconds. */
+    /** Moves the water. t in seconds (dt unused). */
     update(t) {
       water.material.uniforms.uTime.value = t;
     },

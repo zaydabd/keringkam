@@ -39,36 +39,22 @@
 import * as THREE from 'three';
 import './stableShadows.js'; // soft shadow edges dithered on the world, not the screen
 import { toonGradient } from './toon.js';
-import { paintPlanks, paintCarving, paintWindowLattice, paintCurtain, paintDecor, paintGlow } from './house/paint.js';
-import { setPaintDetail } from './paint/core.js';
-import { createOutside, OBJECTS } from './riverside/index.js';
+import { createRiverside, OBJECTS } from './riverside/index.js';
+import { createHouse } from './house/index.js';
 import { createMeter, REFERENCE_EXPOSURE } from './post/meter.js';
 import { RESOLUTIONS, MAX_PIXEL_RATIO, MIN_PIXEL_RATIO, PACE, SHADOWS, TEXTURES, normalise } from './quality.js';
 import { createPerfRun } from './perf.js';
 import { INTERIOR_THEME, OUTSIDE_THEME, CLAY_LOOK } from './themes/index.js';
 import { PLAN } from './world/plan.js';
-import { V, Builder } from './house/builder.js';
-import { buildRoom } from './house/room.js';
-import { buildExterior } from './house/exterior.js';
-import { buildLattice, LATTICE_TILE } from './house/lattice.js';
-import { buildCurtains } from './house/curtains.js';
-import { buildSeat, furnitureOverlaps, buildTable } from './house/furniture.js';
-import { buildHangings } from './house/hangings.js';
-import { buildVines } from './house/vines.js';
-import { windowHangingProposal, roomPlantsProposal } from './house/garden/plants.js';
-import { floraMode, buildFloraStylised } from '../vegetation/stylised.js';
-import { gardenChoice, buildGarden, buildBeds } from './house/garden/garden.js';
-import { shadeWalls, glossBoards, buildContactShadows } from './house/surfaces.js';
+import { V } from './house/builder.js';
+import { floraMode } from '../vegetation/stylised.js';
 import { sceneOptions } from '../../utils/urlOptions.js';
-import { maskOf } from './house/helpers.js';
 import { createLights } from './stage/lights.js';
-import { NO_INK_LAYER, MIRROR_LAYER, INK_MASK_LAYER, FURNITURE_LAYER, SIDE_LAYER } from './layers.js';
+import { NO_INK_LAYER, MIRROR_LAYER } from './layers.js';
 import { SHOTS, SHOT_MOVE_SECONDS } from './stage/shots.js';
 import { createControls } from './stage/controls.js';
 import { createFrameCounter } from './stage/frameRate.js';
 import { createPost } from './post/post.js';
-import { loadFabrics } from './house/fabricLoader.js';
-import { clayMaterial, FLAT_GREY } from './debugMaterials.js';
 export { SHOTS, FABRIC_VIEWS } from './stage/shots.js';
 export { PLAN } from './world/plan.js';
 export { furnitureOverlaps } from './house/furniture.js';
@@ -155,139 +141,10 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
   if (clay) scene.background = new THREE.Color(CLAY_LOOK.colour).multiplyScalar(LIGHT);
 
   const gradientMap = own(toonGradient(THEME.shading.bands, { smooth: THEME.shading.smooth }));
-  const T = THEME.textures;
-  // The room's painted textures at twice their size on a drawing buffer of ratio 1.5 or more (the
-  // texture detail setting, quality.js TEXTURES): seen from the seat, a plank texel covered about
-  // 1.3-2.7 screen pixels at 2x (512 texels a metre), so the grain was magnified into blur.
-  // ?paint=1 keeps the designed size. Made at load: changing the setting reloads the page.
-  const TX = TEXTURES[Q.textures];
-  const paintWas = setPaintDetail(num('paint') ?? (renderer.getPixelRatio() >= TX.paintDetailFrom ? 2 : 1));
-  const textures = {
-    planks: paintPlanks(1 + seed, T.planks.boards),
-    floor: paintPlanks(9 + seed, T.planks.floor),
-    wall: paintPlanks(5 + seed, T.planks.wall),
-    lattice: paintWindowLattice(11, T.windowLattice, LATTICE_TILE),
-    carve: paintCarving(17, T.carving),
-    valance: paintCurtain(12 + seed, T.curtains.valance),
-    sheer: paintCurtain(16 + seed, T.curtains.drape),
-    pale: paintCurtain(31 + seed, T.curtains.pale),
-    decor: paintDecor(14, T.decor),
-    blob: paintGlow('round'),
-    footBlob: paintGlow('contact'),
-  };
-  setPaintDetail(paintWas);
-  textures.carve.repeat.set(3.4, 3.4); // finer: chair-back carving
-  const aniso = Math.min(TX.anisotropy, renderer.capabilities.getMaxAnisotropy());
-  for (const t of Object.values(textures)) own(t).anisotropy = aniso;
-  const D = THREE.DoubleSide;
-  const M = THEME.materials;
-  const G = THEME.glow;
-  const materials = {};
-  const masks = [];
-  for (const [key, color, map, extra] of [
-    ['floor', M.floor, textures.floor],
-    ['wall', M.wall, textures.wall],
-    ['ceiling', M.ceiling, textures.wall],
-    ['frame', M.frame, textures.planks],
-    ['wood', M.wood, textures.planks],
-    ['top', M.top, textures.planks],
-    ['lattice', M.lattice, textures.lattice, { side: D, alphaTest: 0.5 }],
-    ['carve', M.carve, textures.carve, { side: D, alphaTest: 0.5 }],
-    ['valance', M.valance, textures.valance, { side: D, emissive: G.valance, emissiveMap: textures.valance, emissiveIntensity: L.glow.valance }], // lit from behind
-    ['sheer', M.sheer, textures.sheer, { side: D, emissive: G.sheer, emissiveMap: textures.sheer, emissiveIntensity: L.glow.sheer }],
-    ['white', M.white, textures.pale, { side: D, emissive: G.white, emissiveMap: textures.pale, emissiveIntensity: L.glow.white }],
-    ['decor', M.decor, textures.decor, { side: D }],
-    ['plate', M.plate, null],
-    ['leaf', M.leaf, null, { side: D }],
-    // The house outside (house/exterior.js)
-    ['clad', M.clad, textures.wall],
-    ['zinc', M.zinc, null],
-    ['trim', M.trim, textures.planks],
-    ['post', M.post, textures.planks],
-    ['concrete', M.concrete, null],
-    ['ground', M.ground, null],
-    ['earth', M.earth, null],
-  ]) {
-    if (clay) {
-      // Plain grey, lit as it is; the lattice and carving keep their holes (their texture as a mask).
-      const cut = key === 'lattice' || key === 'carve';
-      if (cut) masks.push(own(maskOf(map)));
-      materials[key] = clayMaterial({ fog: false, side: extra?.side ?? THREE.FrontSide, map: cut ? masks.at(-1) : null, alphaTest: cut ? 0.5 : 0 });
-      continue;
-    }
-    materials[key] = new THREE.MeshToonMaterial({ color, map, vertexColors: true, gradientMap, fog: false, ...extra });
-    materials[key].emissiveIntensity *= LIGHT;
-    if (debug === 'flat' && key !== 'lattice' && key !== 'carve') {
-      materials[key].map = null;
-      materials[key].color.set(FLAT_GREY);
-    }
-  }
-
-  for (const m of Object.values(materials)) own(m);
-  if (!clay) shadeWalls(materials.wall, PLAN.room.top, L.windowWallShade);
-  if (!clay && !off.has('gloss')) {
-    const { window: windowGloss } = L.gloss;
-    glossBoards(materials.floor, { window: windowGloss, ...L.gloss.floor, light: LIGHT, view: debug === 'gloss' });
-    glossBoards(materials.top, { window: windowGloss, ...L.gloss.top, light: LIGHT, view: debug === 'gloss' });
-  }
-  const b = new Builder();
-  // Each object rolls its own dice (house/builder.js), so this order does not change the look.
-  buildRoom(b.as('room'));
-  buildLattice(b.as('lattice'));
-  buildCurtains(b.as('curtains'));
-  buildSeat(b.as('furniture'), PLAN.settee);
-  for (const c of PLAN.chairs) buildSeat(b, c);
-  for (const t of PLAN.tables) buildTable(b, t);
-  const overlaps = furnitureOverlaps();
-  if (overlaps.length) console.warn('furniture overlaps:', overlaps.join('; '));
-  buildHangings(b.as('hangings'));
-  buildVines(b.as('vines'));
-  const room = new THREE.Group();
-  room.add(...b.build(materials));
-  // The lattice is cut out by its texture: give its shadow the same holes, and keep it out of the
-  // ink pass (the edge buffer would see a solid panel).
-  const latticeDepth = own(new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: textures.lattice, alphaTest: 0.5 }));
-  const carveDepth = own(new THREE.MeshDepthMaterial({ depthPacking: THREE.RGBADepthPacking, map: textures.carve, alphaTest: 0.5 }));
-  for (const mesh of room.children) {
-    if (mesh.name === 'lattice' || mesh.name === 'carve') {
-      mesh.customDepthMaterial = mesh.name === 'lattice' ? latticeDepth : carveDepth;
-      mesh.layers.set(NO_INK_LAYER);
-      if (mesh.name === 'lattice') mesh.layers.enable(INK_MASK_LAYER); // and masks the ink of the view behind it (toon.js)
-    }
-    if (['leaf', 'decor'].includes(mesh.name)) mesh.castShadow = mesh.name === 'leaf';
-    if (['wood', 'top', 'carve'].includes(mesh.name)) mesh.layers.enable(FURNITURE_LAYER);
-    if (['wood', 'top', 'carve', 'wall', 'frame'].includes(mesh.name)) mesh.layers.enable(SIDE_LAYER);
-    if (['lattice', 'carve', 'sheer', 'white'].includes(mesh.name)) mesh.userData.noAO = true; // cut-outs and sheer cloth (ao.js)
-  }
-  scene.add(room);
-  const contact = buildContactShadows(textures.blob, sky.target.position.clone().sub(sky.position), textures.footBlob); // they fall the way the sky's light travels
-  scene.add(contact.group);
-  own(contact.mat), own(contact.core), own(contact.foot);
-  room.visible = contact.group.visible = !stage;
-
-  // The house outside the room (house/exterior.js): its own builder, so it can be shown or
-  // hidden as one (?off=house). Seen only from outside: the room's views do not change.
-  const hb = new Builder();
-  buildExterior(hb.as('house'));
-  const gardenPick = gardenChoice(params);
-  if (gardenPick) buildBeds(hb.as('garden beds'), gardenPick.layout);
-  const house = new THREE.Group();
-  house.name = 'house';
-  house.add(...hb.build(materials));
-  // The house casts no sun shadow for now: its eaves shaded the curtains, and its deeper window
-  // reveals narrowed the sun on the floor, so both room views changed. The room's own walls still
-  // cast the house's shadow on the ground. The ground takes the haze: it runs far inland.
-  for (const mesh of house.children) mesh.castShadow = false;
-  if (!clay) materials.ground.fog = true;
-  house.visible = !stage && !off.has('house');
-  scene.add(house);
-
-  // The fabrics (house/fabricLoader.js). The first frame waits for them (see tick), so they do
-  // not pop in. Low texture detail or ?fabrics=preview keeps their 512 px previews.
-  const fabrics = own(loadFabrics({
-    renderer, scene, camera, theme: THEME, clay, flat: debug === 'flat', stage,
-    previewsOnly: (params.get('fabrics') ?? TX.fabrics) === 'preview',
-    onPlaced(stats) {
+  // The house (house/index.js): the room, its fabrics, the shell and the garden.
+  const house = own(createHouse({
+    renderer, scene, camera, theme: THEME, params, debug, clay, off, seed, stage, flora, TX: TEXTURES[Q.textures], gradientMap, light: LIGHT, sky,
+    onFabricsPlaced(stats) {
       if (!stats) return;
       // They change what the camera sees: metered again. The page does not wait for that reading:
       // it comes back behind the frames already queued (a few ms on a GPU, but up to a minute in
@@ -298,15 +155,14 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
       if (debug) console.info('fabrics', JSON.stringify(stats));
       if (SHOTS[shot].fabric) fabrics.showFull(SHOTS[shot].fabric);
     },
-    onFull: () => (metrics.fabricsFull = true),
+    onFabricsFull: () => (metrics.fabricsFull = true),
   }));
-  if (off.has('contact')) contact.group.visible = false;
-  if (clay) contact.group.visible = false; // painted shadows: the clay render shows only the sun's
-
+  const fabrics = house.fabrics;
+  scene.add(house.group);
   // Outside: the Sarawak River at Kuching (riverside/index.js). ?off=outside hides it (the windows
   // then show plain daylight). ?debug=flat and ?debug=silhouette also apply to it.
   const outsideAt = performance.now();
-  const landscape = own(createOutside({ gradientMap, seed, fog: scene.fog, haze: AIR.daylight, light: LIGHT, key: AIR.key, sun: sun.position.clone().sub(sun.target.position), mode: clay ? 'clay' : debug === 'flat' || debug === 'silhouette' ? debug : undefined, stage, flora }));
+  const landscape = own(createRiverside({ gradientMap, seed, fog: scene.fog, haze: AIR.daylight, light: LIGHT, key: AIR.key, sun: sun.position.clone().sub(sun.target.position), mode: clay ? 'clay' : debug === 'flat' || debug === 'silhouette' ? debug : undefined, stage, flora }));
   const outsideMs = performance.now() - outsideAt;
   if (clay) scene.fog = null; // no haze
   landscape.group.visible = !off.has('outside');
@@ -314,20 +170,9 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
   scene.traverse((o) => o.isLight && o.layers.enable(MIRROR_LAYER)); // the river's mirror is lit like the view itself
   landscape.group.userData.noAO = true; // the view outside is too far for AO, and it moves
   scene.add(landscape.group);
-  let vineBlockout = null;
-  if (flora === 'stylised') {
-    vineBlockout = own(buildFloraStylised([...windowHangingProposal(PLAN, { skipMiddle: true }), ...roomPlantsProposal(PLAN)]));
-    vineBlockout.group.visible = !stage;
-    scene.add(vineBlockout.group);
-    console.info('[flora] stylised', JSON.stringify({ outside: landscape.floraStats, room: vineBlockout.stats }));
-  }
-  // Planting round the house (garden.js); ?garden=off leaves it out.
-  const garden = gardenPick ? own(buildGarden(gardenPick)) : null;
-  if (garden) {
-    garden.group.visible = !stage && !off.has('house');
-    scene.add(garden.group);
-    console.info('[garden]', JSON.stringify(garden.stats));
-  }
+  const items = [house, landscape]; // each { group, update(t, dt), dispose() }
+  if (flora === 'stylised') console.info('[flora] stylised', JSON.stringify({ outside: landscape.floraStats, room: house.stats.plants }));
+  if (house.stats.garden) console.info('[garden]', JSON.stringify(house.stats.garden));
   if (debug) {
     console.info('outside', JSON.stringify(landscape.stats));
     for (const [name, r] of Object.entries(landscape.reports)) {
@@ -338,7 +183,7 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
   camera.layers.enable(NO_INK_LAYER);
 
   // Post-processing (post/post.js).
-  const post = own(createPost(renderer, scene, camera, { theme: THEME, quality: Q, params, off, debug, clay, stage, seed, inkMask: textures.lattice }));
+  const post = own(createPost(renderer, scene, camera, { theme: THEME, quality: Q, params, off, debug, clay, stage, seed, inkMask: house.inkMask }));
   const meter = own(createMeter(renderer));
   let metered = false;
   let meterToken = 0;
@@ -487,8 +332,8 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
     renderer.info.reset();
     const t0 = performance.now();
     perf?.begin();
-    landscape.update(clockParam ?? timer.getElapsed());
     const dt = Math.min(timer.getDelta(), 0.1);
+    for (const item of items) item.update(clockParam ?? timer.getElapsed(), dt); // the scene's items (house/, riverside/)
     if (fixedLook) look.copy(pointer);
     else {
       look.lerp(pointer, 1 - Math.exp(-dt * 2)); // smooths the input, not the camera
