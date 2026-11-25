@@ -47,18 +47,14 @@ const VIEWS = {
   'ext-side': ['eye=9,1.15,4&yaw=-60&pitch=8&fov=50&look=0,0', WIDE],
   'ext-front': ['eye=-2,1.15,11&yaw=3&pitch=8&fov=50&look=0,0', WIDE],
   'ext-high': ['eye=-12,7,-14&yaw=139&pitch=-15&fov=50&look=0,0', WIDE],
-  'garden-plan-high': ['garden=plan&eye=-12,7,-14&yaw=139&pitch=-15&fov=50&look=0,0', WIDE],
-  'garden-plan-bed': ['garden=plan&eye=-1.4,-0.1,-10.5&yaw=180&pitch=12&fov=55&look=0,0', WIDE], // facing the river wall's bed
-  'garden-plan-seat': ['garden=plan', WIDE],
-  'garden-plan-window': ['garden=plan&view=window&look=0,0', WIDE],
-  'garden-plants-high': ['garden=plants&eye=-12,7,-14&yaw=139&pitch=-15&fov=50&look=0,0', WIDE],
-  'garden-plants-bed': ['garden=plants&eye=-1.4,-0.1,-10.5&yaw=180&pitch=12&fov=55&look=0,0', WIDE], // facing the river wall's bed
-  'garden-plants-seat': ['garden=plants', WIDE],
-  'garden-plants-window': ['garden=plants&view=window&look=0,0', WIDE],
-  'garden-trim-high': ['garden=trim&eye=-12,7,-14&yaw=139&pitch=-15&fov=50&look=0,0', WIDE],
-  'garden-trim-bed': ['garden=trim&eye=-1.4,-0.1,-10.5&yaw=180&pitch=12&fov=55&look=0,0', WIDE], // facing the river wall's bed
-  'garden-trim-seat': ['garden=trim', WIDE],
-  'garden-trim-window': ['garden=trim&view=window&look=0,0', WIDE],
+  'garden-framed-high': ['garden=framed&eye=-12,7,-14&yaw=139&pitch=-15&fov=50&look=0,0', WIDE],
+  'garden-framed-seat': ['garden=framed', WIDE],
+  'garden-open-high': ['garden=open&eye=-12,7,-14&yaw=139&pitch=-15&fov=50&look=0,0', WIDE],
+  'garden-open-seat': ['garden=open', WIDE],
+  'garden-drift-high': ['garden=drift&eye=-12,7,-14&yaw=139&pitch=-15&fov=50&look=0,0', WIDE],
+  'garden-drift-seat': ['garden=drift', WIDE],
+  'garden-tropical-high': ['garden=tropical&eye=-12,7,-14&yaw=139&pitch=-15&fov=50&look=0,0', WIDE],
+  'garden-tropical-seat': ['garden=tropical', WIDE],
   'ext-river-clay': ['eye=-10,-0.25,-12&yaw=139&pitch=10&fov=50&look=0,0&theme=clay', WIDE],
   'bridge-close': ['eye=-112,10,-58&yaw=32&pitch=13&fov=52&look=0,0', WIDE],
   // the river's wave model: its normal, its mirror strength, and what the pixel filter keeps

@@ -61,7 +61,7 @@ import { buildHangings } from './interior/hangings.js';
 import { buildVines } from './interior/vines.js';
 import { floraMode, windowVineLayout, vineMarkers, buildFloraBlockout, showFloraLegend, windowHangingProposal, roomPlantsProposal } from './flora-layout.js';
 import { buildFloraStylised } from './flora-stylised.js';
-import { gardenStage, buildGarden, buildBeds } from './garden.js';
+import { gardenChoice, buildGarden, buildBeds } from './garden.js';
 import { shadeWalls, glossBoards, buildContactShadows } from './interior/surfaces.js';
 import { drapeAll, fabricGeometry, partColour, fabricIndex } from './interior/fabrics.js';
 import { createTextureStore, fabrics as FABRIC_PHOTOS } from '../common.js';
@@ -374,8 +374,8 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
   // hidden as one (?off=house). Seen only from outside: the room's views do not change.
   const hb = new Builder();
   buildExterior(hb.as('house'));
-  const gardenStageName = gardenStage(params);
-  if (gardenStageName) buildBeds(hb.as('garden beds'));
+  const gardenPick = gardenChoice(params);
+  if (gardenPick) buildBeds(hb.as('garden beds'), gardenPick.layout);
   const house = new THREE.Group();
   house.name = 'house';
   house.add(...hb.build(materials));
@@ -498,8 +498,8 @@ export function createInterior(canvas, { onReady, onShot, onResolution, onFrameR
     console.info('[flora]', JSON.stringify(legend.map(({ group, kind, count }) => ({ group, kind, count }))));
     removeLegend = showFloraLegend(legend, `?flora=${flora}`);
   }
-  // Planting round the house (garden.js): ?garden=plan|plants|trim, the designer's stages.
-  const garden = gardenStageName ? buildGarden(gardenStageName) : null;
+  // Planting round the house (garden.js): ?garden=<layout>[&grow=plants|trim].
+  const garden = gardenPick ? buildGarden(gardenPick) : null;
   if (garden) {
     garden.group.visible = !stage && !off.has('house');
     scene.add(garden.group);
