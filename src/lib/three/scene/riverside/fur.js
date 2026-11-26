@@ -34,7 +34,9 @@ export const FAR_FUR = {
   // blades per cell. `flow`/`light`: m per unit of the noise that turns the combing and lays the
   // light swaths, as a multiple of the cell spacing at that distance (so they keep their look far off),
   // with `flowMin`/`lightMin` in m near the eye.
-  stroke: { spacing: 0.16, height: [0.28, 0.42], width: 0.16, comb: 0.9, combSpread: 0.35, tip: 1.35, seg: 3, perCell: 2, flow: 25, flowMin: 4, light: 14, lightMin: 2.2 },
+  // The user (26 Nov 2026): "the grass looks like it is always pushed by the wind". So the blades
+  // stand up more (`comb` 0.9 to 0.32) and lean any way (`combSpread` 0.35 to pi), not all one way.
+  stroke: { spacing: 0.16, height: [0.28, 0.42], width: 0.16, comb: 0.32, combSpread: Math.PI, tip: 1.35, seg: 3, perCell: 2, flow: 25, flowMin: 4, light: 14, lightMin: 2.2 },
 };
 
 /** One tuft in unit space: three blades round the origin, 1 m tall, leaning outward. */
