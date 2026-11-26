@@ -36,7 +36,7 @@ import { ASSEMBLY_STYLE } from '../themes/outside.js';
 import { buildFarBank, BANK_PAINT } from './banks.js';
 import { FAR_GRASS_GROUND } from './grass.js';
 import { buildFarFur } from './fur.js';
-import { bladePatches, farBankProposal, farBankShoreRow } from './plants.js';
+import { bladePatches, farBankProposal, farBankShoreRow, rainTreesAtStairs } from './plants.js';
 import { BRIDGE, bridgePoint } from './bridgePlace.js';
 import { buildFloraStylised } from '../../vegetation/stylised.js';
 import { buildNearWaterfront } from './waterfront.js';
@@ -100,6 +100,7 @@ export function createRiverside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THE
     // ramp foot (the model's first end; BRIDGE.model.ends).
     const avoid = floraEntries.filter((e) => e.kind === 'tree').map((e) => [e.at[0], e.at[2]]);
     floraEntries.push(...farBankShoreRow({ place, forecourt, avoid, bridgeFoot: bridgePoint(BRIDGE.model.ends[0], S.bridge) }));
+    rainTreesAtStairs(floraEntries, { place, forecourt });
   }
   if (want('forecourt')) reports.forecourt = buildForecourt(w); // the Assembly's river front on the embankment (pass e7)
   if (want('waterfront')) reports.waterfront = buildNearWaterfront(w); // our side: the waterfront's street and railing (pass e11)

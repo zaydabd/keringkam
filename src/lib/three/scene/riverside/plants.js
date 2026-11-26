@@ -197,3 +197,17 @@ export function farBankShoreRow({ place, forecourt: [f0, f1], avoid = [], bridge
   });
   return out;
 }
+
+/**
+ * The tree nearest each side stair of the forecourt becomes a rain tree (the user's ask,
+ * 2026-11-26: "the two near the stairs should be rain tree"); the rest stay mixed. Changes the
+ * entries in place. `seed` 1 is a rain tree's design (kuchingTree.js DESIGN_BY_SEED).
+ */
+export function rainTreesAtStairs(entries, { place, forecourt: [f0, f1] }) {
+  const trees = entries.filter((e) => e.kind === 'tree');
+  for (const s of [place(f0, 14), place(f1, 14)]) {
+    const d = (e) => Math.hypot(e.at[0] - s[0], e.at[2] - s[2]);
+    const e = trees.reduce((a, b) => (d(b) < d(a) ? b : a));
+    Object.assign(e, { group: 'proposed: rain tree (by the stairs)', seed: 1 });
+  }
+}
