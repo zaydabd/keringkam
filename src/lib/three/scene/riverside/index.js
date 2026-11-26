@@ -38,6 +38,7 @@ import { FAR_GRASS_GROUND } from './grass.js';
 import { buildFarFur } from './fur.js';
 import { bladePatches, farBankProposal, farBankShoreRow, rainTreesAtStairs, bareKapokToRainAndTrumpet, SHORE_ROW } from './plants.js';
 import { BRIDGE, bridgePoint, bridgeClash, underBridge } from './bridgePlace.js';
+import { landscapePlan, buildLayoutPlaceholders, assemblyFootprint } from './landscapePlan.js';
 import { buildFloraStylised } from '../../vegetation/stylised.js';
 import { buildNearWaterfront } from './waterfront.js';
 import { planAssembly, compileAssembly } from './assembly.js';
@@ -67,7 +68,7 @@ const SKY_KEY = OUTSIDE_THEME.air.skyKey;
  * clay render of the clay theme (plain grey, no painted textures, no water shader); `stage` lists
  * the objects to build (default: all).
  */
-export function createRiverside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME.air.daylight, light = 1, key = 1, sun, mode, stage, flora = null }) {
+export function createRiverside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THEME.air.daylight, light = 1, key = 1, sun, mode, stage, flora = null, layout = null }) {
   const group = new THREE.Group();
   const disposables = [];
   const S = SITE;
@@ -127,10 +128,12 @@ export function createRiverside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THE
   if (want('forecourt')) reports.forecourt = buildForecourt(w); // the Assembly's river front on the embankment (pass e7)
   if (want('waterfront')) reports.waterfront = buildNearWaterfront(w); // our side: the waterfront's street and railing (pass e11)
 
+  let assemblyEdge = null; // ?layout=plan: the Assembly's base seen from above (landscapePlan.js)
   // --- Assembly building (planned, then compiled; measured on the user's Sketchfab model) -------
   if (want('assembly')) {
     const building = new SlotWriter();
     reports.assembly = compileAssembly(planAssembly(), building);
+    if (layout === 'plan') assemblyEdge = assemblyFootprint(building);
     // Scene materials by role. Since pass e15 the concrete and glass have their own painted map
     // (paint.js paintAssembly): each quad's 0..1 uv goes into the left half (glass) or the right
     // (concrete), inset so the halves do not bleed into each other.
@@ -310,6 +313,18 @@ export function createRiverside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THE
   }
 
   // ?flora=stylised: the approved plants at the same entries (vegetation/stylised.js), also after the budget.
+  // ?layout=plan (landscapePlan.js): the far bank's trees, planted and proposed, as placeholders
+  // coloured by role, in place of the detailed trees.
+  if (layout === 'plan' && reports.farbank && assemblyEdge) {
+    const trees = floraEntries.filter((e) => e.kind === 'tree');
+    const { place, groundAt } = reports.farbank;
+    const plan = landscapePlan({ place, groundAt, forecourt: forecourtFrame().xRange, footprint: assemblyEdge, trees: trees.map((e) => [e.at[0], e.at[2]]) });
+    const marks = buildLayoutPlaceholders(trees, plan);
+    disposables.push(marks);
+    group.add(marks.group);
+    reports.layout = marks.counts;
+    for (let i = floraEntries.length - 1; i >= 0; i--) if (floraEntries[i].kind === 'tree') floraEntries.splice(i, 1);
+  }
   const stylised = flora === 'stylised' ? buildFloraStylised(floraEntries, { eye: WINDOW_EYE, layer: MIRROR_LAYER }) : null;
   if (stylised) group.add(stylised.group);
   // ?flora=stylised: the far bank covered in grass like fur (fur.js), over its dark-green ground
