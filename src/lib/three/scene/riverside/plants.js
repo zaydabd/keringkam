@@ -139,7 +139,9 @@ export const SHORE_ROW = {
   offset: 14, // m inland of the waterline: behind the far path (its street trees stand at 9.3)
   wobble: 0.6, // m either way across the line: near straight, not ruled
   clear: 3.5, // m: a row tree this near another tree's trunk is left out
-  bridgeTrees: [-4, 3.5], // m along the shore from the bridge's far ramp foot: two trees partly hiding its entrance (the user's ask)
+  // m along the shore from the bridge's far ramp foot, and which tree: two trees partly hiding its
+  // entrance, a rain tree and a pink trumpet tree (the user's asks)
+  bridgeTrees: [[-4, 'rain'], [3.5, 'trumpet']],
   rareEvery: 5, // the third tree of every five is one of `rare`, in turn; the rest are from `main`
   // [group, seed or null (any), height range m, width m, leaf clump factor (default `leaves`)]
   main: [
@@ -183,12 +185,14 @@ export function farBankShoreRow({ place, forecourt: [f0, f1], avoid = [], bridge
       const d = Math.hypot(p[0] - bridgeFoot[0], p[2] - bridgeFoot[1]);
       if (d < best[0]) best = [d, x];
     }
-    spots.push(...row.bridgeTrees.map((d) => [best[1] + d, row.offset, row.bridgeNudge]));
+    const kind = { rain: row.main[0], trumpet: row.rare[0] };
+    spots.push(...row.bridgeTrees.map(([d, k]) => [best[1] + d, row.offset, row.bridgeNudge, kind[k]]));
   }
   line(f1 + row.endGap, row.to, row.right.spacing, row.offset);
   line(f1 + row.endGap + row.right.back.spacing / 2, row.to, row.right.back.spacing, row.right.back.offset);
-  spots.forEach(([x, offset, nudge], i) => {
-    const m = i % row.rareEvery === 2 ? row.rare[Math.floor(i / row.rareEvery) % row.rare.length] : row.main[Math.floor(rand() * row.main.length)];
+  spots.forEach(([x, offset, nudge, fixed], i) => {
+    const pick = i % row.rareEvery === 2 ? row.rare[Math.floor(i / row.rareEvery) % row.rare.length] : row.main[Math.floor(rand() * row.main.length)];
+    const m = fixed ?? pick; // drawn either way, so the trees after keep theirs
     const [group, seeds, [h0, h1], width, leaves = row.leaves] = m;
     const along = x + (rand() - 0.5) * 2 * row.jitter, across = offset + (rand() - 0.5) * 2 * row.wobble;
     const seed = seeds ? seeds[Math.floor(rand() * seeds.length)] : 1 + Math.floor(rand() * 5);
@@ -196,7 +200,7 @@ export function farBankShoreRow({ place, forecourt: [f0, f1], avoid = [], bridge
     const height = h0 + rand() * (h1 - h0), yaw = rand() * Math.PI * 2;
     const clear = (at) => !avoid.some((p) => Math.hypot(at[0] - p[0], at[2] - p[1]) < row.clear) && !underBridge([at[0], at[2]], (width * squash * row.crown) / 2, height);
     const at = nudge.map((d) => place(along + d, across)).find(clear);
-    if (at) out.push({ group, kind: 'tree', at, height, width: width * squash, squash, yaw, seed, lod: 'near', leaves });
+    if (at) out.push({ group, kind: 'tree', at, height, width: width * squash, squash, yaw, seed, lod: 'near', leaves, ...(fixed && { fixed: true }) });
   });
   return out;
 }
@@ -207,7 +211,7 @@ export function farBankShoreRow({ place, forecourt: [f0, f1], avoid = [], bridge
  * entries in place. `seed` 1 is a rain tree's design (kuchingTree.js DESIGN_BY_SEED).
  */
 export function rainTreesAtStairs(entries, { place, forecourt: [f0, f1] }) {
-  const trees = entries.filter((e) => e.kind === 'tree');
+  const trees = entries.filter((e) => e.kind === 'tree' && !e.fixed); // not the bridge's two, set by the user
   for (const s of [place(f0, 14), place(f1, 14)]) {
     const d = (e) => Math.hypot(e.at[0] - s[0], e.at[2] - s[2]);
     const e = trees.reduce((a, b) => (d(b) < d(a) ? b : a));
