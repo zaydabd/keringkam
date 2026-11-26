@@ -17,7 +17,7 @@
 import * as THREE from 'three';
 import { mulberry32, range } from '../../../utils/rng.js';
 import { createTree } from '../tree.js';
-import { HEDGE, hedgeLumps, createHedgeFoliage } from './bougainvilleaHedge.js';
+import { createLooseHedge } from './looseHedge.js';
 import { valueFbm } from '../../../utils/noise.js';
 import { plant as kuchingTree } from './kuchingTree.js';
 import { OUTSIDE_THEME } from '../../scene/themes/index.js';
@@ -32,10 +32,7 @@ const ROW = {
   // Repeating order (the user: "dont use the hedge so much"): one short hedge piece in seven.
   order: ['oakBush', 'birchBush', 'oakBush', 'hedge', 'birchBush', 'oakBush', 'birchBush'],
   width: { oakBush: 1.6, birchBush: 1.8 }, // the hedge's comes from its own size
-  // The user: "make the hedge less uniform". Pieces of random size, more grown out past the cut
-  // (bigger, slower patches), rounder edges, and a top that rises and dips along its length
-  // (`wave`, m, over `waveScale` m). Design choices.
-  hedge: { w: [1.6, 2.4], d: [0.8, 1.1], h: [0.8, 1.25], round: 0.32, grow: 0.3, growScale: 0.8, wave: 0.28, waveScale: 1.1 },
+  // The hedge pieces: looseHedge.js (the user: "make the hedge less uniform").
   ring: 2.6, // m from each trunk: three bushes wrap round the back of each tree
 };
 
@@ -55,26 +52,8 @@ const NATURAL = {
   gap: 0.75, // m at least between bush centres (times their scale)
 };
 
-/** A loose, uneven piece of the trimmed bougainvillea hedge. Returns { group, stats, dispose, width }. */
-function looseHedge(seed) {
-  const L = ROW.hedge;
-  const rand = mulberry32(seed * 977 + 5);
-  const size = [range(rand, ...L.w), range(rand, ...L.d), range(rand, ...L.h)];
-  const H = { ...HEDGE, round: L.round, grow: L.grow, growScale: L.growScale };
-  const lumps = hedgeLumps(size, 101 + seed, H);
-  // The top rises and dips: each lump moves up or down by a noise along the hedge, more so higher up.
-  for (const l of lumps) {
-    const up = THREE.MathUtils.smoothstep(l.centre.y / size[2], 0.3, 1);
-    l.centre.y += (valueFbm(l.centre.x / L.waveScale, l.centre.z / L.waveScale, seed, 3) - 0.5) * 2 * L.wave * up;
-  }
-  const cards = createHedgeFoliage(seed, lumps, H);
-  const group = new THREE.Group();
-  group.add(cards.mesh);
-  return { group, width: size[0], stats: { leaves: cards.leaves, triangles: { total: cards.tris } }, dispose: () => cards.dispose() };
-}
-
 function make(kind, seed) {
-  if (kind === 'hedge') return looseHedge(seed);
+  if (kind === 'hedge') return createLooseHedge({ seed });
   return createTree({ seed, kind });
 }
 

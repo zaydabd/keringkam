@@ -37,6 +37,7 @@ import { buildFarBank, BANK_PAINT } from './banks.js';
 import { FAR_GRASS_GROUND } from './grass.js';
 import { buildFarFur } from './fur.js';
 import { bladePatches, farBankProposal, farBankShoreRow, rainTreesAtStairs, SHORE_ROW } from './plants.js';
+import { farBankBushes } from './bushes.js';
 import { BRIDGE, bridgePoint, bridgeClash, underBridge } from './bridgePlace.js';
 import { buildFloraStylised } from '../../vegetation/stylised.js';
 import { buildNearWaterfront } from './waterfront.js';
@@ -119,6 +120,8 @@ export function createRiverside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THE
     const avoid = floraEntries.filter((e) => e.kind === 'tree').map((e) => [e.at[0], e.at[2]]);
     floraEntries.push(...farBankShoreRow({ place, forecourt, avoid, bridgeFoot: bridgePoint(BRIDGE.model.ends[0], S.bridge), underBridge }));
     rainTreesAtStairs(floraEntries, { place, forecourt });
+    // Bush clumps round those trees (bushes.js), placed after them so the trees keep their places.
+    floraEntries.push(...farBankBushes(floraEntries, { place, forecourt, bridgeFoot: bridgePoint(BRIDGE.model.ends[0], S.bridge), underBridge }));
   }
   if (want('forecourt')) reports.forecourt = buildForecourt(w); // the Assembly's river front on the embankment (pass e7)
   if (want('waterfront')) reports.waterfront = buildNearWaterfront(w); // our side: the waterfront's street and railing (pass e11)

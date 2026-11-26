@@ -18,6 +18,7 @@ import { plant as bougainvillea } from './plants/bougainvillea.js';
 import { plant as schismatoglottis } from './plants/schismatoglottis.js';
 import { createTree } from './tree.js';
 import { FOLIAGE_SUN } from './celFoliage.js';
+import { plant as looseHedge } from './plants/looseHedge.js';
 
 /**
  * The `?flora=` flag: 'stylised' (the stylised plants, vegetation/stylised.js; the default, the user's
@@ -30,6 +31,7 @@ export function floraMode(params) {
 
 // The oak bush preset (vegetation/tree.js) as a plant: one level of detail, used near and far.
 const oakBush = { id: 'oakBush', label: 'Oak bush', create: ({ seed }) => createTree({ seed, kind: 'oakBush' }), switchAt: Infinity };
+const birchBush = { id: 'birchBush', label: 'Birch bush', create: ({ seed }) => createTree({ seed, kind: 'birchBush' }), switchAt: Infinity };
 
 // Layout group → plant. Groups not listed (the rubber plant, trailing markers, grass, fern, the
 // window vines that already exist) get nothing.
@@ -43,6 +45,10 @@ const PLANT_OF = [
   [/^proposed: bougainvillea/, bougainvillea], // outside the middle window (riverside/index.js)
   [/^proposed: step planting \(oak bush\)$/, oakBush], // by the Assembly's side stairs
   [/^proposed: step planting \(bougainvillea\)$/, bougainvillea],
+  // The far bank's bush clumps round its trees (riverside/bushes.js).
+  [/^proposed: bush clump \(oak bush\)$/, oakBush],
+  [/^proposed: bush clump \(birch bush\)$/, birchBush],
+  [/^proposed: bush clump \(loose hedge\)$/, looseHedge],
 ];
 // Drawn at the size their session modelled them, not scaled to the entry's height. Scaling also
 // scales the leaf and bract cards: the bougainvillea's 11 cm bracts (its session's own size) grew
