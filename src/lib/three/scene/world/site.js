@@ -47,11 +47,17 @@ export const SITE = {
   // Placed for R3's composition as seen from the window shot (eye -0.475, 1.5, -4.62, looking
   // down -z): bearings are degrees right of that view, read off R3.
   lawn: 1.9,
-  // South landing (our bank, far upstream, off the left of the frame), the two tower piers in the
-  // river near the far bank (bearings -18 and -9: R3 paints them close together left of centre),
-  // north landing on the far bank behind the trees, left of the Assembly building, so the deck
-  // does not cross in front of it (R3). About 286 m along the deck.
-  bridge: [[-230, -95], [-50, -150], [-22, -140], [10, -200]],
+  // The bridge (riverside/bridge.js): where the user's model stands, as a turn and a move of its
+  // plan (x, z: where the model's origin goes; yaw in degrees; mirror -1 flips it across its own
+  // x axis). At real size its towers are about 136 m apart, so R3's two towers close together
+  // left of centre cannot both stand in this river (it is about 130 m wide at the window).
+  // So it is placed as the real one is, from our waterfront across to the Assembly's side: a
+  // ramp on our bank upstream (about -175, -12), off the left of the frame, both towers in the
+  // river (one in the window at bearing -7, the other far left at -69), the far ramp behind the
+  // far bank's planting, left of the Assembly so the deck does not cross in front of it (R3).
+  // Found by a search over turns and moves against the scene's own checks (the far boat clear
+  // of the piers, the far railing's gaps); `piersInRiver` is checked too.
+  bridge: { x: 34, z: -170, yaw: 132, mirror: -1, piersInRiver: 2 },
   assembly: { x: 127, z: -225 }, // bearing +31, 254 m: where R3 has it, at the right edge of the window and about as big; the right curtain may cover part of it (agreed with the user)
   boats: [
     // Both bows head left and away, towards the bridge, seen three-quarter from the window (pass

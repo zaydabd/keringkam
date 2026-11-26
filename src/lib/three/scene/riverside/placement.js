@@ -29,6 +29,7 @@ function inShot(p) {
 }
 import { WATERFRONT } from './waterfront.js';
 import { PENAMBANG } from './boats.js';
+import { bridgePiers } from './bridge.js';
 
 export const BOAT_PLACE = {
   nearMax: 27, // m from the eye: the near boat at most this far, so it reads at its size (was 35.9)
@@ -96,14 +97,15 @@ export function boatInShot(b) {
 export function checkBoats(boats = SITE.boats) {
   const P = BOAT_PLACE, c = createContract('boat placement');
   const [near, far] = boats.map(boatInShot);
-  const rail = railTan(), pier = inShot([SITE.bridge[2][0], SITE.water, SITE.bridge[2][1]]).f;
+  const rail = railTan();
+  const piers = bridgePiers().map(([x, z]) => inShot([x, SITE.water, z]).f); // the bridge's tower piers (bridge.js)
   c.max('near boat from the eye (m)', near.eye, P.nearMax);
   c.range('far boat from the eye (m)', far.eye, ...P.farRange);
   c.min('near boat on water seen past the street\'s edge (tan)', near.low - edgeTan(), P.onWater);
   c.max('near boat\'s roof ridge above the railing top (tan)', near.ridge - rail, P.atRail);
   c.min('far boat above the railing top (tan)', far.low - rail, P.farOverRail);
   c.min('gap across the opening between the boats (f)', Math.max(near.f[0] - far.f[1], far.f[0] - near.f[1]), P.apart);
-  c.min('far boat clear of the bridge pier\'s column (f)', Math.max(pier - far.f[1], far.f[0] - pier), P.pier);
+  c.min('far boat clear of the bridge piers\' columns (f)', Math.min(...piers.map((pier) => Math.max(pier - far.f[1], far.f[0] - pier))), P.pier);
   for (const [name, v] of [['near', near], ['far', far]]) {
     c.min(`${name} boat from our waterline (m)`, v.toNear, P.bank);
     c.min(`${name} boat from the far waterline (m)`, v.toFar, P.bank);
@@ -111,5 +113,5 @@ export function checkBoats(boats = SITE.boats) {
   }
   c.min('between the boats (m)', Math.hypot(boats[0].x - boats[1].x, boats[0].z - boats[1].z), P.between);
   c.min('headings differ (degrees)', (Math.abs(boats[0].ry - boats[1].ry) * 180) / Math.PI, P.turn);
-  return { contract: c.assert(), near, far, pier };
+  return { contract: c.assert(), near, far, piers };
 }

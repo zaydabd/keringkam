@@ -204,8 +204,9 @@ const BUILT = {
   },
   kioskGold: [1.0, 0.72, 0.05], // the small kiosks' roofs: the main roof's gold (pass e15c, the user; was a paler 1.0, 0.8, 0.42) (linear)
   kioskGoldShade: [0.8, 0.53, 0.02], // (pass e15c; was 0.88, 0.66, 0.3)
-  // The Darul Hana Bridge (linear).
-  bridge: { steel: [0.93, 0.92, 0.88], pier: [0.78, 0.76, 0.7], cable: [0.86, 0.86, 0.84], shade: [0.97, 0.96, 0.92], truss: [0.84, 0.83, 0.78] },
+  // The Darul Hana Bridge (linear): white, as the user asked (2026-11-26, from test renders); the
+  // platforms' roofs take the Assembly's gold (riverside/bridge.js).
+  bridge: { body: [0.93, 0.91, 0.86], walk: [0.79, 0.74, 0.64], tower: [0.97, 0.96, 0.93], pier: [0.69, 0.65, 0.58], cable: [0.4, 0.39, 0.37] },
 };
 
 // --- 2. The theme -----------------------------------------------------------------------------------
