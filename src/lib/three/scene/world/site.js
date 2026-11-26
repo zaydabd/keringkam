@@ -19,8 +19,11 @@ export const SITE = {
   water: -4.2, // pass e13: 1 m lower (was -3.2), the user's choice, so the near boat sits lower behind the railing (ESTIMATED)
   // The far waterline as [x, z], upstream (far left of the view) to downstream (right). The first
   // point only carries the river out of sight. Our side is the waterfront street (`near` below;
-  // waterfront.js).
-  farLine: [[-900, -585], [-420, -360], [-260, -285], [-122, -207], [-27, -147], [3, -109], [19.6, -83.5], [30, -67], [34, -57], [40, -40], [52, -10], [70, 30], [85, 70]],
+  // waterfront.js). Pass e17 (the user's choice, 2026-11-26): left of the Assembly's river front
+  // the far bank moved back up to about 40 m (it was [-900, -585], [-420, -360], [-260, -285],
+  // [-122, -207], [-27, -147]), so the smaller bridge's piers stand well clear of both banks;
+  // from x 3 on it is unchanged (the forecourt starts there).
+  farLine: [[-900, -625], [-420, -400], [-260, -325], [-122, -247], [-50, -195], [-15, -140], [3, -109], [19.6, -83.5], [30, -67], [34, -57], [40, -40], [52, -10], [70, 30], [85, 70]],
   // The far bank, as distances inland from its waterline (metres) and heights (y).
   far: {
     rough: 8, // the waterfront street up to here (pass e11; was mud and rough grass)
@@ -49,16 +52,16 @@ export const SITE = {
   lawn: 1.9,
   // The bridge (riverside/bridge.js): where the user's model stands, as a turn and a move of its
   // plan (x, z: where the model's origin goes; yaw in degrees; mirror -1 flips it across its own
-  // x axis). At real size it filled this river (about 130 m wide at the window): its tower pier
-  // stood against the far bank. The user asked for a wider river or a smaller bridge; the river
-  // cannot widen in front of the window without moving the Assembly's river front, so the bridge
-  // is built at 70% (bridgePlace.js BRIDGE.scale, 2026-11-26). Placed as the real one is, from our
-  // waterfront across to the Assembly's side: a ramp on our bank upstream (about -116, -12), off
-  // the left of the frame, both towers well inside the river (at least 24 m from either
-  // waterline; one in the window at bearing -5, the other far left), the far ramp behind the far
-  // bank's planting, left of the Assembly. Found by a search over turns and moves against the
-  // scene's own checks (the far boat clear of the piers, the far railing's gaps).
-  bridge: { x: 22, z: -132, yaw: 128, mirror: -1, piersInRiver: 2 },
+  // x axis). At real size it filled this river: its tower pier stood against the far bank. The
+  // user asked for both a smaller bridge and a wider river, the piers kept away from the banks
+  // (2026-11-26): it is built at 70% (bridgePlace.js BRIDGE.scale) and the river widened on the
+  // left (farLine). Placed as the real one is, from our waterfront across to the Assembly's side:
+  // a ramp on our bank upstream (about -134, -13), off the left of the frame; the tower in the
+  // window about 29 m from the far bank and 60 m from ours, the other about 18 m from our bank;
+  // the far ramp behind the far bank's planting, left of the Assembly. Found by a search over
+  // turns and moves against the scene's own checks (the far boat clear of the piers, the far
+  // railing's gaps).
+  bridge: { x: 26, z: -102, yaw: 140, mirror: -1, piersInRiver: 2 },
   assembly: { x: 127, z: -225 }, // bearing +31, 254 m: where R3 has it, at the right edge of the window and about as big; the right curtain may cover part of it (agreed with the user)
   boats: [
     // Both bows head left and away, towards the bridge, seen three-quarter from the window (pass
