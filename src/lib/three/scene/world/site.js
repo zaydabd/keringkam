@@ -49,15 +49,16 @@ export const SITE = {
   lawn: 1.9,
   // The bridge (riverside/bridge.js): where the user's model stands, as a turn and a move of its
   // plan (x, z: where the model's origin goes; yaw in degrees; mirror -1 flips it across its own
-  // x axis). At real size its towers are about 136 m apart, so R3's two towers close together
-  // left of centre cannot both stand in this river (it is about 130 m wide at the window).
-  // So it is placed as the real one is, from our waterfront across to the Assembly's side: a
-  // ramp on our bank upstream (about -175, -12), off the left of the frame, both towers in the
-  // river (one in the window at bearing -7, the other far left at -69), the far ramp behind the
-  // far bank's planting, left of the Assembly so the deck does not cross in front of it (R3).
-  // Found by a search over turns and moves against the scene's own checks (the far boat clear
-  // of the piers, the far railing's gaps); `piersInRiver` is checked too.
-  bridge: { x: 34, z: -170, yaw: 132, mirror: -1, piersInRiver: 2 },
+  // x axis). At real size it filled this river (about 130 m wide at the window): its tower pier
+  // stood against the far bank. The user asked for a wider river or a smaller bridge; the river
+  // cannot widen in front of the window without moving the Assembly's river front, so the bridge
+  // is built at 70% (bridgePlace.js BRIDGE.scale, 2026-11-26). Placed as the real one is, from our
+  // waterfront across to the Assembly's side: a ramp on our bank upstream (about -116, -12), off
+  // the left of the frame, both towers well inside the river (at least 24 m from either
+  // waterline; one in the window at bearing -5, the other far left), the far ramp behind the far
+  // bank's planting, left of the Assembly. Found by a search over turns and moves against the
+  // scene's own checks (the far boat clear of the piers, the far railing's gaps).
+  bridge: { x: 22, z: -132, yaw: 128, mirror: -1, piersInRiver: 2 },
   assembly: { x: 127, z: -225 }, // bearing +31, 254 m: where R3 has it, at the right edge of the window and about as big; the right curtain may cover part of it (agreed with the user)
   boats: [
     // Both bows head left and away, towards the bridge, seen three-quarter from the window (pass

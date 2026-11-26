@@ -16,7 +16,7 @@ import { mulberry32 } from '../../../utils/rng.js';
 import { OUTSIDE_THEME } from '../themes/index.js';
 import { underForecourt } from './forecourt.js';
 import { WATERFRONT, FRONT_PAINT, buildRailing, checkFooting, paveQuad } from './waterfront.js';
-import { bridgePiers } from './bridge.js';
+import { bridgePiers } from './bridgePlace.js';
 import { lerp } from '../../../utils/vec3.js';
 
 
@@ -219,11 +219,12 @@ export function buildFarBank(w, { seed = 0, paint = null } = {}) {
   checkFooting(contract, 'far', railing, K.width, kerbY);
   contract.min('far railing bays', railing.bays, 100);
   // the gaps: measured from the emitted posts and the skipped stations, not the skip rule's count
-  const inFront = (p) => underForecourt(p.x, F.foot);
-  contract.is('far posts in front of the Assembly or at the pier', railing.footing.filter((p) => inFront(p) || byPier(p, -0.5)).length, 0); // posts stand 0.18 m in from their stations: half a metre's slack
+  // slack: a post stands 0.18 m in from its station, which moves its x where the waterline runs across x
+  const inFront = (p, slack = 0) => underForecourt(p.x - slack, F.foot) && underForecourt(p.x + slack, F.foot);
+  contract.is('far posts in front of the Assembly or at the pier', railing.footing.filter((p) => inFront(p, 0.5) || byPier(p, -0.5)).length, 0); // posts stand 0.18 m in from their stations: half a metre's slack
   contract.is('far railing gaps with neither cause', railing.skipped.filter((p) => !inFront(p) && !byPier(p)).length, 0);
-  contract.min('far railing gap stations in front of the Assembly', railing.skipped.filter(inFront).length, 1);
-  if (near.some(byPier)) contract.min('far railing gap stations at a pier', railing.skipped.filter(byPier).length, 1);
+  contract.min('far railing gap stations in front of the Assembly', railing.skipped.filter((p) => inFront(p)).length, 1);
+  if (near.some((st) => byPier(st))) contract.min('far railing gap stations at a pier', railing.skipped.filter((p) => byPier(p)).length, 1);
 
   // The land beyond, to where the haze ends: one polygon at the terrace's height.
   const E = S.extent;

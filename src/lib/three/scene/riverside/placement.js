@@ -29,7 +29,7 @@ function inShot(p) {
 }
 import { WATERFRONT } from './waterfront.js';
 import { PENAMBANG } from './boats.js';
-import { bridgePiers } from './bridge.js';
+import { bridgePiers } from './bridgePlace.js';
 
 export const BOAT_PLACE = {
   nearMax: 27, // m from the eye: the near boat at most this far, so it reads at its size (was 35.9)

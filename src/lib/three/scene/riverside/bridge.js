@@ -17,49 +17,12 @@ import { toCreasedNormals } from 'three/addons/utils/BufferGeometryUtils.js';
 import modelUrl from '../../../../assets/models/darul-hana-bridge.bin?url';
 import { createContract } from './contract.js';
 import { OUTSIDE_THEME } from '../themes/index.js';
-import { SITE } from '../world/site.js';
+import { BRIDGE, bridgePoint, bridgePiers, inRiver } from './bridgePlace.js';
 
-export const BRIDGE = {
-  scale: 2.65, // metres per model unit: towers about 49 m above the water, about 318 m long (sources above)
-  // Measured on the model (its own units, y up): where the ramps meet the ground, the tops of the
-  // tower piers, and the plan positions [x, z] of the two tower piers and the two ramp feet.
-  model: { ground: -3.05, pierTop: -1.98, pierBottom: -2.9, piers: [[24, -3.15], [73.8, -15.45]], ends: [[0.7, 0], [97.1, -18.8]] },
-  pierFoot: 2, // the piers go this far under the water
-  crease: 40, // degrees: smooth normals round the tubes, hard edges on the boxes
-  // The painted albedo (a stylisation, judged in test renders): brush-stroke lightening, warm and
-  // cool dabs, painted light, worn edges, world-scale colour drift.
-  paint: { stroke: 0.9, hue: 0.45, bake: 0.85, edge: 0.5, vary: 0.6 },
-};
+export { BRIDGE, bridgePoint, bridgePiers, inRiver };
 
-// The model's parts, in the file's order (scripts/build-bridge.mjs PARTS), and their colours.
+// The model's parts, in the file's order (scripts/build-bridge.mjs PARTS).
 const PARTS = ['body', 'walk', 'roof', 'pier', 'tower', 'cable'];
-
-/**
- * World position [x, z] of a model plan point [x, z] for a placement { x, z, yaw (degrees),
- * mirror (1 or -1) }: scaled, mirrored across the model's x axis if asked, turned, moved.
- */
-export function bridgePoint([mx, mz], place, scale = BRIDGE.scale) {
-  const a = THREE.MathUtils.degToRad(place.yaw), c = Math.cos(a), s = Math.sin(a);
-  const x = mx * scale, z = mz * scale * place.mirror;
-  return [x * c - z * s + place.x, x * s + z * c + place.z];
-}
-
-/** The two tower piers' centres [x, z] in the world, for the banks and the boats to keep clear of. */
-export const bridgePiers = (place = SITE.bridge) => BRIDGE.model.piers.map((p) => bridgePoint(p, place));
-
-/** True where [x, z] is on the river: beyond our waterline and short of the far one (SITE.farLine). */
-export function inRiver([x, z]) {
-  const L = SITE.farLine;
-  let far = L[0][1];
-  for (let i = 1; i < L.length; i++) {
-    if (x <= L[i][0]) {
-      far = L[i - 1][1] + ((L[i][1] - L[i - 1][1]) * (x - L[i - 1][0])) / (L[i][0] - L[i - 1][0]);
-      break;
-    }
-    far = L[i][1];
-  }
-  return z < SITE.near.waterline && z > far;
-}
 
 /** Reads the model file (see scripts/build-bridge.mjs for the layout). */
 function parse(buffer) {
@@ -141,9 +104,10 @@ export function checkBridge(geometry, { place, water, bankY }) {
   const ends = B.model.ends.map((e) => bridgePoint(e, place));
   const piers = bridgePiers(place);
   const length = Math.hypot(ends[0][0] - ends[1][0], ends[0][1] - ends[1][1]);
+  const k = B.scale / B.real; // built at this share of real size (BRIDGE.scale)
   const c = createContract('bridge');
-  c.range('tower height above water in metres (sources: 48 to 50)', top - water, 47, 51);
-  c.range('ramp foot to ramp foot in metres (sources: 276 to about 335 overall)', length, 230, 340);
+  c.range('tower height above water in metres (sources: 48 to 50, times the size share)', top - water, 47 * k, 51 * k);
+  c.range('ramp foot to ramp foot in metres (sources: 276 to about 335 overall, times the size share)', length, 230 * k, 340 * k);
   c.is('tower piers standing in the river', piers.filter(inRiver).length, place.piersInRiver);
   return { length: +length.toFixed(1), height: +(top - water).toFixed(1), piers: piers.map((p) => p.map((v) => +v.toFixed(1))), contract: c.assert() };
 }
