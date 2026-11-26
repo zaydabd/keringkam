@@ -16,14 +16,20 @@ import { WINDOW_EYE } from '../world/site.js';
 
 export const FAR_BUSHES = {
   x: [-236, 72], // waterline x the clumps may start in (the shore row's reach)
-  offset: [11.5, 40], // m inland: behind the far path (street trees at 9.3), up the slope
+  offset: [10.9, 36], // m inland: just past the far path (SITE.far.path 10.5), up the slope
+  // The open side is the water's: most clumps take in front of the shore row (offset 14, crowns
+  // about 7 m), where the sun reaches under the crowns' edge, fewer behind it in their shade.
+  // The shore row's crowns hang out over the path, so the sunny strip is narrow: between the path
+  // (SITE.far.path 10.5) and the trunks. `share` of the tries are there, offset [offset[0], to],
+  // and take whatever the crowns (they are at the crowns' edge by construction).
+  front: { to: 12.6, share: 0.75, behind: 0.5 },
   tries: 1400, // clump centres tried (most are rejected)
   apart: 9, // m at least between clump centres: the gaps
   crown: { trunk: 0.25, drip: 0.6, out: 1.1 }, // as a share of the nearest tree's crown width: shade, crown edge, beyond
   light: { trunk: 0.05, drip: 1, out: 0.35, none: 0.05 }, // how likely a clump is to take there (none: no tree near)
-  kinds: [['oak bush', 0.48, 1.6], ['birch bush', 0.42, 1.8], ['loose hedge', 0.1, 1.1]], // [kind, share, height m]
+  kinds: [['oak bush', 0.48, 2.4], ['birch bush', 0.42, 2.8], ['loose hedge', 0.1, 1.5]], // [kind, share, height m]: a shrub layer is about 1-3.5 m tall (resilience.org, see bushRow.js); smaller ones read as specks from the window
   members: [2, 5],
-  spread: [1.0, 2.2], // m from the parent to the young ones
+  spread: [1.4, 3.0], // m from the parent to the young ones
   parent: [1.1, 1.35], young: [0.55, 0.95], // scale on the kind's height
   inland: 0.25, // up to this much bigger at the inland end of the band
   stray: 0.12, // share of young ones of another kind
@@ -72,10 +78,11 @@ export function farBankBushes(entries, { place, forecourt: [f0, f1], bridgeFoot 
 
   const centres = [];
   for (let i = 0; i < B.tries; i++) {
-    const x = B.x[0] + rand() * (B.x[1] - B.x[0]), o = B.offset[0] + rand() * (B.offset[1] - B.offset[0]);
+    const inFront = rand() < B.front.share;
+    const x = B.x[0] + rand() * (B.x[1] - B.x[0]), o = inFront ? B.offset[0] + rand() * (B.front.to - B.offset[0]) : B.front.to + rand() * (B.offset[1] - B.front.to);
     const p = place(x, o);
     if (!allowed(x, o, p) || centres.some((c) => near(p, c.p, B.apart))) continue;
-    if (rand() > lightAt(p)) continue;
+    if (rand() > (inFront ? 1 : lightAt(p) * B.front.behind)) continue;
     centres.push({ x, o, p });
   }
 
