@@ -15,7 +15,7 @@
 //   river              water.js     water-optics
 //   assembly: rebuilt from the user's Sketchfab model (pass w5, research/INTERIOR-NOTES.md).
 //   boats: Kuching river taxis (penambang) in boats.js, gated against photos (pass w6).
-//   bridge: the first version, moved to the new river; not rebuilt yet.
+//   bridge: the user's own model (bridge.js; scripts/build-bridge.mjs), loaded from its file.
 //   skyline: removed in pass e7 (the user's far-bank renders and the river-front photo show trees there).
 //   trees: the far bank's trees, palms and bushes (trees.js), removed in pass e14 (the user found them
 //     ugly; see git history before that pass).
@@ -42,7 +42,7 @@ import { buildNearWaterfront } from './waterfront.js';
 import { planAssembly, compileAssembly } from './assembly.js';
 import { PENAMBANG, planBoat, compileBoat } from './boats.js';
 import { checkBoats } from './placement.js';
-import { buildBridge } from './bridge.js';
+import { createBridge } from './bridge.js';
 import { createWater, fresnelF0, WAVES } from './water.js';
 import { NO_INK_LAYER, MIRROR_LAYER } from '../layers.js';
 import { clayMaterial, FLAT_GREY } from '../debugMaterials.js';
@@ -139,13 +139,6 @@ export function createRiverside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THE
       }
       copy(s, slotOf[name], S.assembly.x, S.lawn, S.assembly.z);
     }
-  }
-
-  // --- Bridge (checked against its contract; not rebuilt yet) ----------------------------------
-  if (want('bridge')) {
-    const steel = new SlotWriter();
-    reports.bridge = buildBridge(steel, { points: S.bridge, water: S.water, bankY: S.ground });
-    copy(steel.slot('steel'), 'paint');
   }
 
   // --- Boats: Kuching river taxis (boats.js; planned, compiled, checked against photos) ---------
@@ -270,6 +263,23 @@ export function createRiverside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THE
   reports.budget = { contract: budget.assert() };
   const stats = { triangles: total, meshes: group.children.length, perMesh: triangles };
 
+  // The bridge (bridge.js): the user's model, its own mesh with its painted albedo. Loaded from its
+  // file, so it is added after the budget (about 52,000 triangles; stats.bridge once loaded).
+  let bridgePending = false;
+  if (want('bridge')) {
+    const bridge = createBridge({ place: S.bridge, water: S.water, bankY: S.ground, material: toon({ side: THREE.DoubleSide }), painted: !mode });
+    bridge.mesh.layers.enable(MIRROR_LAYER);
+    group.add(bridge.mesh);
+    bridgePending = true;
+    bridge.ready
+      .then((r) => {
+        reports.bridge = r;
+        stats.bridge = bridge.mesh.geometry.attributes.position.count / 3;
+      })
+      .catch((e) => console.error('[bridge]', e))
+      .finally(() => (bridgePending = false));
+  }
+
   // ?flora=stylised: the approved plants at the same entries (vegetation/stylised.js), also after the budget.
   const stylised = flora === 'stylised' ? buildFloraStylised(floraEntries, { eye: WINDOW_EYE, layer: MIRROR_LAYER }) : null;
   if (stylised) group.add(stylised.group);
@@ -289,6 +299,10 @@ export function createRiverside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THE
     group,
     reports,
     stats,
+    /** True while the bridge's model is still loading. */
+    get pending() {
+      return bridgePending;
+    },
     /** ?flora=stylised: { copies, triangles, meshes } of the plants, or null. */
     floraStats: stylised?.stats ?? null,
     /** Moves the water. t in seconds (dt unused). */

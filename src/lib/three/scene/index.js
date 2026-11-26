@@ -388,9 +388,9 @@ export function createScene(canvas, { onReady, onShot, onResolution, onFrameRate
     else post.render(dt);
     perf?.end(now, performance.now() - t0);
     if (perf && perfLoad.firstFrameMs == null) Object.assign(perfLoad, { firstFrameMs: +(performance.now() - t0).toFixed(1), firstFrameAtMs: Math.round(performance.now()) });
-    if (!readyCalled && exposure !== null && (!fabrics.pending || performance.now() - startedAt > 12000)) {
-      // Ready once a frame has been drawn at the metered exposure, with the fabrics in place (or
-      // after 12 s without them).
+    if (!readyCalled && exposure !== null && ((!fabrics.pending && !landscape.pending) || performance.now() - startedAt > 12000)) {
+      // Ready once a frame has been drawn at the metered exposure, with the fabrics and the
+      // bridge's model in place (or after 12 s without them).
       readyCalled = true;
       if (perf) perfLoad.readyAtMs = Math.round(performance.now());
       if (debug) console.info('triangles', renderer.info.render.triangles, 'calls', renderer.info.render.calls);
