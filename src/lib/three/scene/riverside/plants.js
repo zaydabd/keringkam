@@ -154,23 +154,26 @@ export const SHORE_ROW = {
     ['proposed: rain tree (shore row)', [5], [13, 17], 7, 2.5],
     ['proposed: pedada (shore row)', null, [7, 10], 5],
   ],
-  nudge: [0, 2.5, -2.5], // m along the line tried in turn to clear another tree
+  nudge: [0, 2.5, -2.5], // m along the line tried in turn to clear another tree or the bridge
+  bridgeNudge: [0, 3, -3, 6, -6, 9, -9, 12, -12, 15, -15], // the same for the two at the bridge's foot: they may move further to stay out of its ramps
+  crown: 0.5, // share of a tree's half-width its crown must keep clear of the bridge's decks (the leaves at the rim may brush; judged by eye)
   leaves: 1.6, // leaf clumps this much bigger (kuchingTree.js `leaves`): at 100-300 m the detailed crowns read thin and bare without it (judged in the street view)
 };
 
 /**
  * The shore row's tree entries. `place(xWater, offset)` comes from the far bank (banks.js);
  * `forecourt` is the forecourt's waterline x range; `avoid` lists [x, z] points to keep clear of
- * (other trees' trunks); `bridgeFoot` [x, z] is the bridge's far ramp foot, with trees either side. Its own random stream, so
+ * (other trees' trunks); `bridgeFoot` [x, z] is the bridge's far ramp foot, with trees either side;
+ * `underBridge(at, radius, height)` says where a crown would reach into the bridge (bridgePlace.js). Its own random stream, so
  * the other plantings keep their places and sizes.
  */
-export function farBankShoreRow({ place, forecourt: [f0, f1], avoid = [], bridgeFoot = null, row = SHORE_ROW }) {
+export function farBankShoreRow({ place, forecourt: [f0, f1], avoid = [], bridgeFoot = null, underBridge = () => false, row = SHORE_ROW }) {
   const rand = mulberry32(9127);
   const out = [];
   // Both sides of the forecourt, left first, so the left side keeps its trees as first planted.
-  // [waterline x, offset inland]. Left row, the bridge's two, then the right's front and back rows.
+  // [waterline x, offset inland, nudges]. Left row, the bridge's two, then the right's front and back rows.
   const spots = [];
-  const line = (a, b, step, offset) => { for (let x = a; x <= b; x += step) spots.push([x, offset]); };
+  const line = (a, b, step, offset) => { for (let x = a; x <= b; x += step) spots.push([x, offset, row.nudge]); };
   line(row.from, f0 - row.endGap, row.spacing, row.offset);
   // The waterline x nearest the bridge's foot, then a tree either side of it along the shore.
   if (bridgeFoot) {
@@ -180,19 +183,19 @@ export function farBankShoreRow({ place, forecourt: [f0, f1], avoid = [], bridge
       const d = Math.hypot(p[0] - bridgeFoot[0], p[2] - bridgeFoot[1]);
       if (d < best[0]) best = [d, x];
     }
-    spots.push(...row.bridgeTrees.map((d) => [best[1] + d, row.offset]));
+    spots.push(...row.bridgeTrees.map((d) => [best[1] + d, row.offset, row.bridgeNudge]));
   }
   line(f1 + row.endGap, row.to, row.right.spacing, row.offset);
   line(f1 + row.endGap + row.right.back.spacing / 2, row.to, row.right.back.spacing, row.right.back.offset);
-  spots.forEach(([x, offset], i) => {
+  spots.forEach(([x, offset, nudge], i) => {
     const m = i % row.rareEvery === 2 ? row.rare[Math.floor(i / row.rareEvery) % row.rare.length] : row.main[Math.floor(rand() * row.main.length)];
     const [group, seeds, [h0, h1], width, leaves = row.leaves] = m;
     const along = x + (rand() - 0.5) * 2 * row.jitter, across = offset + (rand() - 0.5) * 2 * row.wobble;
     const seed = seeds ? seeds[Math.floor(rand() * seeds.length)] : 1 + Math.floor(rand() * 5);
     const squash = 0.85 + rand() * 0.3;
     const height = h0 + rand() * (h1 - h0), yaw = rand() * Math.PI * 2;
-    const clear = (at) => !avoid.some((p) => Math.hypot(at[0] - p[0], at[2] - p[1]) < row.clear);
-    const at = row.nudge.map((d) => place(along + d, across)).find(clear);
+    const clear = (at) => !avoid.some((p) => Math.hypot(at[0] - p[0], at[2] - p[1]) < row.clear) && !underBridge([at[0], at[2]], (width * squash * row.crown) / 2, height);
+    const at = nudge.map((d) => place(along + d, across)).find(clear);
     if (at) out.push({ group, kind: 'tree', at, height, width: width * squash, squash, yaw, seed, lod: 'near', leaves });
   });
   return out;

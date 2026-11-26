@@ -36,8 +36,8 @@ import { ASSEMBLY_STYLE } from '../themes/outside.js';
 import { buildFarBank, BANK_PAINT } from './banks.js';
 import { FAR_GRASS_GROUND } from './grass.js';
 import { buildFarFur } from './fur.js';
-import { bladePatches, farBankProposal, farBankShoreRow, rainTreesAtStairs } from './plants.js';
-import { BRIDGE, bridgePoint } from './bridgePlace.js';
+import { bladePatches, farBankProposal, farBankShoreRow, rainTreesAtStairs, SHORE_ROW } from './plants.js';
+import { BRIDGE, bridgePoint, bridgeClash, underBridge } from './bridgePlace.js';
 import { buildFloraStylised } from '../../vegetation/stylised.js';
 import { buildNearWaterfront } from './waterfront.js';
 import { planAssembly, compileAssembly } from './assembly.js';
@@ -47,6 +47,9 @@ import { createBridge } from './bridge.js';
 import { createWater, fresnelF0, WAVES } from './water.js';
 import { NO_INK_LAYER, MIRROR_LAYER } from '../layers.js';
 import { clayMaterial, FLAT_GREY } from '../debugMaterials.js';
+
+// metres a tree under the bridge's landing tries stepping away from it (design choice)
+const BRIDGE_STEPS = [3, 6, 9, 12, 15, 18, 21];
 
 export { SITE };
 /** The mirrored camera of the river draws this layer: the outside without the water. Lights must be on it too. */
@@ -96,10 +99,25 @@ export function createRiverside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THE
     const { place } = reports.farbank;
     const forecourt = forecourtFrame().xRange;
     floraEntries.push(...farBankProposal({ place, forecourt, rand: mulberry32(613 + seed), stepPlanting: flora === 'stylised' }));
+    // A tree whose crown would reach into the bridge's far landing (the user saw some poking
+    // through its ramps) steps away from the nearest deck, BRIDGE_STEPS metres at a time, onto the
+    // ground there; one that finds no clear place is left out. SHORE_ROW.crown: the share of the
+    // crown kept clear.
+    const { groundAt } = reports.farbank;
+    const clash = (e, x, z) => bridgeClash([x, z], (e.width * SHORE_ROW.crown) / 2, e.height);
+    for (let i = floraEntries.length - 1; i >= 0; i--) {
+      const e = floraEntries[i];
+      const hit = e.kind === 'tree' && clash(e, e.at[0], e.at[2]);
+      if (!hit) continue;
+      const dx = e.at[0] - hit[0], dz = e.at[2] - hit[1], n = Math.hypot(dx, dz) || 1;
+      const step = BRIDGE_STEPS.map((d) => [e.at[0] + (dx / n) * d, e.at[2] + (dz / n) * d]).find(([x, z]) => !clash(e, x, z));
+      if (step) e.at = [step[0], groundAt(step[0], step[1]) - 0.05, step[1]];
+      else floraEntries.splice(i, 1);
+    }
     // The shore tree row (plants.js), clear of the trees above, with two trees at the bridge's far
     // ramp foot (the model's first end; BRIDGE.model.ends).
     const avoid = floraEntries.filter((e) => e.kind === 'tree').map((e) => [e.at[0], e.at[2]]);
-    floraEntries.push(...farBankShoreRow({ place, forecourt, avoid, bridgeFoot: bridgePoint(BRIDGE.model.ends[0], S.bridge) }));
+    floraEntries.push(...farBankShoreRow({ place, forecourt, avoid, bridgeFoot: bridgePoint(BRIDGE.model.ends[0], S.bridge), underBridge }));
     rainTreesAtStairs(floraEntries, { place, forecourt });
   }
   if (want('forecourt')) reports.forecourt = buildForecourt(w); // the Assembly's river front on the embankment (pass e7)
