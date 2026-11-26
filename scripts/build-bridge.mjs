@@ -18,7 +18,7 @@ import { dirname } from 'node:path';
 const SRC = process.argv[2] ?? 'research/bridge-refs/user-upload/source/inner/WaterfrontBridge.obj';
 const OUT = 'src/assets/models/darul-hana-bridge.bin';
 const SIDES = 6; // the rebuilt posts and cables
-const CABLE_SLIM = 2.5; // the cables drawn this much thicker, so they hold as lines from 150 m and more instead of breaking into dots (a stylisation, like banks.js FAR_FRONT.drawn)
+const CABLE_SLIM = 1.6; // the cables drawn this much thicker (look pass, 2026-11-26: was 2.5, which with ink read as grey rods). Past about 100 m a cable is under a pixel; riverside/bridge.js cableLines draws each one as an unbroken line too (a stylisation, like banks.js FAR_FRONT.drawn)
 
 // --- Read the OBJ ----------------------------------------------------------------------------
 const V = [];

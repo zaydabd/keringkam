@@ -267,14 +267,14 @@ export function createRiverside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THE
   // file, so it is added after the budget (about 52,000 triangles; stats.bridge once loaded).
   let bridgePending = false;
   if (want('bridge')) {
-    const bridge = createBridge({ place: S.bridge, water: S.water, bankY: S.ground, material: toon({ side: THREE.DoubleSide }), painted: !mode });
-    bridge.mesh.layers.enable(MIRROR_LAYER);
+    const bridge = createBridge({ place: S.bridge, water: S.water, bankY: S.ground, material: toon({ side: THREE.DoubleSide }), painted: !mode, sun });
+    disposables.push(bridge);
     group.add(bridge.mesh);
     bridgePending = true;
     bridge.ready
       .then((r) => {
         reports.bridge = r;
-        stats.bridge = bridge.mesh.geometry.attributes.position.count / 3;
+        stats.bridge = r.triangles;
       })
       .catch((e) => console.error('[bridge]', e))
       .finally(() => (bridgePending = false));

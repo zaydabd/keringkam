@@ -206,7 +206,7 @@ const BUILT = {
   kioskGoldShade: [0.8, 0.53, 0.02], // (pass e15c; was 0.88, 0.66, 0.3)
   // The Darul Hana Bridge (linear): white, as the user asked (2026-11-26, from test renders); the
   // platforms' roofs take the Assembly's gold (riverside/bridge.js).
-  bridge: { body: [0.93, 0.91, 0.86], walk: [0.79, 0.74, 0.64], tower: [0.97, 0.96, 0.93], pier: [0.69, 0.65, 0.58], cable: [0.4, 0.39, 0.37] },
+  bridge: { body: [0.93, 0.91, 0.86], walk: [0.79, 0.74, 0.64], tower: [0.97, 0.96, 0.93], pier: [0.69, 0.65, 0.58], cable: [0.62, 0.61, 0.58], foam: [0.86, 0.83, 0.75] }, // cable: lighter, no ink of its own (look pass); foam: the ring round each pier at the water
 };
 
 // --- 2. The theme -----------------------------------------------------------------------------------

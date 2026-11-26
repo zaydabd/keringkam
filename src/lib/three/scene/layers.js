@@ -14,3 +14,6 @@ export const SIDE_LAYER = 5;
 // which face the camera (toon.js MASK_VERTEX), so the stems and walls behind a bush are not inked
 // through its leaves.
 export const CARD_MASK_LAYER = 6;
+// Drawn with no ink of its own, and hides the ink of what is behind it (a solid mask): the
+// bridge's truss and cables, so the deck reads as one clean curve (riverside/bridge.js).
+export const SOFT_INK_LAYER = 7;

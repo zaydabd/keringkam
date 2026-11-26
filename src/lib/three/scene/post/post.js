@@ -10,7 +10,8 @@ import { PIGMENT_SHADER, FINISH_SHADER, createPigmentField } from './watercolour
 import { createAO } from './ao.js';
 import { AO, OUTLINES } from '../quality.js';
 import { REFERENCE_EXPOSURE } from './meter.js';
-import { INK_MASK_LAYER, CARD_MASK_LAYER } from '../layers.js';
+import * as THREE from 'three';
+import { INK_MASK_LAYER, CARD_MASK_LAYER, SOFT_INK_LAYER } from '../layers.js';
 import { createAtlas, CELLS } from '../../vegetation/plants/bougainvillea/materials.js';
 
 /** Sets a pass's uniforms from a theme section: colours take a hex, vectors an array, the rest a number. */
@@ -32,7 +33,9 @@ export function createPost(renderer, scene, camera, { theme, quality: Q, params,
   const { color: ink, lineWidth, ...inkLook } = theme.ink;
   // The bougainvillea's leaf and bract cards mask the ink behind them by their atlas (a copy of it).
   const cardAtlas = createAtlas();
-  const outline = createOutline(renderer, scene, camera, { ink, lineWidth, mask: [{ layer: INK_MASK_LAYER, map: inkMask }, { layer: CARD_MASK_LAYER, map: cardAtlas, cells: CELLS }] });
+  const solid = new THREE.DataTexture(new Uint8Array([255, 255, 255, 255]), 1, 1); // SOFT_INK_LAYER: masks everywhere it is drawn
+  solid.needsUpdate = true;
+  const outline = createOutline(renderer, scene, camera, { ink, lineWidth, mask: [{ layer: INK_MASK_LAYER, map: inkMask }, { layer: CARD_MASK_LAYER, map: cardAtlas, cells: CELLS }, { layer: SOFT_INK_LAYER, map: solid }] });
   setUniforms(outline.material.uniforms, inkLook);
   // The theme's ink, which the outlines setting (quality.js OUTLINES) scales.
   const inkBase = Object.fromEntries(Object.keys(OUTLINES.full).map((k) => [k, outline.material.uniforms[k].value]));
@@ -139,6 +142,7 @@ export function createPost(renderer, scene, camera, { theme, quality: Q, params,
       ao?.dispose(); // GTAOPass's own targets and materials
       outline.dispose();
       cardAtlas.dispose();
+      solid.dispose();
       pigment.dispose();
       pigmentField.dispose();
       finish.dispose();

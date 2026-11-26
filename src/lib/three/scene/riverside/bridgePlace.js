@@ -15,7 +15,7 @@ export const BRIDGE = {
   crease: 40, // degrees: smooth normals round the tubes, hard edges on the boxes
   // The painted albedo (a stylisation, judged in test renders): brush-stroke lightening, warm and
   // cool dabs, painted light, worn edges, world-scale colour drift.
-  paint: { stroke: 0.9, hue: 0.45, bake: 0.85, edge: 0.5, vary: 0.6 },
+  paint: { stroke: 0.9, hue: 0.45, bake: 0.85, edge: 0.5, vary: 0.6, rim: 0.06, shine: 0.35, wet: 2.2 }, // rim: brighter where the sun is square on; shine: the gold roofs' glint; wet: metres of dark wet pier above the water
 };
 
 /**

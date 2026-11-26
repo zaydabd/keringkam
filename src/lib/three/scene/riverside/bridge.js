@@ -11,11 +11,18 @@
 // platforms' roofs in the Assembly building's gold, a hand-painted albedo whose brush strokes only
 // ever lighten the paint (no dark "spray"), painted light (tops a little warm, undersides a little
 // cool), pale worn edges. The outlines are the scene's own ink pass, as for everything outside.
+//
+// Look pass (the user asked for one, 2026-11-26): the truss and the cables get no ink of their own
+// (layers.js SOFT_INK_LAYER), so the deck reads as one clean curve and the cables as fine pale
+// lines; the piers are dark and wet where they meet the water, with a ring of foam round each;
+// the towers a little warm on the side the sun is on and cool on the other; the platform roofs
+// catch a gold shine.
 
 import * as THREE from 'three';
 import { toCreasedNormals } from 'three/addons/utils/BufferGeometryUtils.js';
 import modelUrl from '../../../../assets/models/darul-hana-bridge.bin?url';
 import { createContract } from './contract.js';
+import { NO_INK_LAYER, SOFT_INK_LAYER, MIRROR_LAYER } from '../layers.js';
 import { OUTSIDE_THEME } from '../themes/index.js';
 import { BRIDGE, bridgePoint, bridgePiers, inRiver } from './bridgePlace.js';
 
@@ -23,6 +30,12 @@ export { BRIDGE, bridgePoint, bridgePiers, inRiver };
 
 // The model's parts, in the file's order (scripts/build-bridge.mjs PARTS).
 const PARTS = ['body', 'walk', 'roof', 'pier', 'tower', 'cable'];
+// Inked as everything outside, or soft: no ink of their own, hiding the ink behind them.
+const INKED = ['walk', 'roof', 'pier', 'tower'];
+const SOFT = ['body', 'cable'];
+// The foam round each pier at the water: from the pier's footprint outwards, metres, and its
+// opacity there (a stylisation, judged in the window shot).
+const FOAM = { rings: [[0, 0.9], [0.8, 0.6], [4.5, 0]], lift: 0.03, steps: 48 };
 
 /** Reads the model file (see scripts/build-bridge.mjs for the layout). */
 function parse(buffer) {
@@ -44,26 +57,55 @@ function parse(buffer) {
   return parts;
 }
 
+/** Model positions (x, y, z flat) to the world: scaled, turned, moved; a pier's foot under the water. */
+function placed(position, name, { place, water, bankY }) {
+  const B = BRIDGE;
+  const a = THREE.MathUtils.degToRad(place.yaw), c = Math.cos(a), s = Math.sin(a);
+  const p = position.slice();
+  for (let i = 0; i < p.length; i += 3) {
+    const x = p[i] * B.scale, z = p[i + 2] * B.scale * place.mirror;
+    p[i] = x * c - z * s + place.x;
+    p[i + 2] = x * s + z * c + place.z;
+    // the ramps' feet on the bank; a pier's foot under the water
+    p[i + 1] = name === 'pier' && p[i + 1] < B.model.pierBottom ? water - B.pierFoot : bankY + (p[i + 1] - B.model.ground) * B.scale;
+  }
+  return p;
+}
+
+/**
+ * Each stay cable's axis as a line (two points per cable): a thin prism seen from 100 m and more
+ * is under a pixel wide and breaks into dashes, and with no ink of its own nothing joins them.
+ * A line is always one pixel, unbroken. The cable part is prisms of 2 x SIDES vertices in order
+ * (scripts/build-bridge.mjs), so the ends are the centres of each prism's two rings.
+ */
+export function cableLines(parts, at, color) {
+  const P = placed(parts.cable.position, 'cable', at);
+  const per = 12; // 2 rings x 6 sides
+  const pos = [];
+  for (let i = 0; i + per * 3 <= P.length; i += per * 3) {
+    for (const ring of [0, 1]) {
+      const c = [0, 0, 0];
+      for (let k = 0; k < per / 2; k++) for (let j = 0; j < 3; j++) c[j] += P[i + (ring * per / 2 + k) * 3 + j] / (per / 2);
+      pos.push(...c);
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  return { geometry: g, color };
+}
+
 /**
  * Model parts to one world-space geometry: placed, the piers carried down under the water, smooth
  * normals within BRIDGE.crease, one linear vertex colour per part (the ink pass draws a seam
  * where two parts' colours meet).
  */
-export function bridgeGeometry(parts, { place, water, bankY }, colors) {
+export function bridgeGeometry(parts, { place, water, bankY }, colors, names = PARTS) {
   const B = BRIDGE;
-  const a = THREE.MathUtils.degToRad(place.yaw), c = Math.cos(a), s = Math.sin(a);
   const pieces = [];
-  for (const name of PARTS) {
+  for (const name of names) {
     const part = parts[name];
     if (!part?.index.length) continue;
-    const p = part.position.slice();
-    for (let i = 0; i < p.length; i += 3) {
-      const x = p[i] * B.scale, z = p[i + 2] * B.scale * place.mirror;
-      p[i] = x * c - z * s + place.x;
-      p[i + 2] = x * s + z * c + place.z;
-      // the ramps' feet on the bank; a pier's foot under the water
-      p[i + 1] = name === 'pier' && p[i + 1] < B.model.pierBottom ? water - B.pierFoot : bankY + (p[i + 1] - B.model.ground) * B.scale;
-    }
+    const p = placed(part.position, name, { place, water, bankY });
     const index = part.index.slice();
     if (place.mirror < 0) for (let t = 0; t < index.length; t += 3) [index[t + 1], index[t + 2]] = [index[t + 2], index[t + 1]]; // keep the faces outward
     const g = new THREE.BufferGeometry();
@@ -95,6 +137,57 @@ export function bridgeGeometry(parts, { place, water, bankY }, colors) {
   return out;
 }
 
+/**
+ * A ring of foam round each tower pier where it meets the water: rounded rectangles round the
+ * pier's footprint (its model vertices at the bottom, sorted to the nearest pier), opacity in the
+ * vertex colour's alpha, fading out (FOAM).
+ */
+export function foamGeometry(parts, { place, water }, color) {
+  const B = BRIDGE, P = parts.pier.position;
+  const boxes = B.model.piers.map(() => [Infinity, Infinity, -Infinity, -Infinity]);
+  for (let i = 0; i < P.length; i += 3) {
+    if (P[i + 1] >= B.model.pierBottom) continue;
+    const [x, z] = [P[i], P[i + 2]];
+    let k = 0, best = Infinity;
+    B.model.piers.forEach(([px, pz], j) => {
+      const d = Math.hypot(x - px, z - pz);
+      if (d < best) [best, k] = [d, j];
+    });
+    const b = boxes[k];
+    b[0] = Math.min(b[0], x); b[1] = Math.min(b[1], z); b[2] = Math.max(b[2], x); b[3] = Math.max(b[3], z);
+  }
+  const pos = [], col = [], index = [];
+  const n = FOAM.steps, R = FOAM.rings;
+  for (const [x0, z0, x1, z1] of boxes) {
+    if (!(x1 > x0)) continue;
+    const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2, hx = (x1 - x0) / 2, hz = (z1 - z0) / 2;
+    const base = pos.length / 3;
+    for (const [out, alpha] of R) {
+      const o = out / B.scale; // metres to model units
+      for (let k = 0; k < n; k++) {
+        const t = (k / n) * Math.PI * 2, c = Math.cos(t), s = Math.sin(t);
+        // a superellipse (power 4): a rectangle with rounded corners
+        const ex = Math.sign(c) * Math.sqrt(Math.abs(c)), ez = Math.sign(s) * Math.sqrt(Math.abs(s));
+        const [wx, wz] = bridgePoint([cx + ex * (hx + o), cz + ez * (hz + o)], place);
+        pos.push(wx, water + FOAM.lift, wz);
+        col.push(...color, alpha);
+      }
+    }
+    for (let r = 0; r + 1 < R.length; r++) {
+      for (let k = 0; k < n; k++) {
+        const a = base + r * n + k, b = base + r * n + ((k + 1) % n), a2 = a + n, b2 = b + n;
+        index.push(a, a2, b, b, a2, b2);
+      }
+    }
+  }
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 4));
+  g.setIndex(index);
+  g.computeVertexNormals();
+  return g;
+}
+
 /** What was built, measured. Throws on a failed check. */
 export function checkBridge(geometry, { place, water, bankY }) {
   const B = BRIDGE;
@@ -113,29 +206,67 @@ export function checkBridge(geometry, { place, water, bankY }) {
 }
 
 /**
- * The bridge's mesh, empty until the model file is loaded (`ready` resolves then). `material` is
- * the scene's toon paint; the painted albedo is added to it here (not in the flat, clay and
- * silhouette checks: `painted` false).
+ * The bridge, empty until the model file is loaded (`ready` resolves then): a group of the inked
+ * parts, the soft parts (no ink of their own; SOFT_INK_LAYER) and the foam at the piers.
+ * `material` is the scene's toon paint; the painted albedo is added to it here (not in the flat,
+ * clay and silhouette checks: `painted` false). `sun`: the direction to the sun (world).
  */
-export function createBridge({ place, water, bankY, material, painted }) {
+export function createBridge({ place, water, bankY, material, painted, sun = new THREE.Vector3(0, 1, 0) }) {
   const colors = { ...OUTSIDE_THEME.bridge, roof: OUTSIDE_THEME.assembly.gold };
-  if (painted) paintBridge(material);
-  const mesh = new THREE.Mesh(new THREE.BufferGeometry(), material);
-  mesh.name = 'bridge';
-  mesh.frustumCulled = false; // until the geometry arrives
+  if (painted) paintBridge(material, { water, sun });
+  const group = new THREE.Group();
+  group.name = 'bridge';
+  const make = (name, mat, layers) => {
+    const mesh = new THREE.Mesh(new THREE.BufferGeometry(), mat);
+    mesh.name = name;
+    mesh.frustumCulled = false; // until the geometry arrives
+    mesh.layers.set(layers[0]);
+    for (const l of layers.slice(1)) mesh.layers.enable(l);
+    group.add(mesh);
+    return mesh;
+  };
+  const inked = make('bridge', material, [0, MIRROR_LAYER]);
+  const soft = make('bridge-soft', material, [NO_INK_LAYER, SOFT_INK_LAYER, MIRROR_LAYER]);
+  const foamMaterial = new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false });
+  const foam = painted ? make('bridge-foam', foamMaterial, [NO_INK_LAYER]) : null;
+  const lineMaterial = new THREE.LineBasicMaterial({ color: new THREE.Color(...colors.cable) });
+  const lines = new THREE.LineSegments(new THREE.BufferGeometry(), lineMaterial);
+  lines.name = 'bridge-cables';
+  lines.layers.set(NO_INK_LAYER);
+  lines.layers.enable(MIRROR_LAYER);
+  lines.frustumCulled = false;
+  if (painted) group.add(lines);
   const ready = fetch(modelUrl)
     .then((r) => {
       if (!r.ok) throw new Error(`bridge model: ${r.status}`);
       return r.arrayBuffer();
     })
     .then((buffer) => {
-      const geometry = bridgeGeometry(parse(buffer), { place, water, bankY }, colors);
-      mesh.geometry.dispose();
-      mesh.geometry = geometry;
-      mesh.frustumCulled = true;
-      return checkBridge(geometry, { place, water, bankY });
+      const parts = parse(buffer);
+      const at = { place, water, bankY };
+      const set = (mesh, geometry) => {
+        mesh.geometry.dispose();
+        mesh.geometry = geometry;
+        mesh.frustumCulled = true;
+      };
+      set(inked, bridgeGeometry(parts, at, colors, INKED));
+      set(soft, bridgeGeometry(parts, at, colors, SOFT));
+      if (foam) set(foam, foamGeometry(parts, at, colors.foam));
+      set(lines, cableLines(parts, at, colors.cable).geometry);
+      const report = checkBridge(inked.geometry, at);
+      report.triangles = (inked.geometry.attributes.position.count + soft.geometry.attributes.position.count) / 3;
+      return report;
     });
-  return { mesh, ready };
+  return {
+    mesh: group,
+    ready,
+    dispose() {
+      foamMaterial.dispose();
+      lineMaterial.dispose();
+      lines.geometry.dispose();
+      for (const m of group.children) m.geometry.dispose();
+    },
+  };
 }
 
 const NOISE = /* glsl */ `
@@ -150,7 +281,8 @@ float bSlope(vec3 p){vec3 q=p;for(int i=0;i<2;i++){float e=.15,c=bF(q*.7);
 `;
 
 /** The hand-painted albedo on the bridge's toon paint (BRIDGE.paint). */
-function paintBridge(material) {
+function paintBridge(material, { water, sun }) {
+  const L = sun.clone().normalize();
   const P = BRIDGE.paint;
   const f = (v) => v.toFixed(3);
   material.onBeforeCompile = (shader) => {
@@ -176,6 +308,17 @@ function paintBridge(material) {
     paint *= mix(vec3(1.06, .98, .92), vec3(.93, .98, 1.06), bF(vBridgeP*.013 + 11.)*${f(P.vary)});
     vec3 dn = fwidth(Nw); float wear = smoothstep(.2, .55, clamp((dn.x + dn.y + dn.z)*6., 0., 1.)*(.6 + .8*bF(P*3.)));
     paint = mix(paint, min(paint*1.4 + .08, vec3(1.)), wear*${f(P.edge)});
+    // the sun's side a little warm, the other a little cool (the towers' shape in the white)
+    vec3 Ls = vec3(${f(L.x)}, ${f(L.y)}, ${f(L.z)});
+    float lit = dot(Nw, Ls);
+    paint *= mix(vec3(.94, .97, 1.05), vec3(1.07, 1.02, .93), smoothstep(-.35, .45, lit)) * mix(1., 1. + ${f(P.rim)}, smoothstep(.55, .9, lit));
+    // the platform roofs' gold catches a shine where the sun's reflection meets the eye
+    float gold = step(base.b * 2.5, base.r) * step(.4, base.r);
+    vec3 V = normalize(cameraPosition - vBridgeP);
+    float shine = pow(max(dot(reflect(-Ls, Nw), V), 0.), 6.);
+    paint += gold * ${f(P.shine)} * smoothstep(.25, .75, shine) * vec3(1., .86, .5);
+    // the piers dark and wet for the first two metres above the water
+    paint *= mix(vec3(.45, .45, .49), vec3(1.), smoothstep(${f(water + 0.15)}, ${f(water + P.wet)}, vBridgeP.y));
     diffuseColor.rgb = paint;
   }`,
       );
