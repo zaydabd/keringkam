@@ -20,8 +20,8 @@ export const FAR_FUR = {
   bands: [SITE.far.rough, 11, SITE.far.foot, 20, SITE.far.crest, 40, 60, 85, SITE.far.back, 135, 160], // offsets inland (m); spacing is set per band
   reach: 460, // m from the window's eye
   bearing: 72, // degrees either side of straight out (-z): what the window and the seat can see
-  spacing: { rate: 0.0042, min: 0.12, max: 2.2 }, // m between cells: distance from the eye times rate
-  height: { from: 60, max: 4 }, // blades drawn taller beyond `from` m, up to `max` times
+  spacing: { rate: 0.003, min: 0.12, max: 1.5 }, // m between cells: distance from the eye times rate (finer far off: the user asked for the far grass "a bit more detailed like the near")
+  height: { from: 60, max: 3 }, // blades drawn taller beyond `from` m, up to `max` times
   blade: { width: 0.34, lean: 0.35 }, // tuftGeometry: per unit of footprint; lean outward per unit of height
   short: OUTSIDE_THEME.fur.short, // colours: themes/outside.js
   tall: OUTSIDE_THEME.fur.tall,
