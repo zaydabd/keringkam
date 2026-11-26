@@ -2,7 +2,11 @@
   "mcpServers": {
     "basic-memory": {
       "command": "uvx",
-      "args": ["--prerelease=allow", "basic-memory", "mcp"],
+      "args": [
+        "--prerelease=allow",
+        "basic-memory",
+        "mcp"
+      ],
       "env": {
         "BASIC_MEMORY_HOME": "${CLAUDE_PROJECT_DIR:-.}/memory",
         "BASIC_MEMORY_CONFIG_DIR": "${CLAUDE_PROJECT_DIR:-.}/.basic-memory",
@@ -12,13 +16,23 @@
     "serena": {
       "command": "uvx",
       "args": [
-        "-p", "3.13",
-        "--from", "serena-agent",
-        "serena", "start-mcp-server",
-        "--context", "claude-code",
-        "--project", "${CLAUDE_PROJECT_DIR:-.}",
-        "--open-web-dashboard", "False"
+        "-p",
+        "3.13",
+        "--from",
+        "serena-agent",
+        "serena",
+        "start-mcp-server",
+        "--context",
+        "claude-code",
+        "--project",
+        "${CLAUDE_PROJECT_DIR:-.}",
+        "--open-web-dashboard",
+        "False"
       ]
+    },
+    "outsystems": {
+      "type": "http",
+      "url": "https://avepoint.outsystems.dev/mcp"
     }
   }
 }
