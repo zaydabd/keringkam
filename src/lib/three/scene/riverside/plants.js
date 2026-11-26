@@ -102,11 +102,12 @@ export function farBankProposal({ place, forecourt: [f0, f1], rand, stepPlanting
   // Bushes along the embankment's foot, right of the forecourt, in threes.
   for (let x = f1 + 12; x < f1 + 46; x += 11) for (let i = 0; i < 3; i++) add('proposed: nipah palm (Nypa fruticans)', 'bush', place(x + i * 1.6, 15.6 + rand() * 0.6), 1.2 + rand() * 0.5, 1.8 + rand() * 0.6, x);
   if (stepPlanting) {
-    // More trees left of the stairs (the user's ask: "put bit more trees there"), between the
+    // More trees left of the stairs (the user's asks: "put bit more trees there", and two more on
+    // 2026-11-26, the last two), between the
     // stair planting and the meadow line: [waterline x from the forecourt's left end, offset].
     // Last, with their own random stream, so the plants above keep their places and sizes.
     const r = mulberry32(7717);
-    for (const [dx, o] of [[-6, 19], [-9.5, 24], [-5, 27], [-13, 21], [-12, 30]]) add('proposed: rain tree (by the stairs)', 'tree', place(f0 + dx, o + r() * 2), 10 + r() * 4, 7);
+    for (const [dx, o] of [[-6, 19], [-9.5, 24], [-5, 27], [-13, 21], [-12, 30], [-16.5, 26], [-7.5, 34]]) add('proposed: rain tree (by the stairs)', 'tree', place(f0 + dx, o + r() * 2), 10 + r() * 4, 7);
     // The trees nearest the stairs turn their lit side to the window (the user's ask: "make it
     // face us more"); vegetation/stylised.js sets the turn from the eye. The 45 m reach is a design choice.
     const stairs = [place(f0, 14), place(f1, 14)];
@@ -129,13 +130,14 @@ export function farBankProposal({ place, forecourt: [f0, f1], rand, stepPlanting
 // 1 and 4 rain tree, 2 old kapok, 3 trumpet tree, 5 tall kapok.
 export const SHORE_ROW = {
   from: -234, // waterline x of the first tree (the far left of the bank the window sees)
-  endGap: 3, // m short of the forecourt's left end
+  to: 70, // waterline x of the last, right of the Assembly (where its terrace trees were planned)
+  endGap: 3, // m kept clear of each end of the forecourt
   spacing: 6.2, // m between trees along the line
   jitter: 0.8, // m either way along the line, so the spacing is not exact
   offset: 14, // m inland of the waterline: behind the far path (its street trees stand at 9.3)
   wobble: 0.6, // m either way across the line: near straight, not ruled
   clear: 3.5, // m: a row tree this near another tree's trunk is left out
-  bridgeClear: 10, // m kept clear round the bridge's far ramp foot
+  bridgeTrees: [-4, 3.5], // m along the shore from the bridge's far ramp foot: two trees partly hiding its entrance (the user's ask)
   rareEvery: 5, // the third tree of every five is one of `rare`, in turn; the rest are from `main`
   // [group, seed or null (any), height range m, width m]
   main: [
@@ -154,22 +156,35 @@ export const SHORE_ROW = {
 /**
  * The shore row's tree entries. `place(xWater, offset)` comes from the far bank (banks.js);
  * `forecourt` is the forecourt's waterline x range; `avoid` lists [x, z] points to keep clear of
- * (other trees' trunks); `bridgeFoot` is the bridge's far ramp foot. Its own random stream, so
+ * (other trees' trunks); `bridgeFoot` [x, z] is the bridge's far ramp foot, with trees either side. Its own random stream, so
  * the other plantings keep their places and sizes.
  */
-export function farBankShoreRow({ place, forecourt: [f0], avoid = [], bridgeFoot = null, row = SHORE_ROW }) {
+export function farBankShoreRow({ place, forecourt: [f0, f1], avoid = [], bridgeFoot = null, row = SHORE_ROW }) {
   const rand = mulberry32(9127);
   const out = [];
-  for (let i = 0, x = row.from; x <= f0 - row.endGap; i++, x += row.spacing) {
+  // Both sides of the forecourt, left first, so the left side keeps its trees as first planted.
+  const spots = [];
+  for (const [a, b] of [[row.from, f0 - row.endGap], [f1 + row.endGap, row.to]]) for (let x = a; x <= b; x += row.spacing) spots.push(x);
+  // The waterline x nearest the bridge's foot, then a tree either side of it along the shore.
+  if (bridgeFoot) {
+    let best = [Infinity, 0];
+    for (let x = f0 - 20; x <= f1 + 20; x += 0.5) {
+      const p = place(x, row.offset);
+      const d = Math.hypot(p[0] - bridgeFoot[0], p[2] - bridgeFoot[1]);
+      if (d < best[0]) best = [d, x];
+    }
+    spots.push(...row.bridgeTrees.map((d) => best[1] + d));
+  }
+  spots.forEach((x, i) => {
     const m = i % row.rareEvery === 2 ? row.rare[Math.floor(i / row.rareEvery) % row.rare.length] : row.main[Math.floor(rand() * row.main.length)];
     const [group, seeds, [h0, h1], width] = m;
     const along = x + (rand() - 0.5) * 2 * row.jitter, across = row.offset + (rand() - 0.5) * 2 * row.wobble;
     const seed = seeds ? seeds[Math.floor(rand() * seeds.length)] : 1 + Math.floor(rand() * 5);
     const squash = 0.85 + rand() * 0.3;
     const height = h0 + rand() * (h1 - h0), yaw = rand() * Math.PI * 2;
-    const clear = (at) => !avoid.some((p) => Math.hypot(at[0] - p[0], at[2] - p[1]) < row.clear) && !(bridgeFoot && Math.hypot(at[0] - bridgeFoot[0], at[2] - bridgeFoot[1]) < row.bridgeClear);
+    const clear = (at) => !avoid.some((p) => Math.hypot(at[0] - p[0], at[2] - p[1]) < row.clear);
     const at = row.nudge.map((d) => place(along + d, across)).find(clear);
     if (at) out.push({ group, kind: 'tree', at, height, width: width * squash, squash, yaw, seed, lod: 'near', leaves: row.leaves });
-  }
+  });
   return out;
 }

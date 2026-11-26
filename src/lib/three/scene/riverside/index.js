@@ -96,8 +96,8 @@ export function createRiverside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THE
     const { place } = reports.farbank;
     const forecourt = forecourtFrame().xRange;
     floraEntries.push(...farBankProposal({ place, forecourt, rand: mulberry32(613 + seed), stepPlanting: flora === 'stylised' }));
-    // The shore tree row (plants.js), clear of the trees above and of the bridge's far ramp foot
-    // (the model's first end; BRIDGE.model.ends).
+    // The shore tree row (plants.js), clear of the trees above, with two trees at the bridge's far
+    // ramp foot (the model's first end; BRIDGE.model.ends).
     const avoid = floraEntries.filter((e) => e.kind === 'tree').map((e) => [e.at[0], e.at[2]]);
     floraEntries.push(...farBankShoreRow({ place, forecourt, avoid, bridgeFoot: bridgePoint(BRIDGE.model.ends[0], S.bridge) }));
   }
