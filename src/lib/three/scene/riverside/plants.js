@@ -141,14 +141,17 @@ export const SHORE_ROW = {
   clear: 3.5, // m: a row tree this near another tree's trunk is left out
   bridgeTrees: [-4, 3.5], // m along the shore from the bridge's far ramp foot: two trees partly hiding its entrance (the user's ask)
   rareEvery: 5, // the third tree of every five is one of `rare`, in turn; the rest are from `main`
-  // [group, seed or null (any), height range m, width m]
+  // [group, seed or null (any), height range m, width m, leaf clump factor (default `leaves`)]
   main: [
     ['proposed: rain tree (shore row)', [1, 4], [9, 13], 7], // rain tree
-    ['proposed: rain tree (shore row)', [2], [10, 14], 8], // old kapok
+    // old kapok: its sparse crown went bare from 80 m in the street view (the user saw it); bigger clumps keep it leafy
+    ['proposed: rain tree (shore row)', [2], [10, 14], 8, 2.4],
   ],
   rare: [
     ['proposed: rain tree (shore row)', [3], [8, 11], 6], // trumpet tree
-    ['proposed: rain tree (shore row)', [5], [13, 17], 7], // tall kapok
+    // tall kapok: its model is about 23 m tall, so at 13-17 m its leaf cards shrink to about two
+    // thirds and vanish at a distance (the user saw it bare); bigger clumps make up for it
+    ['proposed: rain tree (shore row)', [5], [13, 17], 7, 2.5],
     ['proposed: pedada (shore row)', null, [7, 10], 5],
   ],
   nudge: [0, 2.5, -2.5], // m along the line tried in turn to clear another tree
@@ -183,14 +186,14 @@ export function farBankShoreRow({ place, forecourt: [f0, f1], avoid = [], bridge
   line(f1 + row.endGap + row.right.back.spacing / 2, row.to, row.right.back.spacing, row.right.back.offset);
   spots.forEach(([x, offset], i) => {
     const m = i % row.rareEvery === 2 ? row.rare[Math.floor(i / row.rareEvery) % row.rare.length] : row.main[Math.floor(rand() * row.main.length)];
-    const [group, seeds, [h0, h1], width] = m;
+    const [group, seeds, [h0, h1], width, leaves = row.leaves] = m;
     const along = x + (rand() - 0.5) * 2 * row.jitter, across = offset + (rand() - 0.5) * 2 * row.wobble;
     const seed = seeds ? seeds[Math.floor(rand() * seeds.length)] : 1 + Math.floor(rand() * 5);
     const squash = 0.85 + rand() * 0.3;
     const height = h0 + rand() * (h1 - h0), yaw = rand() * Math.PI * 2;
     const clear = (at) => !avoid.some((p) => Math.hypot(at[0] - p[0], at[2] - p[1]) < row.clear);
     const at = row.nudge.map((d) => place(along + d, across)).find(clear);
-    if (at) out.push({ group, kind: 'tree', at, height, width: width * squash, squash, yaw, seed, lod: 'near', leaves: row.leaves });
+    if (at) out.push({ group, kind: 'tree', at, height, width: width * squash, squash, yaw, seed, lod: 'near', leaves });
   });
   return out;
 }
