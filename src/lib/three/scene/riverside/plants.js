@@ -133,6 +133,8 @@ export const SHORE_ROW = {
   to: 70, // waterline x of the last, right of the Assembly (where its terrace trees were planned)
   endGap: 3, // m kept clear of each end of the forecourt
   spacing: 6.2, // m between trees along the line
+  // Right of the Assembly, denser (the user's ask): closer spacing, and a loose second row behind.
+  right: { spacing: 4, back: { offset: 21, spacing: 5 } },
   jitter: 0.8, // m either way along the line, so the spacing is not exact
   offset: 14, // m inland of the waterline: behind the far path (its street trees stand at 9.3)
   wobble: 0.6, // m either way across the line: near straight, not ruled
@@ -163,8 +165,10 @@ export function farBankShoreRow({ place, forecourt: [f0, f1], avoid = [], bridge
   const rand = mulberry32(9127);
   const out = [];
   // Both sides of the forecourt, left first, so the left side keeps its trees as first planted.
+  // [waterline x, offset inland]. Left row, the bridge's two, then the right's front and back rows.
   const spots = [];
-  for (const [a, b] of [[row.from, f0 - row.endGap], [f1 + row.endGap, row.to]]) for (let x = a; x <= b; x += row.spacing) spots.push(x);
+  const line = (a, b, step, offset) => { for (let x = a; x <= b; x += step) spots.push([x, offset]); };
+  line(row.from, f0 - row.endGap, row.spacing, row.offset);
   // The waterline x nearest the bridge's foot, then a tree either side of it along the shore.
   if (bridgeFoot) {
     let best = [Infinity, 0];
@@ -173,12 +177,14 @@ export function farBankShoreRow({ place, forecourt: [f0, f1], avoid = [], bridge
       const d = Math.hypot(p[0] - bridgeFoot[0], p[2] - bridgeFoot[1]);
       if (d < best[0]) best = [d, x];
     }
-    spots.push(...row.bridgeTrees.map((d) => best[1] + d));
+    spots.push(...row.bridgeTrees.map((d) => [best[1] + d, row.offset]));
   }
-  spots.forEach((x, i) => {
+  line(f1 + row.endGap, row.to, row.right.spacing, row.offset);
+  line(f1 + row.endGap + row.right.back.spacing / 2, row.to, row.right.back.spacing, row.right.back.offset);
+  spots.forEach(([x, offset], i) => {
     const m = i % row.rareEvery === 2 ? row.rare[Math.floor(i / row.rareEvery) % row.rare.length] : row.main[Math.floor(rand() * row.main.length)];
     const [group, seeds, [h0, h1], width] = m;
-    const along = x + (rand() - 0.5) * 2 * row.jitter, across = row.offset + (rand() - 0.5) * 2 * row.wobble;
+    const along = x + (rand() - 0.5) * 2 * row.jitter, across = offset + (rand() - 0.5) * 2 * row.wobble;
     const seed = seeds ? seeds[Math.floor(rand() * seeds.length)] : 1 + Math.floor(rand() * 5);
     const squash = 0.85 + rand() * 0.3;
     const height = h0 + rand() * (h1 - h0), yaw = rand() * Math.PI * 2;
