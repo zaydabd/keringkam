@@ -36,7 +36,8 @@ import { ASSEMBLY_STYLE } from '../themes/outside.js';
 import { buildFarBank, BANK_PAINT } from './banks.js';
 import { FAR_GRASS_GROUND } from './grass.js';
 import { buildFarFur } from './fur.js';
-import { bladePatches, farBankProposal } from './plants.js';
+import { bladePatches, farBankProposal, farBankShoreRow } from './plants.js';
+import { BRIDGE, bridgePoint } from './bridgePlace.js';
 import { buildFloraStylised } from '../../vegetation/stylised.js';
 import { buildNearWaterfront } from './waterfront.js';
 import { planAssembly, compileAssembly } from './assembly.js';
@@ -93,7 +94,12 @@ export function createRiverside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THE
   // Proposed far-bank planting (house/garden/plants.js and riverside/plants.js): markers only, a composition to judge.
   if (flora && want('farbank')) {
     const { place } = reports.farbank;
-    floraEntries.push(...farBankProposal({ place, forecourt: forecourtFrame().xRange, rand: mulberry32(613 + seed), stepPlanting: flora === 'stylised' }));
+    const forecourt = forecourtFrame().xRange;
+    floraEntries.push(...farBankProposal({ place, forecourt, rand: mulberry32(613 + seed), stepPlanting: flora === 'stylised' }));
+    // The shore tree row (plants.js), clear of the trees above and of the bridge's far ramp foot
+    // (the model's first end; BRIDGE.model.ends).
+    const avoid = floraEntries.filter((e) => e.kind === 'tree').map((e) => [e.at[0], e.at[2]]);
+    floraEntries.push(...farBankShoreRow({ place, forecourt, avoid, bridgeFoot: bridgePoint(BRIDGE.model.ends[0], S.bridge) }));
   }
   if (want('forecourt')) reports.forecourt = buildForecourt(w); // the Assembly's river front on the embankment (pass e7)
   if (want('waterfront')) reports.waterfront = buildNearWaterfront(w); // our side: the waterfront's street and railing (pass e11)

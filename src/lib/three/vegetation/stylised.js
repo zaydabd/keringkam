@@ -95,7 +95,7 @@ function copiesOf(entries, eye) {
     const at = pot ? [e.at[0], pot.at[1], e.at[2]] : e.at;
     let yaw = e.yaw ?? index * 2.1;
     if (e.faceEye && eye) yaw = Math.atan2(eye[0] - at[0], eye[2] - at[2]) - SUN_YAW + (((yaw % 1) + 1) % 1 - 0.5) * 2 * FACE_SPREAD;
-    out.push({ plant, at, yaw, height: e.height, squash: e.squash ?? 1, index, lod: e.lod, leaves: e.leaves });
+    out.push({ plant, at, yaw, height: e.height, squash: e.squash ?? 1, index, lod: e.lod, leaves: e.leaves, seed: e.seed });
   });
   return out;
 }
@@ -112,7 +112,7 @@ export function buildFloraStylised(entries, { eye = null, layer, potColour = 'wh
   const eyeV = eye && new THREE.Vector3(...eye);
   for (const c of copiesOf(entries, eye)) {
     const lod = c.lod ?? (eyeV && eyeV.distanceTo(new THREE.Vector3(...c.at)) > c.plant.switchAt ? 'far' : 'near'); // an entry's own `lod` wins
-    const seed = 1 + (c.index % SEEDS);
+    const seed = c.seed ?? 1 + (c.index % SEEDS); // an entry's own `seed` wins (it picks a Kuching tree's design)
     const key = `${c.plant.id}|${seed}|${lod}|${c.leaves ?? 1}`;
     if (!models.has(key)) {
       const result = c.plant.create({ seed, lod, leaves: c.leaves }); // `leaves`: a factor on the leaf clumps' size, where the plant takes one

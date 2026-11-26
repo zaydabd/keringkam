@@ -120,3 +120,56 @@ export function farBankProposal({ place, forecourt: [f0, f1], rand, stepPlanting
   }
   return out;
 }
+
+// The shore tree row (the user's ask, 2026-11-26): one near-straight row along the far bank just
+// behind its waterfront path, closer together than the other plantings. Mostly rain trees and old
+// kapoks, now and then a pedada, a tall kapok or a trumpet tree, each a bit different in size. All
+// drawn with the detailed (near) model, the user's choice. Positions and sizes are design choices.
+// `seed` picks the design of a Kuching tree (vegetation/plants/kuchingTree.js DESIGN_BY_SEED):
+// 1 and 4 rain tree, 2 old kapok, 3 trumpet tree, 5 tall kapok.
+export const SHORE_ROW = {
+  from: -234, // waterline x of the first tree (the far left of the bank the window sees)
+  endGap: 3, // m short of the forecourt's left end
+  spacing: 6.2, // m between trees along the line
+  jitter: 0.8, // m either way along the line, so the spacing is not exact
+  offset: 14, // m inland of the waterline: behind the far path (its street trees stand at 9.3)
+  wobble: 0.6, // m either way across the line: near straight, not ruled
+  clear: 3.5, // m: a row tree this near another tree's trunk is left out
+  bridgeClear: 10, // m kept clear round the bridge's far ramp foot
+  rareEvery: 5, // the third tree of every five is one of `rare`, in turn; the rest are from `main`
+  // [group, seed or null (any), height range m, width m]
+  main: [
+    ['proposed: rain tree (shore row)', [1, 4], [9, 13], 7], // rain tree
+    ['proposed: rain tree (shore row)', [2], [10, 14], 8], // old kapok
+  ],
+  rare: [
+    ['proposed: rain tree (shore row)', [3], [8, 11], 6], // trumpet tree
+    ['proposed: rain tree (shore row)', [5], [13, 17], 7], // tall kapok
+    ['proposed: pedada (shore row)', null, [7, 10], 5],
+  ],
+  nudge: [0, 2.5, -2.5], // m along the line tried in turn to clear another tree
+  leaves: 1.6, // leaf clumps this much bigger (kuchingTree.js `leaves`): at 100-300 m the detailed crowns read thin and bare without it (judged in the street view)
+};
+
+/**
+ * The shore row's tree entries. `place(xWater, offset)` comes from the far bank (banks.js);
+ * `forecourt` is the forecourt's waterline x range; `avoid` lists [x, z] points to keep clear of
+ * (other trees' trunks); `bridgeFoot` is the bridge's far ramp foot. Its own random stream, so
+ * the other plantings keep their places and sizes.
+ */
+export function farBankShoreRow({ place, forecourt: [f0], avoid = [], bridgeFoot = null, row = SHORE_ROW }) {
+  const rand = mulberry32(9127);
+  const out = [];
+  for (let i = 0, x = row.from; x <= f0 - row.endGap; i++, x += row.spacing) {
+    const m = i % row.rareEvery === 2 ? row.rare[Math.floor(i / row.rareEvery) % row.rare.length] : row.main[Math.floor(rand() * row.main.length)];
+    const [group, seeds, [h0, h1], width] = m;
+    const along = x + (rand() - 0.5) * 2 * row.jitter, across = row.offset + (rand() - 0.5) * 2 * row.wobble;
+    const seed = seeds ? seeds[Math.floor(rand() * seeds.length)] : 1 + Math.floor(rand() * 5);
+    const squash = 0.85 + rand() * 0.3;
+    const height = h0 + rand() * (h1 - h0), yaw = rand() * Math.PI * 2;
+    const clear = (at) => !avoid.some((p) => Math.hypot(at[0] - p[0], at[2] - p[1]) < row.clear) && !(bridgeFoot && Math.hypot(at[0] - bridgeFoot[0], at[2] - bridgeFoot[1]) < row.bridgeClear);
+    const at = row.nudge.map((d) => place(along + d, across)).find(clear);
+    if (at) out.push({ group, kind: 'tree', at, height, width: width * squash, squash, yaw, seed, lod: 'near', leaves: row.leaves });
+  }
+  return out;
+}
