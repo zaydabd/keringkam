@@ -14,7 +14,11 @@ import { OUTSIDE_THEME } from '../../scene/themes/index.js';
 
 const ROW = {
   trees: [[-7, -2.5], [7, -2.5]], // x, z (m)
-  from: -15, to: 15, z: 0, // the row along x
+  from: -15, to: 15, z: 0, // the planting runs along x
+  // Not one straight line (the user: "try behind and in front too"): the line drifts forwards
+  // and back by up to `drift` m over `driftScale` m, and `second` of the places get a second bush
+  // `layer` m in front (smaller) or behind (bigger). Design choices.
+  drift: 1.3, driftScale: 6, second: 0.5, layer: [1.2, 1.9],
   // Repeating order (the user: "dont use the hedge so much"): one short hedge piece in seven.
   order: ['oakBush', 'birchBush', 'oakBush', 'hedge', 'birchBush', 'oakBush', 'birchBush'],
   width: { oakBush: 1.6, birchBush: 1.8 }, // the hedge's comes from its own size
@@ -74,14 +78,23 @@ export function createBushRow({ seed = 1 } = {}) {
     });
   });
 
+  const bushes = ['oakBush', 'birchBush'];
   let x = ROW.from, n = 0;
   while (x < ROW.to) {
     const kind = ROW.order[n % ROW.order.length];
     const obj = make(kind, seed * 13 + n);
     const w = obj.width ?? ROW.width[kind];
-    const yaw = kind === 'hedge' ? range(rand, -0.12, 0.12) : rand() * 6.3; // the hedge runs along the row
-    add(obj, x + w / 2, ROW.z + range(rand, -0.15, 0.15), yaw, kind === 'hedge' ? 1 : range(rand, 0.85, 1.15));
-    x += w * 0.92; // a little overlap, so the row reads as one planting
+    const z = ROW.z + (valueFbm(x / ROW.driftScale, 3.7, seed + 11, 2) - 0.5) * 2 * ROW.drift + range(rand, -0.3, 0.3);
+    const yaw = kind === 'hedge' ? range(rand, -0.3, 0.3) : rand() * 6.3; // the hedge runs roughly along
+    add(obj, x + w / 2, z, yaw, kind === 'hedge' ? 1 : range(rand, 0.85, 1.15));
+    if (rand() < ROW.second) {
+      // A second bush in front (smaller) or behind (bigger), off to one side of the first.
+      const front = rand() < 0.5;
+      const dz = range(rand, ...ROW.layer) * (front ? 1 : -1);
+      const kind2 = bushes[Math.floor(rand() * 2)];
+      add(make(kind2, seed * 17 + n), x + w * range(rand, 0.1, 0.9), z + dz, rand() * 6.3, front ? range(rand, 0.65, 0.85) : range(rand, 1.05, 1.3));
+    }
+    x += w * range(rand, 0.75, 1.05); // overlap or small gaps, so it reads as one loose planting
     n++;
   }
 
