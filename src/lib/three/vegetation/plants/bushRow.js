@@ -1,8 +1,18 @@
 // A test spot: a mixed row of bushes round two trees, to judge the mix before it goes in the
 // scene (the user: "mix the three bushes besides the first one in a row and see how it looks
 // like around trees"). The three: the trimmed bougainvillea hedge, the oak bush and the birch bush.
-// Preview: #/vegetation?plant=bushRow
+// Preview: #/vegetation?plant=bushRow (variant=natural, the default) or &variant=row.
 // Layout, sizes and the order of the mix are design choices for the test.
+//
+// variant=natural follows how shrubs grow (the user: "find how bushes grow"), read 26 Nov 2026:
+//   - They grow in clumps with gaps between, not evenly spaced: a parent shrub spreads by
+//     suckers and drops seed close by, so one kind gathers round a big old plant, with younger,
+//     smaller ones at the clump's edge. (Restoration work copies this "natural clumpiness":
+//     blogs.oregonstate.edu/siskwoods/?p=44.)
+//   - Most grow where there is light: at a wood's edge and round the edge of a tree's crown (the
+//     drip line), few in the deep shade right by the trunk (the forest-edge layers: resilience.org,
+//     "The seven layers of a forest garden", 2022; shrub layer about 1-3.5 m tall).
+//   - From trees to open ground the planting steps down: trees, tall shrubs, small shrubs, grass.
 
 import * as THREE from 'three';
 import { mulberry32, range } from '../../../utils/rng.js';
@@ -29,6 +39,22 @@ const ROW = {
   ring: 2.6, // m from each trunk: three bushes wrap round the back of each tree
 };
 
+// variant=natural (see the header). Weights and sizes are design choices.
+const NATURAL = {
+  band: { x: [-15, 15], z: [-6, 2.5] }, // where clumps may start (m); the open ground is +z
+  clumps: 14, // clump centres tried for (some are rejected)
+  apart: 3.2, // m at least between clump centres: the gaps
+  crown: { trunk: 2.2, drip: 5.5 }, // m from a trunk: deep shade inside `trunk`, the crown's edge at `drip`
+  light: { trunk: 0.12, drip: 1, open: 0.6 }, // how likely a clump is to take, by place
+  kinds: [['oakBush', 0.45], ['birchBush', 0.4], ['hedge', 0.15]], // hedge: the loose bougainvillea
+  members: [2, 6], // bushes per clump
+  spread: [0.9, 1.9], // m from the clump's parent to the others
+  parent: [1.1, 1.35], // the parent's scale; the young ones get smaller towards the edge
+  young: [0.55, 0.95],
+  back: 0.25, // up to this much bigger at the back of the band (the step down towards open ground)
+  gap: 0.75, // m at least between bush centres (times their scale)
+};
+
 /** A loose, uneven piece of the trimmed bougainvillea hedge. Returns { group, stats, dispose, width }. */
 function looseHedge(seed) {
   const L = ROW.hedge;
@@ -52,31 +78,58 @@ function make(kind, seed) {
   return createTree({ seed, kind });
 }
 
-export function createBushRow({ seed = 1 } = {}) {
-  const rand = mulberry32(907 + seed);
-  const group = new THREE.Group();
-  const parts = [];
-  const add = (obj, x, z, yaw = 0, s = 1) => {
-    obj.group.position.set(x, 0, z);
-    obj.group.rotation.y = yaw;
-    obj.group.scale.setScalar(s);
-    group.add(obj.group);
-    parts.push(obj);
-  };
-  const ground = new THREE.Mesh(
-    new THREE.CircleGeometry(24, 64).rotateX(-Math.PI / 2),
-    new THREE.MeshLambertMaterial({ color: new THREE.Color(OUTSIDE_THEME.fur.ground.lawn) }),
-  );
-  group.add(ground);
+function pick(rand, table) {
+  let r = rand();
+  for (const [k, w] of table) if ((r -= w) <= 0) return k;
+  return table[0][0];
+}
 
-  ROW.trees.forEach(([x, z], i) => {
-    add(kuchingTree.create({ seed: seed + i, lod: 'near' }), x, z);
-    // Three bushes round the back and sides of the trunk.
-    [-2.5, -Math.PI / 2, -0.65].forEach((a, k) => {
-      const kind = ['oakBush', 'birchBush', 'oakBush'][(k + i) % 3];
-      add(make(kind, seed * 31 + i * 7 + k), x + Math.cos(a) * ROW.ring, z + Math.sin(a) * ROW.ring, rand() * 6.3, range(rand, 0.85, 1.15));
-    });
+/** variant=natural: clumps of one kind round a parent, mostly in light at the crowns' edges. */
+function placeNatural(rand, seed, add) {
+  const N = NATURAL;
+  const lightAt = (x, z) => {
+    const d = Math.min(...ROW.trees.map(([tx, tz]) => Math.hypot(x - tx, z - tz)));
+    if (d < N.crown.trunk) return N.light.trunk;
+    if (d < N.crown.drip) return N.light.trunk + (N.light.drip - N.light.trunk) * ((d - N.crown.trunk) / (N.crown.drip - N.crown.trunk));
+    return N.light.drip + (N.light.open - N.light.drip) * Math.min(1, (d - N.crown.drip) / 4);
+  };
+  const centres = [];
+  for (let tries = 0; centres.length < N.clumps && tries < 400; tries++) {
+    const x = range(rand, ...N.band.x), z = range(rand, ...N.band.z);
+    if (centres.some((c) => Math.hypot(c.x - x, c.z - z) < N.apart)) continue;
+    if (rand() > lightAt(x, z)) continue;
+    centres.push({ x, z });
+  }
+  const placed = [];
+  const free = (x, z, s) => placed.every((p) => Math.hypot(p.x - x, p.z - z) > N.gap * (s + p.s) / 2 * 1.4)
+    && ROW.trees.every(([tx, tz]) => Math.hypot(x - tx, z - tz) > 1.2);
+  centres.forEach((c, i) => {
+    const kind = pick(rand, N.kinds);
+    const back = 1 + N.back * (N.band.z[1] - c.z) / (N.band.z[1] - N.band.z[0]);
+    const count = Math.round(range(rand, N.members[0], N.members[1] + 0.49));
+    for (let k = 0; k < count; k++) {
+      // The parent at the centre; the young ones round it, smaller the further out.
+      const a = rand() * Math.PI * 2, r = k === 0 ? 0 : range(rand, ...N.spread);
+      const x = c.x + Math.cos(a) * r, z = c.z + Math.sin(a) * r;
+      const edge = r / N.spread[1];
+      const s = (k === 0 ? range(rand, ...N.parent) : N.young[1] - (N.young[1] - N.young[0]) * edge * range(rand, 0.7, 1)) * back;
+      if (!free(x, z, s)) continue;
+      // A clump now and then holds a bush of another kind (a seed blown in).
+      const kk = k > 0 && rand() < 0.12 ? pick(rand, N.kinds.filter(([n]) => n !== 'hedge')) : kind;
+      const obj = make(kk, seed * 41 + i * 9 + k);
+      add(obj, x, z, rand() * 6.3, kk === 'hedge' ? Math.min(1, s) : s);
+      placed.push({ x, z, s });
+    }
   });
+}
+
+/** variant=row: the earlier loose row, with three bushes round the back of each tree. */
+function placeRow(rand, seed, add) {
+  // Three bushes round the back and sides of each trunk.
+  ROW.trees.forEach(([tx, tz], i) => [-2.5, -Math.PI / 2, -0.65].forEach((a, k) => {
+    const kind = ['oakBush', 'birchBush', 'oakBush'][(k + i) % 3];
+    add(make(kind, seed * 31 + i * 7 + k), tx + Math.cos(a) * ROW.ring, tz + Math.sin(a) * ROW.ring, rand() * 6.3, range(rand, 0.85, 1.15));
+  }));
 
   const bushes = ['oakBush', 'birchBush'];
   let x = ROW.from, n = 0;
@@ -98,6 +151,29 @@ export function createBushRow({ seed = 1 } = {}) {
     n++;
   }
 
+}
+
+export function createBushRow({ seed = 1, variant = 'natural' } = {}) {
+  const rand = mulberry32(907 + seed);
+  const group = new THREE.Group();
+  const parts = [];
+  const add = (obj, x, z, yaw = 0, s = 1) => {
+    obj.group.position.set(x, 0, z);
+    obj.group.rotation.y = yaw;
+    obj.group.scale.setScalar(s);
+    group.add(obj.group);
+    parts.push(obj);
+  };
+  const ground = new THREE.Mesh(
+    new THREE.CircleGeometry(24, 64).rotateX(-Math.PI / 2),
+    new THREE.MeshLambertMaterial({ color: new THREE.Color(OUTSIDE_THEME.fur.ground.lawn) }),
+  );
+  group.add(ground);
+
+  ROW.trees.forEach(([x, z], i) => add(kuchingTree.create({ seed: seed + i, lod: 'near' }), x, z));
+  if (variant === 'natural') placeNatural(rand, seed, add);
+  else placeRow(rand, seed, add);
+
   const triangles = parts.reduce((t, p) => t + (p.stats.triangles?.total ?? 0), 0);
   const leaves = parts.reduce((t, p) => t + (p.stats.leaves ?? 0), 0);
   return {
@@ -114,7 +190,7 @@ export function createBushRow({ seed = 1 } = {}) {
 export const plant = {
   id: 'bushRow',
   label: 'Bush mix round trees (test)',
-  create: ({ seed = 1 } = {}) => createBushRow({ seed }),
+  create: ({ seed = 1, variant } = {}) => createBushRow({ seed, variant }),
   target: [0, 2.5, -1],
   distance: 30,
   background: '#b9d2e2',
