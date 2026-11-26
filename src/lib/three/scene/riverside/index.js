@@ -36,7 +36,7 @@ import { ASSEMBLY_STYLE } from '../themes/outside.js';
 import { buildFarBank, BANK_PAINT } from './banks.js';
 import { FAR_GRASS_GROUND } from './grass.js';
 import { buildFarFur } from './fur.js';
-import { bladePatches, farBankProposal, farBankShoreRow, rainTreesAtStairs, SHORE_ROW } from './plants.js';
+import { bladePatches, farBankProposal, farBankShoreRow, rainTreesAtStairs, bareKapokToRainAndTrumpet, SHORE_ROW } from './plants.js';
 import { BRIDGE, bridgePoint, bridgeClash, underBridge } from './bridgePlace.js';
 import { buildFloraStylised } from '../../vegetation/stylised.js';
 import { buildNearWaterfront } from './waterfront.js';
@@ -99,6 +99,9 @@ export function createRiverside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THE
     const { place } = reports.farbank;
     const forecourt = forecourtFrame().xRange;
     floraEntries.push(...farBankProposal({ place, forecourt, rand: mulberry32(613 + seed), stepPlanting: flora === 'stylised' }));
+    // Each tree keeps the design its place in the list gave it (vegetation/stylised.js: seed 1 +
+    // index mod 5), pinned here so trees moved or left out below do not change the others.
+    floraEntries.forEach((e, i) => { if (e.kind === 'tree' && e.seed == null) e.seed = 1 + (i % 5); });
     // A tree whose crown would reach into the bridge's far landing (the user saw some poking
     // through its ramps) steps away from the nearest deck, BRIDGE_STEPS metres at a time, onto the
     // ground there; one that finds no clear place is left out. SHORE_ROW.crown: the share of the
@@ -119,6 +122,7 @@ export function createRiverside({ gradientMap, seed = 0, fog, haze = OUTSIDE_THE
     const avoid = floraEntries.filter((e) => e.kind === 'tree').map((e) => [e.at[0], e.at[2]]);
     floraEntries.push(...farBankShoreRow({ place, forecourt, avoid, bridgeFoot: bridgePoint(BRIDGE.model.ends[0], S.bridge), underBridge }));
     rainTreesAtStairs(floraEntries, { place, forecourt });
+    bareKapokToRainAndTrumpet(floraEntries, { place, forecourt, free: (e) => !clash(e, e.at[0], e.at[2]) });
   }
   if (want('forecourt')) reports.forecourt = buildForecourt(w); // the Assembly's river front on the embankment (pass e7)
   if (want('waterfront')) reports.waterfront = buildNearWaterfront(w); // our side: the waterfront's street and railing (pass e11)
